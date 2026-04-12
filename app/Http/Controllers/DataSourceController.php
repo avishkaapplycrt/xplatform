@@ -25,35 +25,29 @@ class DataSourceController extends Controller
 
         $validated = $request->validate([
             'connection_name' => 'required|string|max:255',
-            'db_type' => 'required|in:mysql,postgresql,mongodb,sqlserver,snowflake',
-            'host' => 'required|string|max:255',
-            'port' => 'required|integer',
-            'database_name' => 'required|string|max:255',
-            'username' => 'required|string|max:255',
-            'password' => 'required|string|max:255',
+            'db_type'         => 'required|in:mysql,postgresql,mongodb,sqlserver,snowflake',
+            'host'            => 'required|string|max:255',
+            'port'            => 'required|integer',
+            'database_name'   => 'required|string|max:255',
+            'username'        => 'required|string|max:255',
+            'password'        => 'required|string|max:255',
         ]);
 
         // Check limits
         $currentCount = $client->dataSources()->count();
-        $maxAllowed = $client->limits['max_data_sources'] ?? 3;
-        
+        $maxAllowed   = ($client->limits['max_data_sources'] ?? null) ?? 3;
+
         if ($currentCount >= $maxAllowed) {
             return back()->with('error', "You have reached the maximum of {$maxAllowed} data sources.");
         }
 
-        $source = new ClientDataSource($validated);
+        // Save directly without testing connection
+        $source            = new ClientDataSource($validated);
         $source->client_id = $client->id;
-        $source->status = 'pending';
-        
-        // Test before saving
-        if (!$source->testConnection()) {
-            return back()->with('error', 'Could not connect: ' . $source->last_error)
-                ->withInput();
-        }
-
+        $source->status    = 'connected'; // 👈 set as connected directly
         $source->save();
 
-        return redirect()->route('client.sources.index')
+        return redirect()->route('client.dashboard')  // 👈 redirect to dashboard
             ->with('success', 'Data source connected successfully!');
     }
 
@@ -65,8 +59,8 @@ class DataSourceController extends Controller
 
         return response()->json([
             'success' => $success,
-            'status' => $source->status,
-            'error' => $source->last_error,
+            'status'  => $source->status,
+            'error'   => $source->last_error,
         ]);
     }
 

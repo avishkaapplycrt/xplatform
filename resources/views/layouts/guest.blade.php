@@ -18,11 +18,11 @@
     <body class="font-sans text-gray-900 antialiased bg-gray-100 min-h-screen flex flex-col">
 
         {{-- Top Navigation Bar --}}
-        <div class="w-full bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+        <div class="w-full bg-white border-b border-gray-200 px-6 py-3 flex items-center">
 
-            {{-- Back Button --}}
+            {{-- Left: Back --}}
             <a href="{{ $backUrl ?? '/' }}"
-               class="flex flex-col items-center gap-0.5 text-gray-500 hover:text-gray-800 transition">
+               class="flex flex-col items-center gap-0.5 text-gray-500 hover:text-gray-800 transition w-24">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
                      viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
@@ -30,17 +30,19 @@
                 <span class="text-xs">Back</span>
             </a>
 
-            {{-- Previous Button + Step Dots + Step Label --}}
-            <div class="flex items-center gap-6">
+            {{-- Center: Previous + Step Dots --}}
+            <div class="flex-1 flex items-center justify-center gap-6">
 
-                {{-- Previous Button --}}
+                {{-- Previous Button (always visible) --}}
                 @if(isset($previousUrl))
                     <a href="{{ $previousUrl }}"
                        class="text-sm text-gray-500 border border-gray-300 rounded-lg px-4 py-1.5 hover:bg-gray-100 transition">
                         Previous
                     </a>
                 @else
-                    <div class="w-24"></div>
+                    <span class="text-sm text-gray-300 border border-gray-200 rounded-lg px-4 py-1.5 cursor-not-allowed select-none">
+                        Previous
+                    </span>
                 @endif
 
                 {{-- Step Dots + Label --}}
@@ -61,8 +63,9 @@
 
             </div>
 
-            {{-- Spacer --}}
+            {{-- Right: Spacer --}}
             <div class="w-24"></div>
+
         </div>
 
         {{-- Page Content --}}
@@ -73,4 +76,19 @@
         </div>
 
     </body>
+
+    <script>
+    // Prevent double-submit on all forms inside the guest layout
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('form').forEach(function (form) {
+            form.addEventListener('submit', function () {
+                const btn = form.querySelector('button[type="submit"]');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-60', 'cursor-not-allowed');
+                }
+            });
+        });
+    });
+    </script>
 </html>

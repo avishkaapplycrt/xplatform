@@ -71,5 +71,11 @@
             </button>
         </div>
     </form>
+
+    <div class="text-center mt-4">
+        <a href="{{ route('client.dashboard') }}" class="text-sm text-gray-400 hover:text-gray-600 transition">
+            Skip for Now
+        </a>
+    </div>
 </div>
 @endsection

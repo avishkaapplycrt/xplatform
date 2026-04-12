@@ -10,18 +10,19 @@ return new class extends Migration
     {
         Schema::create('analytics_configs', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('client_id')->constrained()->onDelete('cascade');
-            $table->foreignId('data_source_id')->nullable()->constrained('client_data_sources')->nullOnDelete();
+            $table->foreignId('client_id')->constrained('clients')->cascadeOnDelete();
+            $table->unsignedBigInteger('data_source_id')->nullable(); // ← removed foreign key constraint
+            $table->string('config_name')->nullable();
+            $table->string('industry')->nullable();
+            $table->string('status')->default('draft');
             $table->json('widget_layout')->nullable();
             $table->json('kpis')->nullable();
             $table->json('alert_rules')->nullable();
-            $table->enum('realtime_mode', ['websocket', 'polling', 'static'])->default('websocket');
+            $table->boolean('realtime_mode')->default(false);
             $table->integer('refresh_interval')->default(30);
             $table->boolean('ai_insights_enabled')->default(true);
             $table->json('insight_preferences')->nullable();
             $table->timestamps();
-
-            $table->unique(['client_id', 'data_source_id']);
         });
     }
 
