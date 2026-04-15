@@ -185,6 +185,8 @@ class ClientAuthController extends Controller
     {
         if ($guard = $this->requireRegistrationSession()) return $guard;
 
+        $l1Id = AnalysisLayer::where('code', 'L1')->value('id');
+
         $request->validate([
             'layers'   => ['required', 'array', 'min:3'],
             'layers.*' => ['exists:analysis_layers,id'],
@@ -192,6 +194,10 @@ class ClientAuthController extends Controller
             'layers.required' => 'Please select at least 3 layers.',
             'layers.min'      => 'Please select at least 3 layers.',
         ]);
+
+        if ($l1Id && !in_array((string) $l1Id, array_map('strval', $request->layers))) {
+            return back()->withErrors(['layers' => 'L1 (Data Collection) is required.'])->withInput();
+        }
 
         $client = Client::findOrFail(session('registration.client_id'));
         $client->analysisLayers()->sync($request->layers);
