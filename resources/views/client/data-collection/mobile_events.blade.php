@@ -223,6 +223,18 @@
       @endforeach
     </div>
 
+    {{-- Social Signals tab bar --}}
+    <div id="tabs-social" class="border-b border-gray-200 overflow-x-auto" style="display:none;">
+      @foreach([
+        ['call-events',       'Call Events'],
+        ['ivr-path-analysis', 'IVR Path Analysis'],
+        ['speech-sentiment',  'Speech Sentiment'],
+      ] as [$tid,$tlabel])
+      <button class="tab-btn {{ $tid==='call-events' ? 'active' : '' }}"
+              onclick="selectTab('social','{{ $tid }}')">{{ $tlabel }}</button>
+      @endforeach
+    </div>
+
     {{-- Generic source tab bar --}}
     <div id="tabs-generic" class="border-b border-gray-200" style="display:none;">
       <button class="tab-btn active">Overview</button>
@@ -1246,6 +1258,64 @@
     @endforeach
 
     {{-- ═══════════════════════════════════════
+         SOCIAL SIGNALS PANELS
+         ═══════════════════════════════════════ --}}
+
+    {{-- Call Events --}}
+    <div id="panel-social-call-events" class="panel p-6">
+      <div style="text-align:center;padding:32px 0">
+        <div style="width:72px;height:72px;border-radius:50%;background:#ccfbf1;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:6px">Social Signals – Call Events</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:28px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:500px;margin:0 auto">
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+
+    {{-- IVR Path Analysis --}}
+    <div id="panel-social-ivr-path-analysis" class="panel p-6">
+      <div style="text-align:center;padding:32px 0">
+        <div style="width:72px;height:72px;border-radius:50%;background:#ccfbf1;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:6px">Social Signals – IVR Path Analysis</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:28px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:500px;margin:0 auto">
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+
+    {{-- Speech Sentiment --}}
+    <div id="panel-social-speech-sentiment" class="panel p-6">
+      <div style="text-align:center;padding:32px 0">
+        <div style="width:72px;height:72px;border-radius:50%;background:#ccfbf1;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:6px">Social Signals – Speech Sentiment</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:28px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:500px;margin:0 auto">
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+
+    {{-- ═══════════════════════════════════════
          GENERIC SOURCE PANEL
          ═══════════════════════════════════════ --}}
     <div id="panel-generic" class="panel p-5">
@@ -1283,7 +1353,7 @@ const sourceMeta = {
   'chat':         {tabs:'chat', firstTab:'conversation-events'},
   'email':        {tabs:'generic',  firstTab:null, name:'Email Engagement', val:'1,900'},
   'ads':          {tabs:'generic',  firstTab:null, name:'Ad Campaigns', val:'2,100'},
-  'social':       {tabs:'generic',  firstTab:null, name:'Social Signals', val:'500'},
+  'social':       {tabs:'social',   firstTab:'call-events'},
   'surveys':      {tabs:'generic',  firstTab:null, name:'Surveys & Feedback', val:'340'},
   'loyalty':      {tabs:'generic',  firstTab:null, name:'Loyalty / Referral', val:'220'},
   'callcenter':   {tabs:'generic',  firstTab:null, name:'Call Center', val:'430'},
@@ -1302,7 +1372,7 @@ function selectSource(id) {
   currentSrc = id;
 
   // switch tab bars
-  ['website','mobile-app','crm','transactions','chat','generic'].forEach(t => {
+  ['website','mobile-app','crm','transactions','chat','social','generic'].forEach(t => {
     document.getElementById('tabs-' + t).style.display = 'none';
   });
   document.getElementById('tabs-' + meta.tabs).style.display = 'flex';
