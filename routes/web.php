@@ -15,6 +15,7 @@ use App\Http\Controllers\AdminSettingsController;
 // ─── Public ───────────────────────────────────────────────────────────────────
 Route::get('/', fn() => view('welcome'))->name('home');
 
+
 // ─── Master Admin ─────────────────────────────────────────────────────────────
 Route::prefix('admin')->name('admin.')->group(function () {
 

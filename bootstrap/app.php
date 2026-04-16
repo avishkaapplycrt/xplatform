@@ -14,6 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'client.active' => \App\Http\Middleware\EnsureClientIsActive::class,
         ]);
+
+        $middleware->redirectGuestsTo(function ($request) {
+            if ($request->is('admin/*')) {
+                return route('admin.login');
+            }
+            return route('client.login');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

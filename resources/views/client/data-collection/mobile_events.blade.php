@@ -235,6 +235,54 @@
       @endforeach
     </div>
 
+    {{-- Email Engagement tab bar --}}
+    <div id="tabs-email" class="border-b border-gray-200 overflow-x-auto" style="display:none;">
+      @foreach([
+        ['delivery-opens', 'Delivery & Opens'],
+        ['link-clicks',    'Link Clicks'],
+        ['unsubscribe',    'Unsubscribe'],
+      ] as [$tid,$tlabel])
+      <button class="tab-btn {{ $tid==='delivery-opens' ? 'active' : '' }}"
+              onclick="selectTab('email','{{ $tid }}')">{{ $tlabel }}</button>
+      @endforeach
+    </div>
+
+    {{-- Ad Campaigns tab bar --}}
+    <div id="tabs-ads" class="border-b border-gray-200 overflow-x-auto" style="display:none;">
+      @foreach([
+        ['impression',  'Impression'],
+        ['clicks-ctr',  'Clicks & CTR'],
+        ['conversions', 'Conversions'],
+      ] as [$tid,$tlabel])
+      <button class="tab-btn {{ $tid==='impression' ? 'active' : '' }}"
+              onclick="selectTab('ads','{{ $tid }}')">{{ $tlabel }}</button>
+      @endforeach
+    </div>
+
+    {{-- Surveys & Feedback tab bar --}}
+    <div id="tabs-surveys" class="border-b border-gray-200 overflow-x-auto" style="display:none;">
+      @foreach([
+        ['nps-score',       'NPS Score'],
+        ['csat',            'CSAT'],
+        ['open-text',       'Open Text Sentiment'],
+      ] as [$tid,$tlabel])
+      <button class="tab-btn {{ $tid==='nps-score' ? 'active' : '' }}"
+              onclick="selectTab('surveys','{{ $tid }}')">{{ $tlabel }}</button>
+      @endforeach
+    </div>
+
+    {{-- Loyalty / Referral tab bar --}}
+    <div id="tabs-loyalty" class="border-b border-gray-200 overflow-x-auto" style="display:none;">
+      @foreach([
+        ['points-activity',   'Points Activity'],
+        ['tier-movements',    'Tier Movements'],
+        ['referral-tracking', 'Referral Tracking'],
+      ] as [$tid,$tlabel])
+      <button class="tab-btn {{ $tid==='points-activity' ? 'active' : '' }}"
+              onclick="selectTab('loyalty','{{ $tid }}')">{{ $tlabel }}</button>
+      @endforeach
+    </div>
+
     {{-- Generic source tab bar --}}
     <div id="tabs-generic" class="border-b border-gray-200" style="display:none;">
       <button class="tab-btn active">Overview</button>
@@ -1316,6 +1364,418 @@
     </div>
 
     {{-- ═══════════════════════════════════════
+         EMAIL ENGAGEMENT PANELS
+         ═══════════════════════════════════════ --}}
+
+    {{-- Delivery & Opens --}}
+    <div id="panel-email-delivery-opens" class="panel p-4">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;height:100%">
+
+        {{-- LEFT: Email Delivery & Open Funnel --}}
+        <div class="panel-card">
+          <div class="section-header" style="margin-bottom:18px">
+            <div class="section-dot" style="background:#3b82f6"></div>
+            <span class="section-title" style="color:#3b82f6">Email Delivery &amp; Open Funnel</span>
+            <div class="section-line" style="background:#bfdbfe"></div>
+          </div>
+          @foreach([
+            ['Sent',        18, '#5eead4'],
+            ['Delivered',   24, '#60a5fa'],
+            ['Open',        31, '#a78bfa'],
+            ['Unique Open', 27, '#f59e0b'],
+            ['Clicked',     27, '#ec4899'],
+            ['Converted',   27, '#6366f1'],
+          ] as [$label,$pct,$color])
+          <div style="margin-bottom:16px">
+            <div style="display:flex;align-items:center;margin-bottom:5px">
+              <span style="font-size:12px;color:#374151;flex:1">{{ $label }}</span>
+              <span style="font-size:11px;color:#9ca3af;margin-right:10px">8.7K</span>
+              <span style="font-size:12px;font-weight:700;color:{{ $color }};min-width:32px;text-align:right">{{ $pct }}%</span>
+            </div>
+            <div class="bar-wrap" style="height:4px">
+              <div class="bar-fill" style="width:{{ $pct * 3 }}%;background:{{ $color }};height:4px"></div>
+            </div>
+          </div>
+          @endforeach
+        </div>
+
+        {{-- RIGHT: Stats Grid + Time to Open --}}
+        <div style="display:flex;flex-direction:column;gap:14px">
+
+          {{-- 2×2 Stats Cards --}}
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            @foreach([
+              ['$2.8M','Mobile',  '#f59e0b'],
+              ['$2.8M','Desktop', '#10b981'],
+              ['$2.8M','Other',   '#8b5cf6'],
+              ['$2.8M','Tablet',  '#8b5cf6'],
+            ] as [$val,$lbl,$color])
+            <div class="mini" style="padding:16px 12px">
+              <p style="font-size:20px;font-weight:800;color:{{ $color }};letter-spacing:-0.5px">{{ $val }}</p>
+              <p style="font-size:11px;color:#9ca3af;margin-top:5px">{{ $lbl }}</p>
+            </div>
+            @endforeach
+          </div>
+
+          {{-- Time to Open Distributions --}}
+          <div class="panel-card" style="flex:1">
+            <div class="section-header" style="margin-bottom:18px">
+              <div class="section-dot" style="background:#3b82f6"></div>
+              <span class="section-title" style="color:#3b82f6">Time to Open Distributions</span>
+              <div class="section-line" style="background:#bfdbfe"></div>
+            </div>
+            @foreach([
+              ['< 1 hour',    18, '#5eead4'],
+              ['1 – 4 hour',  24, '#60a5fa'],
+              ['4 – 24 hours',31, '#a78bfa'],
+              ['> 24 hours',  27, '#f59e0b'],
+            ] as [$label,$pct,$color])
+            <div style="margin-bottom:20px">
+              <div style="display:flex;align-items:center;margin-bottom:5px">
+                <span style="font-size:12px;color:#374151;flex:1">{{ $label }}</span>
+                <span style="font-size:11px;color:#9ca3af;margin-right:10px">8.7K</span>
+                <span style="font-size:12px;font-weight:700;color:{{ $color }};min-width:32px;text-align:right">{{ $pct }}%</span>
+              </div>
+              <div class="bar-wrap" style="height:4px">
+                <div class="bar-fill" style="width:{{ $pct * 3 }}%;background:{{ $color }};height:4px"></div>
+              </div>
+            </div>
+            @endforeach
+          </div>
+
+        </div>{{-- /right col --}}
+      </div>
+    </div>
+
+    {{-- Link Clicks --}}
+    <div id="panel-email-link-clicks" class="panel p-6">
+      <div style="text-align:center;padding:32px 0">
+        <div style="width:72px;height:72px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+        </div>
+        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:6px">Email – Link Clicks</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:28px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:500px;margin:0 auto">
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+
+    {{-- Unsubscribe --}}
+    <div id="panel-email-unsubscribe" class="panel p-6">
+      <div style="text-align:center;padding:32px 0">
+        <div style="width:72px;height:72px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+        </div>
+        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:6px">Email – Unsubscribe</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:28px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:500px;margin:0 auto">
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+
+    {{-- ═══════════════════════════════════════
+         AD CAMPAIGNS PANELS
+         ═══════════════════════════════════════ --}}
+
+    {{-- Impression --}}
+    <div id="panel-ads-impression" class="panel p-4">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+        {{-- Left: Impression & Viewability Metrics --}}
+        <div class="panel-card">
+          <div class="section-header" style="margin-bottom:16px">
+            <div class="section-dot" style="background:#3b82f6"></div>
+            <span class="section-title" style="color:#3b82f6">Impression &amp; Viewability Metrics</span>
+            <div class="section-line" style="background:#bfdbfe"></div>
+          </div>
+          @foreach([
+            ['Total Impressions',    '4.2M'],
+            ['Viewable Impressions', '68M'],
+            ['Viewability rate',     '14%'],
+            ['Avg Frequency User',   '32x'],
+          ] as [$label,$val])
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border-radius:8px;padding:12px 16px;margin-bottom:8px">
+            <span style="font-size:13px;color:#374151">{{ $label }}</span>
+            <span style="font-size:14px;font-weight:700;color:#f59e0b">{{ $val }}</span>
+          </div>
+          @endforeach
+        </div>
+
+        {{-- Right: Ad Format CTR / CVR --}}
+        <div class="panel-card">
+          <div class="section-header" style="margin-bottom:16px">
+            <div class="section-dot" style="background:#3b82f6"></div>
+            <span class="section-title" style="color:#3b82f6">Impression &amp; Viewability Metrics</span>
+            <div class="section-line" style="background:#bfdbfe"></div>
+          </div>
+          @foreach([
+            'Video (pre-roll)',
+            'Carousel',
+            'Static Banner',
+            'Native',
+            'Responsive Search',
+          ] as $format)
+          <div style="display:flex;align-items:center;padding:13px 0;border-bottom:1px solid #f3f4f6">
+            <span style="font-size:13px;color:#374151;flex:1">{{ $format }}</span>
+            <span style="font-size:13px;font-weight:700;color:#10b981;width:100px;text-align:center">CTR 2.8%</span>
+            <span style="font-size:13px;font-weight:600;color:#f59e0b;width:80px;text-align:right">CVR 1.2%</span>
+          </div>
+          @endforeach
+        </div>
+
+      </div>
+    </div>
+
+    {{-- Clicks & CTR --}}
+    <div id="panel-ads-clicks-ctr" class="panel p-6">
+      <div style="text-align:center;padding:32px 0">
+        <div style="width:72px;height:72px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:6px">Ad Campaigns – Clicks &amp; CTR</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:28px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:500px;margin:0 auto">
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+
+    {{-- Conversions --}}
+    <div id="panel-ads-conversions" class="panel p-6">
+      <div style="text-align:center;padding:32px 0">
+        <div style="width:72px;height:72px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:6px">Ad Campaigns – Conversions</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:28px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:500px;margin:0 auto">
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:18px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+
+    {{-- ═══════════════════════════════════════
+         SURVEYS & FEEDBACK PANELS
+         ═══════════════════════════════════════ --}}
+
+    {{-- NPS Score --}}
+    <div id="panel-surveys-nps-score" class="panel p-4">
+      <div class="grid grid-cols-2 gap-4">
+
+        {{-- Left: NPS Score Distribution --}}
+        <div class="panel-card">
+          <div class="section-header">
+            <div class="section-dot" style="background:#14b8a6"></div>
+            <span class="section-title teal-section-title">NPS Score Distribution</span>
+            <div class="section-line teal-section-line"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
+            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px 10px;text-align:center">
+              <p style="font-size:26px;font-weight:800;color:#14b8a6;line-height:1">18%</p>
+              <p style="font-size:11px;font-weight:600;color:#374151;margin-top:6px">Detractors</p>
+              <p style="font-size:9px;color:#9ca3af;margin-top:3px;text-transform:uppercase;letter-spacing:.05em">Score 0–6</p>
+            </div>
+            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px 10px;text-align:center">
+              <p style="font-size:26px;font-weight:800;color:#3b82f6;line-height:1">$2.8M</p>
+              <p style="font-size:11px;font-weight:600;color:#374151;margin-top:6px">Passives</p>
+              <p style="font-size:9px;color:#9ca3af;margin-top:3px;text-transform:uppercase;letter-spacing:.05em">Score 7–8</p>
+            </div>
+            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px 10px;text-align:center">
+              <p style="font-size:26px;font-weight:800;color:#10b981;line-height:1">$2.8M</p>
+              <p style="font-size:11px;font-weight:600;color:#374151;margin-top:6px">Promoters</p>
+              <p style="font-size:9px;color:#9ca3af;margin-top:3px;text-transform:uppercase;letter-spacing:.05em">Score 9–12</p>
+            </div>
+          </div>
+          <div style="text-align:center;padding:18px 0 6px">
+            <p style="font-size:32px;font-weight:800;color:#f59e0b;line-height:1">$2.8M</p>
+            <p style="font-size:12px;font-weight:500;color:#374151;margin-top:6px">Net promoter score</p>
+            <p style="font-size:11px;color:#10b981;margin-top:5px">▲ +14% vs last quarter</p>
+          </div>
+        </div>
+
+        {{-- Right: NPS Score Distribution by survey type --}}
+        <div class="panel-card">
+          <div class="section-header">
+            <div class="section-dot" style="background:#14b8a6"></div>
+            <span class="section-title teal-section-title">NPS Score Distribution</span>
+            <div class="section-line teal-section-line"></div>
+          </div>
+          @foreach([
+            ['Post Purchase',    '6,230','8,420', 74, '#14b8a6', '18%'],
+            ['On-boarding exit', '2,100','3,840', 55, '#f59e0b', '24%'],
+            ['Annual NPS',       '2,100','7,840', 27, '#3b82f6', '31%'],
+            ['Feature Feedback', '2,100','3,840', 55, '#8b5cf6', '27%'],
+          ] as [$label,$curr,$total,$bar,$color,$pct])
+          <div style="margin-bottom:18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-size:12px;color:#374151;font-weight:500">{{ $label }}</span>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:11px;color:#9ca3af">{{ $curr }}/{{ $total }}</span>
+                <span style="font-size:11px;font-weight:700;color:{{ $color }}">{{ $pct }}</span>
+              </div>
+            </div>
+            <div class="bar-wrap"><div class="bar-fill" style="width:{{ $bar }}%;background:{{ $color }}"></div></div>
+          </div>
+          @endforeach
+        </div>
+
+      </div>
+    </div>
+
+    {{-- CSAT --}}
+    <div id="panel-surveys-csat" class="panel p-5">
+      <div class="globe-panel" style="max-width:560px;margin:0 auto;padding:48px 40px">
+        <div style="width:72px;height:72px;border-radius:16px;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="36" height="36" fill="none" stroke="#3b82f6" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">Surveys – CSAT</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+
+    {{-- Open Text Sentiment --}}
+    <div id="panel-surveys-open-text" class="panel p-5">
+      <div class="globe-panel" style="max-width:560px;margin:0 auto;padding:48px 40px">
+        <div style="width:72px;height:72px;border-radius:16px;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="36" height="36" fill="none" stroke="#3b82f6" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">Surveys – Open Text Sentiment</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+
+    {{-- ═══════════════════════════════════════
+         LOYALTY / REFERRAL PANELS
+         ═══════════════════════════════════════ --}}
+
+    {{-- Points Activity --}}
+    <div id="panel-loyalty-points-activity" class="panel p-4">
+      <div class="grid grid-cols-2 gap-4">
+
+        {{-- Left: Points Earned by Action Type --}}
+        <div class="panel-card">
+          <div class="section-header">
+            <div class="section-dot" style="background:#14b8a6"></div>
+            <span class="section-title teal-section-title">Points Earned By Action Type</span>
+            <div class="section-line teal-section-line"></div>
+          </div>
+          @foreach([
+            ['Purchase',         280000, 280000, '#14b8a6'],
+            ['Referral',          34000,  24000, '#3b82f6'],
+            ['Review',           310000, 310000, '#f59e0b'],
+            ['Social Share',      17000,  27000, '#f97316'],
+            ['Profile Complete',  27000,  27000, '#ef4444'],
+          ] as [$label,$pts,$target,$color])
+          <div style="margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-size:12px;color:#374151;font-weight:500">{{ $label }}</span>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:11px;color:#9ca3af">{{ number_format($pts) }} pts</span>
+                <span style="font-size:11px;font-weight:700;color:{{ $color }}">{{ number_format($target) }}</span>
+              </div>
+            </div>
+            <div class="bar-wrap"><div class="bar-fill" style="width:{{ min(100, round($pts/$target*100)) }}%;background:{{ $color }}"></div></div>
+          </div>
+          @endforeach
+        </div>
+
+        {{-- Right: Tier Movement Events --}}
+        <div class="panel-card">
+          <div class="section-header">
+            <div class="section-dot" style="background:#14b8a6"></div>
+            <span class="section-title teal-section-title">Tier Movements Events</span>
+            <div class="section-line teal-section-line"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            @foreach([
+              ['1,240', '#14b8a6', 'Upgraded',   'Bronze → Silver'],
+              ['423',   '#3b82f6', 'Passives',   'Score 7–8'],
+              ['211',   '#14b8a6', 'Detractors', 'Score 0–6'],
+              ['542',   '#3b82f6', 'Passives',   'Score 7–8'],
+            ] as [$val,$color,$label,$sub])
+            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px 12px;text-align:center">
+              <p style="font-size:28px;font-weight:800;color:{{ $color }};line-height:1">{{ $val }}</p>
+              <p style="font-size:11px;font-weight:600;color:#374151;margin-top:6px">{{ $label }}</p>
+              <p style="font-size:9px;color:#9ca3af;margin-top:3px;text-transform:uppercase;letter-spacing:.05em">{{ $sub }}</p>
+            </div>
+            @endforeach
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    {{-- Tier Movements --}}
+    <div id="panel-loyalty-tier-movements" class="panel p-5">
+      <div class="globe-panel" style="max-width:560px;margin:0 auto;padding:48px 40px">
+        <div style="width:72px;height:72px;border-radius:16px;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="36" height="36" fill="none" stroke="#3b82f6" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">Loyalty – Tier Movements</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+
+    {{-- Referral Tracking --}}
+    <div id="panel-loyalty-referral-tracking" class="panel p-5">
+      <div class="globe-panel" style="max-width:560px;margin:0 auto;padding:48px 40px">
+        <div style="width:72px;height:72px;border-radius:16px;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="36" height="36" fill="none" stroke="#3b82f6" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">Loyalty – Referral Tracking</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+
+    {{-- ═══════════════════════════════════════
          GENERIC SOURCE PANEL
          ═══════════════════════════════════════ --}}
     <div id="panel-generic" class="panel p-5">
@@ -1351,11 +1811,11 @@ const sourceMeta = {
   'crm':          {tabs:'crm',      firstTab:'stage-transitions'},
   'transactions': {tabs:'transactions', firstTab:'cart-analytics'},
   'chat':         {tabs:'chat', firstTab:'conversation-events'},
-  'email':        {tabs:'generic',  firstTab:null, name:'Email Engagement', val:'1,900'},
-  'ads':          {tabs:'generic',  firstTab:null, name:'Ad Campaigns', val:'2,100'},
+  'email':        {tabs:'email',    firstTab:'delivery-opens'},
+  'ads':          {tabs:'ads',      firstTab:'impression'},
   'social':       {tabs:'social',   firstTab:'call-events'},
-  'surveys':      {tabs:'generic',  firstTab:null, name:'Surveys & Feedback', val:'340'},
-  'loyalty':      {tabs:'generic',  firstTab:null, name:'Loyalty / Referral', val:'220'},
+  'surveys':      {tabs:'surveys',  firstTab:'nps-score'},
+  'loyalty':      {tabs:'loyalty',  firstTab:'points-activity'},
   'callcenter':   {tabs:'generic',  firstTab:null, name:'Call Center', val:'430'},
   'pos':          {tabs:'generic',  firstTab:null, name:'POS / Offline', val:'310'},
 };
@@ -1372,7 +1832,7 @@ function selectSource(id) {
   currentSrc = id;
 
   // switch tab bars
-  ['website','mobile-app','crm','transactions','chat','social','generic'].forEach(t => {
+  ['website','mobile-app','crm','transactions','chat','social','email','ads','surveys','loyalty','generic'].forEach(t => {
     document.getElementById('tabs-' + t).style.display = 'none';
   });
   document.getElementById('tabs-' + meta.tabs).style.display = 'flex';
