@@ -18,7 +18,7 @@
   .section-line { flex:1; height:1px; background:#bfdbfe; }
   .section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#3b82f6; white-space:nowrap; }
   .panel-card { border:1px solid #edf0f2; border-radius:12px; background:#fff; padding:16px; }
-  .globe-panel { border:1px solid #edf0f2; border-radius:12px; background:#fff; padding:40px 20px; text-align:center; }
+  .globe-panel { padding:40px 20px; text-align:center; }
   .teal-section-dot { background:#10b981; }
   .teal-section-line { background:#a7f3d0; }
   .teal-section-title { color:#10b981; }
@@ -128,8 +128,8 @@
     ['id'=>'social',       'name'=>'Social Signals',     'value'=>'500',   'unit'=>'mentions'],
     ['id'=>'surveys',      'name'=>'Surveys & Feedback', 'value'=>'340',   'unit'=>'responses'],
     ['id'=>'loyalty',      'name'=>'Loyalty / Referral', 'value'=>'220',   'unit'=>'referrals'],
-    ['id'=>'callcenter',   'name'=>'Call Center',        'value'=>'430',   'unit'=>'calls'],
-    ['id'=>'pos',          'name'=>'POS / Offline',      'value'=>'310',   'unit'=>'purchases'],
+    ['id'=>'callcenter',   'name'=>'Call Center',        'value'=>'840',   'unit'=>'calls'],
+    ['id'=>'pos',          'name'=>'POS / Offline',      'value'=>'840',   'unit'=>'purchase'],
   ];
   @endphp
   <div class="grid grid-cols-4 gap-3">
@@ -226,12 +226,24 @@
     {{-- Social Signals tab bar --}}
     <div id="tabs-social" class="border-b border-gray-200 overflow-x-auto" style="display:none;">
       @foreach([
+        ['brand-mentions',   'Brand Mentions'],
+        ['hashtag-tracking', 'Hashtag Tracking'],
+        ['sentiment',        'Sentiment Analysis'],
+      ] as [$tid,$tlabel])
+      <button class="tab-btn {{ $tid==='brand-mentions' ? 'active' : '' }}"
+              onclick="selectTab('social','{{ $tid }}')">{{ $tlabel }}</button>
+      @endforeach
+    </div>
+
+    {{-- Call Center tab bar --}}
+    <div id="tabs-callcenter" class="border-b border-gray-200 overflow-x-auto" style="display:none;">
+      @foreach([
         ['call-events',       'Call Events'],
         ['ivr-path-analysis', 'IVR Path Analysis'],
         ['speech-sentiment',  'Speech Sentiment'],
       ] as [$tid,$tlabel])
       <button class="tab-btn {{ $tid==='call-events' ? 'active' : '' }}"
-              onclick="selectTab('social','{{ $tid }}')">{{ $tlabel }}</button>
+              onclick="selectTab('callcenter','{{ $tid }}')">{{ $tlabel }}</button>
       @endforeach
     </div>
 
@@ -280,6 +292,18 @@
       ] as [$tid,$tlabel])
       <button class="tab-btn {{ $tid==='points-activity' ? 'active' : '' }}"
               onclick="selectTab('loyalty','{{ $tid }}')">{{ $tlabel }}</button>
+      @endforeach
+    </div>
+
+    {{-- POS / Offline tab bar --}}
+    <div id="tabs-pos" class="border-b border-gray-200 overflow-x-auto" style="display:none;">
+      @foreach([
+        ['store-visits',    'Store Visits'],
+        ['basket-analysis', 'Basket Analysis'],
+        ['pos-events',      'POS Events'],
+      ] as [$tid,$tlabel])
+      <button class="tab-btn {{ $tid==='store-visits' ? 'active' : '' }}"
+              onclick="selectTab('pos','{{ $tid }}')">{{ $tlabel }}</button>
       @endforeach
     </div>
 
@@ -1776,6 +1800,88 @@
     </div>
 
     {{-- ═══════════════════════════════════════
+         SOCIAL SIGNALS PANELS
+         ═══════════════════════════════════════ --}}
+
+    @foreach([
+      ['brand-mentions',   'Social Signals – Brand Mentions'],
+      ['hashtag-tracking', 'Social Signals – Hashtag Tracking'],
+      ['sentiment',        'Social Signals – Sentiment Analysis'],
+    ] as [$tid, $title])
+    <div id="panel-social-{{ $tid }}" class="panel p-5">
+      <div class="globe-panel" style="max-width:560px;margin:0 auto;padding:48px 40px">
+        <div style="width:72px;height:72px;border-radius:16px;background:#fce7f3;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="36" height="36" fill="none" stroke="#ec4899" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">{{ $title }}</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+    @endforeach
+
+    {{-- ═══════════════════════════════════════
+         CALL CENTER PANELS
+         ═══════════════════════════════════════ --}}
+
+    @foreach([
+      ['call-events',       'Call Center – Call Events'],
+      ['ivr-path-analysis', 'Call Center – IVR Path Analysis'],
+      ['speech-sentiment',  'Call Center – Speech Sentiment'],
+    ] as [$tid, $title])
+    <div id="panel-callcenter-{{ $tid }}" class="panel p-5">
+      <div class="globe-panel" style="max-width:560px;margin:0 auto;padding:48px 40px">
+        <div style="width:72px;height:72px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="38" height="38" fill="none" stroke="#3b82f6" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">{{ $title }}</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+    @endforeach
+
+    {{-- ═══════════════════════════════════════
+         POS / OFFLINE PANELS
+         ═══════════════════════════════════════ --}}
+
+    @foreach([
+      ['store-visits',    'Offline POS – Store Visits'],
+      ['basket-analysis', 'Offline POS – Basket Analysis'],
+      ['pos-events',      'Offline POS – POS Events'],
+    ] as [$tid, $title])
+    <div id="panel-pos-{{ $tid }}" class="panel p-5">
+      <div class="globe-panel" style="max-width:560px;margin:0 auto;padding:48px 40px">
+        <div style="width:72px;height:72px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2v-1"/>
+            <path d="M15 3H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l4-4h4a2 2 0 002-2V5a2 2 0 00-2-2z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">{{ $title }}</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics pannel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
+    @endforeach
+
+    {{-- ═══════════════════════════════════════
          GENERIC SOURCE PANEL
          ═══════════════════════════════════════ --}}
     <div id="panel-generic" class="panel p-5">
@@ -1813,11 +1919,11 @@ const sourceMeta = {
   'chat':         {tabs:'chat', firstTab:'conversation-events'},
   'email':        {tabs:'email',    firstTab:'delivery-opens'},
   'ads':          {tabs:'ads',      firstTab:'impression'},
-  'social':       {tabs:'social',   firstTab:'call-events'},
+  'social':       {tabs:'social',   firstTab:'brand-mentions'},
   'surveys':      {tabs:'surveys',  firstTab:'nps-score'},
   'loyalty':      {tabs:'loyalty',  firstTab:'points-activity'},
-  'callcenter':   {tabs:'generic',  firstTab:null, name:'Call Center', val:'430'},
-  'pos':          {tabs:'generic',  firstTab:null, name:'POS / Offline', val:'310'},
+  'callcenter':   {tabs:'callcenter', firstTab:'call-events'},
+  'pos':          {tabs:'pos', firstTab:'store-visits'},
 };
 
 let currentSrc = 'website';
@@ -1832,7 +1938,7 @@ function selectSource(id) {
   currentSrc = id;
 
   // switch tab bars
-  ['website','mobile-app','crm','transactions','chat','social','email','ads','surveys','loyalty','generic'].forEach(t => {
+  ['website','mobile-app','crm','transactions','chat','social','email','ads','surveys','loyalty','callcenter','pos','generic'].forEach(t => {
     document.getElementById('tabs-' + t).style.display = 'none';
   });
   document.getElementById('tabs-' + meta.tabs).style.display = 'flex';

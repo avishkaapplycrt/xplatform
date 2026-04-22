@@ -87,6 +87,9 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
 
     // Layer pages
     Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events'))->name('layer.l1');
+    Route::get('layers/l2',      fn() => view('client.layers.l2'))->name('layer.l2');
+    Route::get('layers/l3',      fn() => view('client.layers.l3'))->name('layer.l3');
+    Route::get('layers/l4',      fn() => view('client.layers.l4'))->name('layer.l4');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events'))->name('data-collection');
 
