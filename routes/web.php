@@ -91,6 +91,9 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('layers/l3',      fn() => view('client.layers.l3'))->name('layer.l3');
     Route::get('layers/l4',      fn() => view('client.layers.l4'))->name('layer.l4');
     Route::get('layers/l5',      fn() => view('client.layers.l5'))->name('layer.l5');
+    Route::get('layers/l6',      fn() => view('client.layers.l6'))->name('layer.l6');
+    Route::get('layers/l7',      fn() => view('client.layers.l7'))->name('layer.l7');
+    Route::get('layers/l8',      fn() => view('client.layers.l8'))->name('layer.l8');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events'))->name('data-collection');
 
