@@ -23,8 +23,8 @@ class EnsureClientIsActive
         }
 
         if ($client->status === 'pending') {
-            return redirect()->route('client.dashboard')
-                ->with('warning', 'Your account is pending approval. Some features are limited.');
+            session()->flash('warning', 'Your account is pending approval. Some features are limited.');
+            return $next($request);
         }
 
         if (!$client->is_active) {

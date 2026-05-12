@@ -6,14 +6,24 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\AnalysisLayer;
+use App\Models\DataSource;
+use App\Models\Industry;
+use App\Models\Prediction;
+use App\Models\ClientPlatformMetric;
+use App\Models\ClientLayerStat;
 
 class Client extends Authenticatable
 {
     use Notifiable;
 
     protected $fillable = [
+        'name',
         'company_name',
         'email',
+        'size',
+        'country',
+        'industry_id', // ← fixed from 'industry'
         'password',
         'phone',
         'address',
@@ -22,12 +32,14 @@ class Client extends Authenticatable
         'currency',
         'settings',
         'avatar',
+        'logo',
         'plan',
         'trial_ends_at',
         'subscription_ends_at',
         'limits',
         'last_login_at',
         'last_login_ip',
+        'website',
     ];
 
     protected $hidden = [
@@ -36,13 +48,13 @@ class Client extends Authenticatable
     ];
 
     protected $casts = [
-        'email_verified_at' => 'datetime',
-        'settings' => 'json',
-        'limits' => 'json',
-        'trial_ends_at' => 'datetime',
+        'email_verified_at'    => 'datetime',
+        'settings'             => 'json',
+        'limits'               => 'json',
+        'trial_ends_at'        => 'datetime',
         'subscription_ends_at' => 'datetime',
-        'last_login_at' => 'datetime',
-        'password' => 'hashed',
+        'last_login_at'        => 'datetime',
+        'password'             => 'hashed',
     ];
 
     public function scopeActive($query)
@@ -104,5 +116,47 @@ class Client extends Authenticatable
     public function getDisplayNameAttribute(): string
     {
         return $this->company_name ?? $this->email;
+    }
+
+    public function industry()
+    {
+        return $this->belongsTo(Industry::class);
+    }
+
+    public function analysisLayers()
+    {
+        return $this->belongsToMany(AnalysisLayer::class, 'client_analysis_layers')->withTimestamps();
+    }
+
+    public function selectedSources()
+    {
+        return $this->belongsToMany(DataSource::class, 'client_selected_sources')->withTimestamps();
+    }
+
+    public function predictions()
+    {
+        return $this->belongsToMany(Prediction::class, 'client_predictions')
+            ->withPivot('industry_id')
+            ->withTimestamps();
+    }
+
+    public function actions()
+    {
+        return $this->belongsToMany(Action::class, 'client_actions')->withTimestamps();
+    }
+
+    public function platformMetrics(): HasMany
+    {
+        return $this->hasMany(ClientPlatformMetric::class);
+    }
+
+    public function latestPlatformMetric(): HasOne
+    {
+        return $this->hasOne(ClientPlatformMetric::class)->latestOfMany('recorded_date');
+    }
+
+    public function layerStats(): HasMany
+    {
+        return $this->hasMany(ClientLayerStat::class);
     }
 }

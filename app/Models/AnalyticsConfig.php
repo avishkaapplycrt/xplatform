@@ -4,12 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class AnalyticsConfig extends Model
 {
     protected $fillable = [
         'client_id',
         'data_source_id',
+        'config_name',
+        'industry',
+        'status',
         'widget_layout',
         'kpis',
         'alert_rules',
@@ -20,14 +24,22 @@ class AnalyticsConfig extends Model
     ];
 
     protected $casts = [
-        'widget_layout' => 'json',
-        'kpis' => 'json',
-        'alert_rules' => 'json',
+        'widget_layout'       => 'json',
+        'kpis'                => 'json',
+        'alert_rules'         => 'json',
         'insight_preferences' => 'json',
     ];
 
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function microSignals(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            MicroSignal::class,
+            'analytics_config_micro_signal'
+        )->withTimestamps();
     }
 }

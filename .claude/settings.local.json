@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan:*)",
+      "Bash(php --version)",
+      "Bash(pip install *)",
+      "Bash(python generate_docs.py)"
+    ]
+  }
+}
