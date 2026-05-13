@@ -1392,121 +1392,321 @@
          ═══════════════════════════════════════ --}}
 
     {{-- Delivery & Opens --}}
-    <div id="panel-email-delivery-opens" class="panel p-4">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;height:100%">
+    <div id="panel-email-delivery-opens" class="panel p-4" style="position:relative;">
 
-        {{-- LEFT: Email Delivery & Open Funnel --}}
+      {{-- MAIN VIEW --}}
+      <div id="do-main-view" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;height:100%">
+
+        {{-- LEFT: Funnel Bars --}}
         <div class="panel-card">
           <div class="section-header" style="margin-bottom:18px">
             <div class="section-dot" style="background:#3b82f6"></div>
             <span class="section-title" style="color:#3b82f6">Email Delivery &amp; Open Funnel</span>
             <div class="section-line" style="background:#bfdbfe"></div>
           </div>
-          @foreach([
-            ['Sent',        18, '#5eead4'],
-            ['Delivered',   24, '#60a5fa'],
-            ['Open',        31, '#a78bfa'],
-            ['Unique Open', 27, '#f59e0b'],
-            ['Clicked',     27, '#ec4899'],
-            ['Converted',   27, '#6366f1'],
-          ] as [$label,$pct,$color])
-          <div style="margin-bottom:16px">
+          @foreach($emailFunnel as $item)
+          @php $key = strtolower($item['label']); @endphp
+          <div id="funnel-row-{{ $key }}"
+               onclick="showFunnelEmails('{{ $key }}')"
+               style="margin-bottom:16px;cursor:pointer;border-radius:6px;padding:5px 7px;transition:background .15s;"
+               onmouseenter="this.style.background='#f9fafb'"
+               onmouseleave="this.style.background='transparent'">
             <div style="display:flex;align-items:center;margin-bottom:5px">
-              <span style="font-size:12px;color:#374151;flex:1">{{ $label }}</span>
-              <span style="font-size:11px;color:#9ca3af;margin-right:10px">8.7K</span>
-              <span style="font-size:12px;font-weight:700;color:{{ $color }};min-width:32px;text-align:right">{{ $pct }}%</span>
+              <span style="font-size:12px;color:#374151;flex:1">{{ $item['label'] }}</span>
+              <span style="font-size:10px;color:#9ca3af;margin-right:6px;display:flex;align-items:center;gap:2px;">
+                View IDs
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </span>
+              <span style="font-size:11px;color:#9ca3af;margin-right:10px">{{ $item['count'] }}</span>
+              <span style="font-size:12px;font-weight:700;color:{{ $item['color'] }};min-width:32px;text-align:right">{{ $item['pct'] }}%</span>
             </div>
             <div class="bar-wrap" style="height:4px">
-              <div class="bar-fill" style="width:{{ $pct * 3 }}%;background:{{ $color }};height:4px"></div>
+              <div class="bar-fill" style="width:{{ max(3,$item['pct']) }}%;background:{{ $item['color'] }};height:4px"></div>
             </div>
           </div>
           @endforeach
         </div>
 
-        {{-- RIGHT: Stats Grid + Time to Open --}}
+        {{-- RIGHT: Device Stats + Time to Open --}}
         <div style="display:flex;flex-direction:column;gap:14px">
-
-          {{-- 2×2 Stats Cards --}}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            @foreach([
-              ['$2.8M','Mobile',  '#f59e0b'],
-              ['$2.8M','Desktop', '#10b981'],
-              ['$2.8M','Other',   '#8b5cf6'],
-              ['$2.8M','Tablet',  '#8b5cf6'],
-            ] as [$val,$lbl,$color])
+            @foreach($emailDevices as $item)
             <div class="mini" style="padding:16px 12px">
-              <p style="font-size:20px;font-weight:800;color:{{ $color }};letter-spacing:-0.5px">{{ $val }}</p>
-              <p style="font-size:11px;color:#9ca3af;margin-top:5px">{{ $lbl }}</p>
+              <p style="font-size:20px;font-weight:800;color:{{ $item['color'] }};letter-spacing:-0.5px">{{ $item['count'] }}</p>
+              <p style="font-size:11px;color:#9ca3af;margin-top:5px">{{ $item['label'] }}</p>
             </div>
             @endforeach
           </div>
-
-          {{-- Time to Open Distributions --}}
           <div class="panel-card" style="flex:1">
             <div class="section-header" style="margin-bottom:18px">
               <div class="section-dot" style="background:#3b82f6"></div>
               <span class="section-title" style="color:#3b82f6">Time to Open Distributions</span>
               <div class="section-line" style="background:#bfdbfe"></div>
             </div>
-            @foreach([
-              ['< 1 hour',    18, '#5eead4'],
-              ['1 – 4 hour',  24, '#60a5fa'],
-              ['4 – 24 hours',31, '#a78bfa'],
-              ['> 24 hours',  27, '#f59e0b'],
-            ] as [$label,$pct,$color])
+            @foreach($emailTimeToOpen as $item)
             <div style="margin-bottom:20px">
               <div style="display:flex;align-items:center;margin-bottom:5px">
-                <span style="font-size:12px;color:#374151;flex:1">{{ $label }}</span>
-                <span style="font-size:11px;color:#9ca3af;margin-right:10px">8.7K</span>
-                <span style="font-size:12px;font-weight:700;color:{{ $color }};min-width:32px;text-align:right">{{ $pct }}%</span>
+                <span style="font-size:12px;color:#374151;flex:1">{{ $item['label'] }}</span>
+                <span style="font-size:11px;color:#9ca3af;margin-right:10px">{{ $item['count'] }}</span>
+                <span style="font-size:12px;font-weight:700;color:{{ $item['color'] }};min-width:32px;text-align:right">{{ $item['pct'] }}%</span>
               </div>
               <div class="bar-wrap" style="height:4px">
-                <div class="bar-fill" style="width:{{ $pct * 3 }}%;background:{{ $color }};height:4px"></div>
+                <div class="bar-fill" style="width:{{ max(3,$item['pct']) }}%;background:{{ $item['color'] }};height:4px"></div>
               </div>
             </div>
             @endforeach
           </div>
+        </div>
 
-        </div>{{-- /right col --}}
-      </div>
+      </div>{{-- /do-main-view --}}
+
+      {{-- EMAIL VIEW (full-panel, hidden by default) --}}
+      <div id="do-email-view" style="display:none;flex-direction:column;height:100%;">
+
+        {{-- Header bar --}}
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-shrink:0;">
+          <button onclick="hideFunnelEmails()"
+                  style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#6b7280;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:7px;padding:5px 12px;cursor:pointer;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Back
+          </button>
+          <div id="do-email-dot" style="width:8px;height:8px;border-radius:50%;flex-shrink:0;"></div>
+          <span id="do-email-title" style="font-size:13px;font-weight:700;"></span>
+          <span id="do-email-badge" style="font-size:10px;font-weight:700;border-radius:20px;padding:3px 11px;"></span>
+        </div>
+
+        {{-- Full-width email grid --}}
+        <div id="do-email-list" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start;"></div>
+
+      </div>{{-- /do-email-view --}}
+
+      <script>
+        var currentFunnelKey = null;
+        var funnelEmailGroups = @json($emailGroups);
+        var funnelMeta = {
+          sent:      { label:'Sent',      color:'#5eead4', bg:'#f0fdf4', badge:'#16a34a' },
+          delivered: { label:'Delivered', color:'#60a5fa', bg:'#dbeafe', badge:'#3b82f6' },
+          open:      { label:'Opened',    color:'#a78bfa', bg:'#ede9fe', badge:'#7c3aed' },
+          clicked:   { label:'Clicked',   color:'#ec4899', bg:'#fce7f3', badge:'#db2777' },
+          converted: { label:'Converted', color:'#6366f1', bg:'#eef2ff', badge:'#4f46e5' },
+        };
+
+        function showFunnelEmails(key) {
+          currentFunnelKey = key;
+          var meta   = funnelMeta[key];
+          var emails = funnelEmailGroups[key] || [];
+
+          document.getElementById('do-email-dot').style.background   = meta.color;
+          document.getElementById('do-email-title').textContent       = meta.label + ' — Email IDs';
+          document.getElementById('do-email-title').style.color       = meta.color;
+          var badge = document.getElementById('do-email-badge');
+          badge.textContent       = emails.length + ' emails';
+          badge.style.color       = meta.badge;
+          badge.style.background  = meta.bg;
+
+          var list = document.getElementById('do-email-list');
+          list.innerHTML = emails.length === 0
+            ? '<div style="grid-column:1/-1;text-align:center;padding:40px 0;color:#9ca3af;font-size:12px;">No emails in this category.</div>'
+            : emails.map(function(email) {
+                return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;">'
+                  + '<div style="width:28px;height:28px;border-radius:50%;background:' + meta.bg + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+                  +   '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="' + meta.color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                  +     '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>'
+                  +   '</svg>'
+                  + '</div>'
+                  + '<span style="font-size:12px;color:#111827;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + email + '</span>'
+                  + '<span style="font-size:10px;font-weight:600;color:' + meta.badge + ';background:' + meta.bg + ';border-radius:4px;padding:2px 7px;flex-shrink:0;">' + meta.label + '</span>'
+                  + '</div>';
+              }).join('');
+
+          document.getElementById('do-main-view').style.display  = 'none';
+          document.getElementById('do-email-view').style.display = 'flex';
+        }
+
+        function hideFunnelEmails() {
+          currentFunnelKey = null;
+          document.getElementById('do-email-view').style.display = 'none';
+          document.getElementById('do-main-view').style.display  = 'grid';
+        }
+      </script>
+
     </div>
 
     {{-- Link Clicks --}}
-    <div id="panel-email-link-clicks" class="panel p-6">
-      <div style="text-align:center;padding:32px 0">
-        <div style="width:72px;height:72px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
-          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-            <polyline points="22,6 12,13 2,6"/>
-          </svg>
+    <div id="panel-email-link-clicks" class="panel p-4" style="position:relative;">
+      @php
+        $openCount      = collect($emailFunnel)->firstWhere('label','Open')['count']      ?? 0;
+        $clickedCount   = collect($emailFunnel)->firstWhere('label','Clicked')['count']   ?? 0;
+        $convertedCount = collect($emailFunnel)->firstWhere('label','Converted')['count'] ?? 0;
+        $baseOpen       = max(1, (int)$openCount);
+        $clickBars = [
+          ['label'=>'Opened',    'key'=>'open',      'count'=>$openCount,      'pct'=>100,                                           'color'=>'#a78bfa','bg'=>'#ede9fe','badge'=>'#7c3aed'],
+          ['label'=>'Clicked',   'key'=>'clicked',   'count'=>$clickedCount,   'pct'=>round((int)$clickedCount   / $baseOpen * 100), 'color'=>'#ec4899','bg'=>'#fce7f3','badge'=>'#db2777'],
+          ['label'=>'Converted', 'key'=>'converted', 'count'=>$convertedCount, 'pct'=>round((int)$convertedCount / $baseOpen * 100), 'color'=>'#6366f1','bg'=>'#eef2ff','badge'=>'#4f46e5'],
+        ];
+      @endphp
+
+      {{-- MAIN VIEW --}}
+      <div id="lc-main-view" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;height:100%">
+        <div class="panel-card">
+          <div class="section-header" style="margin-bottom:18px">
+            <div class="section-dot" style="background:#ec4899"></div>
+            <span class="section-title" style="color:#ec4899">Link Click Funnel</span>
+            <div class="section-line" style="background:#fce7f3"></div>
+          </div>
+          @foreach($clickBars as $bar)
+          <div id="lc-row-{{ $bar['key'] }}"
+               onclick="showClickEmails('{{ $bar['key'] }}')"
+               style="margin-bottom:20px;cursor:pointer;border-radius:6px;padding:5px 7px;transition:background .15s;"
+               onmouseenter="this.style.background='#f9fafb'"
+               onmouseleave="this.style.background='transparent'">
+            <div style="display:flex;align-items:center;margin-bottom:5px">
+              <span style="font-size:12px;color:#374151;flex:1">{{ $bar['label'] }}</span>
+              <span style="font-size:10px;color:#9ca3af;margin-right:6px;display:flex;align-items:center;gap:2px;">
+                View IDs
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </span>
+              <span style="font-size:11px;color:#9ca3af;margin-right:10px">{{ $bar['count'] }}</span>
+              <span style="font-size:12px;font-weight:700;color:{{ $bar['color'] }};min-width:32px;text-align:right">{{ $bar['pct'] }}%</span>
+            </div>
+            <div class="bar-wrap" style="height:4px">
+              <div class="bar-fill" style="width:{{ max(3,$bar['pct']) }}%;background:{{ $bar['color'] }};height:4px"></div>
+            </div>
+          </div>
+          @endforeach
         </div>
-        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:6px">Email – Link Clicks</h3>
-        <p style="font-size:13px;color:#9ca3af;margin-bottom:28px">Analytics pannel for this micro signal</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:500px;margin:0 auto">
-          <div class="mini"><p style="font-size:18px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
-          <div class="mini"><p style="font-size:18px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
-          <div class="mini"><p style="font-size:18px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
-        </div>
+        <div></div>
       </div>
+
+      {{-- EMAIL VIEW (full-panel flip) --}}
+      <div id="lc-email-view" style="display:none;flex-direction:column;height:100%;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-shrink:0;">
+          <button onclick="hideClickEmails()"
+                  style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#6b7280;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:7px;padding:5px 12px;cursor:pointer;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Back
+          </button>
+          <div id="lc-email-dot" style="width:8px;height:8px;border-radius:50%;flex-shrink:0;"></div>
+          <span id="lc-email-title" style="font-size:13px;font-weight:700;"></span>
+          <span id="lc-email-badge" style="font-size:10px;font-weight:700;border-radius:20px;padding:3px 11px;"></span>
+        </div>
+        <div id="lc-email-list" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start;"></div>
+      </div>
+
+      <script>
+        var clickMeta = {
+          open:      { label:'Opened',    color:'#a78bfa', bg:'#ede9fe', badge:'#7c3aed' },
+          clicked:   { label:'Clicked',   color:'#ec4899', bg:'#fce7f3', badge:'#db2777' },
+          converted: { label:'Converted', color:'#6366f1', bg:'#eef2ff', badge:'#4f46e5' },
+        };
+
+        function showClickEmails(key) {
+          var meta   = clickMeta[key];
+          var emails = funnelEmailGroups[key] || [];
+
+          document.getElementById('lc-email-dot').style.background  = meta.color;
+          document.getElementById('lc-email-title').textContent      = meta.label + ' — Email IDs';
+          document.getElementById('lc-email-title').style.color      = meta.color;
+          var badge = document.getElementById('lc-email-badge');
+          badge.textContent      = emails.length + ' emails';
+          badge.style.color      = meta.badge;
+          badge.style.background = meta.bg;
+
+          var list = document.getElementById('lc-email-list');
+          list.innerHTML = emails.length === 0
+            ? '<div style="grid-column:1/-1;text-align:center;padding:40px 0;color:#9ca3af;font-size:12px;">No emails in this category.</div>'
+            : emails.map(function(email) {
+                return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;">'
+                  + '<div style="width:28px;height:28px;border-radius:50%;background:' + meta.bg + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+                  +   '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="' + meta.color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+                  +     '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>'
+                  +   '</svg>'
+                  + '</div>'
+                  + '<span style="font-size:12px;color:#111827;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + email + '</span>'
+                  + '<span style="font-size:10px;font-weight:600;color:' + meta.badge + ';background:' + meta.bg + ';border-radius:4px;padding:2px 7px;flex-shrink:0;">' + meta.label + '</span>'
+                  + '</div>';
+              }).join('');
+
+          document.getElementById('lc-main-view').style.display  = 'none';
+          document.getElementById('lc-email-view').style.display = 'flex';
+        }
+
+        function hideClickEmails() {
+          document.getElementById('lc-email-view').style.display = 'none';
+          document.getElementById('lc-main-view').style.display  = 'grid';
+        }
+      </script>
+
     </div>
 
     {{-- Unsubscribe --}}
     <div id="panel-email-unsubscribe" class="panel p-6">
-      <div style="text-align:center;padding:32px 0">
-        <div style="width:72px;height:72px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
-          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-            <polyline points="22,6 12,13 2,6"/>
-          </svg>
+
+      {{-- Header --}}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ef4444"></div>
+        <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:.3px">Email – Unsubscribe</span>
+        <div style="flex:1;height:1px;background:#fee2e2;margin-left:8px"></div>
+        <span style="font-size:12px;font-weight:600;color:#ef4444;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:2px 10px">Live</span>
+      </div>
+
+      {{-- 4 Stat Cards --}}
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
+        <div class="panel-card" style="text-align:center;padding:16px 10px">
+          <p style="font-size:24px;font-weight:800;color:#3b82f6;line-height:1">{{ $sent }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Total Sent</p>
         </div>
-        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:6px">Email – Unsubscribe</h3>
-        <p style="font-size:13px;color:#9ca3af;margin-bottom:28px">Analytics pannel for this micro signal</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:500px;margin:0 auto">
-          <div class="mini"><p style="font-size:18px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
-          <div class="mini"><p style="font-size:18px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
-          <div class="mini"><p style="font-size:18px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        <div class="panel-card" style="text-align:center;padding:16px 10px">
+          <p style="font-size:24px;font-weight:800;color:#ef4444;line-height:1">{{ $unsubscribed }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Unsubscribed</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 10px">
+          <p style="font-size:24px;font-weight:800;color:#10b981;line-height:1">{{ $retained }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Retained</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 10px">
+          <p style="font-size:24px;font-weight:800;color:#f59e0b;line-height:1">{{ $unsubscribeRate }}%</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Unsub Rate</p>
         </div>
       </div>
+
+      {{-- Two charts side by side --}}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+        {{-- Left: Bar chart --}}
+        <div class="panel-card" style="padding:24px">
+          <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:4px">Retention Overview</p>
+          <p style="font-size:11px;color:#9ca3af;margin-bottom:20px">Total emails sent breakdown</p>
+          <div style="position:relative;height:260px">
+            <canvas id="unsubBarChart"></canvas>
+          </div>
+        </div>
+
+        {{-- Right: Donut chart --}}
+        <div class="panel-card" style="padding:24px;display:flex;flex-direction:column;align-items:center">
+          <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:4px;align-self:flex-start">Sent vs Unsubscribed Ratio</p>
+          <p style="font-size:11px;color:#9ca3af;margin-bottom:16px;align-self:flex-start">Proportion of retained vs churned</p>
+          <div style="position:relative;width:200px;height:200px;margin:10px auto 0">
+            <canvas id="unsubDonutChart"></canvas>
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+              <p style="font-size:28px;font-weight:800;color:#111827;line-height:1">{{ $unsubscribeRate }}%</p>
+              <p style="font-size:10px;color:#9ca3af;margin-top:3px">Unsub Rate</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:20px;margin-top:20px">
+            <div style="display:flex;align-items:center;gap:7px">
+              <div style="width:11px;height:11px;border-radius:3px;background:#10b981"></div>
+              <span style="font-size:12px;color:#374151">Retained ({{ $retained }})</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px">
+              <div style="width:11px;height:11px;border-radius:3px;background:#ef4444"></div>
+              <span style="font-size:12px;color:#374151">Unsubscribed ({{ $unsubscribed }})</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
     </div>
 
     {{-- ═══════════════════════════════════════
@@ -1830,20 +2030,163 @@
          CALL CENTER PANELS
          ═══════════════════════════════════════ --}}
 
-    @foreach([
-      ['call-events',       'Call Center – Call Events'],
-      ['ivr-path-analysis', 'Call Center – IVR Path Analysis'],
-      ['speech-sentiment',  'Call Center – Speech Sentiment'],
-    ] as [$tid, $title])
-    <div id="panel-callcenter-{{ $tid }}" class="panel p-5">
+    {{-- Call Events (dynamic) --}}
+    <div id="panel-callcenter-call-events" class="panel p-6">
+
+      {{-- Header --}}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
+        <div style="width:10px;height:10px;border-radius:50%;background:#3b82f6"></div>
+        <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:.3px">Call Center – Call Events</span>
+        <div style="flex:1;height:1px;background:#bfdbfe;margin-left:8px"></div>
+        <span style="font-size:12px;font-weight:600;color:#3b82f6;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:2px 10px">Live</span>
+      </div>
+
+      {{-- 5 Stat Cards --}}
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px">
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#3b82f6;line-height:1">{{ $callTotal }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Total Calls</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#6366f1;line-height:1">{{ $callInbound }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Inbound</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#8b5cf6;line-height:1">{{ $callOutbound }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Outbound</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#10b981;line-height:1">{{ $callAnswered }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Answered</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#ef4444;line-height:1">{{ $callMissed }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Missed</p>
+        </div>
+      </div>
+
+      {{-- Secondary metrics row --}}
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
+        <div class="panel-card" style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+          <div style="width:36px;height:36px;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="18" height="18" fill="none" stroke="#3b82f6" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <p style="font-size:16px;font-weight:700;color:#111827">${{ $callTotalCost }}</p>
+            <p style="font-size:11px;color:#6b7280">Total Cost</p>
+          </div>
+        </div>
+        <div class="panel-card" style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+          <div style="width:36px;height:36px;border-radius:10px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="18" height="18" fill="none" stroke="#10b981" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <p style="font-size:16px;font-weight:700;color:#111827">{{ $callAnswerRate }}%</p>
+            <p style="font-size:11px;color:#6b7280">Answer Rate</p>
+          </div>
+        </div>
+        <div class="panel-card" style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+          <div style="width:36px;height:36px;border-radius:10px;background:#faf5ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="18" height="18" fill="none" stroke="#8b5cf6" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <p style="font-size:16px;font-weight:700;color:#111827">{{ gmdate('i:s', $callAvgDuration) }}</p>
+            <p style="font-size:11px;color:#6b7280">Avg Handle Time</p>
+          </div>
+        </div>
+        <div class="panel-card" style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+          <div style="width:36px;height:36px;border-radius:10px;background:#fff7ed;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="18" height="18" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <div>
+            <p style="font-size:16px;font-weight:700;color:#111827">{{ $callAvgWait }}s</p>
+            <p style="font-size:11px;color:#6b7280">Avg Wait Time</p>
+          </div>
+        </div>
+      </div>
+
+      {{-- Charts + breakdown --}}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+        {{-- Left: Daily volume bar chart --}}
+        <div class="panel-card" style="padding:20px">
+          <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:2px">Daily Call Volume</p>
+          <p style="font-size:11px;color:#9ca3af;margin-bottom:16px">Last 14 days — inbound vs outbound</p>
+          <div style="position:relative;height:220px">
+            <canvas id="callVolumeChart"></canvas>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:12px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:10px;height:10px;border-radius:2px;background:#6366f1"></div>
+              <span style="font-size:11px;color:#374151">Inbound</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:10px;height:10px;border-radius:2px;background:#8b5cf6"></div>
+              <span style="font-size:11px;color:#374151">Outbound</span>
+            </div>
+          </div>
+        </div>
+
+        {{-- Right: Outcome bars + department table --}}
+        <div style="display:flex;flex-direction:column;gap:14px">
+
+          {{-- Call Outcomes --}}
+          <div class="panel-card" style="padding:20px">
+            <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:14px">Call Outcomes</p>
+            @foreach($callOutcomes as $o)
+            <div style="margin-bottom:12px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+                <div style="display:flex;align-items:center;gap:7px">
+                  <div style="width:8px;height:8px;border-radius:50%;background:{{ $o['color'] }}"></div>
+                  <span style="font-size:12px;color:#374151;font-weight:500">{{ $o['label'] }}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:12px;font-weight:700;color:#111827">{{ $o['count'] }}</span>
+                  <span style="font-size:11px;color:#9ca3af;width:38px;text-align:right">{{ $o['pct'] }}%</span>
+                </div>
+              </div>
+              <div class="bar-wrap">
+                <div class="bar-fill" style="width:{{ max(3, $o['pct']) }}%;background:{{ $o['color'] }}"></div>
+              </div>
+            </div>
+            @endforeach
+          </div>
+
+          {{-- Department Breakdown --}}
+          <div class="panel-card" style="padding:20px">
+            <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:12px">By Department</p>
+            <div style="display:flex;flex-direction:column;gap:1px">
+              <div style="display:grid;grid-template-columns:1fr 60px 70px 64px;padding:6px 8px">
+                <span style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase">Dept</span>
+                <span style="font-size:10px;font-weight:600;color:#9ca3af;text-align:center">Calls</span>
+                <span style="font-size:10px;font-weight:600;color:#9ca3af;text-align:center">Avg Time</span>
+                <span style="font-size:10px;font-weight:600;color:#9ca3af;text-align:right">Cost</span>
+              </div>
+              @foreach($callDeptStats as $dept)
+              <div style="display:grid;grid-template-columns:1fr 60px 70px 64px;padding:9px 8px;background:#f9fafb;border-radius:6px;margin-bottom:4px">
+                <span style="font-size:12px;font-weight:600;color:#374151">{{ $dept['department'] }}</span>
+                <span style="font-size:12px;color:#6b7280;text-align:center">{{ $dept['total'] }}</span>
+                <span style="font-size:12px;color:#6b7280;text-align:center">{{ gmdate('i:s', $dept['avg_dur']) }}</span>
+                <span style="font-size:12px;font-weight:600;color:#10b981;text-align:right">${{ $dept['dept_cost'] }}</span>
+              </div>
+              @endforeach
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    {{-- IVR Path Analysis (placeholder) --}}
+    <div id="panel-callcenter-ivr-path-analysis" class="panel p-5">
       <div class="globe-panel" style="max-width:560px;margin:0 auto;padding:48px 40px">
         <div style="width:72px;height:72px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
           <svg width="38" height="38" fill="none" stroke="#3b82f6" stroke-width="1.5" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
           </svg>
         </div>
-        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">{{ $title }}</h3>
-        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics pannel for this micro signal</p>
+        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">Call Center – IVR Path Analysis</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics panel for this micro signal</p>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
           <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
           <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
@@ -1851,7 +2194,24 @@
         </div>
       </div>
     </div>
-    @endforeach
+
+    {{-- Speech Sentiment (placeholder) --}}
+    <div id="panel-callcenter-speech-sentiment" class="panel p-5">
+      <div class="globe-panel" style="max-width:560px;margin:0 auto;padding:48px 40px">
+        <div style="width:72px;height:72px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+          <svg width="38" height="38" fill="none" stroke="#3b82f6" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+          </svg>
+        </div>
+        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">Call Center – Speech Sentiment</h3>
+        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics panel for this micro signal</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
+          <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+        </div>
+      </div>
+    </div>
 
     {{-- ═══════════════════════════════════════
          POS / OFFLINE PANELS
@@ -1971,5 +2331,147 @@ function selectTab(src, tabId) {
   document.querySelectorAll('#tabs-' + src + ' .tab-btn').forEach(b => b.classList.remove('active'));
   event.target.classList.add('active');
 }
+</script>
+
+<script>
+// ── Call Center Charts ─────────────────────────────────────────────────────
+(function() {
+  var dailyVolume = @json($callDailyVolume);
+  var labels   = dailyVolume.map(function(d){ return d.date; });
+  var inbound  = dailyVolume.map(function(d){ return d.inbound; });
+  var outbound = dailyVolume.map(function(d){ return d.outbound; });
+
+  var callCtx = document.getElementById('callVolumeChart');
+  if (!callCtx) return;
+  new Chart(callCtx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Inbound',
+          data: inbound,
+          backgroundColor: '#6366f1',
+          borderRadius: 4,
+          borderSkipped: false,
+        },
+        {
+          label: 'Outbound',
+          data: outbound,
+          backgroundColor: '#8b5cf6',
+          borderRadius: 4,
+          borderSkipped: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: {
+          stacked: false,
+          grid: { display: false },
+          ticks: { font: { size: 10 }, color: '#9ca3af', maxRotation: 45 }
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: '#f3f4f6' },
+          ticks: { font: { size: 11 }, color: '#9ca3af', stepSize: 1, precision: 0 }
+        }
+      },
+      animation: { duration: 800, easing: 'easeOutQuart' }
+    }
+  });
+})();
+
+// ── Unsubscribe Charts ──────────────────────────────────────────────────────
+(function() {
+  var retained     = {{ $retained }};
+  var unsubscribed = {{ $unsubscribed }};
+  var sent         = {{ $sent }};
+
+  // Bar chart
+  var barCtx = document.getElementById('unsubBarChart');
+  if (barCtx) {
+    new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Total Sent', 'Retained', 'Unsubscribed'],
+        datasets: [{
+          data: [sent, retained, unsubscribed],
+          backgroundColor: ['#3b82f6', '#10b981', '#ef4444'],
+          borderRadius: 8,
+          borderSkipped: false,
+          barThickness: 52,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                var pct = sent > 0 ? Math.round(ctx.parsed.y / sent * 100) : 0;
+                return ' ' + ctx.parsed.y + ' emails (' + pct + '%)';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: Math.ceil(sent * 1.2),
+            grid: { color: '#f3f4f6' },
+            ticks: { font: { size: 11 }, color: '#9ca3af', stepSize: Math.ceil(sent / 5) }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { font: { size: 12, weight: '600' }, color: '#374151' }
+          }
+        },
+        animation: { duration: 900, easing: 'easeOutQuart' }
+      }
+    });
+  }
+
+  // Donut chart
+  var donutCtx = document.getElementById('unsubDonutChart');
+  if (donutCtx) {
+    new Chart(donutCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Retained', 'Unsubscribed'],
+        datasets: [{
+          data: [retained, unsubscribed],
+          backgroundColor: ['#10b981', '#ef4444'],
+          borderWidth: 0,
+          hoverOffset: 8,
+        }]
+      },
+      options: {
+        cutout: '70%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                var total = ctx.dataset.data.reduce(function(a,b){return a+b;},0);
+                var pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
+                return ' ' + ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+              }
+            }
+          }
+        },
+        animation: { animateRotate: true, duration: 900 }
+      }
+    });
+  }
+})();
 </script>
 @endpush

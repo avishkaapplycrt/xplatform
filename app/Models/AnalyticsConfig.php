@@ -10,9 +10,8 @@ class AnalyticsConfig extends Model
 {
     protected $fillable = [
         'client_id',
-        'data_source_id',
+        'industry_id',
         'config_name',
-        'industry',
         'status',
         'widget_layout',
         'kpis',
@@ -33,6 +32,11 @@ class AnalyticsConfig extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function industry(): BelongsTo
+    {
+        return $this->belongsTo(Industry::class);
     }
 
     public function microSignals(): BelongsToMany

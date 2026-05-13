@@ -4,7 +4,12 @@
       "Bash(php artisan:*)",
       "Bash(php --version)",
       "Bash(pip install *)",
-      "Bash(python generate_docs.py)"
+      "Bash(python generate_docs.py)",
+      "Bash(php -r 'require '\\\\''vendor/autoload.php'\\\\''; $app = require '\\\\''bootstrap/app.php'\\\\''; $kernel = $app->make\\(Illuminate\\\\Contracts\\\\Http\\\\Kernel::class\\); echo '\\\\''OK'\\\\'';')",
+      "Bash(php -l app/Http/Controllers/DecisionCentreController.php)",
+      "Bash(php -l resources/views/client/decision-centre.blade.php)",
+      "Bash(php -l \"c:\\\\xampp\\\\htdocs\\\\xplatform\\\\app\\\\Http\\\\Controllers\\\\DecisionCentreController.php\")",
+      "Bash(Test-Path \"c:\\\\xampp\\\\htdocs\\\\xplatform\\\\README.md\")"
     ]
   }
 }
