@@ -10,9 +10,9 @@ class MicroSignal extends Model
 {
     protected $fillable = [
         'micro_signal_category_id',
+        'industry_id',
         'name',
         'slug',
-        'industry',
         'is_active',
         'sort_order',
     ];
@@ -24,6 +24,11 @@ class MicroSignal extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(MicroSignalCategory::class, 'micro_signal_category_id');
+    }
+
+    public function industry(): BelongsTo
+    {
+        return $this->belongsTo(Industry::class);
     }
 
     public function analyticsConfigs(): BelongsToMany

@@ -8,20 +8,26 @@ class Industry extends Model
 {
     protected $fillable = [
         'name',
-        'signals',
-        'predictions',
         'is_custom',
         'client_id',
     ];
 
     protected $casts = [
-        'signals'     => 'array',
-        'predictions' => 'array',
-        'is_custom'   => 'boolean',
+        'is_custom' => 'boolean',
     ];
 
     public function predictionModels()
     {
         return $this->belongsToMany(Prediction::class, 'industry_prediction');
+    }
+
+    public function microSignals()
+    {
+        return $this->hasMany(MicroSignal::class);
+    }
+
+    public function clients()
+    {
+        return $this->hasMany(Client::class);
     }
 }

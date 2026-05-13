@@ -74,23 +74,13 @@ class IndustryPredictionSeeder extends Seeder
         ];
 
         foreach ($data as $industryName => $industryData) {
-            // Update industry with real signals + predictions arrays (keeps preview working)
             $industry = Industry::updateOrCreate(
                 ['name' => $industryName],
-                [
-                    'signals'     => $industryData['signals'],
-                    'predictions' => $industryData['predictions'],
-                    'is_custom'   => false,
-                    'client_id'   => null,
-                ]
+                ['is_custom' => false, 'client_id' => null]
             );
 
-            // Also build the industry_prediction relationships for Step 6
             foreach ($industryData['predictions'] as $predictionName) {
-                $prediction = Prediction::updateOrCreate(
-                    ['name' => $predictionName]
-                );
-
+                $prediction = Prediction::updateOrCreate(['name' => $predictionName]);
                 $industry->predictionModels()->syncWithoutDetaching([$prediction->id]);
             }
         }

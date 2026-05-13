@@ -11,9 +11,15 @@ use App\Http\Controllers\MasterAdminDashboardController;
 use App\Http\Controllers\ClientManagementController;
 use App\Http\Controllers\AdminAnalyticsController;
 use App\Http\Controllers\AdminSettingsController;
+use App\Http\Controllers\DecisionCentreController;
+use App\Models\EmailLog;
+use App\Models\CallLog;
+use App\Models\BehavioralProfile;
 
 // ─── Public ───────────────────────────────────────────────────────────────────
 Route::get('/', fn() => view('welcome'))->name('home');
+Route::get('simulator', fn() => view('simulator'))->name('simulator');
+Route::get('case-studies', fn() => view('case-studies'))->name('case-studies');
 
 
 // ─── Master Admin ─────────────────────────────────────────────────────────────
@@ -86,16 +92,16 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('company/overview', [ClientOverviewController::class, 'show'])->name('company.overview');
 
     // Layer pages
-    Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events'))->name('layer.l1');
+    Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('layer.l1');
     Route::get('layers/l2',      fn() => view('client.layers.l2'))->name('layer.l2');
     Route::get('layers/l3',      fn() => view('client.layers.l3'))->name('layer.l3');
-    Route::get('layers/l4',      fn() => view('client.layers.l4'))->name('layer.l4');
-    Route::get('layers/l5',      fn() => view('client.layers.l5'))->name('layer.l5');
+    Route::get('layers/l4',      [DecisionCentreController::class, 'index'])->name('layer.l4');
+    Route::get('layers/l5',      [DecisionCentreController::class, 'l5'])->name('layer.l5');
     Route::get('layers/l6',      fn() => view('client.layers.l6'))->name('layer.l6');
     Route::get('layers/l7',      fn() => view('client.layers.l7'))->name('layer.l7');
     Route::get('layers/l8',      fn() => view('client.layers.l8'))->name('layer.l8');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
-    Route::get('data-collection',fn() => view('client.data-collection.mobile_events'))->name('data-collection');
+    Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('data-collection');
 
     // Data sources
     Route::get('sources',                [DataSourceController::class, 'index'])->name('sources.index');

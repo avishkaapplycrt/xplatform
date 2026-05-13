@@ -48,8 +48,8 @@
                 </a>
 
                 @php
-                $layers = [
-                    ['num'=>'L1','label'=>'Data Collection',        'color'=>'text-emerald-600','bg'=>'bg-emerald-50', 'route'=>'client.data-collection'],
+                $allSidebarLayers = [
+                    ['num'=>'L1','label'=>'Data Collection',        'color'=>'text-emerald-600','bg'=>'bg-emerald-50', 'route'=>'client.layer.l1'],
                     ['num'=>'L2','label'=>'Identity Resolution',    'color'=>'text-blue-600',   'bg'=>'bg-blue-50',   'route'=>'client.layer.l2'],
                     ['num'=>'L3','label'=>'Data Processing',        'color'=>'text-violet-600', 'bg'=>'bg-violet-50', 'route'=>'client.layer.l3'],
                     ['num'=>'L4','label'=>'Behavioral Intelligence','color'=>'text-amber-600',  'bg'=>'bg-amber-50',  'route'=>'client.layer.l4'],
@@ -58,12 +58,17 @@
                     ['num'=>'L7','label'=>'Application Layer',      'color'=>'text-red-600',    'bg'=>'bg-red-50',    'route'=>'client.layer.l7'],
                     ['num'=>'L8','label'=>'Governance & Security',  'color'=>'text-gray-600',   'bg'=>'bg-gray-100',  'route'=>'client.layer.l8'],
                 ];
+                $selectedLayerCodes = auth('client')->user()?->analysisLayers()->pluck('code')->toArray() ?? [];
+                $sidebarLayers = empty($selectedLayerCodes)
+                    ? $allSidebarLayers
+                    : array_values(array_filter($allSidebarLayers, fn($l) => in_array($l['num'], $selectedLayerCodes)));
                 @endphp
 
-                @foreach($layers as $layer)
+                @foreach($sidebarLayers as $layer)
                     @php
-                        $href     = $layer['route'] ? route($layer['route']) : '#';
-                        $isActive = $layer['route'] && request()->routeIs($layer['route']);
+                        $href     = route($layer['route']);
+                        $isActive = request()->routeIs($layer['route'])
+                                 || ($layer['num'] === 'L1' && request()->routeIs('client.data-collection'));
                     @endphp
                     <a href="{{ $href }}"
                        class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
@@ -94,6 +99,7 @@
         @yield('content')
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     @stack('scripts')
 </body>
 </html>

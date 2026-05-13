@@ -12,13 +12,14 @@ use App\Models\Industry;
 use App\Models\Prediction;
 use App\Models\ClientPlatformMetric;
 use App\Models\ClientLayerStat;
+use App\Models\BehavioralProfile;
+use App\Models\UserEvent;
 
 class Client extends Authenticatable
 {
     use Notifiable;
 
     protected $fillable = [
-        'name',
         'company_name',
         'email',
         'size',
@@ -121,6 +122,16 @@ class Client extends Authenticatable
     public function industry()
     {
         return $this->belongsTo(Industry::class);
+    }
+
+    public function behavioralProfiles()
+    {
+        return $this->hasMany(BehavioralProfile::class);
+    }
+
+    public function userEvents()
+    {
+        return $this->hasMany(UserEvent::class);
     }
 
     public function analysisLayers()

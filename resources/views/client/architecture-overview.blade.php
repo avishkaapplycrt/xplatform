@@ -6,19 +6,25 @@
 @section('content')
 
 @php
-$clientName = auth('client')->user()?->company_name ?? 'Acme Retail';
+$client     = auth('client')->user();
+$clientName = $client?->company_name ?? 'Acme Retail';
 $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(explode(' ', $clientName), 0, 2))));
 
-$layers = [
-    ['code'=>'L1','name'=>'Data Collection',        'color'=>'#10b981','summary'=>'12 sources  •  100+ micro-signals  •  4.2M events/day',     'dots'=>4],
-    ['code'=>'L2','name'=>'Identity Resolution',     'color'=>'#3b82f6','summary'=>'14 identifier types  •  cross-device stitching  •  98.2%',  'dots'=>4],
-    ['code'=>'L3','name'=>'Data Processing',         'color'=>'#8b5cf6','summary'=>'Real-time + batch  •  6 store types  •  14 quality signals','dots'=>4],
-    ['code'=>'L4','name'=>'Behavioral Intelligence', 'color'=>'#f59e0b','summary'=>'9 behavioral scores  •  40+ micro-signal inputs',           'dots'=>4],
-    ['code'=>'L5','name'=>'AI/ML Predictions',       'color'=>'#f97316','summary'=>'11 models  •  16 prediction micro-signals  •  94.1% avg',   'dots'=>4],
-    ['code'=>'L6','name'=>'Decision & Actions',      'color'=>'#14b8a6','summary'=>'14 action micro-signals  •  rule engine + AI recs',         'dots'=>3],
-    ['code'=>'L7','name'=>'Application Layer',       'color'=>'#ef4444','summary'=>'15 platform usage signals  •  10 modules',                  'dots'=>3],
-    ['code'=>'L8','name'=>'Governance & Security',   'color'=>'#6b7280','summary'=>'14 compliance signals  •  RBAC  •  Audit  •  Consent',     'dots'=>3],
+$allLayers = [
+    ['code'=>'L1','name'=>'Data Collection',        'color'=>'#10b981','summary'=>'12 sources  •  100+ micro-signals  •  4.2M events/day',     'dots'=>4, 'route'=>'client.layer.l1'],
+    ['code'=>'L2','name'=>'Identity Resolution',     'color'=>'#3b82f6','summary'=>'14 identifier types  •  cross-device stitching  •  98.2%',  'dots'=>4, 'route'=>'client.layer.l2'],
+    ['code'=>'L3','name'=>'Data Processing',         'color'=>'#8b5cf6','summary'=>'Real-time + batch  •  6 store types  •  14 quality signals','dots'=>4, 'route'=>'client.layer.l3'],
+    ['code'=>'L4','name'=>'Behavioral Intelligence', 'color'=>'#f59e0b','summary'=>'9 behavioral scores  •  40+ micro-signal inputs',           'dots'=>4, 'route'=>'client.layer.l4'],
+    ['code'=>'L5','name'=>'AI/ML Predictions',       'color'=>'#f97316','summary'=>'11 models  •  16 prediction micro-signals  •  94.1% avg',   'dots'=>4, 'route'=>'client.layer.l5'],
+    ['code'=>'L6','name'=>'Decision & Actions',      'color'=>'#14b8a6','summary'=>'14 action micro-signals  •  rule engine + AI recs',         'dots'=>3, 'route'=>'client.layer.l6'],
+    ['code'=>'L7','name'=>'Application Layer',       'color'=>'#ef4444','summary'=>'15 platform usage signals  •  10 modules',                  'dots'=>3, 'route'=>'client.layer.l7'],
+    ['code'=>'L8','name'=>'Governance & Security',   'color'=>'#6b7280','summary'=>'14 compliance signals  •  RBAC  •  Audit  •  Consent',     'dots'=>3, 'route'=>'client.layer.l8'],
 ];
+
+$selectedCodes = $client ? $client->analysisLayers()->pluck('code')->toArray() : [];
+$layers = empty($selectedCodes)
+    ? $allLayers
+    : array_values(array_filter($allLayers, fn($l) => in_array($l['code'], $selectedCodes)));
 @endphp
 
 <div class="flex flex-col h-full overflow-hidden">
@@ -102,7 +108,7 @@ $layers = [
                 <div class="divide-y divide-gray-50">
                     @foreach($layers as $layer)
                         @php
-                            $href = $layer['code'] === 'L1' ? route('client.data-collection') : '#';
+                            $href = route($layer['route']);
                         @endphp
                         <a href="{{ $href }}"
                            class="group flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition">

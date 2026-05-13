@@ -21,6 +21,10 @@ class DatabaseSeeder extends Seeder
             MicroSignalSeeder::class,
             ActionSeeder::class,
             TestClientSeeder::class,
+            EmailLogSeeder::class,
+            CallLogSeeder::class,
+            BehavioralProfileSeeder::class,
+            UserEventSeeder::class,
         ]);
 
         User::factory()->create([

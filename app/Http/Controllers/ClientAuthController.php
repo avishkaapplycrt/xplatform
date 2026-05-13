@@ -102,7 +102,6 @@ class ClientAuthController extends Controller
 
         $client = Client::create([
             'company_name' => $request->company_name,
-            'name'         => $request->company_name,
             'size'         => $request->size,
             'country'      => $request->country,
             'email'        => 'pending_' . uniqid() . '@pending.com',
@@ -321,12 +320,12 @@ class ClientAuthController extends Controller
 
         $analyticsConfig = AnalyticsConfig::firstOrCreate(
             ['client_id' => $client->id],
-            ['config_name' => 'Default Config', 'industry' => $industry->name, 'status' => 'draft']
+            ['config_name' => 'Default Config', 'industry_id' => $industry->id, 'status' => 'draft']
         );
 
         $categories = MicroSignalCategory::with(['microSignals' => function ($q) use ($industry) {
             $q->where('is_active', true)
-              ->where(fn($q2) => $q2->whereNull('industry')->orWhere('industry', $industry->name))
+              ->where(fn($q2) => $q2->whereNull('industry_id')->orWhere('industry_id', $industry->id))
               ->orderBy('sort_order');
         }])->orderBy('sort_order')->get();
 
@@ -354,7 +353,7 @@ class ClientAuthController extends Controller
         $industry   = Industry::findOrFail($client->industry_id);
         $categories = MicroSignalCategory::with(['microSignals' => function ($q) use ($industry) {
             $q->where('is_active', true)
-              ->where(fn($q2) => $q2->whereNull('industry')->orWhere('industry', $industry->name));
+              ->where(fn($q2) => $q2->whereNull('industry_id')->orWhere('industry_id', $industry->id));
         }])->orderBy('sort_order')->get();
 
         $submitted = collect($request->signals)->map(fn($id) => (int) $id);
@@ -371,7 +370,7 @@ class ClientAuthController extends Controller
 
         $analyticsConfig = AnalyticsConfig::firstOrCreate(
             ['client_id' => $client->id],
-            ['config_name' => 'Default Config', 'industry' => $industry->name, 'status' => 'draft']
+            ['config_name' => 'Default Config', 'industry_id' => $industry->id, 'status' => 'draft']
         );
 
         $analyticsConfig->microSignals()->sync($request->signals);

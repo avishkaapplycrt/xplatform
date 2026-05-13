@@ -12,7 +12,6 @@ class TestClientSeeder extends Seeder
     {
         Client::create([
             'company_name' => 'Test Company',
-            'name'         => 'Test Company',
             'email'        => 'test@test.com',
             'password'     => Hash::make('password'),
             'size'         => 'small',
