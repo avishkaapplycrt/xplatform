@@ -9,7 +9,12 @@
       "Bash(php -l app/Http/Controllers/DecisionCentreController.php)",
       "Bash(php -l resources/views/client/decision-centre.blade.php)",
       "Bash(php -l \"c:\\\\xampp\\\\htdocs\\\\xplatform\\\\app\\\\Http\\\\Controllers\\\\DecisionCentreController.php\")",
-      "Bash(Test-Path \"c:\\\\xampp\\\\htdocs\\\\xplatform\\\\README.md\")"
+      "Bash(Test-Path \"c:\\\\xampp\\\\htdocs\\\\xplatform\\\\README.md\")",
+      "Bash(git config *)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(git checkout *)",
+      "PowerShell(\\(Get-Item \"c:\\\\xampp\\\\htdocs\\\\xplatform\\\\database\\\\dump.sql\"\\).Length / 1MB | ForEach-Object { \"{0:N2} MB\" -f $_ })"
     ]
   }
 }
