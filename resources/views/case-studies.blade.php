@@ -215,9 +215,10 @@ canvas#neural{position:fixed;inset:0;z-index:0;pointer-events:none}
 <nav class="nav"><div class="nav-bg"></div><div class="nav-in">
   <a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a>
   <ul class="nav-l">
-    <li><a href="{{ url('/') }}">Home</a></li>
-    <li><a href="{{ url('/') }}#journey">Simulator</a></li>
+    <li><a href="{{ route('home') }}">Home</a></li>
+    <li><a href="{{ route('simulator') }}">Simulator</a></li>
     <li><a href="{{ route('case-studies') }}" style="color:var(--white);font-weight:500">Case Studies</a></li>
+    <li><a href="{{ route('pricing') }}">Pricing</a></li>
     <li><a href="{{ route('client.register') }}" class="nav-cta">Book a Demo</a></li>
   </ul>
 </div></nav>
