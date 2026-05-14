@@ -74,12 +74,19 @@
                 @php
                     $layerRoute = match($layer['code']) {
                         'L1' => route('client.layer.l1'),
+                        'L2' => route('client.layer.l2'),
+                        'L3' => route('client.layer.l3'),
+                        'L4' => route('client.layer.l4'),
+                        'L5' => route('client.layer.l5'),
+                        'L6' => route('client.layer.l6'),
+                        'L7' => route('client.layer.l7'),
+                        'L8' => route('client.layer.l8'),
                         default => '#',
                     };
                 @endphp
                 <a href="{{ $layerRoute }}"
                    class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg
-                          hover:bg-gray-50 transition {{ $layerRoute === '#' ? 'opacity-50 cursor-default' : '' }}">
+                          hover:bg-gray-50 transition">
                     <span class="text-[10px] font-bold w-5 text-center flex-shrink-0"
                           style="color:{{ $layer['color'] }}">{{ $layer['code'] }}</span>
                     <span class="text-xs text-gray-600 truncate">{{ $layer['name'] }}</span>
@@ -258,11 +265,18 @@
                         @php
                             $href = match($layer['code']) {
                                 'L1' => route('client.layer.l1'),
+                                'L2' => route('client.layer.l2'),
+                                'L3' => route('client.layer.l3'),
+                                'L4' => route('client.layer.l4'),
+                                'L5' => route('client.layer.l5'),
+                                'L6' => route('client.layer.l6'),
+                                'L7' => route('client.layer.l7'),
+                                'L8' => route('client.layer.l8'),
                                 default => '#',
                             };
                         @endphp
                         <a href="{{ $href }}"
-                           class="group flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50 transition {{ $href === '#' ? 'cursor-default opacity-70' : '' }}">
+                           class="group flex items-center gap-4 px-6 py-3.5 hover:bg-gray-50 transition">
 
                             {{-- Layer code --}}
                             <span class="text-[11px] font-bold w-6 text-center flex-shrink-0"

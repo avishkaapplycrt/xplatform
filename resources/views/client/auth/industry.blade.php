@@ -15,8 +15,8 @@
         <div data-grid style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
             @foreach($industries as $industry)
                 <label class="industry-card flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:border-blue-400 transition"
-                    data-signals="{{ implode('|', $industry->signals) }}"
-                    data-predictions="{{ implode('|', $industry->predictions) }}"
+                    data-signals="{{ implode('|', $industry->microSignals->pluck('name')->toArray()) }}"
+                    data-predictions="{{ implode('|', $industry->predictionModels->pluck('name')->toArray()) }}"
                     data-name="{{ $industry->name }}">
                     <input type="radio" name="industry_id" value="{{ $industry->id }}" class="accent-blue-600" required>
                     <span class="text-sm text-gray-700">{{ $industry->name }}</span>

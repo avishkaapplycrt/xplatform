@@ -9,22 +9,25 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('micro_signals', function (Blueprint $table) {
-            $table->unsignedBigInteger('industry_id')->nullable()->after('micro_signal_category_id');
-        });
+        if (!Schema::hasColumn('micro_signals', 'industry_id')) {
+            Schema::table('micro_signals', function (Blueprint $table) {
+                $table->unsignedBigInteger('industry_id')->nullable()->after('micro_signal_category_id');
+            });
+        }
 
-        // Backfill: match the old string to the industries table
-        DB::statement('
-            UPDATE micro_signals ms
-            JOIN industries i ON i.name = ms.industry
-            SET ms.industry_id = i.id
-            WHERE ms.industry IS NOT NULL
-        ');
+        if (Schema::hasColumn('micro_signals', 'industry')) {
+            DB::statement('
+                UPDATE micro_signals ms
+                JOIN industries i ON i.name = ms.industry
+                SET ms.industry_id = i.id
+                WHERE ms.industry IS NOT NULL
+            ');
 
-        Schema::table('micro_signals', function (Blueprint $table) {
-            $table->foreign('industry_id')->references('id')->on('industries')->nullOnDelete();
-            $table->dropColumn('industry');
-        });
+            Schema::table('micro_signals', function (Blueprint $table) {
+                $table->foreign('industry_id')->references('id')->on('industries')->nullOnDelete();
+                $table->dropColumn('industry');
+            });
+        }
     }
 
     public function down(): void

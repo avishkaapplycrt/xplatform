@@ -122,7 +122,7 @@ class ClientAuthController extends Controller
     {
         if ($guard = $this->requireRegistrationSession()) return $guard;
 
-        $industries = Industry::whereNull('client_id')->get();
+        $industries = Industry::whereNull('client_id')->with(['microSignals', 'predictionModels'])->get();
         return view('client.auth.industry', compact('industries'));
     }
 

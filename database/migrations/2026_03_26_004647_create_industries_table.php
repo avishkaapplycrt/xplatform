@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('industries', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->json('signals');
-            $table->json('predictions');
+            $table->json('signals')->nullable();
+            $table->json('predictions')->nullable();
             $table->boolean('is_custom')->default(false);
             $table->foreignId('client_id')->nullable()->constrained('clients')->onDelete('cascade');
             $table->timestamps();

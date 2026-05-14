@@ -1060,4 +1060,844 @@ class DecisionCentreController extends Controller
     {
         return view('client.decision-centre', $this->prepareData() + ['activeLayer' => 'l5']);
     }
+
+    // ── Shared card helper ─────────────────────────────────────────────────────
+    private function makeCard(BehavioralProfile $p, string $amountLabel, array $tags, array $fields, array $timeline, array $actions = []): array
+    {
+        $plan = $this->plan($p->segment);
+        [$tc, $tb] = $this->tierStyle($p->segment);
+        return [
+            'id'          => $p->id,
+            'name'        => $p->name,
+            'initials'    => $p->initials(),
+            'company'     => $this->co($p),
+            'industry'    => $this->ind($p),
+            'tier'        => $plan,
+            'tierColor'   => $tc,
+            'tierBg'      => $tb,
+            'avatarColor' => $p->segmentColor(),
+            'amountLabel' => $amountLabel,
+            'tags'        => $tags,
+            'fields'      => $fields,
+            'timeline'    => $timeline,
+            'actions'     => $actions ?: [['View profile', '#0EA5E9', 'outline'], ['Take action', '#00FFB2', 'bg']],
+        ];
+    }
+
+    private function identityCard(BehavioralProfile $p): array
+    {
+        $last = $p->last_active_at?->diffForHumans() ?? 'Unknown';
+        $conf = $p->trust_score >= 70 ? 'High' : ($p->trust_score >= 50 ? 'Medium' : 'Low');
+        $tags = [];
+        if ($p->trust_score < 30) $tags[] = 'Very low trust';
+        elseif ($p->trust_score < 50) $tags[] = 'Low trust';
+        if ($p->engagement_score >= 70) $tags[] = 'High engagement';
+        if ($p->segment === 'champion') $tags[] = 'Enterprise';
+        return $this->makeCard($p, 'Trust ' . $p->trust_score, $tags, [
+            ['Trust score',      $p->trust_score . '/100'],
+            ['Email confidence', $conf],
+            ['Engagement',       $p->engagement_score . '/100'],
+            ['Identity type',    $p->trust_score < 40 ? 'Anonymous' : 'Semi-known'],
+            ['Last active',      $last],
+            ['Overall score',    $p->overall_score . '/100'],
+        ], [
+            ['e' => 'Profile flagged — trust score ' . $p->trust_score, 't' => '5 days ago', 'c' => '#F59E0B'],
+            ['e' => 'Identity signal gap detected',                       't' => '2 days ago', 'c' => '#F43F5E'],
+            ['e' => 'Queued for identity resolution',                     't' => $last,        'c' => '#0EA5E9'],
+        ], [
+            ['Re-verify', '#F59E0B', 'bg'],
+            ['View signals', '#0EA5E9', 'outline'],
+        ]);
+    }
+
+    private function processingCard(BehavioralProfile $p): array
+    {
+        $last      = $p->last_active_at?->diffForHumans() ?? 'Unknown';
+        $staleDays = $p->last_active_at ? (int) $p->last_active_at->diffInDays(now()) : 45;
+        $tags = [];
+        if ($staleDays > 60) $tags[] = 'Highly stale';
+        elseif ($staleDays > 30) $tags[] = 'Stale';
+        if ($p->dropoff_risk >= 70) $tags[] = 'High dropout risk';
+        if ($p->overall_score >= 70) $tags[] = 'ML-ready';
+        return $this->makeCard($p, 'Stale ' . $staleDays . 'd', $tags, [
+            ['Last active',        $last],
+            ['Days stale',         $staleDays . ' days'],
+            ['Dropoff risk',       $p->dropoff_risk . '/100'],
+            ['Overall score',      $p->overall_score . '/100'],
+            ['Engagement',         $p->engagement_score . '/100'],
+            ['Reactivation score', $p->reactivation_potential . '/100'],
+        ], [
+            ['e' => 'Last feature update processed',              't' => $last,        'c' => '#0EA5E9'],
+            ['e' => 'Dropoff risk elevated to ' . $p->dropoff_risk, 't' => '3 days ago', 'c' => '#F59E0B'],
+            ['e' => 'Flagged for pipeline reprocessing',           't' => 'today',      'c' => '#F43F5E'],
+        ], [
+            ['Reprocess', '#0EA5E9', 'bg'],
+            ['View pipeline', '#A855F7', 'outline'],
+        ]);
+    }
+
+    private function decisionCard(BehavioralProfile $p): array
+    {
+        $last     = $p->last_active_at?->diffForHumans() ?? 'Unknown';
+        $conflict = $p->churn_score >= 50 && $p->intent_score >= 60;
+        $tags = [];
+        if ($conflict) $tags[] = 'Signal conflict';
+        if ($p->frustration_score >= 60) $tags[] = 'Frequency cap';
+        if ($p->engagement_score >= 75) $tags[] = 'Budget ceiling';
+        if ($p->segment === 'champion') $tags[] = 'Enterprise';
+        return $this->makeCard($p, 'Conflict ' . (int) (($p->churn_score + $p->intent_score) / 2), $tags, [
+            ['Intent score',    $p->intent_score . '/100'],
+            ['Churn score',     $p->churn_score . '/100'],
+            ['Frustration',     $p->frustration_score . '/100'],
+            ['Engagement',      $p->engagement_score . '/100'],
+            ['Signal conflict', $conflict ? 'Yes — review' : 'No'],
+            ['Last active',     $last],
+        ], [
+            ['e' => 'Intent spike detected — ' . $p->intent_score,         't' => '4 days ago', 'c' => '#10B981'],
+            ['e' => 'Churn signal crossed threshold — ' . $p->churn_score, 't' => '2 days ago', 'c' => '#F43F5E'],
+            ['e' => 'Conflicting signals flagged for review',                't' => $last,        'c' => '#F59E0B'],
+        ], [
+            ['Resolve conflict', '#F59E0B', 'bg'],
+            ['Override rule', '#A855F7', 'outline'],
+        ]);
+    }
+
+    private function applicationCard(BehavioralProfile $p): array
+    {
+        $last    = $p->last_active_at?->diffForHumans() ?? 'Unknown';
+        $isExec  = $p->overall_score >= 75 && $p->churn_score >= 65 && $p->segment === 'champion';
+        $trigger = $isExec ? 'Executive alert' : ($p->buying_readiness >= 80 ? '1-Click queue' : 'CSM queue');
+        $tags = [];
+        if ($isExec) $tags[] = 'Executive alert';
+        if ($p->buying_readiness >= 80) $tags[] = '1-Click ready';
+        if ($p->churn_score >= 65 && in_array($p->segment, ['champion', 'loyal'])) $tags[] = 'CSM queue';
+        if ($p->segment === 'champion') $tags[] = 'Enterprise';
+        return $this->makeCard($p, 'Priority ' . $p->overall_score, $tags, [
+            ['Overall score',    $p->overall_score . '/100'],
+            ['Churn risk',       $p->churn_score . '%'],
+            ['Buying readiness', $p->buying_readiness . '/100'],
+            ['Segment',          $p->segmentLabel()],
+            ['App trigger',      $trigger],
+            ['Last active',      $last],
+        ], [
+            ['e' => 'Extreme score pattern — overall ' . $p->overall_score, 't' => '1 day ago', 'c' => '#0EA5E9'],
+            ['e' => 'Application layer triggered — ' . $trigger,             't' => $last,       'c' => '#F43F5E'],
+            ['e' => 'Queued for action',                                      't' => 'now',       'c' => '#10B981'],
+        ], [
+            ['Take action', '#00FFB2', 'bg'],
+            ['Explain AI', '#A855F7', 'outline'],
+        ]);
+    }
+
+    private function governanceCard(BehavioralProfile $p): array
+    {
+        $last      = $p->last_active_at?->diffForHumans() ?? 'Unknown';
+        $staleDays = $p->last_active_at ? (int) $p->last_active_at->diffInDays(now()) : 400;
+        $isAccess  = $p->trust_score < 25;
+        $tags = [];
+        if ($staleDays > 60) $tags[] = 'Retention breach';
+        elseif ($staleDays > 30) $tags[] = 'GDPR risk';
+        if ($isAccess) $tags[] = 'Access violation';
+        if ($p->segment === 'champion') $tags[] = 'Enterprise';
+        return $this->makeCard($p, 'Risk ' . ($isAccess ? 'Access' : 'Data'), $tags, [
+            ['Last active',   $last],
+            ['Days inactive', $staleDays . ' days'],
+            ['Trust score',   $p->trust_score . '/100'],
+            ['GDPR risk',     $staleDays > 30 ? 'Yes — ' . $staleDays . 'd inactive' : 'No'],
+            ['Access risk',   $isAccess ? 'Yes — trust ' . $p->trust_score : 'No'],
+            ['Segment',       $p->segmentLabel()],
+        ], [
+            ['e' => 'Data retention threshold exceeded — ' . $staleDays . 'd inactive', 't' => $last,        'c' => '#F43F5E'],
+            ['e' => 'GDPR review flagged for profile',                                   't' => '7 days ago', 'c' => '#F59E0B'],
+            ['e' => 'Governance audit queued',                                            't' => 'today',      'c' => '#0EA5E9'],
+        ], [
+            ['Review & action', '#F43F5E', 'bg'],
+            ['View audit log', '#0EA5E9', 'outline'],
+        ]);
+    }
+
+    // ── L2 – Identity Resolution ───────────────────────────────────────────────
+    public function l2()
+    {
+        $all = BehavioralProfile::orderByDesc('overall_score')->get();
+
+        $lowConf   = $all->filter(fn($p) => $p->trust_score < 50);
+        $anonConv  = $all->filter(fn($p) => $p->engagement_score >= 60 && $p->trust_score < 40);
+        $conflicts = $all->filter(fn($p) => $p->trust_score >= 30 && $p->trust_score < 55);
+        $household = $all->filter(fn($p) => $p->loyalty_score >= 55 && $p->trust_score >= 60);
+
+        $lcCnt = $lowConf->count(); $acCnt = $anonConv->count();
+        $cfCnt = $conflicts->count(); $hhCnt = $household->count();
+
+        $scenarios = [
+            [
+                'id' => 'lowconf', 'lc' => '#F59E0B', 'ico' => '⚠️',
+                'name' => 'Low-Confidence Profiles — ' . $lcCnt . ' Users',
+                'users' => 'Trust score < 50', 'rev' => $lcCnt . ' identity gaps',
+                'urg' => 'warning', 'ul' => 'Verify now', 'urgDot' => '#F59E0B',
+                'banner' => ['text' => $lcCnt . ' profiles have identity confidence below 50. Unverified identities reduce personalisation accuracy by up to 18%. Resolve before next scoring cycle to protect model quality.', 'c' => '#F59E0B'],
+                'kpis' => [
+                    ['v' => (string)$lcCnt, 'l' => 'Low-confidence profiles', 'p' => min(100, $lcCnt * 8), 'c' => '#F59E0B'],
+                    ['v' => (string)(int)round($lowConf->avg('trust_score') ?? 0), 'l' => 'Avg trust score', 'p' => (int)round($lowConf->avg('trust_score') ?? 0), 'c' => '#F43F5E'],
+                    ['v' => (string)(int)round($lowConf->avg('engagement_score') ?? 0), 'l' => 'Avg engagement', 'p' => (int)round($lowConf->avg('engagement_score') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => '94%', 'l' => 'Re-verify rate', 'p' => 94, 'c' => '#10B981'],
+                ],
+                'dec' => [
+                    ['l' => 'Re-verify via deterministic signals', 'v' => '94%', 's' => 'Email hash + device fingerprint — ' . round($lcCnt * .94) . ' resolved', 'g' => true],
+                    ['l' => 'Leave unresolved', 'v' => '-18%', 's' => 'Personalisation accuracy drops · churn model skewed', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Profiles re-verified', 'v' => round($lcCnt * .94) . ' estimated'],
+                    ['l' => 'Method', 'v' => 'Email hash + device fingerprint'],
+                    ['l' => 'Accuracy after', 'v' => '94–98%'],
+                    ['l' => 'Resolution time', 'v' => '< 2 hours'],
+                ],
+                'ctas' => [
+                    ['ico' => '🔍', 'l' => 'Re-verify all ' . $lcCnt . ' profiles', 'd' => 'Run deterministic resolution pass on all low-confidence profiles. Expected 94% match rate.', 'b' => round($lcCnt * .94) . ' resolved', 'c' => '#F59E0B', 'view' => 'lowconf_all', 'vt' => 'Low-Confidence Profiles — All ' . $lcCnt, 'vs' => 'Ranked by trust score · click to see identity signals', 'vf' => ['All', 'Very low trust', 'No email match']],
+                    ['ico' => '📧', 'l' => 'Trigger email verification flow', 'd' => 'Send verification email to unresolved profiles. 72% click rate expected.', 'b' => round($lcCnt * .72) . ' responses', 'c' => '#A855F7', 'view' => 'lowconf_email', 'vt' => 'Email Verification Queue', 'vs' => 'Unresolved profiles · awaiting confirmation', 'vf' => ['All']],
+                ],
+            ],
+            [
+                'id' => 'anonconv', 'lc' => '#A855F7', 'ico' => '👤',
+                'name' => 'Anon → Known — ' . $acCnt . ' Sessions',
+                'users' => 'Engage ≥60 · Trust <40', 'rev' => $acCnt . ' capture opportunities',
+                'urg' => 'opportunity', 'ul' => 'Convert now', 'urgDot' => '#10B981',
+                'banner' => ['text' => $acCnt . ' anonymous sessions have strong behavioural signals but no deterministic identity. Targeted capture at key moments converts ~62% to known profiles with full personalisation enabled.', 'c' => '#A855F7'],
+                'kpis' => [
+                    ['v' => (string)$acCnt, 'l' => 'Anon sessions', 'p' => min(100, $acCnt * 10), 'c' => '#A855F7'],
+                    ['v' => (string)(int)round($anonConv->avg('engagement_score') ?? 0), 'l' => 'Avg engagement', 'p' => (int)round($anonConv->avg('engagement_score') ?? 0), 'c' => '#10B981'],
+                    ['v' => '62%', 'l' => 'Capture rate', 'p' => 62, 'c' => '#0EA5E9'],
+                    ['v' => (string)round($acCnt * .62), 'l' => 'Expected captures', 'p' => 62, 'c' => '#10B981'],
+                ],
+                'dec' => [
+                    ['l' => 'Targeted identity capture prompt', 'v' => '62%', 's' => round($acCnt * .62) . ' known · enables full personalisation', 'g' => true],
+                    ['l' => 'No capture — remain anonymous', 'v' => '0%', 's' => 'Engagement wasted · no personalisation possible', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Sessions targeted', 'v' => (string)$acCnt],
+                    ['l' => 'Expected captures', 'v' => round($acCnt * .62) . ' (62%)'],
+                    ['l' => 'Trigger moment', 'v' => 'High-intent page visit'],
+                    ['l' => 'Enrichment time', 'v' => 'Immediate on capture'],
+                ],
+                'ctas' => [
+                    ['ico' => '👤', 'l' => 'Trigger identity capture for all ' . $acCnt, 'd' => 'Surface contextual sign-in prompt at next high-intent page visit. Personalised to session behaviour.', 'b' => round($acCnt * .62) . ' expected captures', 'c' => '#A855F7', 'view' => 'anon_all', 'vt' => 'Anon → Known Capture Queue', 'vs' => 'High-engagement sessions · awaiting identity capture trigger', 'vf' => ['All', 'High engagement']],
+                ],
+            ],
+            [
+                'id' => 'conflicts', 'lc' => '#F43F5E', 'ico' => '⚡',
+                'name' => 'Merge Conflicts — ' . $cfCnt . ' Profiles',
+                'users' => 'Trust 30–55 · duplicate signals', 'rev' => $cfCnt . ' conflicts pending',
+                'urg' => 'critical', 'ul' => 'Resolve conflicts', 'urgDot' => '#F43F5E',
+                'banner' => ['text' => $cfCnt . ' profiles have conflicting identity signals. Duplicate records inflate cohort counts and distort scoring. Auto-resolve via deterministic priority — manual review for edge cases.', 'c' => '#F43F5E'],
+                'kpis' => [
+                    ['v' => (string)$cfCnt, 'l' => 'Merge conflicts', 'p' => min(100, $cfCnt * 8), 'c' => '#F43F5E'],
+                    ['v' => (string)(int)round($conflicts->avg('trust_score') ?? 0), 'l' => 'Avg trust score', 'p' => (int)round($conflicts->avg('trust_score') ?? 0), 'c' => '#F59E0B'],
+                    ['v' => '89%', 'l' => 'Auto-resolve rate', 'p' => 89, 'c' => '#10B981'],
+                    ['v' => (string)round($cfCnt * .11), 'l' => 'Manual review needed', 'p' => 11, 'c' => '#F59E0B'],
+                ],
+                'dec' => [
+                    ['l' => 'Auto-resolve + flag edge cases', 'v' => '89%', 's' => round($cfCnt * .89) . ' resolved · ' . round($cfCnt * .11) . ' flagged for review', 'g' => true],
+                    ['l' => 'Manual review all', 'v' => 'Days', 's' => 'Backlog grows · scoring accuracy degrades', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Auto-resolved', 'v' => round($cfCnt * .89) . ' profiles'],
+                    ['l' => 'Manual review queue', 'v' => round($cfCnt * .11) . ' profiles'],
+                    ['l' => 'Resolution method', 'v' => 'Deterministic priority'],
+                    ['l' => 'Time to resolve', 'v' => '< 30 min (auto)'],
+                ],
+                'ctas' => [
+                    ['ico' => '⚡', 'l' => 'Auto-resolve ' . round($cfCnt * .89) . ' conflicts', 'd' => 'Run deterministic priority merge. Flag ' . round($cfCnt * .11) . ' edge cases for manual review.', 'b' => round($cfCnt * .89) . ' resolved', 'c' => '#F43F5E', 'view' => 'conflict_auto', 'vt' => 'Merge Conflict Queue', 'vs' => 'Auto-resolve pass · click user to see conflicting signals', 'vf' => ['All', 'Auto-resolvable', 'Manual review']],
+                ],
+            ],
+            [
+                'id' => 'household', 'lc' => '#10B981', 'ico' => '🏠',
+                'name' => 'Household Groups — ' . $hhCnt . ' Profiles',
+                'users' => 'Loyalty ≥55 · Trust ≥60', 'rev' => '+' . $hhCnt . ' household identities',
+                'urg' => 'opportunity', 'ul' => 'Enrich', 'urgDot' => '#10B981',
+                'banner' => ['text' => $hhCnt . ' profiles share household-level signals. Grouping enables household personalisation, suppresses duplicate offers, and improves attribution by 12%.', 'c' => '#10B981'],
+                'kpis' => [
+                    ['v' => (string)$hhCnt, 'l' => 'Household profiles', 'p' => 80, 'c' => '#10B981'],
+                    ['v' => (string)(int)round($household->avg('loyalty_score') ?? 0), 'l' => 'Avg loyalty score', 'p' => (int)round($household->avg('loyalty_score') ?? 0), 'c' => '#10B981'],
+                    ['v' => (string)(int)round($household->avg('trust_score') ?? 0), 'l' => 'Avg trust score', 'p' => (int)round($household->avg('trust_score') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => '2.3', 'l' => 'Avg household size', 'p' => 60, 'c' => '#A855F7'],
+                ],
+                'dec' => [
+                    ['l' => 'Group + suppress duplicate outreach', 'v' => '-38%', 's' => 'Duplicate sends eliminated · household CVR +12%', 'g' => true],
+                    ['l' => 'Treat as individual profiles', 'v' => 'Current', 's' => 'Duplicate offers · attribution noise', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Household groups created', 'v' => ceil($hhCnt / 2.3) . ' households'],
+                    ['l' => 'Duplicate offers suppressed', 'v' => round($hhCnt * .38) . ' sends saved'],
+                    ['l' => 'Attribution improvement', 'v' => '+12% accuracy'],
+                    ['l' => 'Processing time', 'v' => '< 1 hour'],
+                ],
+                'ctas' => [
+                    ['ico' => '🏠', 'l' => 'Create household groups + suppress duplicates', 'd' => 'Link household profiles, deduplicate outreach for all ' . $hhCnt . ' profiles.', 'b' => round($hhCnt * .38) . ' sends saved', 'c' => '#10B981', 'view' => 'household_all', 'vt' => 'Household Groups — All Profiles', 'vs' => 'Grouped by shared identity signals · see members per household', 'vf' => ['All', 'High loyalty']],
+                ],
+            ],
+        ];
+
+        $lcCards = $lowConf->take(40)->map(fn($p)   => $this->identityCard($p))->values();
+        $acCards = $anonConv->take(40)->map(fn($p)  => $this->identityCard($p))->values();
+        $cfCards = $conflicts->take(40)->map(fn($p) => $this->identityCard($p))->values();
+        $hhCards = $household->take(40)->map(fn($p) => $this->identityCard($p))->values();
+
+        $userGroups = [
+            'lowconf_all'   => $lcCards,
+            'lowconf_email' => $lcCards->filter(fn($c) => in_array('Very low trust', $c['tags']))->values(),
+            'anon_all'      => $acCards,
+            'conflict_auto' => $cfCards,
+            'household_all' => $hhCards,
+        ];
+
+        return view('client.layers.l2', compact('scenarios', 'userGroups'));
+    }
+
+    // ── L3 – Data Processing ───────────────────────────────────────────────────
+    public function l3()
+    {
+        $all = BehavioralProfile::orderByDesc('overall_score')->get();
+
+        $stale      = $all->filter(fn($p) => $p->last_active_at && $p->last_active_at->lt(now()->subDays(14)));
+        $highDropoff = $all->filter(fn($p) => $p->dropoff_risk >= 65);
+        $mlReady    = $all->filter(fn($p) => $p->overall_score >= 70 && $p->engagement_score >= 50);
+        $newEntries = $all->filter(fn($p) => $p->segment === 'new');
+
+        $stCnt = $stale->count(); $hdCnt = $highDropoff->count();
+        $mlCnt = $mlReady->count(); $neCnt = $newEntries->count();
+
+        $scenarios = [
+            [
+                'id' => 'stale', 'lc' => '#F59E0B', 'ico' => '⏱️',
+                'name' => 'Stale Features — ' . $stCnt . ' Profiles',
+                'users' => 'Inactive > 14 days', 'rev' => $stCnt . ' profiles need refresh',
+                'urg' => 'warning', 'ul' => 'Reprocess', 'urgDot' => '#F59E0B',
+                'banner' => ['text' => $stCnt . ' profiles have features older than 14 days. Stale features degrade model accuracy by up to 22%. Trigger reprocessing to restore scoring quality before next prediction cycle.', 'c' => '#F59E0B'],
+                'kpis' => [
+                    ['v' => (string)$stCnt, 'l' => 'Stale profiles', 'p' => min(100, $stCnt * 8), 'c' => '#F59E0B'],
+                    ['v' => (string)(int)round($stale->avg('dropoff_risk') ?? 0), 'l' => 'Avg dropoff risk', 'p' => (int)round($stale->avg('dropoff_risk') ?? 0), 'c' => '#F43F5E'],
+                    ['v' => (string)(int)round($stale->avg('reactivation_potential') ?? 0), 'l' => 'Avg reactivation score', 'p' => (int)round($stale->avg('reactivation_potential') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => '< 2hr', 'l' => 'Reprocess time', 'p' => 80, 'c' => '#10B981'],
+                ],
+                'dec' => [
+                    ['l' => 'Trigger reprocessing now', 'v' => '+22%', 's' => 'Model accuracy restored · scoring cycle uninterrupted', 'g' => true],
+                    ['l' => 'Wait for next scheduled cycle', 'v' => '-22%', 's' => 'Stale features persist · downstream accuracy degrades', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Profiles reprocessed', 'v' => (string)$stCnt],
+                    ['l' => 'Feature refresh method', 'v' => 'Incremental pipeline run'],
+                    ['l' => 'Model accuracy restored', 'v' => '+22%'],
+                    ['l' => 'Processing time', 'v' => '< 2 hours'],
+                ],
+                'ctas' => [
+                    ['ico' => '⚡', 'l' => 'Trigger reprocessing for all ' . $stCnt . ' stale profiles', 'd' => 'Run incremental feature refresh for all profiles inactive > 14 days.', 'b' => '+22% model accuracy', 'c' => '#F59E0B', 'view' => 'stale_all', 'vt' => 'Stale Feature Profiles — All ' . $stCnt, 'vs' => 'Ranked by inactivity · click to see feature staleness', 'vf' => ['All', 'Highly stale', 'High dropout risk']],
+                    ['ico' => '📅', 'l' => 'Schedule daily reprocess for stale profiles', 'd' => 'Automate daily incremental refresh to prevent staleness accumulation.', 'b' => 'Automated', 'c' => '#0EA5E9', 'view' => 'stale_sched', 'vt' => 'Schedule Reprocessing', 'vs' => 'Daily automation · prevents feature drift', 'vf' => ['All']],
+                ],
+            ],
+            [
+                'id' => 'dropoff', 'lc' => '#F43F5E', 'ico' => '📉',
+                'name' => 'High Dropout Risk — ' . $hdCnt . ' Profiles',
+                'users' => 'Dropoff risk ≥65', 'rev' => '$' . number_format($hdCnt * 2200) . ' pipeline value',
+                'urg' => 'critical', 'ul' => 'Intervene now', 'urgDot' => '#F43F5E',
+                'banner' => ['text' => $hdCnt . ' profiles scored ≥65 dropoff risk. Pipeline lag causes score decay — act within 24 hours to retain accuracy. Estimated pipeline value at risk: $' . number_format($hdCnt * 2200) . '.', 'c' => '#F43F5E'],
+                'kpis' => [
+                    ['v' => (string)$hdCnt, 'l' => 'High dropout profiles', 'p' => min(100, $hdCnt * 6), 'c' => '#F43F5E'],
+                    ['v' => (string)(int)round($highDropoff->avg('dropoff_risk') ?? 0), 'l' => 'Avg dropoff risk', 'p' => (int)round($highDropoff->avg('dropoff_risk') ?? 0), 'c' => '#F43F5E'],
+                    ['v' => (string)(int)round($highDropoff->avg('engagement_score') ?? 0), 'l' => 'Avg engagement', 'p' => (int)round($highDropoff->avg('engagement_score') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => '$' . number_format($hdCnt * 2200), 'l' => 'Pipeline at risk', 'p' => 75, 'c' => '#F59E0B'],
+                ],
+                'dec' => [
+                    ['l' => 'Re-route through priority pipeline', 'v' => '78%', 's' => round($hdCnt * .78) . ' profiles rescued · value retained', 'g' => true],
+                    ['l' => 'Standard queue — accept lag', 'v' => '-31%', 's' => 'Score decay · downstream prediction error', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Profiles rescued', 'v' => round($hdCnt * .78) . ' (78%)'],
+                    ['l' => 'Pipeline lag eliminated', 'v' => '< 30 min'],
+                    ['l' => 'Value protected', 'v' => '$' . number_format($hdCnt * 2200)],
+                    ['l' => 'Method', 'v' => 'Priority queue bypass'],
+                ],
+                'ctas' => [
+                    ['ico' => '🚀', 'l' => 'Route all ' . $hdCnt . ' to priority pipeline', 'd' => 'Bypass standard queue for high-dropout profiles. Restore scoring accuracy within 30 minutes.', 'b' => '$' . number_format($hdCnt * 2200) . ' protected', 'c' => '#F43F5E', 'view' => 'dropoff_all', 'vt' => 'High Dropout Risk — All ' . $hdCnt, 'vs' => 'Ranked by dropoff risk · click to see feature gaps', 'vf' => ['All', 'High dropout risk', 'ML-ready']],
+                ],
+            ],
+            [
+                'id' => 'mlready', 'lc' => '#10B981', 'ico' => '🤖',
+                'name' => 'ML-Ready Features — ' . $mlCnt . ' Profiles',
+                'users' => 'Overall ≥70 · Engage ≥50', 'rev' => $mlCnt . ' candidates for model refresh',
+                'urg' => 'opportunity', 'ul' => 'Refresh model', 'urgDot' => '#10B981',
+                'banner' => ['text' => $mlCnt . ' profiles have high-quality feature vectors ready for model training. Refreshing with these profiles improves prediction accuracy by 8–14%.', 'c' => '#10B981'],
+                'kpis' => [
+                    ['v' => (string)$mlCnt, 'l' => 'ML-ready profiles', 'p' => min(100, $mlCnt * 5), 'c' => '#10B981'],
+                    ['v' => (string)(int)round($mlReady->avg('overall_score') ?? 0), 'l' => 'Avg overall score', 'p' => (int)round($mlReady->avg('overall_score') ?? 0), 'c' => '#10B981'],
+                    ['v' => (string)(int)round($mlReady->avg('engagement_score') ?? 0), 'l' => 'Avg engagement', 'p' => (int)round($mlReady->avg('engagement_score') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => '+12%', 'l' => 'Expected accuracy gain', 'p' => 65, 'c' => '#10B981'],
+                ],
+                'dec' => [
+                    ['l' => 'Trigger model refresh now', 'v' => '+12%', 's' => 'Improved prediction accuracy across all downstream models', 'g' => true],
+                    ['l' => 'Wait for scheduled refresh', 'v' => 'Current', 's' => 'No accuracy gain until next scheduled window', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Training samples added', 'v' => (string)$mlCnt],
+                    ['l' => 'Expected accuracy gain', 'v' => '+8–14%'],
+                    ['l' => 'Models affected', 'v' => 'Churn · Intent · Readiness'],
+                    ['l' => 'Training time', 'v' => '< 4 hours'],
+                ],
+                'ctas' => [
+                    ['ico' => '🤖', 'l' => 'Trigger model refresh with ' . $mlCnt . ' new samples', 'd' => 'Add all high-quality feature vectors to training pipeline. Expected +12% accuracy.', 'b' => '+12% model accuracy', 'c' => '#10B981', 'view' => 'ml_all', 'vt' => 'ML-Ready Profiles — All ' . $mlCnt, 'vs' => 'High-quality feature vectors · ready for training', 'vf' => ['All', 'High overall score', 'High engagement']],
+                ],
+            ],
+            [
+                'id' => 'newentry', 'lc' => '#A855F7', 'ico' => '✨',
+                'name' => 'New Profile Entries — ' . $neCnt . ' Users',
+                'users' => 'Segment: New', 'rev' => $neCnt . ' profiles to onboard',
+                'urg' => 'opportunity', 'ul' => 'Onboard', 'urgDot' => '#10B981',
+                'banner' => ['text' => $neCnt . ' new profiles entered the system. Fast feature initialisation within 2 hours improves first-event prediction by 34% vs cold start. Onboard now to accelerate value.', 'c' => '#A855F7'],
+                'kpis' => [
+                    ['v' => (string)$neCnt, 'l' => 'New profiles', 'p' => min(100, $neCnt * 12), 'c' => '#A855F7'],
+                    ['v' => (string)(int)round($newEntries->avg('engagement_score') ?? 0), 'l' => 'Avg engagement', 'p' => (int)round($newEntries->avg('engagement_score') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => '+34%', 'l' => 'First-event prediction gain', 'p' => 68, 'c' => '#10B981'],
+                    ['v' => '< 2hr', 'l' => 'Onboarding time', 'p' => 90, 'c' => '#10B981'],
+                ],
+                'dec' => [
+                    ['l' => 'Fast-track feature initialisation', 'v' => '+34%', 's' => 'First-event prediction improved · personalisation enabled faster', 'g' => true],
+                    ['l' => 'Cold start — standard queue', 'v' => 'Current', 's' => 'Delayed personalisation · prediction quality low', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Profiles initialised', 'v' => (string)$neCnt],
+                    ['l' => 'First-event prediction', 'v' => '+34% accuracy'],
+                    ['l' => 'Personalisation enabled', 'v' => 'Within 2 hours'],
+                    ['l' => 'Next scoring cycle', 'v' => 'Included'],
+                ],
+                'ctas' => [
+                    ['ico' => '✨', 'l' => 'Fast-track onboarding for all ' . $neCnt . ' new profiles', 'd' => 'Initialise feature vectors immediately. All profiles included in next scoring cycle.', 'b' => '+34% prediction accuracy', 'c' => '#A855F7', 'view' => 'new_all', 'vt' => 'New Profile Onboarding Queue', 'vs' => 'Fast-track initialisation · all included in next cycle', 'vf' => ['All']],
+                ],
+            ],
+        ];
+
+        $stCards = $stale->take(40)->map(fn($p)       => $this->processingCard($p))->values();
+        $hdCards = $highDropoff->take(40)->map(fn($p) => $this->processingCard($p))->values();
+        $mlCards = $mlReady->take(40)->map(fn($p)     => $this->processingCard($p))->values();
+        $neCards = $newEntries->take(40)->map(fn($p)  => $this->processingCard($p))->values();
+
+        $userGroups = [
+            'stale_all'   => $stCards,
+            'stale_sched' => $stCards,
+            'dropoff_all' => $hdCards,
+            'ml_all'      => $mlCards,
+            'new_all'     => $neCards,
+        ];
+
+        return view('client.layers.l3', compact('scenarios', 'userGroups'));
+    }
+
+    // ── L6 – Decision & Actions ────────────────────────────────────────────────
+    public function l6()
+    {
+        $all = BehavioralProfile::orderByDesc('overall_score')->get();
+
+        $sigConflicts = $all->filter(fn($p) => $p->churn_score >= 50 && $p->intent_score >= 60);
+        $freqCap      = $all->filter(fn($p) => $p->frustration_score >= 60);
+        $budgetCeil   = $all->filter(fn($p) => $p->engagement_score >= 75 && $p->intent_score >= 65);
+        $learning     = $all->filter(fn($p) => $p->segment === 'new' || ($p->overall_score >= 50 && $p->overall_score < 65));
+
+        $coCnt = $sigConflicts->count(); $fcCnt = $freqCap->count();
+        $bcCnt = $budgetCeil->count();   $llCnt = $learning->count();
+
+        $scenarios = [
+            [
+                'id' => 'sigconflict', 'lc' => '#F43F5E', 'ico' => '⚡',
+                'name' => 'Signal Conflicts — ' . $coCnt . ' Users',
+                'users' => 'Churn ≥50 · Intent ≥60', 'rev' => '$' . number_format($coCnt * 3100) . ' revenue affected',
+                'urg' => 'critical', 'ul' => 'Resolve now', 'urgDot' => '#F43F5E',
+                'banner' => ['text' => $coCnt . ' users show conflicting signals — high intent alongside high churn risk. Sending without resolving risks the wrong message to the wrong user. AI recommends conflict-resolution override.', 'c' => '#F43F5E'],
+                'kpis' => [
+                    ['v' => (string)$coCnt, 'l' => 'Signal conflicts', 'p' => min(100, $coCnt * 8), 'c' => '#F43F5E'],
+                    ['v' => (string)(int)round($sigConflicts->avg('intent_score') ?? 0), 'l' => 'Avg intent score', 'p' => (int)round($sigConflicts->avg('intent_score') ?? 0), 'c' => '#10B981'],
+                    ['v' => (string)(int)round($sigConflicts->avg('churn_score') ?? 0), 'l' => 'Avg churn score', 'p' => (int)round($sigConflicts->avg('churn_score') ?? 0), 'c' => '#F43F5E'],
+                    ['v' => '$' . number_format($coCnt * 3100), 'l' => 'Revenue affected', 'p' => 70, 'c' => '#F59E0B'],
+                ],
+                'dec' => [
+                    ['l' => 'Resolve via AI priority rule', 'v' => '+28%', 's' => 'Correct action taken · revenue protected · churn reduced', 'g' => true],
+                    ['l' => 'Send using highest-scoring signal', 'v' => '-15%', 's' => 'Wrong action for ~30% of conflicts · revenue and retention impact', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Conflicts resolved', 'v' => (string)$coCnt],
+                    ['l' => 'Priority rule applied', 'v' => 'Churn > Intent (protect first)'],
+                    ['l' => 'Revenue protected', 'v' => '$' . number_format($coCnt * 3100)],
+                    ['l' => 'Resolution time', 'v' => '< 1 hour'],
+                ],
+                'ctas' => [
+                    ['ico' => '⚡', 'l' => 'Resolve all ' . $coCnt . ' conflicts via AI priority', 'd' => 'Apply priority rule: churn intervention takes precedence over intent activation. All conflicts resolved in < 1 hour.', 'b' => '$' . number_format($coCnt * 3100) . ' protected', 'c' => '#F43F5E', 'view' => 'conflict_all', 'vt' => 'Signal Conflicts — All ' . $coCnt, 'vs' => 'Ranked by conflict severity · click to see conflicting signals', 'vf' => ['All', 'Signal conflict', 'Enterprise']],
+                    ['ico' => '🔧', 'l' => 'Override rule for specific users', 'd' => 'Manually override AI priority for users where context suggests a different action.', 'b' => 'Manual review', 'c' => '#A855F7', 'view' => 'conflict_manual', 'vt' => 'Manual Override Queue', 'vs' => 'Override available · choose action per user', 'vf' => ['All']],
+                ],
+            ],
+            [
+                'id' => 'freqcap', 'lc' => '#F59E0B', 'ico' => '🔕',
+                'name' => 'Frequency Cap Suppressions — ' . $fcCnt . ' Users',
+                'users' => 'Frustration ≥60', 'rev' => $fcCnt . ' users protected from burnout',
+                'urg' => 'warning', 'ul' => 'Suppress now', 'urgDot' => '#F59E0B',
+                'banner' => ['text' => $fcCnt . ' users have frustration scores ≥60. Sending additional messages risks accelerating churn. AI recommends frequency cap — no outreach for 7 days.', 'c' => '#F59E0B'],
+                'kpis' => [
+                    ['v' => (string)$fcCnt, 'l' => 'Cap suppressions', 'p' => min(100, $fcCnt * 6), 'c' => '#F59E0B'],
+                    ['v' => (string)(int)round($freqCap->avg('frustration_score') ?? 0), 'l' => 'Avg frustration score', 'p' => (int)round($freqCap->avg('frustration_score') ?? 0), 'c' => '#F43F5E'],
+                    ['v' => '-31%', 'l' => 'Churn risk reduction', 'p' => 69, 'c' => '#10B981'],
+                    ['v' => '7 days', 'l' => 'Suppression window', 'p' => 50, 'c' => '#0EA5E9'],
+                ],
+                'dec' => [
+                    ['l' => 'Apply 7-day frequency cap', 'v' => '-31%', 's' => 'Churn risk reduced · ' . round($fcCnt * .31) . ' users retained', 'g' => true],
+                    ['l' => 'Continue standard outreach', 'v' => '+14%', 's' => 'Frustration increases · accelerated churn risk', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Users suppressed', 'v' => (string)$fcCnt],
+                    ['l' => 'Suppression window', 'v' => '7 days'],
+                    ['l' => 'Expected churn reduction', 'v' => round($fcCnt * .31) . ' users retained'],
+                    ['l' => 'Re-engagement trigger', 'v' => 'Frustration score < 40'],
+                ],
+                'ctas' => [
+                    ['ico' => '🔕', 'l' => 'Apply 7-day frequency cap to all ' . $fcCnt, 'd' => 'Suppress all outreach for 7 days. Re-engage when frustration score drops below 40.', 'b' => round($fcCnt * .31) . ' users retained', 'c' => '#F59E0B', 'view' => 'freqcap_all', 'vt' => 'Frequency Cap Suppressions', 'vs' => 'High-frustration users · suppressed from all outreach', 'vf' => ['All', 'Frequency cap', 'High frustration']],
+                ],
+            ],
+            [
+                'id' => 'budget', 'lc' => '#0EA5E9', 'ico' => '💰',
+                'name' => 'Budget Ceiling Alerts — ' . $bcCnt . ' Users',
+                'users' => 'Engage ≥75 · Intent ≥65', 'rev' => '$' . number_format($bcCnt * 890) . ' at ceiling',
+                'urg' => 'warning', 'ul' => 'Review allocation', 'urgDot' => '#0EA5E9',
+                'banner' => ['text' => $bcCnt . ' high-value users are consuming more marketing budget than allocated. AI recommends reallocating to highest-intent users to maximise ROI within the cap.', 'c' => '#0EA5E9'],
+                'kpis' => [
+                    ['v' => (string)$bcCnt, 'l' => 'Budget ceiling users', 'p' => min(100, $bcCnt * 8), 'c' => '#0EA5E9'],
+                    ['v' => (string)(int)round($budgetCeil->avg('engagement_score') ?? 0), 'l' => 'Avg engagement', 'p' => (int)round($budgetCeil->avg('engagement_score') ?? 0), 'c' => '#10B981'],
+                    ['v' => (string)(int)round($budgetCeil->avg('intent_score') ?? 0), 'l' => 'Avg intent score', 'p' => (int)round($budgetCeil->avg('intent_score') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => '+22%', 'l' => 'ROI after reallocation', 'p' => 80, 'c' => '#10B981'],
+                ],
+                'dec' => [
+                    ['l' => 'Reallocate to highest-intent users', 'v' => '+22%', 's' => 'Budget efficiency +22% · ROI maximised within cap', 'g' => true],
+                    ['l' => 'Pause all high-engagement outreach', 'v' => '-18%', 's' => 'Revenue opportunity lost · competitors fill the gap', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Users reallocated', 'v' => round($bcCnt * .6) . ' (highest intent)'],
+                    ['l' => 'Paused', 'v' => round($bcCnt * .4) . ' (lower priority)'],
+                    ['l' => 'Budget efficiency', 'v' => '+22% ROI'],
+                    ['l' => 'Reallocation method', 'v' => 'Intent × Readiness ranking'],
+                ],
+                'ctas' => [
+                    ['ico' => '💰', 'l' => 'Reallocate budget to top ' . round($bcCnt * .6) . ' intent users', 'd' => 'Pause lowest-priority contacts. Concentrate budget on highest intent × readiness users.', 'b' => '+22% ROI', 'c' => '#0EA5E9', 'view' => 'budget_all', 'vt' => 'Budget Ceiling — Reallocation Queue', 'vs' => 'Sorted by intent × readiness · reallocate budget to top performers', 'vf' => ['All', 'Budget ceiling', 'Highest intent']],
+                ],
+            ],
+            [
+                'id' => 'learning', 'lc' => '#10B981', 'ico' => '🔄',
+                'name' => 'Learning Loop — ' . $llCnt . ' Profiles',
+                'users' => 'New + Mid-range scores', 'rev' => $llCnt . ' profiles improving model',
+                'urg' => 'opportunity', 'ul' => 'Feed model', 'urgDot' => '#10B981',
+                'banner' => ['text' => $llCnt . ' new and mid-range profiles provide high-value signal diversity for the learning loop. Feeding these into the model improves emerging segment prediction accuracy by 16%.', 'c' => '#10B981'],
+                'kpis' => [
+                    ['v' => (string)$llCnt, 'l' => 'Learning loop profiles', 'p' => min(100, $llCnt * 4), 'c' => '#10B981'],
+                    ['v' => (string)(int)round($learning->avg('overall_score') ?? 0), 'l' => 'Avg overall score', 'p' => (int)round($learning->avg('overall_score') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => '+16%', 'l' => 'Emerging segment accuracy', 'p' => 65, 'c' => '#10B981'],
+                    ['v' => '< 6hr', 'l' => 'Learning cycle time', 'p' => 80, 'c' => '#0EA5E9'],
+                ],
+                'dec' => [
+                    ['l' => 'Feed into learning loop now', 'v' => '+16%', 's' => 'Emerging segment accuracy improved · model generalises better', 'g' => true],
+                    ['l' => 'Wait for scheduled cycle', 'v' => 'Current', 's' => 'Signal value decays · accuracy improvement delayed', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Profiles fed to model', 'v' => (string)$llCnt],
+                    ['l' => 'Emerging segment accuracy', 'v' => '+16%'],
+                    ['l' => 'Learning cycle', 'v' => '< 6 hours'],
+                    ['l' => 'Models updated', 'v' => 'All downstream models'],
+                ],
+                'ctas' => [
+                    ['ico' => '🔄', 'l' => 'Feed ' . $llCnt . ' profiles to learning loop now', 'd' => 'Submit all new and mid-range profiles to the learning loop. Improves emerging segment predictions.', 'b' => '+16% accuracy', 'c' => '#10B981', 'view' => 'learning_all', 'vt' => 'Learning Loop — All ' . $llCnt . ' Profiles', 'vs' => 'New and mid-range profiles · improving emerging segment model', 'vf' => ['All']],
+                ],
+            ],
+        ];
+
+        $coCards = $sigConflicts->take(40)->map(fn($p) => $this->decisionCard($p))->values();
+        $fcCards = $freqCap->take(40)->map(fn($p)      => $this->decisionCard($p))->values();
+        $bcCards = $budgetCeil->take(40)->map(fn($p)   => $this->decisionCard($p))->values();
+        $llCards = $learning->take(40)->map(fn($p)     => $this->decisionCard($p))->values();
+
+        $userGroups = [
+            'conflict_all'    => $coCards,
+            'conflict_manual' => $coCards->filter(fn($c) => in_array('Signal conflict', $c['tags']))->values(),
+            'freqcap_all'     => $fcCards,
+            'budget_all'      => $bcCards,
+            'learning_all'    => $llCards,
+        ];
+
+        return view('client.layers.l6', compact('scenarios', 'userGroups'));
+    }
+
+    // ── L7 – Application Layer ─────────────────────────────────────────────────
+    public function l7()
+    {
+        $all = BehavioralProfile::orderByDesc('overall_score')->get();
+
+        $execAlerts = $all->filter(fn($p) => $p->overall_score >= 75 && $p->churn_score >= 65);
+        $oneClick   = $all->filter(fn($p) => $p->buying_readiness >= 80 && $p->intent_score >= 75);
+        $csmQueue   = $all->filter(fn($p) => $p->churn_score >= 65 && in_array($p->segment, ['champion', 'loyal']));
+        $explainAi  = $all->filter(fn($p) => abs($p->intent_score - $p->churn_score) < 15 && $p->overall_score >= 50);
+
+        $eaCnt = $execAlerts->count(); $ocCnt = $oneClick->count();
+        $cqCnt = $csmQueue->count();   $exCnt = $explainAi->count();
+
+        $scenarios = [
+            [
+                'id' => 'exec', 'lc' => '#F43F5E', 'ico' => '🚨',
+                'name' => 'Executive Alerts — ' . $eaCnt . ' Accounts',
+                'users' => 'Overall ≥75 · Churn ≥65', 'rev' => '$' . number_format($eaCnt * 18000) . ' ARR at risk',
+                'urg' => 'critical', 'ul' => 'Immediate', 'urgDot' => '#F43F5E',
+                'banner' => ['text' => $eaCnt . ' high-value accounts crossed both the churn threshold and overall score threshold. These require executive-level escalation. Total ARR at risk: $' . number_format($eaCnt * 18000) . '.', 'c' => '#F43F5E'],
+                'kpis' => [
+                    ['v' => (string)$eaCnt, 'l' => 'Executive alerts', 'p' => min(100, $eaCnt * 15), 'c' => '#F43F5E'],
+                    ['v' => (string)(int)round($execAlerts->avg('churn_score') ?? 0), 'l' => 'Avg churn score', 'p' => (int)round($execAlerts->avg('churn_score') ?? 0), 'c' => '#F43F5E'],
+                    ['v' => (string)(int)round($execAlerts->avg('overall_score') ?? 0), 'l' => 'Avg overall score', 'p' => (int)round($execAlerts->avg('overall_score') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => '$' . number_format($eaCnt * 18000), 'l' => 'ARR at risk', 'p' => 80, 'c' => '#F59E0B'],
+                ],
+                'dec' => [
+                    ['l' => 'Escalate to executive team now', 'v' => '58%', 's' => 'Executive contact within 2hr · ' . round($eaCnt * .58) . ' accounts retained', 'g' => true],
+                    ['l' => 'Standard CSM process', 'v' => '28%', 's' => 'Delayed response · revenue loss accelerates', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Accounts escalated', 'v' => (string)$eaCnt],
+                    ['l' => 'Response SLA', 'v' => '< 2 hours'],
+                    ['l' => 'Expected retention', 'v' => round($eaCnt * .58) . ' (58%)'],
+                    ['l' => 'ARR protected', 'v' => '$' . number_format(round($eaCnt * .58) * 18000)],
+                ],
+                'ctas' => [
+                    ['ico' => '🚨', 'l' => 'Escalate all ' . $eaCnt . ' accounts to executive team', 'd' => 'Alert VP CS and CEO dashboard. Trigger emergency retention protocol for all flagged accounts.', 'b' => '$' . number_format(round($eaCnt * .58) * 18000) . ' ARR saved', 'c' => '#F43F5E', 'view' => 'exec_all', 'vt' => 'Executive Alerts — All ' . $eaCnt . ' Accounts', 'vs' => 'High-value + high-churn · requires immediate executive contact', 'vf' => ['All', 'Executive alert', 'Enterprise']],
+                    ['ico' => '📞', 'l' => 'Route to dedicated CSM + call now', 'd' => 'Assign dedicated CSM to each account. Initiate call within 30 minutes.', 'b' => round($eaCnt * .58) . ' accounts', 'c' => '#A855F7', 'view' => 'exec_csm', 'vt' => 'CSM Escalation Queue', 'vs' => 'Dedicated CSM assigned · calls in progress', 'vf' => ['All']],
+                ],
+            ],
+            [
+                'id' => 'oneclick', 'lc' => '#10B981', 'ico' => '🚀',
+                'name' => '1-Click Queue — ' . $ocCnt . ' Users',
+                'users' => 'Readiness ≥80 · Intent ≥75', 'rev' => '$' . number_format($ocCnt * 890) . ' conversion ready',
+                'urg' => 'opportunity', 'ul' => '48hr window', 'urgDot' => '#10B981',
+                'banner' => ['text' => $ocCnt . ' users are in peak buying state — readiness ≥80 and intent ≥75. 1-click offer dispatch converts at 41% vs 12% for standard campaign. 48-hour window applies.', 'c' => '#10B981'],
+                'kpis' => [
+                    ['v' => (string)$ocCnt, 'l' => '1-Click ready users', 'p' => min(100, $ocCnt * 12), 'c' => '#10B981'],
+                    ['v' => (string)(int)round($oneClick->avg('buying_readiness') ?? 0), 'l' => 'Avg buying readiness', 'p' => (int)round($oneClick->avg('buying_readiness') ?? 0), 'c' => '#10B981'],
+                    ['v' => (string)(int)round($oneClick->avg('intent_score') ?? 0), 'l' => 'Avg intent score', 'p' => (int)round($oneClick->avg('intent_score') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => '41%', 'l' => 'Conversion rate', 'p' => 82, 'c' => '#10B981'],
+                ],
+                'dec' => [
+                    ['l' => '1-Click dispatch (48hr window)', 'v' => '41%', 's' => round($ocCnt * .41) . ' conversions · $' . number_format(round($ocCnt * .41) * 890) . ' revenue', 'g' => true],
+                    ['l' => 'Standard campaign', 'v' => '12%', 's' => round($ocCnt * .12) . ' conversions · revenue opportunity missed', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Users in 1-click queue', 'v' => (string)$ocCnt],
+                    ['l' => 'Expected conversions', 'v' => round($ocCnt * .41) . ' (41%)'],
+                    ['l' => 'Revenue', 'v' => '$' . number_format(round($ocCnt * .41) * 890)],
+                    ['l' => 'Dispatch window', 'v' => '48 hours'],
+                ],
+                'ctas' => [
+                    ['ico' => '🚀', 'l' => 'Dispatch 1-click offers to all ' . $ocCnt, 'd' => 'Pre-filled offer pages sent to each user. Personalised to plan evaluating. No friction checkout.', 'b' => '$' . number_format(round($ocCnt * .41) * 890) . ' revenue', 'c' => '#10B981', 'view' => 'oneclick_all', 'vt' => '1-Click Queue — All ' . $ocCnt . ' Users', 'vs' => 'Peak buying state · pre-filled offers ready to send', 'vf' => ['All', '1-Click ready', 'Highest intent']],
+                ],
+            ],
+            [
+                'id' => 'csmqueue', 'lc' => '#A855F7', 'ico' => '📞',
+                'name' => 'CSM Queue — ' . $cqCnt . ' Accounts',
+                'users' => 'Churn ≥65 · Champion/Loyal', 'rev' => '$' . number_format($cqCnt * 8400) . ' ARR at risk',
+                'urg' => 'critical', 'ul' => '72hr window', 'urgDot' => '#F43F5E',
+                'banner' => ['text' => $cqCnt . ' loyal and champion-tier accounts crossed the churn threshold. CSM contact within 72 hours retains 41%. Delay beyond 72 hours: retention drops below 20%.', 'c' => '#A855F7'],
+                'kpis' => [
+                    ['v' => (string)$cqCnt, 'l' => 'CSM queue accounts', 'p' => min(100, $cqCnt * 8), 'c' => '#A855F7'],
+                    ['v' => (string)(int)round($csmQueue->avg('churn_score') ?? 0), 'l' => 'Avg churn score', 'p' => (int)round($csmQueue->avg('churn_score') ?? 0), 'c' => '#F43F5E'],
+                    ['v' => (string)(int)round($csmQueue->avg('loyalty_score') ?? 0), 'l' => 'Avg loyalty score', 'p' => (int)round($csmQueue->avg('loyalty_score') ?? 0), 'c' => '#10B981'],
+                    ['v' => '$' . number_format($cqCnt * 8400), 'l' => 'ARR at risk', 'p' => 75, 'c' => '#F59E0B'],
+                ],
+                'dec' => [
+                    ['l' => 'CSM contact within 72hrs', 'v' => '41%', 's' => round($cqCnt * .41) . ' retained · $' . number_format(round($cqCnt * .41) * 8400) . ' ARR protected', 'g' => true],
+                    ['l' => 'After 72hrs', 'v' => '<20%', 's' => 'Window closed · recovery rate drops dramatically', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Accounts assigned to CSM', 'v' => (string)$cqCnt],
+                    ['l' => 'Expected retentions', 'v' => round($cqCnt * .41) . ' (41%)'],
+                    ['l' => 'ARR protected', 'v' => '$' . number_format(round($cqCnt * .41) * 8400)],
+                    ['l' => 'Action window', 'v' => '72 hours'],
+                ],
+                'ctas' => [
+                    ['ico' => '📞', 'l' => 'Assign all ' . $cqCnt . ' to CSM + call now', 'd' => 'Auto-assign to available CSM. Personalised call script ready. Retention offer approved.', 'b' => '$' . number_format(round($cqCnt * .41) * 8400) . ' protected', 'c' => '#A855F7', 'view' => 'csm_all', 'vt' => 'CSM Queue — All ' . $cqCnt . ' Accounts', 'vs' => 'Ranked by churn × LTV · personalised call script ready', 'vf' => ['All', 'CSM queue', 'Enterprise']],
+                ],
+            ],
+            [
+                'id' => 'explainai', 'lc' => '#0EA5E9', 'ico' => '🧠',
+                'name' => 'Explain AI — ' . $exCnt . ' Profiles',
+                'users' => 'Ambiguous score pattern', 'rev' => $exCnt . ' decisions to explain',
+                'urg' => 'warning', 'ul' => 'Explain', 'urgDot' => '#0EA5E9',
+                'banner' => ['text' => $exCnt . ' profiles have ambiguous score patterns. Explain AI provides human-readable explanations of why the model scored each profile, enabling CSM review and override.', 'c' => '#0EA5E9'],
+                'kpis' => [
+                    ['v' => (string)$exCnt, 'l' => 'Profiles to explain', 'p' => min(100, $exCnt * 5), 'c' => '#0EA5E9'],
+                    ['v' => (string)(int)round($explainAi->avg('overall_score') ?? 0), 'l' => 'Avg overall score', 'p' => (int)round($explainAi->avg('overall_score') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => '< 5s', 'l' => 'Explanation time', 'p' => 90, 'c' => '#10B981'],
+                    ['v' => '92%', 'l' => 'CSM acceptance rate', 'p' => 92, 'c' => '#10B981'],
+                ],
+                'dec' => [
+                    ['l' => 'Generate explanations + allow override', 'v' => '92%', 's' => 'Right action taken · model trust increases', 'g' => true],
+                    ['l' => 'Black-box — no explanation', 'v' => '-22%', 's' => 'Wrong actions on ambiguous profiles · CSM trust erodes', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Profiles explained', 'v' => (string)$exCnt],
+                    ['l' => 'CSM acceptance rate', 'v' => '92%'],
+                    ['l' => 'Override rate', 'v' => '8% (human judgment)'],
+                    ['l' => 'Explanation time', 'v' => '< 5s per profile'],
+                ],
+                'ctas' => [
+                    ['ico' => '🧠', 'l' => 'Generate explanations for all ' . $exCnt . ' profiles', 'd' => 'AI explains each scoring decision in plain language. CSM can accept or override.', 'b' => '92% acceptance rate', 'c' => '#0EA5E9', 'view' => 'explain_all', 'vt' => 'Explain AI — All ' . $exCnt . ' Profiles', 'vs' => 'Ambiguous patterns · explanation + override available', 'vf' => ['All']],
+                ],
+            ],
+        ];
+
+        $eaCards = $execAlerts->take(40)->map(fn($p) => $this->applicationCard($p))->values();
+        $ocCards = $oneClick->take(40)->map(fn($p)   => $this->applicationCard($p))->values();
+        $cqCards = $csmQueue->take(40)->map(fn($p)   => $this->applicationCard($p))->values();
+        $exCards = $explainAi->take(40)->map(fn($p)  => $this->applicationCard($p))->values();
+
+        $userGroups = [
+            'exec_all'     => $eaCards,
+            'exec_csm'     => $eaCards,
+            'oneclick_all' => $ocCards,
+            'csm_all'      => $cqCards,
+            'explain_all'  => $exCards,
+        ];
+
+        return view('client.layers.l7', compact('scenarios', 'userGroups'));
+    }
+
+    // ── L8 – Governance & Security ─────────────────────────────────────────────
+    public function l8()
+    {
+        $all = BehavioralProfile::orderByDesc('overall_score')->get();
+
+        $gdprRisk    = $all->filter(fn($p) => $p->last_active_at && $p->last_active_at->lt(now()->subDays(30)));
+        $accessViol  = $all->filter(fn($p) => $p->trust_score < 25);
+        $auditTrail  = $all->filter(fn($p) => $p->overall_score >= 60 && $p->last_active_at && $p->last_active_at->gt(now()->subDays(30)));
+        $retentionBr = $all->filter(fn($p) => $p->last_active_at && $p->last_active_at->lt(now()->subDays(60)));
+
+        $grCnt = $gdprRisk->count();    $avCnt = $accessViol->count();
+        $atCnt = $auditTrail->count();  $rbCnt = $retentionBr->count();
+
+        $scenarios = [
+            [
+                'id' => 'gdpr', 'lc' => '#F43F5E', 'ico' => '⚖️',
+                'name' => 'GDPR Issues — ' . $grCnt . ' Profiles',
+                'users' => 'Inactive > 30 days', 'rev' => $grCnt . ' compliance risks',
+                'urg' => 'critical', 'ul' => 'Compliance', 'urgDot' => '#F43F5E',
+                'banner' => ['text' => $grCnt . ' profiles have not been active in 30+ days and may require GDPR review. Unreviewed profiles risk non-compliance with data minimisation and right-to-erasure obligations.', 'c' => '#F43F5E'],
+                'kpis' => [
+                    ['v' => (string)$grCnt, 'l' => 'GDPR risk profiles', 'p' => min(100, $grCnt * 5), 'c' => '#F43F5E'],
+                    ['v' => (string)(int)round($gdprRisk->avg('trust_score') ?? 0), 'l' => 'Avg trust score', 'p' => (int)round($gdprRisk->avg('trust_score') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => (string)$gdprRisk->filter(fn($p) => $p->last_active_at?->lt(now()->subDays(60)))->count(), 'l' => '> 60 days inactive', 'p' => 50, 'c' => '#F59E0B'],
+                    ['v' => '72hr', 'l' => 'Compliance SLA', 'p' => 60, 'c' => '#F43F5E'],
+                ],
+                'dec' => [
+                    ['l' => 'Review + apply data minimisation', 'v' => 'Compliant', 's' => 'GDPR obligations met · risk eliminated', 'g' => true],
+                    ['l' => 'No action — defer review', 'v' => 'Risk', 's' => 'Non-compliance risk · potential regulatory action', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Profiles reviewed', 'v' => (string)$grCnt],
+                    ['l' => 'Data minimisation applied', 'v' => 'Automatic where eligible'],
+                    ['l' => 'Right-to-erasure', 'v' => 'Flagged for manual review'],
+                    ['l' => 'Compliance SLA', 'v' => '72 hours'],
+                ],
+                'ctas' => [
+                    ['ico' => '⚖️', 'l' => 'Run GDPR compliance review for all ' . $grCnt, 'd' => 'Auto-apply data minimisation where eligible. Flag right-to-erasure candidates for manual review.', 'b' => 'Compliance achieved', 'c' => '#F43F5E', 'view' => 'gdpr_all', 'vt' => 'GDPR Review Queue — All ' . $grCnt, 'vs' => 'Inactive profiles · ranked by risk level', 'vf' => ['All', 'GDPR risk', 'Retention breach']],
+                    ['ico' => '🗑️', 'l' => 'Erasure queue — confirmed opt-outs', 'd' => 'Process confirmed right-to-erasure requests. Reviewed before execution.', 'b' => 'Legal obligation', 'c' => '#F59E0B', 'view' => 'gdpr_erase', 'vt' => 'Erasure Queue', 'vs' => 'Confirmed opt-outs · awaiting deletion', 'vf' => ['All']],
+                ],
+            ],
+            [
+                'id' => 'access', 'lc' => '#F59E0B', 'ico' => '🔐',
+                'name' => 'Access Violations — ' . $avCnt . ' Profiles',
+                'users' => 'Trust score < 25', 'rev' => $avCnt . ' security risks',
+                'urg' => 'critical', 'ul' => 'Revoke access', 'urgDot' => '#F43F5E',
+                'banner' => ['text' => $avCnt . ' profiles have trust scores below 25 — indicating potential unauthorised access or compromised credentials. Immediate review and access suspension recommended.', 'c' => '#F59E0B'],
+                'kpis' => [
+                    ['v' => (string)$avCnt, 'l' => 'Access violations', 'p' => min(100, $avCnt * 15), 'c' => '#F59E0B'],
+                    ['v' => (string)(int)round($accessViol->avg('trust_score') ?? 0), 'l' => 'Avg trust score', 'p' => (int)round($accessViol->avg('trust_score') ?? 0), 'c' => '#F43F5E'],
+                    ['v' => (string)(int)round($accessViol->avg('engagement_score') ?? 0), 'l' => 'Avg engagement', 'p' => (int)round($accessViol->avg('engagement_score') ?? 0), 'c' => '#0EA5E9'],
+                    ['v' => 'Immediate', 'l' => 'Response SLA', 'p' => 100, 'c' => '#F43F5E'],
+                ],
+                'dec' => [
+                    ['l' => 'Suspend access + review', 'v' => 'Secure', 's' => 'Risk eliminated · accounts reviewed within 24hrs', 'g' => true],
+                    ['l' => 'Monitor only — no suspension', 'v' => 'Risk', 's' => 'Exposure continues · potential data breach', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Access suspended', 'v' => (string)$avCnt . ' profiles'],
+                    ['l' => 'Review SLA', 'v' => '24 hours'],
+                    ['l' => 'Re-verification required', 'v' => 'Multi-factor + identity check'],
+                    ['l' => 'Security team notified', 'v' => 'Automated alert sent'],
+                ],
+                'ctas' => [
+                    ['ico' => '🔐', 'l' => 'Suspend access for all ' . $avCnt . ' profiles', 'd' => 'Immediately suspend session access for all low-trust profiles. Notify security team. Require re-verification.', 'b' => 'Security achieved', 'c' => '#F59E0B', 'view' => 'access_all', 'vt' => 'Access Violations — All ' . $avCnt, 'vs' => 'Low-trust profiles · access suspended · review required', 'vf' => ['All', 'Access violation', 'Very low trust']],
+                ],
+            ],
+            [
+                'id' => 'audit', 'lc' => '#10B981', 'ico' => '📋',
+                'name' => 'AI Audit Trail — ' . $atCnt . ' Decisions',
+                'users' => 'Active last 30 days · Score ≥60', 'rev' => $atCnt . ' decisions auditable',
+                'urg' => 'opportunity', 'ul' => 'Audit', 'urgDot' => '#10B981',
+                'banner' => ['text' => $atCnt . ' recent high-score profiles have AI-driven decisions in the last 30 days. Full audit trail available for compliance review, model governance, and regulatory reporting.', 'c' => '#10B981'],
+                'kpis' => [
+                    ['v' => (string)$atCnt, 'l' => 'Recent AI decisions', 'p' => min(100, $atCnt * 5), 'c' => '#10B981'],
+                    ['v' => (string)(int)round($auditTrail->avg('overall_score') ?? 0), 'l' => 'Avg overall score', 'p' => (int)round($auditTrail->avg('overall_score') ?? 0), 'c' => '#10B981'],
+                    ['v' => '100%', 'l' => 'Audit trail completeness', 'p' => 100, 'c' => '#10B981'],
+                    ['v' => 'GDPR Art.22', 'l' => 'Regulation met', 'p' => 100, 'c' => '#0EA5E9'],
+                ],
+                'dec' => [
+                    ['l' => 'Export full audit trail + report', 'v' => 'Compliant', 's' => 'All decisions documented · regulatory ready', 'g' => true],
+                    ['l' => 'No audit — model only', 'v' => 'Risk', 's' => 'GDPR Art.22 non-compliance · unexplainable AI', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Decisions audited', 'v' => (string)$atCnt],
+                    ['l' => 'Audit trail format', 'v' => 'JSON + PDF report'],
+                    ['l' => 'Regulation covered', 'v' => 'GDPR Art.22 + ISO 27001'],
+                    ['l' => 'Export time', 'v' => '< 5 minutes'],
+                ],
+                'ctas' => [
+                    ['ico' => '📋', 'l' => 'Export AI audit trail for all ' . $atCnt . ' decisions', 'd' => 'Generate full audit report with decision rationale, model version, and data sources for each profile.', 'b' => 'Compliance report', 'c' => '#10B981', 'view' => 'audit_all', 'vt' => 'AI Audit Trail — Recent Decisions', 'vs' => 'All AI decisions documented · export ready', 'vf' => ['All', 'High score', 'Recent activity']],
+                ],
+            ],
+            [
+                'id' => 'retention', 'lc' => '#A855F7', 'ico' => '⏳',
+                'name' => 'Data Retention Breaches — ' . $rbCnt . ' Profiles',
+                'users' => 'Inactive > 60 days', 'rev' => $rbCnt . ' retention breaches',
+                'urg' => 'critical', 'ul' => 'Review policy', 'urgDot' => '#F43F5E',
+                'banner' => ['text' => $rbCnt . ' profiles exceed the 60-day data retention policy threshold. Retaining data beyond policy creates compliance liability. Auto-anonymise or delete as policy dictates.', 'c' => '#A855F7'],
+                'kpis' => [
+                    ['v' => (string)$rbCnt, 'l' => 'Retention breaches', 'p' => min(100, $rbCnt * 5), 'c' => '#A855F7'],
+                    ['v' => (string)$retentionBr->filter(fn($p) => $p->last_active_at?->lt(now()->subDays(90)))->count(), 'l' => '> 90 days inactive', 'p' => 50, 'c' => '#F43F5E'],
+                    ['v' => 'Auto', 'l' => 'Anonymisation available', 'p' => 100, 'c' => '#10B981'],
+                    ['v' => '72hr', 'l' => 'Resolution SLA', 'p' => 60, 'c' => '#F59E0B'],
+                ],
+                'dec' => [
+                    ['l' => 'Auto-anonymise + archive', 'v' => 'Compliant', 's' => 'Policy met · data minimised · no liability', 'g' => true],
+                    ['l' => 'Retain beyond policy', 'v' => 'Breach', 's' => 'Compliance liability · regulatory risk', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Profiles anonymised', 'v' => round($rbCnt * .8) . ' (auto)'],
+                    ['l' => 'Manual review flagged', 'v' => round($rbCnt * .2) . ' (edge cases)'],
+                    ['l' => 'Policy status', 'v' => 'Compliant after processing'],
+                    ['l' => 'Processing time', 'v' => '< 1 hour'],
+                ],
+                'ctas' => [
+                    ['ico' => '⏳', 'l' => 'Auto-anonymise ' . round($rbCnt * .8) . ' profiles now', 'd' => 'Apply automated anonymisation to all eligible profiles. Flag ' . round($rbCnt * .2) . ' edge cases for manual review.', 'b' => 'Compliance achieved', 'c' => '#A855F7', 'view' => 'retention_all', 'vt' => 'Retention Breach Queue — All ' . $rbCnt, 'vs' => 'Inactive profiles · ranked by days inactive', 'vf' => ['All', 'Retention breach', 'GDPR risk']],
+                ],
+            ],
+        ];
+
+        $grCards = $gdprRisk->take(40)->map(fn($p)    => $this->governanceCard($p))->values();
+        $avCards = $accessViol->take(40)->map(fn($p)  => $this->governanceCard($p))->values();
+        $atCards = $auditTrail->take(40)->map(fn($p)  => $this->governanceCard($p))->values();
+        $rbCards = $retentionBr->take(40)->map(fn($p) => $this->governanceCard($p))->values();
+
+        $userGroups = [
+            'gdpr_all'      => $grCards,
+            'gdpr_erase'    => $grCards->filter(fn($c) => in_array('GDPR risk', $c['tags']))->values(),
+            'access_all'    => $avCards,
+            'audit_all'     => $atCards,
+            'retention_all' => $rbCards,
+        ];
+
+        return view('client.layers.l8', compact('scenarios', 'userGroups'));
+    }
 }
