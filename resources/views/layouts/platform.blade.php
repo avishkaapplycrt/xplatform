@@ -59,7 +59,10 @@
                     ['num'=>'L8','label'=>'Governance & Security',  'color'=>'text-gray-600',   'bg'=>'bg-gray-100',  'route'=>'client.layer.l8'],
                 ];
                 $selectedLayerCodes = auth('client')->user()?->analysisLayers()->pluck('code')->toArray() ?? [];
-                $sidebarLayers = array_values(array_filter($allSidebarLayers, fn($l) => in_array($l['num'], $selectedLayerCodes)));
+                // Fall back to all layers for clients who skipped the registration flow
+                $sidebarLayers = empty($selectedLayerCodes)
+                    ? $allSidebarLayers
+                    : array_values(array_filter($allSidebarLayers, fn($l) => in_array($l['num'], $selectedLayerCodes)));
                 @endphp
 
                 @foreach($sidebarLayers as $layer)

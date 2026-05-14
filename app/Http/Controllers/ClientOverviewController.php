@@ -20,9 +20,14 @@ class ClientOverviewController extends Controller
     {
         $client = auth('client')->user()->load('analysisLayers');
 
-        $allLayers = $client->analysisLayers
-            ->sortBy('sort_order')
-            ->map(function ($layer) {
+        $selectedLayers = $client->analysisLayers->sortBy('sort_order');
+
+        // Fall back to all active layers for clients who skipped the registration flow
+        if ($selectedLayers->isEmpty()) {
+            $selectedLayers = \App\Models\AnalysisLayer::where('is_active', 1)->orderBy('sort_order')->get();
+        }
+
+        $allLayers = $selectedLayers->map(function ($layer) {
                 $meta = self::LAYER_META[$layer->code] ?? ['summary' => $layer->description ?? '', 'dots' => 3];
                 return [
                     'code'    => $layer->code,
