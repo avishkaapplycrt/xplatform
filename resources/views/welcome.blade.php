@@ -328,8 +328,8 @@ canvas#gmap{width:100%;height:100%}
     <li><a href="{{ url('/') }}">Home</a></li>
     <li><a href="{{ route('simulator') }}">Simulator</a></li>
     <li><a href="{{ route('case-studies') }}">Case Studies</a></li>
-    <li><a href="#pricing">Pricing</a></li>
-    <li><a href="{{ route('client.register') }}" class="nav-cta">Book a Demo</a></li>
+    <li><a href="{{ route('pricing') }}">Pricing</a></li>
+    <li><a href="{{ route('book-demo') }}" class="nav-cta">Book a Demo</a></li>
   </ul>
 </div></nav>
 
@@ -339,8 +339,8 @@ canvas#gmap{width:100%;height:100%}
   <h1>The AI that sees your <span>entire customer universe</span></h1>
   <p class="hero-p">X Platforms connects every data source &mdash; websites, social media, CRM, call centres &mdash; runs it through 8 AI layers, and delivers predictions that drive revenue growth across 15 industries.</p>
   <div class="hero-btns">
-    <a href="{{ route('client.register') }}" class="btn-b btn-fill">Request Demo</a>
-    <a href="#pricing" class="btn-b btn-g">View Pricing</a>
+    <a href="{{ route('book-demo') }}" class="btn-b btn-fill">Request Demo</a>
+    <a href="{{ route('pricing') }}" class="btn-b btn-g">View Pricing</a>
     <a href="#arch" class="btn-b btn-g">Explore Architecture</a>
   </div>
   <div class="pipeline">
@@ -630,7 +630,7 @@ canvas#gmap{width:100%;height:100%}
   <h2 class="cta-h rv">Stop guessing.<br>Let AI <span>decide.</span></h2>
   <p class="cta-p rv">Join the companies using X Platforms to turn every customer signal into measurable growth.</p>
   <div class="rv" style="display:flex;gap:14px;justify-content:center">
-    <a href="{{ route('client.register') }}" class="btn-b btn-fill" style="font-size:15px;padding:16px 42px">Book Your Demo</a>
+    <a href="{{ route('book-demo') }}" class="btn-b btn-fill" style="font-size:15px;padding:16px 42px">Book Your Demo</a>
     <a href="#quiz" class="btn-b btn-g" style="font-size:15px;padding:16px 42px">Check AI Readiness</a>
   </div>
 </section>
@@ -638,8 +638,8 @@ canvas#gmap{width:100%;height:100%}
 <!-- FOOTER -->
 <footer class="foot"><div class="foot-in">
   <div><a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
-  <div class="foot-c"><h5>Product</h5><a href="#arch">Architecture</a><a href="#">Integrations</a><a href="#ind">Industries</a><a href="#pricing">Pricing</a></div>
-  <div class="foot-c"><h5>Company</h5><a href="#">About</a><a href="#">Careers</a><a href="#">Blog</a><a href="#">Contact</a></div>
+  <div class="foot-c"><h5>Product</h5><a href="#arch">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
+  <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="#">Careers</a><a href="#">Blog</a><a href="#">Contact</a></div>
   <div class="foot-c"><h5>Resources</h5><a href="#">Documentation</a><a href="#">Case Studies</a><a href="#">API Reference</a><a href="#">Security</a></div>
 </div><div class="foot-b"><span>&copy; 2026 X Platforms.</span><span>Privacy &middot; Terms &middot; Security</span></div></footer>
 

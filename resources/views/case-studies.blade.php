@@ -179,11 +179,14 @@ canvas#neural{position:fixed;inset:0;z-index:0;pointer-events:none}
 .cta-bar h2{font-weight:800;font-size:clamp(28px,3.8vw,48px);letter-spacing:-1.5px;line-height:1.1;margin-bottom:16px;position:relative}
 .cta-bar h2 span{background:linear-gradient(135deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .cta-bar p{font-size:16px;color:var(--g300);max-width:440px;margin:0 auto 32px;line-height:1.7;position:relative}
-.foot{border-top:1px solid var(--brd);padding:48px 40px;background:var(--bg2)}
-.foot-in{max-width:var(--mw);margin:0 auto;display:flex;justify-content:space-between;align-items:center}
-.foot-links a{font-size:13px;color:var(--g400);margin-left:24px;transition:color .2s}
-.foot-links a:hover{color:var(--white)}
-.foot-copy{font-size:12px;color:var(--g500)}
+/* FOOTER */
+.foot{border-top:1px solid var(--brd);padding:64px 40px;background:var(--bg2)}
+.foot-in{max-width:var(--mw);margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px}
+.foot-desc{font-size:13.5px;color:var(--g400);line-height:1.65;max-width:260px;margin-top:14px}
+.foot-c h5{font-family:var(--fm);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--g500);margin-bottom:18px}
+.foot-c a{display:block;font-size:13.5px;color:var(--g300);margin-bottom:11px;transition:color .2s}
+.foot-c a:hover{color:var(--white)}
+.foot-b{max-width:var(--mw);margin:36px auto 0;padding-top:24px;border-top:1px solid var(--brd);display:flex;justify-content:space-between;font-size:11.5px;color:var(--g500)}
 .btn-b{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;border-radius:12px;font-weight:600;font-size:14.5px;border:none;cursor:pointer;transition:all .25s;font-family:var(--f1)}
 .btn-fill{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;box-shadow:0 4px 32px rgba(79,143,255,.3)}
 .btn-fill:hover{transform:translateY(-2px);box-shadow:0 8px 48px rgba(79,143,255,.4)}
@@ -204,7 +207,7 @@ canvas#neural{position:fixed;inset:0;z-index:0;pointer-events:none}
 @media(max-width:640px){
   .nav-l{display:none}.nav-in,.hero,.cs-index,.cs-back,.csh,.cs-body,.more-cs-in,.cta-bar{padding-left:20px;padding-right:20px}
   .hero{padding-top:120px}.kms{grid-template-columns:1fr}.cs-card-right{grid-template-columns:1fr 1fr}
-  .foot-in{flex-direction:column;gap:12px;text-align:center}.foot-links a:first-child{margin-left:0}
+  .foot-in{grid-template-columns:1fr}.foot-b{flex-direction:column;gap:8px}
 }
 </style>
 </head>
@@ -215,9 +218,10 @@ canvas#neural{position:fixed;inset:0;z-index:0;pointer-events:none}
 <nav class="nav"><div class="nav-bg"></div><div class="nav-in">
   <a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a>
   <ul class="nav-l">
-    <li><a href="{{ url('/') }}">Home</a></li>
-    <li><a href="{{ url('/') }}#journey">Simulator</a></li>
+    <li><a href="{{ route('home') }}">Home</a></li>
+    <li><a href="{{ route('simulator') }}">Simulator</a></li>
     <li><a href="{{ route('case-studies') }}" style="color:var(--white);font-weight:500">Case Studies</a></li>
+    <li><a href="{{ route('pricing') }}">Pricing</a></li>
     <li><a href="{{ route('client.register') }}" class="nav-cta">Book a Demo</a></li>
   </ul>
 </div></nav>
@@ -681,13 +685,13 @@ canvas#neural{position:fixed;inset:0;z-index:0;pointer-events:none}
   </div>
 </section>
 
+<!-- FOOTER -->
 <footer class="foot"><div class="foot-in">
-  <div style="display:flex;align-items:center;gap:16px">
-    <a href="{{ url('/') }}" style="display:flex;align-items:center;gap:11px;font-weight:700;font-size:15px"><span style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--violet));display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff">X</span> Platforms</a>
-    <span class="foot-copy">&copy; 2026 X Platforms</span>
-  </div>
-  <div class="foot-links"><a href="#">Privacy</a><a href="#">Terms</a><a href="{{ url('/') }}#journey">Simulator</a><a href="#">Contact</a></div>
-</div></footer>
+  <div><a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
+  <div class="foot-c"><h5>Product</h5><a href="{{ url('/') }}#arch">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
+  <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="#">Careers</a><a href="#">Blog</a><a href="#">Contact</a></div>
+  <div class="foot-c"><h5>Resources</h5><a href="#">Documentation</a><a href="{{ route('case-studies') }}">Case Studies</a><a href="#">API Reference</a><a href="#">Security</a></div>
+</div><div class="foot-b"><span>&copy; 2026 X Platforms.</span><span>Privacy &middot; Terms &middot; Security</span></div></footer>
 
 <script>
 const cv=document.getElementById('neural'),cx=cv.getContext('2d');let W,H,nd=[];

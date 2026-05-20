@@ -27,7 +27,72 @@
       <div style="font-size:13px;font-weight:600;letter-spacing:.02em">{{ $layerTitle }}</div>
       <div style="font-size:10px;color:var(--muted);margin-top:2px">Tenant: <span style="color:#0284C7;font-weight:600">{{ $cn }}</span><span style="margin-left:10px;color:#16A34A">● Live</span></div>
     </div>
-    <div style="font-size:10px;color:var(--muted)">BEHAVR Intelligence Platform</div>
+    <div style="display:flex;align-items:center;gap:16px;font-size:11px;color:#6b7280">
+      {{-- Home button --}}
+      <a href="{{ route('client.dashboard') }}"
+         style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:6px;color:#9ca3af;text-decoration:none"
+         onmouseover="this.style.background='#f3f4f6';this.style.color='#374151'"
+         onmouseout="this.style.background='transparent';this.style.color='#9ca3af'"
+         title="Home">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+      </a>
+
+      {{-- Stats --}}
+      <span style="display:flex;align-items:center;gap:5px">
+        <svg width="14" height="14" fill="none" stroke="#a78bfa" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+        <span style="font-weight:500;color:#374151">8.7M profiles</span>
+      </span>
+      <span style="display:flex;align-items:center;gap:5px">
+        <svg width="14" height="14" fill="none" stroke="#f472b6" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span style="font-weight:500;color:#374151">94.1% accuracy</span>
+      </span>
+
+      {{-- Avatar with dropdown --}}
+      @php
+        $dcInitials = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(explode(' ', $cn), 0, 2))));
+      @endphp
+      <div style="position:relative" id="dcpAvatarWrap">
+        <button onclick="var d=document.getElementById('dcpDropdown');d.style.display=d.style.display==='block'?'none':'block'"
+                style="width:32px;height:32px;border-radius:50%;background:#0ea5e9;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;border:none;cursor:pointer;outline:none">
+          {{ $dcInitials }}
+        </button>
+        <div id="dcpDropdown"
+             style="display:none;position:absolute;right:0;top:40px;width:192px;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);border:1px solid #e5e7eb;padding:4px 0;z-index:999">
+          <div style="padding:8px 16px;border-bottom:1px solid #f3f4f6">
+            <p style="font-size:12px;font-weight:600;color:#111827;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $cn }}</p>
+            <p style="font-size:10px;color:#9ca3af;margin:2px 0 0">Client Account</p>
+          </div>
+          <a href="{{ route('client.dashboard') }}"
+             style="display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:12px;color:#374151;text-decoration:none"
+             onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
+            <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            Profile Settings
+          </a>
+          <hr style="margin:4px 0;border:none;border-top:1px solid #f3f4f6">
+          <form method="POST" action="{{ route('client.logout') }}">
+            @csrf
+            <button type="submit"
+                    style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:12px;color:#dc2626;background:none;border:none;cursor:pointer;text-align:left"
+                    onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
+              <svg width="14" height="14" fill="none" stroke="#dc2626" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+              </svg>
+              Log Out
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 
   {{-- 3-panel --}}
@@ -119,4 +184,10 @@ function setCta(v){cCta=v;cUsr=null;renderCenter();renderRight();}
 function setUsr(id){cUsr=cUsr===id?null:id;renderRight();}
 
 renderLeft();renderCenter();renderRight();
+
+document.addEventListener('click', function(e) {
+  var wrap = document.getElementById('dcpAvatarWrap');
+  var drop = document.getElementById('dcpDropdown');
+  if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
+});
 </script>
