@@ -12,6 +12,7 @@ use App\Http\Controllers\ClientManagementController;
 use App\Http\Controllers\AdminAnalyticsController;
 use App\Http\Controllers\AdminSettingsController;
 use App\Http\Controllers\DecisionCentreController;
+use App\Http\Controllers\AdminDemoRequestController;
 use App\Models\EmailLog;
 use App\Models\CallLog;
 use App\Models\BehavioralProfile;
@@ -45,6 +46,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('clients/{client}/suspend',  [ClientManagementController::class, 'suspend'])->name('clients.suspend');
         Route::post('clients/{client}/activate', [ClientManagementController::class, 'activate'])->name('clients.activate');
         Route::delete('clients/{client}',  [ClientManagementController::class, 'destroy'])->name('clients.destroy');
+
+        Route::get('demo-requests',                   [AdminDemoRequestController::class, 'index'])->name('demo-requests.index');
+        Route::post('demo-requests/{demo}/approve',   [AdminDemoRequestController::class, 'approve'])->name('demo-requests.approve');
+        Route::delete('demo-requests/{demo}',         [AdminDemoRequestController::class, 'destroy'])->name('demo-requests.destroy');
 
         Route::get('analytics', [AdminAnalyticsController::class, 'index'])->name('analytics.index');
 
