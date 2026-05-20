@@ -144,26 +144,17 @@ canvas#neural{position:fixed;inset:0;z-index:0;pointer-events:none}
 .alt-link{font-size:13.5px;color:var(--blue);font-weight:500;display:inline-flex;align-items:center;gap:4px}
 
 /* FOOTER */
-.foot{border-top:1px solid var(--brd);background:var(--bg2);position:relative;z-index:1}
-.foot-top{max-width:var(--mw);margin:0 auto;padding:64px 40px 48px;display:grid;grid-template-columns:280px 1fr;gap:64px}
-.foot-logo{display:inline-flex;align-items:center;gap:11px;font-weight:700;font-size:15px;margin-bottom:14px;color:var(--white)}
-.foot-logo-m{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--violet));display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;flex-shrink:0}
-.foot-desc{font-size:13px;color:var(--g400);line-height:1.65;max-width:240px;margin-bottom:20px}
-.foot-social{display:flex;gap:10px}
-.fs-s{width:34px;height:34px;border-radius:8px;border:1px solid var(--brd);background:rgba(255,255,255,.02);display:flex;align-items:center;justify-content:center;color:var(--g400);transition:all .2s}
-.fs-s:hover{border-color:var(--brd2);color:var(--white);background:var(--blue-g)}
-.fs-s svg{width:14px;height:14px}
-.foot-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:32px}
-.foot-col h5{font-family:var(--fm);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--g500);margin-bottom:16px;font-weight:500}
-.foot-col a{display:block;font-size:13.5px;color:var(--g300);margin-bottom:10px;transition:color .2s}
-.foot-col a:hover{color:var(--white)}
-.foot-bottom{max-width:var(--mw);margin:0 auto;padding:20px 40px 28px;border-top:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--g500);flex-wrap:wrap;gap:12px}
-.foot-bottom-links a{color:var(--g500);margin-left:20px;transition:color .2s}
-.foot-bottom-links a:hover{color:var(--g200)}
+.foot{border-top:1px solid var(--brd);padding:64px 40px;background:var(--bg2)}
+.foot-in{max-width:var(--mw);margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px}
+.foot-desc{font-size:13.5px;color:var(--g400);line-height:1.65;max-width:260px;margin-top:14px}
+.foot-c h5{font-family:var(--fm);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--g500);margin-bottom:18px}
+.foot-c a{display:block;font-size:13.5px;color:var(--g300);margin-bottom:11px;transition:color .2s}
+.foot-c a:hover{color:var(--white)}
+.foot-b{max-width:var(--mw);margin:36px auto 0;padding-top:24px;border-top:1px solid var(--brd);display:flex;justify-content:space-between;font-size:11.5px;color:var(--g500)}
 
 .rv{opacity:0;transform:translateY(28px);transition:opacity .7s var(--ease),transform .7s var(--ease)}.rv.vis{opacity:1;transform:translateY(0)}
-@media(max-width:1024px){.page-grid{grid-template-columns:1fr}.form-card{position:static}.alt-in{grid-template-columns:1fr}.foot-top{grid-template-columns:1fr}.foot-cols{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:640px){.nav-l{display:none}.nav-in,.page,.alt-section{padding-left:20px;padding-right:20px}.page{padding-top:100px}.form-row{grid-template-columns:1fr}.foot-top{padding:48px 20px 32px}.foot-bottom{padding:16px 20px 24px;flex-direction:column;text-align:center}.foot-cols{grid-template-columns:1fr 1fr}.time-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:1024px){.page-grid{grid-template-columns:1fr}.form-card{position:static}.alt-in{grid-template-columns:1fr}.foot-in{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.nav-l{display:none}.nav-in,.page,.alt-section{padding-left:20px;padding-right:20px}.page{padding-top:100px}.form-row{grid-template-columns:1fr}.foot-in{grid-template-columns:1fr}.foot-b{flex-direction:column;gap:8px}.time-grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -412,25 +403,13 @@ canvas#neural{position:fixed;inset:0;z-index:0;pointer-events:none}
   </div>
 </section>
 
-<footer class="foot">
-  <div class="foot-top">
-    <div>
-      <a href="{{ route('home') }}" class="foot-logo"><span class="foot-logo-m">X</span>Platforms</a>
-      <p class="foot-desc">The world's first 8-layer AI intelligence engine. Every customer signal. One brain. 15 industries.</p>
-      <div class="foot-social">
-        <a href="#" class="fs-s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg></a>
-        <a href="#" class="fs-s"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
-      </div>
-    </div>
-    <div class="foot-cols">
-      <div class="foot-col"><h5>Product</h5><a href="{{ route('home') }}">Architecture</a><a href="{{ route('simulator') }}">Simulator</a><a href="{{ route('pricing') }}">Pricing</a></div>
-      <div class="foot-col"><h5>Company</h5><a href="#">About</a><a href="#">Careers</a><a href="#">Blog</a><a href="#">Contact</a></div>
-      <div class="foot-col"><h5>Resources</h5><a href="{{ route('case-studies') }}">Case Studies</a><a href="#">Documentation</a><a href="#">Privacy Policy</a><a href="#">Terms</a></div>
-      <div class="foot-col"><h5>Get Started</h5><a href="{{ route('book-demo') }}">Book a Demo</a><a href="{{ route('client.register') }}">Sign Up</a><a href="{{ route('client.login') }}">Log In</a></div>
-    </div>
-  </div>
-  <div class="foot-bottom"><span>&copy; 2026 X Platforms Pty Ltd. All rights reserved.</span><span class="foot-bottom-links"><a href="#">Privacy</a><a href="#">Terms</a><a href="#">Security</a></span></div>
-</footer>
+<!-- FOOTER -->
+<footer class="foot"><div class="foot-in">
+  <div><a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
+  <div class="foot-c"><h5>Product</h5><a href="{{ url('/') }}#arch">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
+  <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="#">Careers</a><a href="#">Blog</a><a href="#">Contact</a></div>
+  <div class="foot-c"><h5>Resources</h5><a href="#">Documentation</a><a href="{{ route('case-studies') }}">Case Studies</a><a href="#">API Reference</a><a href="#">Security</a></div>
+</div><div class="foot-b"><span>&copy; 2026 X Platforms.</span><span>Privacy &middot; Terms &middot; Security</span></div></footer>
 
 <script>
 // Neural network background

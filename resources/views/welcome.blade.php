@@ -638,8 +638,8 @@ canvas#gmap{width:100%;height:100%}
 <!-- FOOTER -->
 <footer class="foot"><div class="foot-in">
   <div><a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
-  <div class="foot-c"><h5>Product</h5><a href="#arch">Architecture</a><a href="#">Integrations</a><a href="#ind">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
-  <div class="foot-c"><h5>Company</h5><a href="#">About</a><a href="#">Careers</a><a href="#">Blog</a><a href="#">Contact</a></div>
+  <div class="foot-c"><h5>Product</h5><a href="#arch">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
+  <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="#">Careers</a><a href="#">Blog</a><a href="#">Contact</a></div>
   <div class="foot-c"><h5>Resources</h5><a href="#">Documentation</a><a href="#">Case Studies</a><a href="#">API Reference</a><a href="#">Security</a></div>
 </div><div class="foot-b"><span>&copy; 2026 X Platforms.</span><span>Privacy &middot; Terms &middot; Security</span></div></footer>
 

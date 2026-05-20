@@ -23,6 +23,8 @@ Route::get('case-studies', fn() => view('case-studies'))->name('case-studies');
 Route::get('pricing', fn() => view('pricing'))->name('pricing');
 Route::get('book-demo', [App\Http\Controllers\BookDemoController::class, 'show'])->name('book-demo');
 Route::post('book-demo', [App\Http\Controllers\BookDemoController::class, 'store'])->name('book-demo.store');
+Route::get('about', fn() => view('about'))->name('about');
+Route::get('industries', fn() => view('industries'))->name('industries');
 
 
 // ─── Master Admin ─────────────────────────────────────────────────────────────
