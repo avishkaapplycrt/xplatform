@@ -677,9 +677,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
 <footer class="foot"><div class="foot-in">
   <div><a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
   <div class="foot-c"><h5>Product</h5><a href="{{ url('/') }}#arch">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
-  <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="#">Careers</a><a href="#">Blog</a><a href="#">Contact</a></div>
-  <div class="foot-c"><h5>Resources</h5><a href="#">Documentation</a><a href="{{ route('case-studies') }}">Case Studies</a><a href="#">API Reference</a><a href="#">Security</a></div>
-</div><div class="foot-b"><span>&copy; 2026 X Platforms.</span><span>Privacy &middot; Terms &middot; Security</span></div></footer>
+  <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="{{ route('careers') }}">Careers</a><a href="#">Blog</a><a href="{{ route('contact') }}">Contact</a></div>
+  <div class="foot-c"><h5>Resources</h5><a href="#">Documentation</a><a href="{{ route('case-studies') }}">Case Studies</a><a href="#">API Reference</a><a href="{{ route('security') }}">Security</a></div>
+</div><div class="foot-b"><span>&copy; {{ date('Y') }} X Platforms.</span><span><a href="{{ route('privacy') }}" style="color:inherit">Privacy</a> &middot; <a href="{{ route('terms') }}" style="color:inherit">Terms</a> &middot; <a href="{{ route('security') }}" style="color:inherit">Security</a></span></div></footer>
 @verbatim
 <script>
 // ââ NEURAL NET ââ

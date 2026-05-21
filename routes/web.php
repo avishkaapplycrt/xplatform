@@ -26,6 +26,12 @@ Route::get('book-demo', [App\Http\Controllers\BookDemoController::class, 'show']
 Route::post('book-demo', [App\Http\Controllers\BookDemoController::class, 'store'])->name('book-demo.store');
 Route::get('about', fn() => view('about'))->name('about');
 Route::get('industries', fn() => view('industries'))->name('industries');
+Route::get('banking',   fn() => view('banking'))->name('banking');
+Route::get('privacy',   fn() => view('privacy'))->name('privacy');
+Route::get('terms',     fn() => view('terms'))->name('terms');
+Route::get('security',  fn() => view('security'))->name('security');
+Route::get('careers',   fn() => view('careers'))->name('careers');
+Route::get('contact',   fn() => redirect()->route('book-demo'))->name('contact');
 
 
 // ─── Master Admin ─────────────────────────────────────────────────────────────
