@@ -127,14 +127,11 @@
             <header class="flex-shrink-0 flex items-center justify-between
                            bg-white border-b border-gray-200 px-6 h-12">
                 <div>
-                    <h1 class="text-sm font-bold text-gray-900 leading-none">Data Collection</h1>
+                    <h1 class="text-[16px] font-semibold text-gray-900">Data Collection</h1>
                     <p class="text-[11px] text-gray-500 mt-0.5">
-                        Tenant:&nbsp;
-                        <a href="{{ route('client.dashboard') }}"
-                           class="text-emerald-500 font-medium hover:underline">{{ $clientName }}</a>
-                        <span class="inline-flex items-center gap-1 ml-2 text-emerald-500 font-medium">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
-                            Live
+                        Tenant: <span class="text-teal-600 font-medium">{{ $clientName }}</span>
+                        <span class="ml-2 inline-flex items-center gap-1 text-green-600 font-medium text-[10px]">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Live · ML Scoring Active
                         </span>
                     </p>
                 </div>

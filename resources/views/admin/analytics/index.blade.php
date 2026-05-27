@@ -268,6 +268,12 @@
         .badge-success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
         .badge-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
         .badge-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        @media(max-width:768px){
+            .sidebar{transform:translateX(-100%)}
+            .main-content{margin-left:0}
+            .stats-grid{grid-template-columns:1fr}
+            .grid-2{grid-template-columns:1fr}
+        }
     </style>
 </head>
 <body>

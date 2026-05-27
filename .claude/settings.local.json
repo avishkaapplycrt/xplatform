@@ -16,7 +16,8 @@
       "Bash(git checkout *)",
       "PowerShell(\\(Get-Item \"c:\\\\xampp\\\\htdocs\\\\xplatform\\\\database\\\\dump.sql\"\\).Length / 1MB | ForEach-Object { \"{0:N2} MB\" -f $_ })",
       "Bash(dir \"c:\\\\xampp\\\\htdocs\\\\xplatform\\\\database\\\\migrations\" /b /o:n)",
-      "Bash(php -r \"echo 'PHP OK';\")"
+      "Bash(php -r \"echo 'PHP OK';\")",
+      "Bash(php -r \"echo count\\(file\\('c:/xampp/htdocs/xplatform/resources/views/banking.blade.php'\\)\\);\")"
     ]
   }
 }

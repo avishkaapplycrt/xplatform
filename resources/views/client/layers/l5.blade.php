@@ -59,7 +59,7 @@
     <p class="text-[11px] text-gray-500 mt-0.5">
       Tenant: <span class="text-teal-600 font-medium">{{ $cn }}</span>
       <span class="ml-2 inline-flex items-center gap-1 text-green-600 font-medium text-[10px]">
-        <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Live
+        <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Live · ML Scoring Active
       </span>
     </p>
   </div>

@@ -22,69 +22,70 @@
 <div id="dcs" style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--bg);color:var(--text)">
 
   {{-- Header --}}
-  <div style="flex-shrink:0;background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;justify-content:space-between">
+  <header class="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
     <div>
-      <div style="font-size:13px;font-weight:600;letter-spacing:.02em">{{ $layerTitle }}</div>
-      <div style="font-size:10px;color:var(--muted);margin-top:2px">Tenant: <span style="color:#0284C7;font-weight:600">{{ $cn }}</span><span style="margin-left:10px;color:#16A34A">● Live</span></div>
+      <h1 class="text-[16px] font-semibold text-gray-900">{{ $layerTitle }}</h1>
+      <p class="text-[11px] text-gray-500 mt-0.5">
+        Tenant: <span class="text-teal-600 font-medium">{{ $cn }}</span>
+        <span class="ml-2 inline-flex items-center gap-1 text-green-600 font-medium text-[10px]">
+          <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Live · ML Scoring Active
+        </span>
+      </p>
     </div>
-    <div style="display:flex;align-items:center;gap:16px;font-size:11px;color:#6b7280">
+    <div class="flex items-center gap-4 text-[11px] text-gray-500">
       {{-- Home button --}}
       <a href="{{ route('client.dashboard') }}"
-         style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:6px;color:#9ca3af;text-decoration:none"
-         onmouseover="this.style.background='#f3f4f6';this.style.color='#374151'"
-         onmouseout="this.style.background='transparent';this.style.color='#9ca3af'"
+         class="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
          title="Home">
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
         </svg>
       </a>
 
-      {{-- Stats --}}
-      <span style="display:flex;align-items:center;gap:5px">
-        <svg width="14" height="14" fill="none" stroke="#a78bfa" stroke-width="2" viewBox="0 0 24 24">
+      <span class="flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-violet-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/>
         </svg>
-        <span style="font-weight:500;color:#374151">8.7M profiles</span>
+        <span class="font-medium text-gray-600">8.7M profiles</span>
       </span>
-      <span style="display:flex;align-items:center;gap:5px">
-        <svg width="14" height="14" fill="none" stroke="#f472b6" stroke-width="2" viewBox="0 0 24 24">
+      <span class="flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-pink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
-        <span style="font-weight:500;color:#374151">94.1% accuracy</span>
+        <span class="font-medium text-gray-600">94.1% accuracy</span>
       </span>
 
       {{-- Avatar with dropdown --}}
       @php
-        $dcInitials = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(explode(' ', $cn), 0, 2))));
+        $dcAv = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(explode(' ', $cn), 0, 2))));
       @endphp
-      <div style="position:relative" id="dcpAvatarWrap">
-        <button onclick="var d=document.getElementById('dcpDropdown');d.style.display=d.style.display==='block'?'none':'block'"
-                style="width:32px;height:32px;border-radius:50%;background:#0ea5e9;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;border:none;cursor:pointer;outline:none">
-          {{ $dcInitials }}
+      <div class="relative" x-data="{ open: false }">
+        <button @click="open = !open"
+                class="w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-cyan-400">
+          {{ $dcAv }}
         </button>
-        <div id="dcpDropdown"
-             style="display:none;position:absolute;right:0;top:40px;width:192px;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);border:1px solid #e5e7eb;padding:4px 0;z-index:999">
-          <div style="padding:8px 16px;border-bottom:1px solid #f3f4f6">
-            <p style="font-size:12px;font-weight:600;color:#111827;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $cn }}</p>
-            <p style="font-size:10px;color:#9ca3af;margin:2px 0 0">Client Account</p>
+        <div x-show="open" @click.away="open = false"
+             class="absolute right-0 top-10 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+             style="display:none">
+          <div class="px-4 py-2 border-b border-gray-100">
+            <p class="text-xs font-semibold text-gray-800 truncate">{{ $cn }}</p>
+            <p class="text-[10px] text-gray-400 truncate">Client Account</p>
           </div>
           <a href="{{ route('client.dashboard') }}"
-             style="display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:12px;color:#374151;text-decoration:none"
-             onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
-            <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+             class="flex items-center gap-2 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50">
+            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
             </svg>
             Profile Settings
           </a>
-          <hr style="margin:4px 0;border:none;border-top:1px solid #f3f4f6">
+          <hr class="my-1 border-gray-100">
           <form method="POST" action="{{ route('client.logout') }}">
             @csrf
             <button type="submit"
-                    style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:12px;color:#dc2626;background:none;border:none;cursor:pointer;text-align:left"
-                    onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
-              <svg width="14" height="14" fill="none" stroke="#dc2626" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
+                    class="w-full flex items-center gap-2 px-4 py-2 text-xs text-red-600 hover:bg-red-50">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
               </svg>
               Log Out
@@ -93,7 +94,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </header>
 
   {{-- 3-panel --}}
   <div style="flex:1;display:flex;overflow:hidden">

@@ -7,9 +7,12 @@ use Illuminate\View\View;
 
 class GuestLayout extends Component
 {
-    /**
-     * Get the view / contents that represents the component.
-     */
+    public function __construct(
+        public string $backUrl = '/',
+        public ?string $previousUrl = null,
+        public int $currentStep = 1,
+    ) {}
+
     public function render(): View
     {
         return view('layouts.guest');

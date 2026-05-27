@@ -1,4 +1,12 @@
-<aside class="sidebar">
+<style>
+.mob-ham{display:none;position:fixed;top:14px;left:14px;z-index:200;background:var(--primary,#6366f1);color:#fff;border:none;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:18px;line-height:1;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:98}
+.sidebar.mob-open{transform:translateX(0)!important;z-index:99}
+@media(max-width:768px){.mob-ham{display:block}.sidebar-overlay.open{display:block}}
+</style>
+<button class="mob-ham" id="mobHam" onclick="toggleAdminSidebar()" aria-label="Open menu">&#9776;</button>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleAdminSidebar()"></div>
+<aside class="sidebar" id="adminSidebar">
     <div class="sidebar-header">
         <h1>🔮 Analytics Platform</h1>
         <p>Master Administration</p>
@@ -41,3 +49,11 @@
         </a>
     </nav>
 </aside>
+<script>
+function toggleAdminSidebar(){
+    var s=document.getElementById('adminSidebar'),o=document.getElementById('sidebarOverlay');
+    s.classList.toggle('mob-open');
+    o.classList.toggle('open');
+    document.body.style.overflow=s.classList.contains('mob-open')?'hidden':'';
+}
+</script>

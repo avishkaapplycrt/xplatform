@@ -1,16 +1,16 @@
-@if($errors->any())
-    <div class="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-4">
-        <ul class="list-disc list-inside space-y-1">
-            @foreach($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
-
 <x-guest-layout backUrl="/app/register/select-predictions" previousUrl="/app/register/select-predictions" :currentStep="7">
 
     <div class="px-10 py-8">
+
+        @if($errors->any())
+            <div class="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-4">
+                <ul class="list-disc list-inside space-y-1">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         <div class="text-center mb-6">
             <h2 class="text-2xl font-bold text-gray-900">Configure actions</h2>
