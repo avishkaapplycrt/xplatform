@@ -60,12 +60,12 @@
       @php
         $dcAv = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(explode(' ', $cn), 0, 2))));
       @endphp
-      <div class="relative" x-data="{ open: false }">
-        <button @click="open = !open"
+      <div class="relative" data-dd-wrap>
+        <button onclick="xpDd('ddDc')"
                 class="w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-cyan-400">
           {{ $dcAv }}
         </button>
-        <div x-show="open" @click.away="open = false"
+        <div id="ddDc" data-dd-menu
              class="absolute right-0 top-10 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
              style="display:none">
           <div class="px-4 py-2 border-b border-gray-100">

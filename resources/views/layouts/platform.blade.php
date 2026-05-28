@@ -81,6 +81,18 @@
                         <span class="truncate">{{ $layer['label'] }}</span>
                     </a>
                 @endforeach
+
+                {{-- RL Engine add-on --}}
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                    <p class="text-[9px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-1.5">Add-on Module</p>
+                    @php $rlActive = request()->routeIs('client.layer.rl'); @endphp
+                    <a href="{{ route('client.layer.rl') }}"
+                       class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
+                              {{ $rlActive ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
+                        <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 rounded px-1.5 py-0.5 leading-none flex-shrink-0">RL</span>
+                        <span class="truncate">RL Engine</span>
+                    </a>
+                </div>
             </nav>
         </div>
 
@@ -102,5 +114,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     @stack('scripts')
+    <script>
+    function xpDd(id){var m=document.getElementById(id);m.style.display=m.style.display==='block'?'none':'block';}
+    document.addEventListener('click',function(e){if(!e.target.closest('[data-dd-wrap]'))document.querySelectorAll('[data-dd-menu]').forEach(function(m){m.style.display='none';});});
+    </script>
 </body>
 </html>

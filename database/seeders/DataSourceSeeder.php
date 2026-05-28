@@ -101,13 +101,10 @@ class DataSourceSeeder extends Seeder
                 continue;
             }
             foreach ($sources as $source) {
-                DB::table('data_sources')->insert([
-                    'analysis_layer_id' => $layerId,
-                    'name'              => $source['name'],
-                    'subtitle'          => $source['subtitle'],
-                    'created_at'        => now(),
-                    'updated_at'        => now(),
-                ]);
+                DB::table('data_sources')->updateOrInsert(
+                    ['analysis_layer_id' => $layerId, 'name' => $source['name']],
+                    ['subtitle' => $source['subtitle'], 'created_at' => now(), 'updated_at' => now()]
+                );
             }
         }
 

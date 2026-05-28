@@ -1,4 +1,4 @@
-<x-guest-layout backUrl="/app/register" previousUrl="/app/register" :currentStep="2">
+<x-guest-layout title="Select Your Industry" backUrl="/app/register" previousUrl="/app/register" :currentStep="2">
 
 <div class="p-8">
 

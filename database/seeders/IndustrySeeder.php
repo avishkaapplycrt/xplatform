@@ -16,7 +16,7 @@ class IndustrySeeder extends Seeder
         ];
 
         foreach ($industries as $name) {
-            Industry::create(['name' => $name]);
+            Industry::firstOrCreate(['name' => $name]);
         }
     }
 }

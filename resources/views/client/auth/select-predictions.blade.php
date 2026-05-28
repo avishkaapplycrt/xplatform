@@ -1,4 +1,4 @@
-<x-guest-layout
+<x-guest-layout title="Select Predictions"
     backUrl="{{ route('client.register.micro.signals') }}"
     previousUrl="{{ route('client.register.micro.signals') }}"
     :currentStep="6"

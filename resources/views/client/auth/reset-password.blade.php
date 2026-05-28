@@ -1,4 +1,4 @@
-<x-guest-layout backUrl="{{ route('client.login') }}" previousUrl="{{ route('client.login') }}" :currentStep="1">
+<x-guest-layout title="Reset Password" backUrl="{{ route('client.login') }}" previousUrl="{{ route('client.login') }}" :currentStep="1">
 
     <div class="px-10 py-10">
 
