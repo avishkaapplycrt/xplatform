@@ -1,4 +1,4 @@
-<x-guest-layout backUrl="/app/register/configure-actions" previousUrl="/app/register/configure-actions" :currentStep="8">
+<x-guest-layout title="Your Credentials" backUrl="/app/register/configure-actions" previousUrl="/app/register/configure-actions" :currentStep="8">
 
     <div class="px-10 py-8">
 

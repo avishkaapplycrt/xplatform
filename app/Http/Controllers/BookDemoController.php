@@ -18,6 +18,12 @@ class BookDemoController extends Controller
         return view('book-demo');
     }
 
+    public function thankYou(Request $request)
+    {
+        $demoDate = $request->query('dt');
+        return view('book-demo-thank-you', ['demoDate' => $demoDate]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -67,8 +73,16 @@ class BookDemoController extends Controller
             Auth::guard('client')->login($client);
             $request->session()->regenerate();
 
+            $demoDate = null;
+            if (!empty($data['demo_date']) && !empty($data['demo_time'])) {
+                $demoDate = \Carbon\Carbon::parse($data['demo_date'])->format('d M Y') . ' at ' . $data['demo_time'];
+                if (!empty($data['timezone'])) {
+                    $demoDate .= ' (' . $data['timezone'] . ')';
+                }
+            }
+
             return response()->json([
-                'redirect' => route('client.dashboard'),
+                'redirect' => route('book-demo.thank-you', $demoDate ? ['dt' => $demoDate] : []),
             ]);
 
         } catch (\Exception $e) {

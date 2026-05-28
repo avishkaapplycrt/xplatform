@@ -1,4 +1,4 @@
-<x-guest-layout backUrl="/app/register/select-predictions" previousUrl="/app/register/select-predictions" :currentStep="7">
+<x-guest-layout title="Configure Actions" backUrl="/app/register/select-predictions" previousUrl="/app/register/select-predictions" :currentStep="7">
 
     <div class="px-10 py-8">
 

@@ -1,4 +1,4 @@
-<x-guest-layout backUrl="/app/login" previousUrl="/app/login" :currentStep="1">
+<x-guest-layout title="Create Account" backUrl="/app/login" previousUrl="/app/login" :currentStep="1">
 
     {{-- Top Banner --}}
     <div class="w-full h-40 bg-gray-100 flex items-center justify-center">

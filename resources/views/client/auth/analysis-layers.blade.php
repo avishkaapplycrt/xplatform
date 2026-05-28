@@ -1,4 +1,4 @@
-<x-guest-layout backUrl="/app/industry" previousUrl="/app/industry" :currentStep="3">
+<x-guest-layout title="Select Analysis Layers" backUrl="/app/industry" previousUrl="/app/industry" :currentStep="3">
 
 @if($errors->any())
     <div class="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-4">

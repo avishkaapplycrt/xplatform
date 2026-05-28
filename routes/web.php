@@ -24,6 +24,7 @@ Route::get('case-studies', fn() => view('case-studies'))->name('case-studies');
 Route::get('pricing', fn() => view('pricing'))->name('pricing');
 Route::get('book-demo', [App\Http\Controllers\BookDemoController::class, 'show'])->name('book-demo');
 Route::post('book-demo', [App\Http\Controllers\BookDemoController::class, 'store'])->name('book-demo.store');
+Route::get('book-demo/thank-you', [App\Http\Controllers\BookDemoController::class, 'thankYou'])->name('book-demo.thank-you');
 Route::get('about', fn() => view('about'))->name('about');
 Route::get('industries', fn() => view('industries'))->name('industries');
 Route::get('banking',   fn() => view('banking'))->name('banking');
@@ -121,6 +122,7 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('layers/l6',      [DecisionCentreController::class, 'l6'])->name('layer.l6');
     Route::get('layers/l7',      [DecisionCentreController::class, 'l7'])->name('layer.l7');
     Route::get('layers/l8',      [DecisionCentreController::class, 'l8'])->name('layer.l8');
+    Route::get('layers/rl',      fn() => view('client.layers.rl'))->name('layer.rl');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('data-collection');
 

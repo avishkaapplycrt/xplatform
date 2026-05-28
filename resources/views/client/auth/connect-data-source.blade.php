@@ -4,7 +4,7 @@
         : route('client.register.connect.data.source', ['layer_id' => $prevLayerId]);
 @endphp
 
-<x-guest-layout :backUrl="$backHref" :previousUrl="$backHref" :currentStep="4">
+<x-guest-layout title="Connect Data Source" :backUrl="$backHref" :previousUrl="$backHref" :currentStep="4">
 
     <div class="p-8">
 
