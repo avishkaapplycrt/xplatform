@@ -1,5 +1,5 @@
 @extends('layouts.platform')
-@section('title', 'Decision & Actions — Decision Centre')
+@section('title', 'Decision & Actions')
 @section('content')
-@include('client.layers._dc_panel', ['layerTitle' => 'L6 Decision & Actions — Decision Centre'])
+@include('client.layers._dc_panel', ['layerTitle' => 'Decision & Actions'])
 @endsection

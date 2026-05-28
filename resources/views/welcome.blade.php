@@ -31,7 +31,83 @@ canvas#neural{position:fixed;inset:0;z-index:0;pointer-events:none}
 .nav-l{display:flex;align-items:center;gap:32px;list-style:none}
 .nav-l a{font-size:13.5px;font-weight:450;color:var(--g200);transition:color .25s}
 .nav-l a:hover{color:var(--white)}
-.nav-cta{padding:8px 22px;background:var(--blue);color:#fff!important;border-radius:8px;font-weight:600!important;font-size:13px!important;box-shadow:0 0 24px rgba(79,143,255,.25);transition:box-shadow .3s}
+.nav-cta{padding:8px 22px;background:var(--blue);color:#fff!important;border-radius:8px;font-weight:600!important;font-size:13px!important;box-shadow:0 0 24px rgba(79,143,255,.25);transition:all .25s;cursor:pointer;border:none;font-family:var(--f1)}
+.nav-cta:hover{box-shadow:0 0 36px rgba(79,143,255,.4)}
+.nav-login{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border:1px solid var(--g500);color:var(--g200)!important;border-radius:8px;font-weight:500!important;font-size:13px!important;transition:all .25s;background:transparent;cursor:pointer;font-family:var(--f1)}
+.nav-login:hover{border-color:var(--brd2);color:var(--white)!important;background:rgba(79,143,255,.05)}
+
+/* DEMO MODAL */
+.dp-wrap{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,7,14,.82);backdrop-filter:blur(14px);opacity:0;visibility:hidden;transition:opacity .28s,visibility .28s}
+.dp-wrap.dp-open{opacity:1;visibility:visible}
+.dp-wrap.dp-open .dp-card{transform:translateY(0) scale(1)}
+.dp-card{background:#0f1628;border:1px solid rgba(79,143,255,.18);border-radius:20px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;transform:translateY(20px) scale(.97);transition:transform .34s cubic-bezier(.16,1,.3,1);box-shadow:0 40px 100px rgba(0,0,0,.6);scrollbar-width:thin;scrollbar-color:rgba(79,143,255,.15) transparent;position:relative}
+.dp-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#4f8fff,#818cf8,#38bdf8);border-radius:20px 20px 0 0;z-index:1}
+.dp-head{padding:22px 26px 18px;border-bottom:1px solid rgba(79,143,255,.08);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#0f1628;z-index:10;border-radius:20px 20px 0 0}
+.dp-brand{display:flex;align-items:center;gap:10px}
+.dp-mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#4f8fff,#818cf8);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;font-family:var(--f1);flex-shrink:0}
+.dp-title{font-family:var(--f1);font-weight:700;font-size:15px;color:#f1f5f9;letter-spacing:-.2px}
+.dp-sub{font-family:var(--f1);font-size:12px;color:#475569;margin-top:1px}
+.dp-close{width:30px;height:30px;border-radius:8px;border:none;background:rgba(255,255,255,.05);color:#64748b;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all .2s;flex-shrink:0}
+.dp-close:hover{background:rgba(255,255,255,.1);color:#f1f5f9}
+.dp-badges{display:flex;gap:6px;padding:12px 26px;border-bottom:1px solid rgba(79,143,255,.05);flex-wrap:wrap}
+.dp-badge{font-family:var(--fm);font-size:9.5px;padding:4px 11px;border-radius:5px;background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.18);color:#34d399;letter-spacing:.3px}
+.dp-si{display:flex;align-items:center;gap:8px;margin-bottom:22px}
+.dp-si-dot{width:8px;height:8px;border-radius:50%;background:#334155;transition:all .3s}
+.dp-si-dot.on{background:#4f8fff;box-shadow:0 0 10px rgba(79,143,255,.4);width:24px;border-radius:4px}
+.dp-si-dot.dn{background:#34d399}
+.dp-si-lbl{font-family:var(--fm);font-size:10px;color:#475569;margin-left:2px;letter-spacing:.3px}
+.dp-body{padding:22px 26px 26px}
+.dp-step{display:none}.dp-step.on{display:block;animation:dpIn .22s ease both}
+@keyframes dpIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+.dp-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dp-grp{margin-bottom:14px}
+.dp-lbl{display:block;font-family:var(--f1);font-size:12.5px;font-weight:500;color:#94a3b8;margin-bottom:5px}
+.dp-inp,.dp-sel,.dp-ta{width:100%;background:#090d19;border:1px solid #1e2a42;border-radius:9px;padding:10px 13px;color:#f1f5f9;font-family:var(--f1);font-size:13.5px;outline:none;transition:border-color .2s,box-shadow .2s}
+.dp-inp::placeholder,.dp-ta::placeholder{color:#1e2939}
+.dp-inp:focus,.dp-sel:focus,.dp-ta:focus{border-color:#4f8fff;box-shadow:0 0 0 3px rgba(79,143,255,.1)}
+.dp-inp.er,.dp-sel.er{border-color:#f472b6;box-shadow:0 0 0 3px rgba(244,114,182,.1)}
+.dp-sel{-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234a5572' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;cursor:pointer}
+.dp-sel option{background:#090d19}
+.dp-ta{resize:vertical;min-height:76px;max-height:130px}
+.dp-btns{display:flex;gap:10px;margin-top:6px}
+.dp-btn{flex:1;padding:12px 18px;background:linear-gradient(135deg,#4f8fff,#2563eb);color:#fff;border:none;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;font-family:var(--f1);display:flex;align-items:center;justify-content:center;gap:7px;transition:all .22s;box-shadow:0 4px 18px rgba(79,143,255,.25)}
+.dp-btn:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(79,143,255,.4)}
+.dp-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.dp-bk{padding:12px 14px;background:transparent;border:1px solid #1e2a42;border-radius:10px;color:#7a8aaa;font-weight:500;font-size:14px;cursor:pointer;font-family:var(--f1);transition:all .2s;flex-shrink:0}
+.dp-bk:hover{border-color:#4f8fff;color:#f1f5f9}
+.dp-cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.dp-cal-hd span{font-family:var(--f1);font-weight:600;font-size:13.5px;color:#f1f5f9}
+.dp-arrow{width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,.04);border:1px solid #1e2a42;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s}
+.dp-arrow:hover{border-color:#4f8fff;color:#f1f5f9}
+.dp-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
+.dp-dh{font-family:var(--fm);font-size:9px;color:#334155;text-align:center;padding:4px 0;letter-spacing:.5px}
+.dp-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:14px}
+.dp-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:7px;font-family:var(--f1);font-size:12.5px;color:#4a5572;cursor:pointer;transition:all .18s;border:1px solid transparent}
+.dp-day:hover:not(.dp-off):not(.dp-blank){background:rgba(79,143,255,.1);color:#f1f5f9;border-color:rgba(79,143,255,.18)}
+.dp-day.dp-today{color:#4f8fff;font-weight:600}
+.dp-day.dp-sel{background:#4f8fff!important;color:#fff!important;border-color:transparent!important;font-weight:600;box-shadow:0 2px 10px rgba(79,143,255,.4)}
+.dp-day.dp-off{opacity:.2;cursor:default}
+.dp-day.dp-blank{cursor:default}
+.dp-times{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:6px}
+.dp-t{padding:9px 6px;text-align:center;border-radius:8px;border:1px solid #1e2a42;background:#090d19;font-family:var(--f1);font-size:12px;color:#64748b;cursor:pointer;transition:all .18s}
+.dp-t:hover:not(.dp-toff){border-color:#4f8fff;color:#f1f5f9;background:rgba(79,143,255,.06)}
+.dp-t.dp-tsel{border-color:#4f8fff;background:rgba(79,143,255,.12);color:#4f8fff;font-weight:600}
+.dp-t.dp-toff{opacity:.25;cursor:default}
+.dp-note{text-align:center;font-family:var(--f1);font-size:11.5px;color:#334155;margin-top:12px}
+.dp-note a{color:#4f8fff}
+.dp-success{display:none;padding:16px 0 8px;text-align:center}
+.dp-success.on{display:block;animation:dpIn .3s ease both}
+.dp-sico{width:62px;height:62px;border-radius:50%;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.dp-sico svg{width:28px;height:28px;stroke:#34d399;fill:none;stroke-width:2.2}
+.dp-stitle{font-family:var(--f1);font-weight:700;font-size:19px;color:#f1f5f9;letter-spacing:-.2px;margin-bottom:7px}
+.dp-ssub{font-family:var(--f1);font-size:13.5px;color:#64748b;line-height:1.65;max-width:310px;margin:0 auto 18px}
+.dp-scard{background:#090d19;border:1px solid rgba(79,143,255,.09);border-radius:12px;padding:14px 16px;text-align:left;margin-bottom:18px}
+.dp-srow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(79,143,255,.06);font-family:var(--f1);font-size:13px}
+.dp-srow:last-child{border-bottom:none}
+.dp-slbl{color:#475569}.dp-sval{color:#cbd5e1;font-weight:500}
+.dp-slink{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:9px;background:rgba(79,143,255,.08);border:1px solid rgba(79,143,255,.15);color:#4f8fff;font-family:var(--f1);font-size:13px;font-weight:500;transition:background .2s}
+.dp-slink:hover{background:rgba(79,143,255,.14)}
+@media(max-width:520px){.dp-row{grid-template-columns:1fr}.dp-times{grid-template-columns:repeat(2,1fr)}}
 
 /* HERO */
 .hero{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:140px 40px 80px}
@@ -316,6 +392,21 @@ canvas#gmap{width:100%;height:100%}
   .fc-metrics{gap:24px}.gmap-wrap{height:280px}.qr-bars{grid-template-columns:repeat(3,1fr)}
   .chat-panel{bottom:84px;right:12px;left:12px;width:auto}
 }
+/* MOBILE NAV */
+.nav-ham{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;position:relative;z-index:102}
+.nav-ham span{display:block;width:22px;height:2px;background:var(--g200);border-radius:2px;transition:all .3s}
+.nav-ham.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.nav-ham.open span:nth-child(2){opacity:0}
+.nav-ham.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.nav-mob{display:none;position:fixed;inset:0;z-index:99;background:rgba(5,7,14,.97);backdrop-filter:blur(20px);flex-direction:column;align-items:center;justify-content:center;overflow-y:auto}
+.nav-mob.open{display:flex}.nav-mob-inner{width:100%;max-width:340px;padding:24px}
+.nav-mob-link{display:block;font-size:18px;font-weight:500;color:var(--g200);padding:16px 0;border-bottom:1px solid var(--brd);transition:color .2s;text-align:center}
+.nav-mob-link:first-child{border-top:1px solid var(--brd)}.nav-mob-link:hover{color:var(--white)}
+.nav-mob-cta{display:block;text-align:center;margin-top:28px;padding:14px 0;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;border-radius:10px;font-weight:600;font-size:15px}
+.nav-mob-cta:hover{opacity:.9;color:#fff}
+.nav-mob-close{position:absolute;top:20px;right:20px;background:none;border:none;cursor:pointer;color:var(--g300);font-size:32px;line-height:1;z-index:100;width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+@media(max-width:640px){.nav-ham{display:flex}}
+
 </style>
 </head>
 <body>
@@ -329,9 +420,25 @@ canvas#gmap{width:100%;height:100%}
     <li><a href="{{ route('industries') }}">Industries</a></li>
     <li><a href="{{ route('simulator') }}">Simulator</a></li>
     <li><a href="{{ route('pricing') }}">Pricing</a></li>
-    <li><a href="{{ route('book-demo') }}" class="nav-cta">Book a Demo</a></li>
+    <li style="display:flex;align-items:center;gap:10px">
+      <a href="{{ route('client.login') }}" class="nav-login"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Log in</a>
+      <button class="nav-cta" onclick="openDemoModal()">Book a Demo</button>
+    </li>
   </ul>
+  <button class="nav-ham" id="navHam" onclick="toggleNav()" aria-label="Open menu"><span></span><span></span><span></span></button>
 </div></nav>
+<div class="nav-mob" id="navMob">
+  <button class="nav-mob-close" onclick="toggleNav()" aria-label="Close">&#215;</button>
+  <div class="nav-mob-inner">
+    <a class="nav-mob-link" href="{{ url('/') }}">Home</a>
+    <a class="nav-mob-link" href="{{ route('industries') }}">Industries</a>
+    <a class="nav-mob-link" href="{{ route('simulator') }}">Simulator</a>
+    <a class="nav-mob-link" href="{{ route('pricing') }}">Pricing</a>
+    <a class="nav-mob-link" href="{{ route('client.login') }}">Log in</a>
+    <button class="nav-mob-cta" onclick="toggleNav();openDemoModal()" style="width:100%;border:none;cursor:pointer">Book a Demo</button>
+  </div>
+</div>
+<script>function toggleNav(){var m=document.getElementById('navMob'),h=document.getElementById('navHam');m.classList.toggle('open');h.classList.toggle('open');document.body.style.overflow=m.classList.contains('open')?'hidden':''}</script>
 
 <!-- HERO -->
 <section class="hero">
@@ -339,7 +446,7 @@ canvas#gmap{width:100%;height:100%}
   <h1>The AI that sees your <span>entire customer universe</span></h1>
   <p class="hero-p">X Platforms connects every data source &mdash; websites, social media, CRM, call centres &mdash; runs it through 8 AI layers, and delivers predictions that drive revenue growth across 15 industries.</p>
   <div class="hero-btns">
-    <a href="{{ route('book-demo') }}" class="btn-b btn-fill">Request Demo</a>
+    <button onclick="openDemoModal()" class="btn-b btn-fill" style="border:none;cursor:pointer">Request Demo</button>
     <a href="{{ route('pricing') }}" class="btn-b btn-g">View Pricing</a>
     <a href="#arch" class="btn-b btn-g">Explore Architecture</a>
   </div>
@@ -630,7 +737,7 @@ canvas#gmap{width:100%;height:100%}
   <h2 class="cta-h rv">Stop guessing.<br>Let AI <span>decide.</span></h2>
   <p class="cta-p rv">Join the companies using X Platforms to turn every customer signal into measurable growth.</p>
   <div class="rv" style="display:flex;gap:14px;justify-content:center">
-    <a href="{{ route('book-demo') }}" class="btn-b btn-fill" style="font-size:15px;padding:16px 42px">Book Your Demo</a>
+    <button onclick="openDemoModal()" class="btn-b btn-fill" style="font-size:15px;padding:16px 42px;border:none;cursor:pointer">Book Your Demo</button>
     <a href="#quiz" class="btn-b btn-g" style="font-size:15px;padding:16px 42px">Check AI Readiness</a>
   </div>
 </section>
@@ -638,10 +745,179 @@ canvas#gmap{width:100%;height:100%}
 <!-- FOOTER -->
 <footer class="foot"><div class="foot-in">
   <div><a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
-  <div class="foot-c"><h5>Product</h5><a href="#arch">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
-  <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="{{ route('careers') }}">Careers</a><a href="#">Blog</a><a href="{{ route('contact') }}">Contact</a></div>
+  <div class="foot-c"><h5>Product</h5><a href="{{ route('platform.architecture') }}">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
+  <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="{{ route('careers') }}">Careers</a><a href="{{ route('blog') }}">Blog</a><a href="{{ route('contact') }}">Contact</a></div>
   <div class="foot-c"><h5>Resources</h5><a href="#">Documentation</a><a href="{{ route('case-studies') }}">Case Studies</a><a href="#">API Reference</a><a href="{{ route('security') }}">Security</a></div>
 </div><div class="foot-b"><span>&copy; {{ date('Y') }} X Platforms.</span><span><a href="{{ route('privacy') }}" style="color:inherit">Privacy</a> &middot; <a href="{{ route('terms') }}" style="color:inherit">Terms</a> &middot; <a href="{{ route('security') }}" style="color:inherit">Security</a></span></div></footer>
+
+<!-- BOOK A DEMO MODAL -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<div class="dp-wrap" id="dpWrap" onclick="if(event.target===this)closeDemoModal()">
+  <div class="dp-card" id="dpCard">
+
+    <!-- STICKY HEADER -->
+    <div class="dp-head">
+      <div class="dp-brand">
+        <div class="dp-mark">X</div>
+        <div>
+          <div class="dp-title">Book your demo</div>
+          <div class="dp-sub">Response within 2 hrs &middot; Most demos in 3 days</div>
+        </div>
+      </div>
+      <button class="dp-close" onclick="closeDemoModal()" aria-label="Close">&#x2715;</button>
+    </div>
+
+    <!-- BADGES -->
+    <div class="dp-badges">
+      <span class="dp-badge">Free &middot; No commitment</span>
+      <span class="dp-badge">30 minutes</span>
+      <span class="dp-badge">Live on your data</span>
+      <span class="dp-badge">Response within 2 hrs</span>
+    </div>
+
+    <!-- FORM BODY -->
+    <div class="dp-body" id="dpFormBody">
+      <!-- Step indicator -->
+      <div class="dp-si">
+        <div class="dp-si-dot on" id="dpd0"></div>
+        <div class="dp-si-dot" id="dpd1"></div>
+        <div class="dp-si-dot" id="dpd2"></div>
+        <span class="dp-si-lbl" id="dpdLbl">Step 1 of 3 &mdash; About you</span>
+      </div>
+
+      <!-- STEP 1: ABOUT YOU -->
+      <div class="dp-step on" id="dpStep1">
+        <div class="dp-row">
+          <div class="dp-grp"><label class="dp-lbl">First Name *</label><input class="dp-inp" id="dp_fn" type="text" placeholder="Jane"></div>
+          <div class="dp-grp"><label class="dp-lbl">Last Name *</label><input class="dp-inp" id="dp_ln" type="text" placeholder="Smith"></div>
+        </div>
+        <div class="dp-grp"><label class="dp-lbl">Work Email *</label><input class="dp-inp" id="dp_em" type="email" placeholder="jane@company.com"></div>
+        <div class="dp-grp"><label class="dp-lbl">Company Name *</label><input class="dp-inp" id="dp_co" type="text" placeholder="Your company"></div>
+        <div class="dp-row">
+          <div class="dp-grp"><label class="dp-lbl">Job Title *</label><input class="dp-inp" id="dp_jt" type="text" placeholder="VP Marketing"></div>
+          <div class="dp-grp"><label class="dp-lbl">Company Size *</label>
+            <select class="dp-sel" id="dp_cs">
+              <option value="">Select size</option>
+              <option>1&ndash;50 employees</option><option>51&ndash;200 employees</option>
+              <option>201&ndash;1,000 employees</option><option>1,001&ndash;5,000 employees</option><option>5,000+ employees</option>
+            </select>
+          </div>
+        </div>
+        <div class="dp-grp"><label class="dp-lbl">Industry *</label>
+          <select class="dp-sel" id="dp_ind">
+            <option value="">Select your industry</option>
+            <option>Retail &amp; E-Commerce</option><option>Banking &amp; Finance</option><option>Healthcare</option>
+            <option>Telecom</option><option>Travel &amp; Hospitality</option><option>Insurance</option>
+            <option>Manufacturing</option><option>Energy &amp; Utilities</option><option>Education / EdTech</option>
+            <option>Real Estate</option><option>Media &amp; Entertainment</option><option>Pharma</option>
+            <option>Automotive</option><option>Food &amp; Beverage</option><option>SaaS</option><option>Other</option>
+          </select>
+        </div>
+        <div class="dp-btns">
+          <button class="dp-btn" onclick="dpGoStep(2)">Continue <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+        </div>
+      </div>
+
+      <!-- STEP 2: YOUR SITUATION -->
+      <div class="dp-step" id="dpStep2">
+        <div class="dp-grp"><label class="dp-lbl">Monthly Active Customers</label>
+          <select class="dp-sel" id="dp_mac">
+            <option value="">Select range</option>
+            <option>Under 1,000</option><option>1,000&ndash;10,000</option><option>10,000&ndash;100,000</option>
+            <option>100,000&ndash;500,000</option><option>500,000&ndash;1M</option><option>1M+</option>
+          </select>
+        </div>
+        <div class="dp-grp"><label class="dp-lbl">Monthly Revenue</label>
+          <select class="dp-sel" id="dp_rev">
+            <option value="">Select range</option>
+            <option>Under $50K</option><option>$50K&ndash;$200K</option><option>$200K&ndash;$500K</option>
+            <option>$500K&ndash;$2M</option><option>$2M&ndash;$10M</option><option>$10M+</option>
+          </select>
+        </div>
+        <div class="dp-grp"><label class="dp-lbl">Primary challenge you want to solve</label>
+          <select class="dp-sel" id="dp_chal">
+            <option value="">Select your challenge</option>
+            <option>Reducing customer churn</option><option>Improving conversion rates</option>
+            <option>Increasing customer lifetime value</option><option>Unifying customer data</option>
+            <option>Identifying upsell opportunities</option><option>Predicting customer behaviour</option>
+            <option>Reducing acquisition cost</option><option>Other</option>
+          </select>
+        </div>
+        <div class="dp-grp"><label class="dp-lbl">Data sources you currently use (optional)</label>
+          <input class="dp-inp" id="dp_ds" type="text" placeholder="e.g. Salesforce, Shopify, Klaviyo, Zendesk">
+        </div>
+        <div class="dp-grp"><label class="dp-lbl">Anything specific for the demo? (optional)</label>
+          <textarea class="dp-ta" id="dp_notes" placeholder="e.g. Focus on churn prediction for our SaaS platform&hellip;"></textarea>
+        </div>
+        <div class="dp-btns">
+          <button class="dp-bk" onclick="dpGoStep(1)">&#8592; Back</button>
+          <button class="dp-btn" onclick="dpGoStep(3)">Choose a Time <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+        </div>
+      </div>
+
+      <!-- STEP 3: PICK A TIME -->
+      <div class="dp-step" id="dpStep3">
+        <div class="dp-grp">
+          <label class="dp-lbl">Select a date</label>
+          <div class="dp-cal-hd">
+            <button class="dp-arrow" onclick="dpChangeMonth(-1)">&#8249;</button>
+            <span id="dpMonthLbl"></span>
+            <button class="dp-arrow" onclick="dpChangeMonth(1)">&#8250;</button>
+          </div>
+          <div class="dp-dow">
+            <div class="dp-dh">S</div><div class="dp-dh">M</div><div class="dp-dh">T</div>
+            <div class="dp-dh">W</div><div class="dp-dh">T</div><div class="dp-dh">F</div><div class="dp-dh">S</div>
+          </div>
+          <div class="dp-cal-grid" id="dpCalGrid"></div>
+        </div>
+        <div class="dp-grp" id="dpTimeSection" style="display:none">
+          <label class="dp-lbl">Available times <span style="font-family:var(--fm);font-size:10px;color:#475569">(AEST)</span></label>
+          <div class="dp-times">
+            <div class="dp-t" onclick="dpSelTime(this)">9:00 AM</div>
+            <div class="dp-t" onclick="dpSelTime(this)">9:30 AM</div>
+            <div class="dp-t dp-toff">10:00 AM</div>
+            <div class="dp-t" onclick="dpSelTime(this)">10:30 AM</div>
+            <div class="dp-t dp-toff">11:00 AM</div>
+            <div class="dp-t" onclick="dpSelTime(this)">11:30 AM</div>
+            <div class="dp-t" onclick="dpSelTime(this)">1:00 PM</div>
+            <div class="dp-t dp-toff">1:30 PM</div>
+            <div class="dp-t" onclick="dpSelTime(this)">2:00 PM</div>
+            <div class="dp-t" onclick="dpSelTime(this)">2:30 PM</div>
+            <div class="dp-t" onclick="dpSelTime(this)">3:00 PM</div>
+            <div class="dp-t dp-toff">3:30 PM</div>
+          </div>
+        </div>
+        <div class="dp-grp">
+          <label class="dp-lbl">Your timezone</label>
+          <select class="dp-sel" id="dp_tz">
+            <option>AEST (UTC+10) &mdash; Sydney, Melbourne</option>
+            <option>AEDT (UTC+11) &mdash; Daylight saving</option>
+            <option>SGT (UTC+8) &mdash; Singapore</option>
+            <option>IST (UTC+5:30) &mdash; India</option>
+            <option>GMT (UTC+0) &mdash; London</option>
+            <option>EST (UTC-5) &mdash; New York</option>
+            <option>PST (UTC-8) &mdash; Los Angeles</option>
+          </select>
+        </div>
+        <div class="dp-btns">
+          <button class="dp-bk" onclick="dpGoStep(2)">&#8592;</button>
+          <button class="dp-btn" id="dpConfirmBtn" onclick="dpConfirm()">Confirm Demo &#8594;</button>
+        </div>
+        <p class="dp-note">Calendar invite sent within 15 minutes &middot; No payment required &middot; <a href="{{ route('privacy') }}">Privacy Policy</a></p>
+      </div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="dp-success" id="dpSuccess">
+      <div class="dp-sico"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="dp-stitle">You&rsquo;re booked!</div>
+      <div class="dp-ssub">Check your inbox &mdash; a calendar invite is on its way. Our team will send a short pre-demo questionnaire to make the session as relevant as possible.</div>
+      <div class="dp-scard" id="dpSuccessCard"></div>
+      <a href="{{ route('simulator') }}" class="dp-slink">Try the simulator while you wait <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    </div>
+
+  </div>
+</div>
 
 <!-- SOCIAL PROOF TOASTS -->
 <div class="toast-container" id="toasts"></div>
@@ -832,6 +1108,134 @@ document.querySelectorAll('a[href^="#"]').forEach(a=>{a.addEventListener('click'
 
 // NAV BG
 addEventListener('scroll',()=>{document.querySelector('.nav-bg').style.background=scrollY>40?'rgba(5,7,14,.9)':'rgba(5,7,14,.75)'});
+
+// ── DEMO MODAL ──────────────────────────────────────────────────────────────
+let dpSelDate=null,dpChosenTime=null,dpViewYear=new Date().getFullYear(),dpViewMonth=new Date().getMonth();
+const dpMonths=['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function openDemoModal(){
+  document.getElementById('dpWrap').classList.add('dp-open');
+  document.body.style.overflow='hidden';
+  dpBuildCal();
+}
+function closeDemoModal(){
+  document.getElementById('dpWrap').classList.remove('dp-open');
+  document.body.style.overflow='';
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDemoModal()});
+
+function dpErr(id){const el=document.getElementById(id);if(el){el.classList.add('er');setTimeout(()=>el.classList.remove('er'),2200)}}
+function dpValEmail(e){return/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)}
+
+function dpSetSI(n){
+  [0,1,2].forEach(i=>{
+    const d=document.getElementById('dpd'+i);
+    d.classList.remove('on','dn');
+    if(i<n-1)d.classList.add('dn');
+    else if(i===n-1)d.classList.add('on');
+  });
+  document.getElementById('dpdLbl').textContent=`Step ${n} of 3 — ${['About you','Your situation','Pick a time'][n-1]}`;
+}
+
+function dpGoStep(n){
+  if(n===2){
+    let ok=true;
+    ['dp_fn','dp_ln','dp_co','dp_jt'].forEach(id=>{if(!document.getElementById(id).value.trim()){dpErr(id);ok=false}});
+    if(!dpValEmail(document.getElementById('dp_em').value.trim())){dpErr('dp_em');ok=false}
+    if(!document.getElementById('dp_cs').value){dpErr('dp_cs');ok=false}
+    if(!document.getElementById('dp_ind').value){dpErr('dp_ind');ok=false}
+    if(!ok)return;
+  }
+  document.querySelectorAll('.dp-step').forEach(s=>s.classList.remove('on'));
+  document.getElementById('dpStep'+n).classList.add('on');
+  dpSetSI(n);
+  if(n===3)dpBuildCal();
+  document.getElementById('dpCard').scrollTop=0;
+}
+
+function dpChangeMonth(dir){
+  dpViewMonth+=dir;
+  if(dpViewMonth>11){dpViewMonth=0;dpViewYear++}
+  if(dpViewMonth<0){dpViewMonth=11;dpViewYear--}
+  dpBuildCal();
+}
+
+function dpBuildCal(){
+  document.getElementById('dpMonthLbl').textContent=`${dpMonths[dpViewMonth]} ${dpViewYear}`;
+  const grid=document.getElementById('dpCalGrid');grid.innerHTML='';
+  const first=new Date(dpViewYear,dpViewMonth,1).getDay(),days=new Date(dpViewYear,dpViewMonth+1,0).getDate(),today=new Date();
+  for(let i=0;i<first;i++){const d=document.createElement('div');d.className='dp-day dp-blank';grid.appendChild(d)}
+  for(let d=1;d<=days;d++){
+    const cell=document.createElement('div');cell.className='dp-day';
+    const date=new Date(dpViewYear,dpViewMonth,d);
+    const isPast=date<new Date(today.getFullYear(),today.getMonth(),today.getDate());
+    const isWknd=date.getDay()===0||date.getDay()===6;
+    if(isPast||isWknd){cell.classList.add('dp-off')}else{
+      if(date.toDateString()===today.toDateString())cell.classList.add('dp-today');
+      cell.onclick=()=>{
+        document.querySelectorAll('#dpCalGrid .dp-day').forEach(c=>c.classList.remove('dp-sel'));
+        cell.classList.add('dp-sel');
+        dpSelDate=`${d} ${dpMonths[dpViewMonth]} ${dpViewYear}`;
+        document.getElementById('dpTimeSection').style.display='block';
+        dpChosenTime=null;
+        document.querySelectorAll('.dp-t').forEach(t=>t.classList.remove('dp-tsel'));
+      };
+    }
+    cell.textContent=d;grid.appendChild(cell);
+  }
+}
+
+function dpSelTime(el){
+  document.querySelectorAll('.dp-t').forEach(t=>t.classList.remove('dp-tsel'));
+  el.classList.add('dp-tsel');
+  dpChosenTime=el.textContent;
+}
+
+function dpConfirm(){
+  if(!dpSelDate||!dpChosenTime){alert('Please select a date and time for your demo.');return}
+  const btn=document.getElementById('dpConfirmBtn');
+  btn.disabled=true;btn.textContent='Saving…';
+  const payload={
+    first_name:document.getElementById('dp_fn').value.trim(),
+    last_name:document.getElementById('dp_ln').value.trim(),
+    email:document.getElementById('dp_em').value.trim(),
+    company_name:document.getElementById('dp_co').value.trim(),
+    job_title:document.getElementById('dp_jt').value.trim(),
+    company_size:document.getElementById('dp_cs').value,
+    industry:document.getElementById('dp_ind').value,
+    monthly_active_customers:document.getElementById('dp_mac').value,
+    monthly_revenue:document.getElementById('dp_rev').value,
+    primary_challenge:document.getElementById('dp_chal').value,
+    data_sources:document.getElementById('dp_ds').value.trim(),
+    demo_notes:document.getElementById('dp_notes').value.trim(),
+    demo_date:dpSelDate,
+    demo_time:dpChosenTime,
+    timezone:document.getElementById('dp_tz').value,
+  };
+  fetch('{{ route("book-demo.store") }}',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content},
+    body:JSON.stringify(payload)
+  })
+  .then(r=>r.json())
+  .then(data=>{
+    if(data.redirect){
+      window.location.href=data.redirect;
+    }else if(data.success){
+      document.getElementById('dpFormBody').style.display='none';
+      document.getElementById('dpSuccessCard').innerHTML=
+        `<div class="dp-srow"><span class="dp-slbl">Name</span><span class="dp-sval">${payload.first_name} ${payload.last_name}</span></div>`+
+        `<div class="dp-srow"><span class="dp-slbl">Date</span><span class="dp-sval">${dpSelDate}</span></div>`+
+        `<div class="dp-srow"><span class="dp-slbl">Time</span><span class="dp-sval">${dpChosenTime} (${payload.timezone.split(' ')[0]})</span></div>`+
+        `<div class="dp-srow"><span class="dp-slbl">Format</span><span class="dp-sval">Google Meet / Zoom</span></div>`;
+      document.getElementById('dpSuccess').classList.add('on');
+    }else{
+      btn.disabled=false;btn.textContent='Confirm Demo →';
+      alert(data.message||'Something went wrong. Please try again.');
+    }
+  })
+  .catch(()=>{btn.disabled=false;btn.textContent='Confirm Demo →';alert('Something went wrong. Please try again.')});
+}
 </script>
 </body>
 </html>

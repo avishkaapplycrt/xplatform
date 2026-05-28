@@ -28,8 +28,9 @@ class EnsureClientIsActive
         }
 
         if (!$client->is_active) {
-            return redirect()->route('client.settings.billing')
-                ->with('error', 'Your subscription has expired. Please renew to continue.');
+            auth('client')->logout();
+            return redirect()->route('client.login')
+                ->with('error', 'Your subscription has expired. Please contact support to renew.');
         }
 
         app()->instance('current_client', $client);

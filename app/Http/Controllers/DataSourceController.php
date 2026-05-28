@@ -53,7 +53,7 @@ class DataSourceController extends Controller
 
     public function test(Request $request, ClientDataSource $source)
     {
-        $this->authorize('update', $source);
+        abort_if($source->client_id !== auth('client')->id(), 403);
 
         $success = $source->testConnection();
 
@@ -66,7 +66,7 @@ class DataSourceController extends Controller
 
     public function destroy(ClientDataSource $source)
     {
-        $this->authorize('delete', $source);
+        abort_if($source->client_id !== auth('client')->id(), 403);
         $source->delete();
 
         return redirect()->route('client.sources.index')

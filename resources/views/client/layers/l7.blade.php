@@ -1,5 +1,5 @@
 @extends('layouts.platform')
-@section('title', 'Application Layer — Decision Centre')
+@section('title', 'Application Layer')
 @section('content')
-@include('client.layers._dc_panel', ['layerTitle' => 'L7 Application Layer — Decision Centre'])
+@include('client.layers._dc_panel', ['layerTitle' => 'Application Layer'])
 @endsection

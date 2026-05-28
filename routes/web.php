@@ -31,7 +31,9 @@ Route::get('privacy',   fn() => view('privacy'))->name('privacy');
 Route::get('terms',     fn() => view('terms'))->name('terms');
 Route::get('security',  fn() => view('security'))->name('security');
 Route::get('careers',   fn() => view('careers'))->name('careers');
-Route::get('contact',   fn() => redirect()->route('book-demo'))->name('contact');
+Route::get('contact',        fn() => view('contact'))->name('contact');
+Route::get('blog',           fn() => view('blog'))->name('blog');
+Route::get('platform/architecture', fn() => view('platform-architecture'))->name('platform.architecture');
 
 
 // ─── Master Admin ─────────────────────────────────────────────────────────────
@@ -99,6 +101,9 @@ Route::prefix('app')->name('client.')->group(function () {
 
     Route::get('register/configure-actions',  [ClientAuthController::class, 'showConfigureActions'])->name('register.configure.actions');
     Route::post('register/configure-actions', [ClientAuthController::class, 'storeConfigureActions'])->name('register.configure.actions.store');
+
+    Route::get('register/credentials',  [ClientAuthController::class, 'showCredentials'])->name('register.credentials');
+    Route::post('register/credentials', [ClientAuthController::class, 'storeCredentials'])->name('credentials.store');
 });
 
 // ─── Client Protected ─────────────────────────────────────────────────────────

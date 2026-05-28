@@ -32,7 +32,7 @@
     {{-- ======================================================
          LEFT SIDEBAR  (narrow — no active layer here)
          ====================================================== --}}
-    <aside class="w-[220px] flex-shrink-0 flex flex-col border-r border-gray-200 bg-white">
+    <aside class="hidden md:flex w-[220px] flex-shrink-0 flex-col border-r border-gray-200 bg-white" id="clientSidebar">
 
         {{-- Brand --}}
         <div class="flex items-center h-14 px-4 border-b border-gray-100 flex-shrink-0">
@@ -93,7 +93,15 @@
 
         {{-- Top search bar --}}
         <header class="flex-shrink-0 flex items-center justify-between
-                       bg-white border-b border-gray-200 px-6 h-14 gap-4">
+                       bg-white border-b border-gray-200 px-4 md:px-6 h-14 gap-4">
+
+            {{-- Mobile hamburger --}}
+            <button class="md:hidden p-2 rounded-lg hover:bg-gray-100 transition flex-shrink-0"
+                    onclick="toggleClientSidebar()" aria-label="Open menu">
+                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
 
             {{-- Search --}}
             <div class="relative flex-1 max-w-sm">
@@ -312,5 +320,56 @@
 
 </div>
 
+{{-- Mobile sidebar overlay --}}
+<div id="clientSidebarOverlay"
+     class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"
+     onclick="toggleClientSidebar()"></div>
+
+{{-- Mobile sidebar drawer --}}
+<aside id="clientSidebarMob"
+       class="fixed inset-y-0 left-0 z-50 w-[220px] flex flex-col border-r border-gray-200 bg-white
+              -translate-x-full transition-transform duration-300">
+    <div class="flex items-center h-14 px-4 border-b border-gray-100 flex-shrink-0">
+        <span class="text-sm font-bold text-indigo-600 tracking-tight truncate flex-1">
+            {{ config('app.name') }}
+        </span>
+        <button onclick="toggleClientSidebar()" class="p-1 rounded hover:bg-gray-100">
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+    <nav class="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
+        <a href="{{ route('client.dashboard') }}"
+           class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border-l-2 border-indigo-400
+                  bg-indigo-50 text-indigo-700 font-semibold text-xs">
+            Dashboard
+        </a>
+        <a href="{{ route('client.sources.index') }}"
+           class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-gray-50 text-gray-500 text-xs transition">
+            Data Sources
+        </a>
+    </nav>
+    <div class="px-3 py-3 border-t border-gray-100 flex-shrink-0">
+        <form method="POST" action="{{ route('client.logout') }}">
+            @csrf
+            <button type="submit"
+                    class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium
+                           text-red-500 hover:bg-red-50 hover:text-red-700 transition">
+                Log out
+            </button>
+        </form>
+    </div>
+</aside>
+
+<script>
+function toggleClientSidebar(){
+    var d=document.getElementById('clientSidebarMob'),o=document.getElementById('clientSidebarOverlay');
+    var isOpen=d.style.transform==='translateX(0px)';
+    d.style.transform=isOpen?'translateX(-100%)':'translateX(0)';
+    o.classList.toggle('hidden',isOpen);
+    document.body.style.overflow=isOpen?'':'hidden';
+}
+</script>
 </body>
 </html>

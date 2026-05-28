@@ -26,15 +26,17 @@ button{font-family:var(--f1)}
 
 /* NAV */
 .nav{position:fixed;top:0;width:100%;z-index:100;border-bottom:1px solid var(--brd)}
-.nav-bg{position:absolute;inset:0;background:rgba(5,7,14,.8);backdrop-filter:blur(40px)}
+.nav-bg{position:absolute;inset:0;background:rgba(5,7,14,.75);backdrop-filter:blur(40px)}
 .nav-in{position:relative;max-width:var(--mw);margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between}
 .logo{display:flex;align-items:center;gap:11px;font-weight:700;font-size:15px;letter-spacing:-.3px}
 .logo-m{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--violet));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;box-shadow:0 0 20px rgba(79,143,255,.25)}
 .nav-l{display:flex;align-items:center;gap:32px;list-style:none}
 .nav-l a{font-size:13.5px;font-weight:450;color:var(--g200);transition:color .25s}
-.nav-l a:hover,.nav-l a.active{color:var(--white)}
-.nav-cta{padding:8px 22px;background:var(--blue);color:#fff!important;border-radius:8px;font-weight:600!important;font-size:13px!important;box-shadow:0 0 24px rgba(79,143,255,.25);transition:box-shadow .3s}
+.nav-l a:hover{color:var(--white)}
+.nav-cta{padding:8px 22px;background:var(--blue);color:#fff!important;border-radius:8px;font-weight:600!important;font-size:13px!important;box-shadow:0 0 24px rgba(79,143,255,.25);transition:all .25s;cursor:pointer;border:none;font-family:var(--f1)}
 .nav-cta:hover{box-shadow:0 0 36px rgba(79,143,255,.4)}
+.nav-login{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border:1px solid var(--g500);color:var(--g200)!important;border-radius:8px;font-weight:500!important;font-size:13px!important;transition:all .25s;background:transparent;cursor:pointer;font-family:var(--f1)}
+.nav-login:hover{border-color:var(--brd2);color:var(--white)!important;background:rgba(79,143,255,.05)}
 
 /* HERO */
 .hero{position:relative;z-index:1;padding:140px 40px 80px;text-align:center}
@@ -263,6 +265,19 @@ button{font-family:var(--f1)}
   .trust-row{flex-direction:column;align-items:stretch}
   .billing-toggle{flex-wrap:wrap;border-radius:16px;padding:12px 16px}
 }
+.nav-ham{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;position:relative;z-index:102}
+.nav-ham span{display:block;width:22px;height:2px;background:var(--g200);border-radius:2px;transition:all .3s}
+.nav-ham.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.nav-ham.open span:nth-child(2){opacity:0}
+.nav-ham.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.nav-mob{display:none;position:fixed;inset:0;z-index:99;background:rgba(5,7,14,.97);backdrop-filter:blur(20px);flex-direction:column;align-items:center;justify-content:center;overflow-y:auto}
+.nav-mob.open{display:flex}.nav-mob-inner{width:100%;max-width:340px;padding:24px}
+.nav-mob-link{display:block;font-size:18px;font-weight:500;color:var(--g200);padding:16px 0;border-bottom:1px solid var(--brd);transition:color .2s;text-align:center}
+.nav-mob-link:first-child{border-top:1px solid var(--brd)}.nav-mob-link:hover{color:var(--white)}
+.nav-mob-cta{display:block;text-align:center;margin-top:28px;padding:14px 0;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;border-radius:10px;font-weight:600;font-size:15px}
+.nav-mob-cta:hover{opacity:.9;color:#fff}
+.nav-mob-close{position:absolute;top:20px;right:20px;background:none;border:none;cursor:pointer;color:var(--g300);font-size:32px;line-height:1;z-index:100;width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+@media(max-width:640px){.nav-ham{display:flex}}
 </style>
 </head>
 <body>
@@ -270,15 +285,31 @@ button{font-family:var(--f1)}
 
 <!-- NAV -->
 <nav class="nav"><div class="nav-bg"></div><div class="nav-in">
-  <a href="{{ route('home') }}" class="logo"><span class="logo-m">X</span> Platforms</a>
+  <a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a>
   <ul class="nav-l">
-    <li><a href="{{ route('home') }}">Home</a></li>
+    <li><a href="{{ url('/') }}">Home</a></li>
+    <li><a href="{{ route('industries') }}">Industries</a></li>
     <li><a href="{{ route('simulator') }}">Simulator</a></li>
-    <li><a href="{{ route('case-studies') }}">Case Studies</a></li>
-    <li><a href="{{ route('pricing') }}" class="active" style="color:var(--white)">Pricing</a></li>
-    <li><a href="{{ route('book-demo') }}" class="nav-cta">Book a Demo</a></li>
+    <li><a href="{{ route('pricing') }}">Pricing</a></li>
+    <li style="display:flex;align-items:center;gap:10px">
+      <a href="{{ route('client.login') }}" class="nav-login"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Log in</a>
+      <a href="{{ route('book-demo') }}" class="nav-cta">Book a Demo</a>
+    </li>
   </ul>
+  <button class="nav-ham" id="navHam" onclick="toggleNav()" aria-label="Open menu"><span></span><span></span><span></span></button>
 </div></nav>
+<div class="nav-mob" id="navMob">
+  <button class="nav-mob-close" onclick="toggleNav()" aria-label="Close">&#215;</button>
+  <div class="nav-mob-inner">
+    <a class="nav-mob-link" href="{{ url('/') }}">Home</a>
+    <a class="nav-mob-link" href="{{ route('industries') }}">Industries</a>
+    <a class="nav-mob-link" href="{{ route('simulator') }}">Simulator</a>
+    <a class="nav-mob-link" href="{{ route('pricing') }}">Pricing</a>
+    <a class="nav-mob-link" href="{{ route('client.login') }}">Log in</a>
+    <a class="nav-mob-cta" href="{{ route('book-demo') }}">Book a Demo</a>
+  </div>
+</div>
+<script>function toggleNav(){var m=document.getElementById('navMob'),h=document.getElementById('navHam');m.classList.toggle('open');h.classList.toggle('open');document.body.style.overflow=m.classList.contains('open')?'hidden':''}</script>
 
 <!-- HERO -->
 <header class="hero">
@@ -605,8 +636,8 @@ button{font-family:var(--f1)}
 <!-- FOOTER -->
 <footer class="foot"><div class="foot-in">
   <div><a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
-  <div class="foot-c"><h5>Product</h5><a href="{{ url('/') }}#arch">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
-  <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="{{ route('careers') }}">Careers</a><a href="#">Blog</a><a href="{{ route('contact') }}">Contact</a></div>
+  <div class="foot-c"><h5>Product</h5><a href="{{ route('platform.architecture') }}">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
+  <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="{{ route('careers') }}">Careers</a><a href="{{ route('blog') }}">Blog</a><a href="{{ route('contact') }}">Contact</a></div>
   <div class="foot-c"><h5>Resources</h5><a href="#">Documentation</a><a href="{{ route('case-studies') }}">Case Studies</a><a href="#">API Reference</a><a href="{{ route('security') }}">Security</a></div>
 </div><div class="foot-b"><span>&copy; {{ date('Y') }} X Platforms.</span><span><a href="{{ route('privacy') }}" style="color:inherit">Privacy</a> &middot; <a href="{{ route('terms') }}" style="color:inherit">Terms</a> &middot; <a href="{{ route('security') }}" style="color:inherit">Security</a></span></div></footer>
 

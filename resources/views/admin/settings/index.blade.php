@@ -228,6 +228,11 @@
             background: rgba(239, 68, 68, 0.1);
             color: var(--danger);
         }
+        @media(max-width:768px){
+            .sidebar{transform:translateX(-100%)}
+            .main-content{margin-left:0}
+            .stats-grid,.settings-grid{grid-template-columns:1fr}
+        }
     </style>
 </head>
 <body>
