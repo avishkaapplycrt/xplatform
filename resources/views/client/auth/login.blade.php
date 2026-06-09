@@ -1,4 +1,4 @@
-<x-guest-layout backUrl="/" previousUrl="/" :currentStep="1">
+<x-guest-layout title="Sign In" backUrl="/" previousUrl="/" :currentStep="1">
 
     {{-- Top Banner --}}
     <div class="w-full h-40 bg-gray-100 flex items-center justify-center">

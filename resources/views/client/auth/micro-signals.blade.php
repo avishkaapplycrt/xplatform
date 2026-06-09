@@ -1,4 +1,4 @@
-<x-guest-layout
+<x-guest-layout title="Select Micro Signals"
     backUrl="{{ route('client.register.connect.data.source') }}"
     previousUrl="{{ route('client.register.connect.data.source') }}"
     :currentStep="5">

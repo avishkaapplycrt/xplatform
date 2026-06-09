@@ -477,7 +477,34 @@ class ClientAuthController extends Controller
 
         $client->actions()->sync($request->actions);
 
-        // Clear registration session
+        return redirect()->route('client.register.credentials');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Step 8 — Credentials
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function showCredentials()
+    {
+        if ($guard = $this->requireRegistrationSession()) return $guard;
+        return view('client.auth.credentials');
+    }
+
+    public function storeCredentials(Request $request)
+    {
+        if ($guard = $this->requireRegistrationSession()) return $guard;
+
+        $request->validate([
+            'email'    => ['required', 'email:rfc', 'unique:clients,email'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $client = Client::findOrFail(session('registration.client_id'));
+        $client->update([
+            'email'    => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
         session()->forget([
             'registration.client_id',
             'registration.industry_id',
@@ -488,12 +515,11 @@ class ClientAuthController extends Controller
             'selected_actions',
         ]);
 
-        // Auto-login and go straight to dashboard
         Auth::guard('client')->login($client);
         $request->session()->regenerate();
 
         return redirect()->route('client.dashboard')
-            ->with('success', 'Welcome! Your company has been registered successfully.');
+            ->with('success', 'Welcome! Your account has been set up successfully.');
     }
 
     // ─────────────────────────────────────────────────────────────────────────

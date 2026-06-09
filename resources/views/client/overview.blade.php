@@ -24,85 +24,83 @@
     {{-- ======================================================
          LEFT SIDEBAR
          ====================================================== --}}
-    <aside class="w-[220px] flex-shrink-0 flex flex-col border-r border-gray-200 bg-white">
+    <aside class="w-[184px] bg-white border-r border-gray-200 flex flex-col h-full flex-shrink-0">
 
-        {{-- Brand --}}
-        <div class="flex items-center h-12 px-4 border-b border-gray-100 flex-shrink-0">
-            <a href="{{ route('client.dashboard') }}"
-               class="text-sm font-bold text-indigo-600 tracking-tight truncate">
-                {{ config('app.name') }}
-            </a>
-        </div>
-
-        {{-- Active Tenant selector --}}
-        <div class="px-3 pt-4 pb-3 flex-shrink-0">
-            <p class="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.12em] mb-1.5">
-                Active Tenant
-            </p>
-            <div class="w-full flex items-center justify-between gap-2 px-3 py-2
-                        bg-gray-50 border border-gray-200 rounded-lg">
-                <span class="text-xs font-semibold text-gray-800 truncate">{{ $clientName }}</span>
-                <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {{-- Active Tenant --}}
+        <div class="px-3 pt-4 pb-3 border-b border-gray-100">
+            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Active Tenant</p>
+            <button class="w-full flex items-center justify-between bg-white border border-gray-200 rounded-md px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition">
+                <span>{{ $clientName }}</span>
+                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
-            </div>
+            </button>
         </div>
 
-        {{-- Platform Layers nav --}}
-        <div class="px-3 pb-1 flex-shrink-0">
-            <p class="text-[9px] font-semibold text-gray-400 uppercase tracking-[0.12em]">
-                Platform Layers
-            </p>
-        </div>
+        {{-- Platform Layers Navigation --}}
+        <div class="px-3 pt-3 flex-1 overflow-y-auto">
+            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Platform Layers</p>
 
-        <nav class="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
-
-            {{-- Architecture Overview — active --}}
-            <a href="{{ route('client.company.overview') }}"
-               class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border-l-2 border-emerald-400
-                      bg-emerald-50 text-emerald-700 font-semibold text-xs">
-                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor"
-                     stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                          d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                </svg>
-                Architecture Overview
-            </a>
-
-            {{-- L1–L8 sidebar items --}}
-            @foreach($allLayers as $layer)
-                @php
-                    $layerRoute = match($layer['code']) {
-                        'L1' => route('client.layer.l1'),
-                        'L2' => route('client.layer.l2'),
-                        'L3' => route('client.layer.l3'),
-                        'L4' => route('client.layer.l4'),
-                        'L5' => route('client.layer.l5'),
-                        'L6' => route('client.layer.l6'),
-                        'L7' => route('client.layer.l7'),
-                        'L8' => route('client.layer.l8'),
-                        default => '#',
-                    };
-                @endphp
-                <a href="{{ $layerRoute }}"
-                   class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg
-                          hover:bg-gray-50 transition">
-                    <span class="text-[10px] font-bold w-5 text-center flex-shrink-0"
-                          style="color:{{ $layer['color'] }}">{{ $layer['code'] }}</span>
-                    <span class="text-xs text-gray-600 truncate">{{ $layer['name'] }}</span>
+            <nav class="space-y-1">
+                {{-- Architecture Overview — active on this page --}}
+                <a href="{{ route('client.company.overview') }}"
+                   class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
+                          bg-teal-50 text-teal-700 font-medium border-l-2 border-teal-400">
+                    <svg class="w-3.5 h-3.5 flex-shrink-0 text-teal-500"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 3l8 8-8 8-8-8 8-8z"/>
+                    </svg>
+                    <span class="truncate">Architecture Overview</span>
                 </a>
-            @endforeach
 
-        </nav>
+                @php
+                $allSidebarLayers = [
+                    ['num'=>'L1','label'=>'Data Collection',        'color'=>'text-emerald-600','bg'=>'bg-emerald-50', 'route'=>'client.layer.l1'],
+                    ['num'=>'L2','label'=>'Identity Resolution',    'color'=>'text-blue-600',   'bg'=>'bg-blue-50',   'route'=>'client.layer.l2'],
+                    ['num'=>'L3','label'=>'Data Processing',        'color'=>'text-violet-600', 'bg'=>'bg-violet-50', 'route'=>'client.layer.l3'],
+                    ['num'=>'L4','label'=>'Behavioral Intelligence','color'=>'text-amber-600',  'bg'=>'bg-amber-50',  'route'=>'client.layer.l4'],
+                    ['num'=>'L5','label'=>'AI/ML Predictions',      'color'=>'text-orange-600', 'bg'=>'bg-orange-50', 'route'=>'client.layer.l5'],
+                    ['num'=>'L6','label'=>'Decision & Actions',     'color'=>'text-green-600',  'bg'=>'bg-green-50',  'route'=>'client.layer.l6'],
+                    ['num'=>'L7','label'=>'Application Layer',      'color'=>'text-red-600',    'bg'=>'bg-red-50',    'route'=>'client.layer.l7'],
+                    ['num'=>'L8','label'=>'Governance & Security',  'color'=>'text-gray-600',   'bg'=>'bg-gray-100',  'route'=>'client.layer.l8'],
+                ];
+                $selectedLayerCodes = auth('client')->user()?->analysisLayers()->pluck('code')->toArray() ?? [];
+                $sidebarLayers = empty($selectedLayerCodes)
+                    ? $allSidebarLayers
+                    : array_values(array_filter($allSidebarLayers, fn($l) => in_array($l['num'], $selectedLayerCodes)));
+                @endphp
 
-        {{-- Sidebar footer --}}
-        <div class="px-4 py-3 border-t border-gray-100 flex-shrink-0 space-y-1">
-            <p class="flex items-center gap-1.5 text-[10px] text-gray-500">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block flex-shrink-0"></span>
-                All systems operational
-            </p>
-            <p class="text-[10px] text-gray-400">150+ micro-signals active</p>
-            <p class="text-[10px] text-gray-400 truncate">• {{ $clientName }}</p>
+                @foreach($sidebarLayers as $layer)
+                    <a href="{{ route($layer['route']) }}"
+                       class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition text-gray-500 hover:bg-gray-50 hover:text-gray-900">
+                        <span class="text-[10px] font-bold {{ $layer['color'] }} {{ $layer['bg'] }} rounded px-1.5 py-0.5 leading-none flex-shrink-0">
+                            {{ $layer['num'] }}
+                        </span>
+                        <span class="truncate">{{ $layer['label'] }}</span>
+                    </a>
+                @endforeach
+
+                {{-- RL Engine add-on --}}
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                    <p class="text-[9px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-1.5">Add-on Module</p>
+                    <a href="{{ route('client.layer.rl') }}"
+                       class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition text-gray-500 hover:bg-gray-50 hover:text-gray-900">
+                        <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 rounded px-1.5 py-0.5 leading-none flex-shrink-0">RL</span>
+                        <span class="truncate">RL Engine</span>
+                    </a>
+                </div>
+            </nav>
+        </div>
+
+        {{-- Status Bar --}}
+        <div class="px-3 py-3 border-t border-gray-100 bg-gray-50">
+            <div class="flex items-center gap-1.5 mb-1">
+                <span class="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></span>
+                <span class="text-[10px] text-gray-700 font-medium">All systems operational</span>
+            </div>
+            <p class="text-[10px] text-gray-400 pl-3.5">150+ micro-signals active</p>
+            <p class="text-[10px] text-gray-400 pl-3.5">{{ $clientName }}</p>
         </div>
 
     </aside>
@@ -130,29 +128,69 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-5 flex-shrink-0">
-                {{-- Profiles resolved --}}
-                <div class="flex items-center gap-1.5 text-[11px] text-gray-500">
-                    <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+            <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+                {{-- Home button --}}
+                <a href="{{ route('client.dashboard') }}"
+                   style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;color:#6b7280;text-decoration:none;border:1px solid #e5e7eb"
+                   onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'"
+                   title="Home">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                     </svg>
-                    <span class="font-semibold text-gray-700">8.7M profiles</span>
-                </div>
+                </a>
+
+                {{-- Profiles --}}
+                <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#4b5563">
+                    <svg width="14" height="14" fill="none" stroke="#a78bfa" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                    <span style="font-weight:600;color:#374151">8.7M profiles</span>
+                </span>
 
                 {{-- Accuracy --}}
-                <div class="flex items-center gap-1.5 text-[11px] text-gray-500">
-                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#4b5563">
+                    <svg width="14" height="14" fill="none" stroke="#f472b6" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <span class="font-semibold text-gray-700">94.1% accuracy</span>
-                </div>
+                    <span style="font-weight:600;color:#374151">94.1% accuracy</span>
+                </span>
 
-                {{-- Avatar --}}
-                <div class="w-8 h-8 rounded-full flex items-center justify-center
-                            text-white text-xs font-bold flex-shrink-0"
-                     style="background:{{ $avatarColor }}">{{ $initials }}</div>
+                {{-- Avatar with dropdown --}}
+                <div style="position:relative" id="ovAvatarWrap">
+                    <button onclick="var d=document.getElementById('ovDropdown');d.style.display=d.style.display==='block'?'none':'block'"
+                            style="width:32px;height:32px;border-radius:50%;background:{{ $avatarColor }};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;border:none;cursor:pointer">
+                        {{ $initials }}
+                    </button>
+                    <div id="ovDropdown"
+                         style="display:none;position:absolute;right:0;top:40px;width:192px;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);border:1px solid #e5e7eb;padding:4px 0;z-index:999">
+                        <div style="padding:8px 16px;border-bottom:1px solid #f3f4f6">
+                            <p style="font-size:12px;font-weight:600;color:#111827;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $clientName }}</p>
+                            <p style="font-size:10px;color:#9ca3af;margin:2px 0 0">Client Account</p>
+                        </div>
+                        <a href="{{ route('client.dashboard') }}"
+                           style="display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:12px;color:#374151;text-decoration:none"
+                           onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
+                            <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            Profile Settings
+                        </a>
+                        <hr style="margin:4px 0;border:none;border-top:1px solid #f3f4f6">
+                        <form method="POST" action="{{ route('client.logout') }}">
+                            @csrf
+                            <button type="submit"
+                                    style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:12px;color:#dc2626;background:none;border:none;cursor:pointer;text-align:left"
+                                    onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
+                                <svg width="14" height="14" fill="none" stroke="#dc2626" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                </svg>
+                                Log Out
+                            </button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -369,5 +407,12 @@
 
 </div>
 
+<script>
+document.addEventListener('click', function(e) {
+  var wrap = document.getElementById('ovAvatarWrap');
+  var drop = document.getElementById('ovDropdown');
+  if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
+});
+</script>
 </body>
 </html>

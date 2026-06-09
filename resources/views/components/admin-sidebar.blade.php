@@ -1,4 +1,12 @@
-<aside class="sidebar">
+<style>
+.mob-ham{display:none;position:fixed;top:14px;left:14px;z-index:200;background:var(--primary,#6366f1);color:#fff;border:none;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:18px;line-height:1;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:98}
+.sidebar.mob-open{transform:translateX(0)!important;z-index:99}
+@media(max-width:768px){.mob-ham{display:block}.sidebar-overlay.open{display:block}}
+</style>
+<button class="mob-ham" id="mobHam" onclick="toggleAdminSidebar()" aria-label="Open menu">&#9776;</button>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleAdminSidebar()"></div>
+<aside class="sidebar" id="adminSidebar">
     <div class="sidebar-header">
         <h1>🔮 Analytics Platform</h1>
         <p>Master Administration</p>
@@ -23,6 +31,14 @@
                 <span style="margin-left: auto; background: var(--warning); color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px;">{{ $pendingCount }}</span>
             @endif
         </a>
+        <a href="{{ route('admin.demo-requests.index') }}" class="nav-item {{ request()->routeIs('admin.demo-requests.*') ? 'active' : '' }}">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            Demo Requests
+            @php $pendingDemos = \App\Models\BookDemo::where('status','pending')->count(); @endphp
+            @if($pendingDemos > 0)
+                <span style="margin-left:auto;background:var(--info);color:white;padding:2px 8px;border-radius:10px;font-size:12px">{{ $pendingDemos }}</span>
+            @endif
+        </a>
         <a href="{{ route('admin.analytics.index') }}" class="nav-item {{ request()->routeIs('admin.analytics.*') ? 'active' : '' }}">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
             Analytics
@@ -33,3 +49,11 @@
         </a>
     </nav>
 </aside>
+<script>
+function toggleAdminSidebar(){
+    var s=document.getElementById('adminSidebar'),o=document.getElementById('sidebarOverlay');
+    s.classList.toggle('mob-open');
+    o.classList.toggle('open');
+    document.body.style.overflow=s.classList.contains('mob-open')?'hidden':'';
+}
+</script>

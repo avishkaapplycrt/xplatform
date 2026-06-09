@@ -23,6 +23,20 @@ use App\Models\BehavioralProfile;
 Route::get('/', fn() => view('welcome'))->name('home');
 Route::get('simulator', fn() => view('simulator'))->name('simulator');
 Route::get('case-studies', fn() => view('case-studies'))->name('case-studies');
+Route::get('pricing', fn() => view('pricing'))->name('pricing');
+Route::get('book-demo', [App\Http\Controllers\BookDemoController::class, 'show'])->name('book-demo');
+Route::post('book-demo', [App\Http\Controllers\BookDemoController::class, 'store'])->name('book-demo.store');
+Route::get('book-demo/thank-you', [App\Http\Controllers\BookDemoController::class, 'thankYou'])->name('book-demo.thank-you');
+Route::get('about', fn() => view('about'))->name('about');
+Route::get('industries', fn() => view('industries'))->name('industries');
+Route::get('banking',   fn() => view('banking'))->name('banking');
+Route::get('privacy',   fn() => view('privacy'))->name('privacy');
+Route::get('terms',     fn() => view('terms'))->name('terms');
+Route::get('security',  fn() => view('security'))->name('security');
+Route::get('careers',   fn() => view('careers'))->name('careers');
+Route::get('contact',        fn() => view('contact'))->name('contact');
+Route::get('blog',           fn() => view('blog'))->name('blog');
+Route::get('platform/architecture', fn() => view('platform-architecture'))->name('platform.architecture');
 
 
 // ─── Master Admin ─────────────────────────────────────────────────────────────
@@ -43,6 +57,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('clients/{client}/suspend',  [ClientManagementController::class, 'suspend'])->name('clients.suspend');
         Route::post('clients/{client}/activate', [ClientManagementController::class, 'activate'])->name('clients.activate');
         Route::delete('clients/{client}',  [ClientManagementController::class, 'destroy'])->name('clients.destroy');
+
+        Route::get('demo-requests',                   [AdminDemoRequestController::class, 'index'])->name('demo-requests.index');
+        Route::post('demo-requests/{demo}/approve',   [AdminDemoRequestController::class, 'approve'])->name('demo-requests.approve');
+        Route::delete('demo-requests/{demo}',         [AdminDemoRequestController::class, 'destroy'])->name('demo-requests.destroy');
 
         Route::get('analytics', [AdminAnalyticsController::class, 'index'])->name('analytics.index');
 
@@ -86,6 +104,9 @@ Route::prefix('app')->name('client.')->group(function () {
 
     Route::get('register/configure-actions',  [ClientAuthController::class, 'showConfigureActions'])->name('register.configure.actions');
     Route::post('register/configure-actions', [ClientAuthController::class, 'storeConfigureActions'])->name('register.configure.actions.store');
+
+    Route::get('register/credentials',  [ClientAuthController::class, 'showCredentials'])->name('register.credentials');
+    Route::post('register/credentials', [ClientAuthController::class, 'storeCredentials'])->name('credentials.store');
 });
 
 // ─── Client Protected ─────────────────────────────────────────────────────────
@@ -103,6 +124,7 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('layers/l6',      [DecisionCentreController::class, 'l6'])->name('layer.l6');
     Route::get('layers/l7',      [DecisionCentreController::class, 'l7'])->name('layer.l7');
     Route::get('layers/l8',      [DecisionCentreController::class, 'l8'])->name('layer.l8');
+    Route::get('layers/rl',      fn() => view('client.layers.rl'))->name('layer.rl');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('data-collection');
 

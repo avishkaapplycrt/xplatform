@@ -10,12 +10,14 @@ class MasterAdminSeeder extends Seeder
 {
     public function run(): void
     {
-        MasterAdmin::create([
-            'name' => 'Super Admin',
-            'email' => 'admin@analytics-platform.com',
-            'password' => Hash::make('password'),
-            'role' => 'super_admin',
-            'is_active' => true,
-        ]);
+        MasterAdmin::firstOrCreate(
+            ['email' => 'admin@analytics-platform.com'],
+            [
+                'name'      => 'Super Admin',
+                'password'  => Hash::make('password'),
+                'role'      => 'super_admin',
+                'is_active' => true,
+            ]
+        );
     }
 }

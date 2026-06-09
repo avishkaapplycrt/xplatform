@@ -53,30 +53,74 @@
 <div class="flex flex-col h-full overflow-hidden" style="background:#f9fafb">
 
 {{-- ── HEADER ── --}}
-<header style="flex-shrink:0;background:#fff;border-bottom:1px solid #e5e7eb;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;">
+<header class="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
   <div>
-    <h1 style="font-size:16px;font-weight:600;color:#111827;margin:0">AI/ML Predictions</h1>
-    <p style="font-size:11px;color:#6b7280;margin:2px 0 0">
-      Tenant: <span style="color:#0d9488;font-weight:500">{{ $cn }}</span>
-      <span style="margin-left:8px;display:inline-flex;align-items:center;gap:4px;color:#16a34a;font-weight:500;font-size:10px">
-        <span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block"></span>Live
+    <h1 class="text-[16px] font-semibold text-gray-900">AI/ML Predictions</h1>
+    <p class="text-[11px] text-gray-500 mt-0.5">
+      Tenant: <span class="text-teal-600 font-medium">{{ $cn }}</span>
+      <span class="ml-2 inline-flex items-center gap-1 text-green-600 font-medium text-[10px]">
+        <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Live · ML Scoring Active
       </span>
     </p>
   </div>
-  <div style="display:flex;align-items:center;gap:20px;font-size:11px;color:#6b7280">
-    <span style="display:flex;align-items:center;gap:5px">
-      <svg width="14" height="14" fill="none" stroke="#a78bfa" stroke-width="2" viewBox="0 0 24 24">
+  <div class="flex items-center gap-4 text-[11px] text-gray-500">
+    {{-- Home button --}}
+    <a href="{{ route('client.dashboard') }}"
+       class="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
+       title="Home">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+      </svg>
+    </a>
+
+    <span class="flex items-center gap-1.5">
+      <svg class="w-3.5 h-3.5 text-violet-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/>
       </svg>
-      <span style="font-weight:500;color:#374151">8.7M profiles</span>
+      <span class="font-medium text-gray-600">8.7M profiles</span>
     </span>
-    <span style="display:flex;align-items:center;gap:5px">
-      <svg width="14" height="14" fill="none" stroke="#f472b6" stroke-width="2" viewBox="0 0 24 24">
+    <span class="flex items-center gap-1.5">
+      <svg class="w-3.5 h-3.5 text-pink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
-      <span style="font-weight:500;color:#374151">94.1% accuracy</span>
+      <span class="font-medium text-gray-600">94.1% accuracy</span>
     </span>
-    <div style="width:32px;height:32px;border-radius:50%;background:#06b6d4;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700">{{ $av }}</div>
+
+    {{-- Avatar with dropdown --}}
+    <div class="relative" data-dd-wrap>
+      <button onclick="xpDd('ddL5')"
+              class="w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-cyan-400">
+        {{ $av }}
+      </button>
+      <div id="ddL5" data-dd-menu
+           class="absolute right-0 top-10 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+           style="display:none">
+        <div class="px-4 py-2 border-b border-gray-100">
+          <p class="text-xs font-semibold text-gray-800 truncate">{{ $cn }}</p>
+          <p class="text-[10px] text-gray-400 truncate">Client Account</p>
+        </div>
+        <a href="{{ route('client.dashboard') }}"
+           class="flex items-center gap-2 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50">
+          <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+          Profile Settings
+        </a>
+        <hr class="my-1 border-gray-100">
+        <form method="POST" action="{{ route('client.logout') }}">
+          @csrf
+          <button type="submit"
+                  class="w-full flex items-center gap-2 px-4 py-2 text-xs text-red-600 hover:bg-red-50">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+            Log Out
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 </header>
 
