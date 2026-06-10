@@ -13,6 +13,7 @@ use App\Http\Controllers\AdminAnalyticsController;
 use App\Http\Controllers\AdminSettingsController;
 use App\Http\Controllers\DecisionCentreController;
 use App\Http\Controllers\AdminDemoRequestController;
+use App\Http\Controllers\CrmController;
 use App\Models\EmailLog;
 use App\Models\CallLog;
 use App\Models\BehavioralProfile;
@@ -126,12 +127,21 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('data-collection');
 
-    // Data sources
+    // Database data sources
     Route::get('sources',                [DataSourceController::class, 'index'])->name('sources.index');
     Route::get('sources/create',         [DataSourceController::class, 'create'])->name('sources.create');
     Route::post('sources',               [DataSourceController::class, 'store'])->name('sources.store');
     Route::post('sources/{source}/test', [DataSourceController::class, 'test'])->name('sources.test');
     Route::delete('sources/{source}',    [DataSourceController::class, 'destroy'])->name('sources.destroy');
+
+    // CRM connections
+    Route::get('crm',                              [CrmController::class, 'index'])->name('crm.index');
+    Route::get('crm/hubspot/connect',              [CrmController::class, 'redirectToHubSpot'])->name('crm.hubspot.connect');
+    Route::get('crm/hubspot/callback',             [CrmController::class, 'handleHubSpotCallback'])->name('crm.hubspot.callback');
+    Route::get('crm/salesforce/connect',           [CrmController::class, 'redirectToSalesforce'])->name('crm.salesforce.connect');
+    Route::get('crm/salesforce/callback',          [CrmController::class, 'handleSalesforceCallback'])->name('crm.salesforce.callback');
+    Route::post('crm/{connection}/sync',           [CrmController::class, 'sync'])->name('crm.sync');
+    Route::delete('crm/{connection}',              [CrmController::class, 'destroy'])->name('crm.destroy');
 
     Route::post('logout', [ClientAuthController::class, 'logout'])->name('logout');
 });
