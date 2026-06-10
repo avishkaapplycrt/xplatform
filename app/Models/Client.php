@@ -156,6 +156,11 @@ class Client extends Authenticatable
         return $this->belongsToMany(Action::class, 'client_actions')->withTimestamps();
     }
 
+    public function crmConnections(): HasMany
+    {
+        return $this->hasMany(CrmConnection::class);
+    }
+
     public function platformMetrics(): HasMany
     {
         return $this->hasMany(ClientPlatformMetric::class);

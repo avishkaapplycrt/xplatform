@@ -7,13 +7,22 @@
 
     <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold text-gray-900">Data Sources</h2>
-        <a href="{{ route('client.sources.create') }}"
-           class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-            </svg>
-            Connect Source
-        </a>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('client.crm.index') }}"
+               class="inline-flex items-center gap-2 border border-gray-200 hover:border-gray-300 bg-white text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M15.54 8.27V5.74a1.66 1.66 0 0 0 .96-1.5V4.2a1.66 1.66 0 0 0-3.32 0v.04a1.66 1.66 0 0 0 .96 1.5v2.53a4.72 4.72 0 0 0-2.24 1.04L5.4 5.07a1.84 1.84 0 1 0-.88 1.56l6.37 4.11a4.74 4.74 0 0 0-.62 2.34 4.72 4.72 0 0 0 .9 2.78l-1.93 1.93a1.57 1.57 0 1 0 1.1 1.07l2.07-2.07a4.72 4.72 0 1 0 3.13-8.52Zm0 6.92a2.37 2.37 0 1 1 0-4.74 2.37 2.37 0 0 1 0 4.74Z" fill="#FF7A59"/>
+                </svg>
+                CRM Connections
+            </a>
+            <a href="{{ route('client.sources.create') }}"
+               class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                </svg>
+                Connect Database
+            </a>
+        </div>
     </div>
 
     @if($sources->isEmpty())

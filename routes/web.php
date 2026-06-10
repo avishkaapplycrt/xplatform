@@ -12,9 +12,8 @@ use App\Http\Controllers\ClientManagementController;
 use App\Http\Controllers\AdminAnalyticsController;
 use App\Http\Controllers\AdminSettingsController;
 use App\Http\Controllers\DecisionCentreController;
-use App\Http\Controllers\Analytics\SiteManagementController;
-use App\Http\Controllers\Analytics\WooCommerceAnalyticsController;
-use App\Http\Controllers\Analytics\ClientDashboardController as AnalyticsDashboardController;
+use App\Http\Controllers\AdminDemoRequestController;
+use App\Http\Controllers\CrmController;
 use App\Models\EmailLog;
 use App\Models\CallLog;
 use App\Models\BehavioralProfile;
@@ -128,40 +127,21 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('data-collection');
 
-    // Data sources
+    // Database data sources
     Route::get('sources',                [DataSourceController::class, 'index'])->name('sources.index');
     Route::get('sources/create',         [DataSourceController::class, 'create'])->name('sources.create');
     Route::post('sources',               [DataSourceController::class, 'store'])->name('sources.store');
     Route::post('sources/{source}/test', [DataSourceController::class, 'test'])->name('sources.test');
     Route::delete('sources/{source}',    [DataSourceController::class, 'destroy'])->name('sources.destroy');
 
-    // ─── WordPress Analytics ──────────────────────────────────────────────────
-    Route::prefix('analytics')->name('analytics.')->group(function () {
-        // Site Management
-        Route::get('sites', [SiteManagementController::class, 'index'])->name('sites.index');
-        Route::get('sites/create', [SiteManagementController::class, 'create'])->name('sites.create');
-        Route::post('sites', [SiteManagementController::class, 'store'])->name('sites.store');
-        Route::get('sites/{site}', [SiteManagementController::class, 'show'])->name('sites.show');
-        Route::post('sites/test', [SiteManagementController::class, 'testConnection'])->name('sites.test');
-        Route::post('sites/{site}/regenerate-key', [SiteManagementController::class, 'regenerateKey'])->name('sites.regenerate-key');
-        Route::post('sites/{site}/toggle', [SiteManagementController::class, 'toggleStatus'])->name('sites.toggle');
-        Route::delete('sites/{site}', [SiteManagementController::class, 'destroy'])->name('sites.destroy');
-
-        // Dashboard & Reports
-        Route::get('dashboard', [AnalyticsDashboardController::class, 'index'])->name('dashboard');
-        Route::get('sites/{site}/dashboard', [AnalyticsDashboardController::class, 'show'])->name('sites.dashboard');
-        Route::get('compare', [AnalyticsDashboardController::class, 'compare'])->name('compare');
-
-        // WooCommerce Analytics
-        Route::get('sites/{site}/woocommerce', [WooCommerceAnalyticsController::class, 'ecommerceOverview'])->name('woocommerce.overview');
-        Route::get('sites/{site}/woocommerce/products', [WooCommerceAnalyticsController::class, 'productAnalytics'])->name('woocommerce.products');
-        Route::get('sites/{site}/woocommerce/customers', [WooCommerceAnalyticsController::class, 'customerAnalytics'])->name('woocommerce.customers');
-    });
-
-    // ─── Connect WordPress (Redirect after login) ─────────────────────────────
-    Route::get('connect-wordpress', function () {
-        return redirect()->route('client.analytics.sites.create');
-    })->name('connect.wordpress');
+    // CRM connections
+    Route::get('crm',                              [CrmController::class, 'index'])->name('crm.index');
+    Route::get('crm/hubspot/connect',              [CrmController::class, 'redirectToHubSpot'])->name('crm.hubspot.connect');
+    Route::get('crm/hubspot/callback',             [CrmController::class, 'handleHubSpotCallback'])->name('crm.hubspot.callback');
+    Route::get('crm/salesforce/connect',           [CrmController::class, 'redirectToSalesforce'])->name('crm.salesforce.connect');
+    Route::get('crm/salesforce/callback',          [CrmController::class, 'handleSalesforceCallback'])->name('crm.salesforce.callback');
+    Route::post('crm/{connection}/sync',           [CrmController::class, 'sync'])->name('crm.sync');
+    Route::delete('crm/{connection}',              [CrmController::class, 'destroy'])->name('crm.destroy');
 
     Route::post('logout', [ClientAuthController::class, 'logout'])->name('logout');
 });
