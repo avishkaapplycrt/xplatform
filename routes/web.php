@@ -17,6 +17,7 @@ use App\Http\Controllers\CrmController;
 use App\Models\EmailLog;
 use App\Models\CallLog;
 use App\Models\BehavioralProfile;
+use App\Http\Controllers\Analytics\LaravelSiteManagementController;
 
 // ─── Public ───────────────────────────────────────────────────────────────────
 Route::get('/', fn() => view('welcome'))->name('home');
@@ -144,4 +145,26 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::delete('crm/{connection}',              [CrmController::class, 'destroy'])->name('crm.destroy');
 
     Route::post('logout', [ClientAuthController::class, 'logout'])->name('logout');
+
+    Route::prefix('laravel')->name('laravel.')->group(function () {
+        Route::get('sites', [LaravelSiteManagementController::class, 'index'])->name('sites.index');
+        Route::get('sites/create', [LaravelSiteManagementController::class, 'create'])->name('sites.create');
+        Route::post('sites', [LaravelSiteManagementController::class, 'store'])->name('sites.store');
+        Route::get('sites/{site}', [LaravelSiteManagementController::class, 'show'])->name('sites.show');
+        Route::post('sites/test', [LaravelSiteManagementController::class, 'testConnection'])->name('sites.test');
+        Route::delete('sites/{site}', [LaravelSiteManagementController::class, 'destroy'])->name('sites.destroy');
+    });
 });
+
+Route::middleware('analytics.token')->group(function () {
+    Route::get('/users', [AnalyticsController::class, 'users']);
+    Route::get('/page-views', [AnalyticsController::class, 'pageViews']);
+    Route::get('/orders', [AnalyticsController::class, 'orders']);
+    Route::get('/events', [AnalyticsController::class, 'events']);
+    Route::get('/stats', [AnalyticsController::class, 'stats']);
+});
+
+Route::middleware(['auth'])->get('/admin/analytics-tokens', function () {
+    $tokens = \App\Models\ApiToken::latest()->get();
+    return view('admin.tokens', compact('tokens'));
+})->name('admin.tokens');

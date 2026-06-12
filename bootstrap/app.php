@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'client.active' => \App\Http\Middleware\EnsureClientIsActive::class,
+            'analytics.token' => \App\Http\Middleware\AnalyticsApiToken::class,
         ]);
 
         $middleware->redirectGuestsTo(function ($request) {
