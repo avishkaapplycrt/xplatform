@@ -27,6 +27,8 @@ class Kernel extends ConsoleKernel
         // Aggregate all sites at 2 AM
         $schedule->command('analytics:aggregate')
             ->dailyAt('02:00');
+
+        $schedule->command('laravel:poll')->everySixHours();
     }
 
     /**
