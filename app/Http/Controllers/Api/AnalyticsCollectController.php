@@ -15,18 +15,20 @@ class AnalyticsCollectController extends Controller
 {
     public function collect(Request $request)
     {
-        Log::info('=== ANALYTICS COLLECT START ===');
-        Log::info('Content-Type: ' . $request->header('Content-Type'));
-        Log::info('All input: ' . json_encode($request->all()));
-        
         try {
+            Log::info('=== ANALYTICS COLLECT START ===');
+            
+            // Get site_id safely
             $siteId = $request->input('site_id');
-            Log::info('Site ID from request: ' . $siteId);
+            if (empty($siteId)) {
+                Log::warning('Site ID is empty');
+                return response()->json(['status' => 'ok'], 200)
+                    ->header('Access-Control-Allow-Origin', '*');
+            }
             
             $site = $this->validateSite($siteId);
-            Log::info('Site validation: ' . ($site ? 'FOUND' : 'NOT FOUND'));
-            
             if (!$site) {
+                Log::warning('Site not found: ' . $siteId);
                 return response()->json(['status' => 'ok'], 200)
                     ->header('Access-Control-Allow-Origin', '*');
             }
@@ -60,12 +62,16 @@ class AnalyticsCollectController extends Controller
                 'created_at' => now()
             ];
             
-            Log::info('Inserting pageview...');
             AnalyticsPageview::create($payload);
-            Log::info('Pageview inserted successfully');
+            Log::info('Pageview inserted');
             
-            $this->updateSession($site->id, $request->all());
-            Log::info('Session updated');
+            // Update session - wrap in try-catch
+            try {
+                $this->updateSession($site->id, $request->all());
+            } catch (\Exception $e) {
+                Log::error('Session update failed: ' . $e->getMessage());
+                // Don't fail the whole request
+            }
             
             Log::info('=== ANALYTICS COLLECT END ===');
             
@@ -75,18 +81,18 @@ class AnalyticsCollectController extends Controller
                 ->header('Access-Control-Allow-Headers', 'Content-Type');
                 
         } catch (\Exception $e) {
-            Log::error('=== ANALYTICS COLLECT ERROR ===');
-            Log::error('Message: ' . $e->getMessage());
-            Log::error('File: ' . $e->getFile() . ':' . $e->getLine());
-            Log::error('Trace: ' . $e->getTraceAsString());
-            
+            Log::error('Collect error: ' . $e->getMessage());
             return response()->json(['status' => 'ok'], 200)
                 ->header('Access-Control-Allow-Origin', '*');
         }
     }
     
-    protected function validateSite(string $trackingId): ?AnalyticsSite
+    protected function validateSite(?string $trackingId): ?AnalyticsSite
     {
+        if (empty($trackingId)) {
+            return null;
+        }
+        
         return Cache::remember("analytics:site:{$trackingId}", 3600, function() use ($trackingId) {
             return AnalyticsSite::where('tracking_id', $trackingId)
                 ->where('is_active', true)
@@ -96,39 +102,36 @@ class AnalyticsCollectController extends Controller
     
     protected function updateSession(int $siteId, array $data): void
     {
-        try {
-            $sessionId = $data['session_id'] ?? 'unknown';
-            $session = AnalyticsSession::where('session_id', $sessionId)->first();
-            
-            if (!$session) {
-                AnalyticsSession::create([
-                    'site_id' => $siteId,
-                    'session_id' => $sessionId,
-                    'visitor_id' => $data['visitor_id'] ?? 'unknown',
-                    'first_page' => $data['url'] ?? '',
-                    'last_page' => $data['url'] ?? '',
-                    'referrer' => $data['referrer'] ?? null,
-                    'country' => $data['country'] ?? null,
-                    'device_type' => $data['device_type'] ?? null,
-                    'browser' => $data['browser'] ?? null,
-                    'os' => $data['os'] ?? null,
-                    'pageviews' => 1,
-                    'duration_seconds' => 0,
-                    'is_bounce' => true,
-                    'started_at' => now(),
-                    'ended_at' => now(),
-                    'last_activity' => now()
-                ]);
-            } else {
-                $session->pageviews += 1;
-                $session->last_page = $data['url'] ?? '';
-                $session->ended_at = now();
-                $session->last_activity = now();
-                $session->is_bounce = false;
-                $session->save();
-            }
-        } catch (\Exception $e) {
-            Log::error('Session update failed: ' . $e->getMessage());
+        $sessionId = $data['session_id'] ?? 'unknown';
+        $session = AnalyticsSession::where('session_id', $sessionId)->first();
+        
+        if (!$session) {
+            // Use DB insert to avoid timestamp issues
+            \DB::table('analytics_sessions')->insert([
+                'site_id' => $siteId,
+                'session_id' => $sessionId,
+                'visitor_id' => $data['visitor_id'] ?? 'unknown',
+                'first_page' => $data['url'] ?? '',
+                'last_page' => $data['url'] ?? '',
+                'referrer' => $data['referrer'] ?? null,
+                'country' => $data['country'] ?? null,
+                'device_type' => $data['device_type'] ?? null,
+                'browser' => $data['browser'] ?? null,
+                'os' => $data['os'] ?? null,
+                'pageviews' => 1,
+                'duration_seconds' => 0,
+                'is_bounce' => true,
+                'started_at' => now(),
+                'ended_at' => now(),
+                'last_activity' => now()
+            ]);
+        } else {
+            $session->pageviews += 1;
+            $session->last_page = $data['url'] ?? '';
+            $session->ended_at = now();
+            $session->last_activity = now();
+            $session->is_bounce = false;
+            $session->save();
         }
     }
     
