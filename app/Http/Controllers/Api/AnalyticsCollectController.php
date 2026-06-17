@@ -7,49 +7,30 @@ use App\Http\Controllers\Controller;
 use App\Models\AnalyticsPageview;
 use App\Models\AnalyticsSession;
 use App\Models\AnalyticsSite;
-use App\Services\GeoLocationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class AnalyticsCollectController extends Controller
 {
-    protected GeoLocationService $geoService;
-    
-    public function __construct(GeoLocationService $geoService)
-    {
-        $this->geoService = $geoService;
-    }
-    
     public function collect(Request $request)
     {
+        Log::info('=== ANALYTICS COLLECT START ===');
+        Log::info('Content-Type: ' . $request->header('Content-Type'));
+        Log::info('All input: ' . json_encode($request->all()));
+        
         try {
-            Log::info('Analytics collect request', ['input' => $request->all()]);
+            $siteId = $request->input('site_id');
+            Log::info('Site ID from request: ' . $siteId);
             
-            // Validate site
-            $site = $this->validateSite($request->input('site_id'));
+            $site = $this->validateSite($siteId);
+            Log::info('Site validation: ' . ($site ? 'FOUND' : 'NOT FOUND'));
+            
             if (!$site) {
-                Log::warning('Invalid site_id', ['site_id' => $request->input('site_id')]);
-                return response()->json(['status' => 'ok'], 200);
+                return response()->json(['status' => 'ok'], 200)
+                    ->header('Access-Control-Allow-Origin', '*');
             }
             
-            // Rate limiting per IP
-            $ipKey = 'analytics:rate:' . $request->ip();
-            if (Cache::has($ipKey) && Cache::get($ipKey) > 100) {
-                return response()->json(['status' => 'ok'], 200);
-            }
-            Cache::increment($ipKey);
-            Cache::expire($ipKey, 60);
-            
-            // Get geo data from IP - wrap in try-catch
-            $geoData = [];
-            try {
-                $geoData = $this->geoService->lookup($request->ip());
-            } catch (\Exception $e) {
-                Log::warning('GeoIP lookup failed in controller', ['error' => $e->getMessage()]);
-            }
-            
-            // Build payload
             $payload = [
                 'site_id' => $site->id,
                 'session_id' => $request->input('session_id', 'unknown'),
@@ -64,12 +45,10 @@ class AnalyticsCollectController extends Controller
                 'utm_campaign' => $request->input('utm_campaign'),
                 'utm_term' => $request->input('utm_term'),
                 'utm_content' => $request->input('utm_content'),
-                'country' => $geoData['country_code'] ?? null,
-                'country_name' => $geoData['country_name'] ?? null,
-                'city' => $geoData['city'] ?? null,
-                'region' => $geoData['region'] ?? null,
-                'latitude' => $geoData['latitude'] ?? null,
-                'longitude' => $geoData['longitude'] ?? null,
+                'country' => $request->input('country'),
+                'country_name' => $request->input('country_name'),
+                'city' => $request->input('city'),
+                'region' => $request->input('region'),
                 'device_type' => $request->input('device_type'),
                 'browser' => $request->input('browser'),
                 'browser_version' => $request->input('browser_version'),
@@ -81,13 +60,14 @@ class AnalyticsCollectController extends Controller
                 'created_at' => now()
             ];
             
-            Log::info('Analytics payload', $payload);
-            
-            // Insert directly into database
+            Log::info('Inserting pageview...');
             AnalyticsPageview::create($payload);
+            Log::info('Pageview inserted successfully');
             
-            // Update session
             $this->updateSession($site->id, $request->all());
+            Log::info('Session updated');
+            
+            Log::info('=== ANALYTICS COLLECT END ===');
             
             return response()->json(['status' => 'ok'], 201)
                 ->header('Access-Control-Allow-Origin', '*')
@@ -95,14 +75,13 @@ class AnalyticsCollectController extends Controller
                 ->header('Access-Control-Allow-Headers', 'Content-Type');
                 
         } catch (\Exception $e) {
-            Log::error('Analytics collect failed', [
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-                'input' => $request->all()
-            ]);
-            return response()->json(['status' => 'ok'], 200);
+            Log::error('=== ANALYTICS COLLECT ERROR ===');
+            Log::error('Message: ' . $e->getMessage());
+            Log::error('File: ' . $e->getFile() . ':' . $e->getLine());
+            Log::error('Trace: ' . $e->getTraceAsString());
+            
+            return response()->json(['status' => 'ok'], 200)
+                ->header('Access-Control-Allow-Origin', '*');
         }
     }
     
@@ -149,7 +128,7 @@ class AnalyticsCollectController extends Controller
                 $session->save();
             }
         } catch (\Exception $e) {
-            Log::error('Session update failed', ['error' => $e->getMessage()]);
+            Log::error('Session update failed: ' . $e->getMessage());
         }
     }
     
