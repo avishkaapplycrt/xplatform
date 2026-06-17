@@ -29,6 +29,9 @@ class Kernel extends ConsoleKernel
             ->dailyAt('02:00');
 
         $schedule->command('laravel:poll')->everySixHours();
+
+        $schedule->command('analytics:process')->everyMinute();
+        $schedule->command('analytics:aggregate')->hourly();
     }
 
     /**
