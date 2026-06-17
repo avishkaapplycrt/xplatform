@@ -13,11 +13,13 @@ use App\Http\Controllers\AdminAnalyticsController;
 use App\Http\Controllers\AdminSettingsController;
 use App\Http\Controllers\DecisionCentreController;
 use App\Http\Controllers\AdminDemoRequestController;
+use App\Http\Controllers\AnalyticsDashboardViewController;
 use App\Http\Controllers\CrmController;
 use App\Models\EmailLog;
 use App\Models\CallLog;
 use App\Models\BehavioralProfile;
 use App\Http\Controllers\Analytics\LaravelSiteManagementController;
+use App\Http\Controllers\Api\AnalyticsController;
 
 // ─── Public ───────────────────────────────────────────────────────────────────
 Route::get('/', fn() => view('welcome'))->name('home');
@@ -153,6 +155,16 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
         Route::get('sites/{site}', [LaravelSiteManagementController::class, 'show'])->name('sites.show');
         Route::post('sites/test', [LaravelSiteManagementController::class, 'testConnection'])->name('sites.test');
         Route::delete('sites/{site}', [LaravelSiteManagementController::class, 'destroy'])->name('sites.destroy');
+    });
+
+    // Analytics Dashboard Routes
+    Route::prefix('analytics')->name('analytics.')->group(function () {
+        Route::get('/', [AnalyticsDashboardViewController::class, 'index'])->name('dashboard');
+        Route::get('/sites/create', [AnalyticsDashboardViewController::class, 'createSiteForm'])->name('site.create');
+        Route::post('/sites', [AnalyticsDashboardViewController::class, 'storeSite'])->name('site.store');
+        Route::get('/sites/{siteId}', [AnalyticsDashboardViewController::class, 'showSite'])->name('site.detail');
+        Route::get('/sites/{siteId}/data', [AnalyticsDashboardViewController::class, 'analyticsData'])->name('site.data');
+        Route::delete('/sites/{siteId}', [AnalyticsDashboardViewController::class, 'deleteSite'])->name('site.delete');
     });
 });
 
