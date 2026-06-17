@@ -1,5 +1,5 @@
 // public/js/analytics-tracker.js
-// Minified version to be served via CDN or your domain
+// Analytics Tracker for xPlatforms.ai
 
 (function() {
     'use strict';
@@ -7,13 +7,15 @@
     const CONFIG = {
         ENDPOINT: window.__analyticsEndpoint || 'https://xplatforms.ai/api/collect',
         SITE_ID: window.__analyticsSiteId,
-        DEBUG: window.__analyticsDebug || false
+        DEBUG: true
     };
     
     if (!CONFIG.SITE_ID) {
         console.error('[Analytics] Site ID not configured');
         return;
     }
+    
+    console.log('[Analytics] Tracker loaded, Site ID:', CONFIG.SITE_ID);
     
     // Utility: Generate or retrieve session ID
     function getSessionId() {
@@ -30,7 +32,6 @@
         const key = '__analytics_vid_' + new Date().toISOString().split('T')[0];
         let vid = localStorage.getItem(key);
         if (!vid) {
-            // Clear old visitor IDs
             Object.keys(localStorage).forEach(k => {
                 if (k.startsWith('__analytics_vid_')) localStorage.removeItem(k);
             });
@@ -131,8 +132,8 @@
         return { os, version };
     }
     
-    // Core: Send beacon
-    function sendEvent(eventType, extraData = {}) {
+    // Core: Send event to server
+    function sendEvent(eventType, extraData) {
         const browser = getBrowserInfo();
         const os = getOSInfo();
         const utm = getUtmParams();
@@ -160,30 +161,39 @@
             screen_width: window.screen.width,
             screen_height: window.screen.height,
             language: navigator.language,
-            timestamp: Date.now(),
-            ...extraData
+            timestamp: Date.now()
         };
         
-        // Use Beacon API for reliable delivery on page unload
-        if (navigator.sendBeacon && eventType === 'page_exit') {
-            navigator.sendBeacon(CONFIG.ENDPOINT, JSON.stringify(payload));
-        } else {
-            fetch(CONFIG.ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-                keepalive: true
-            }).catch(err => {
-                if (CONFIG.DEBUG) console.error('[Analytics] Send failed:', err);
-            });
+        if (extraData) {
+            Object.assign(payload, extraData);
         }
+        
+        console.log('[Analytics] Sending payload:', payload);
+        
+        fetch(CONFIG.ENDPOINT, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload),
+            keepalive: true
+        }).then(response => {
+            console.log('[Analytics] Response status:', response.status);
+            if (!response.ok) {
+                console.error('[Analytics] Response not OK:', response.statusText);
+            }
+            return response.json();
+        }).then(data => {
+            console.log('[Analytics] Response data:', data);
+        }).catch(err => {
+            console.error('[Analytics] Send failed:', err);
+        });
     }
     
     // Track page view
     function trackPageview() {
         sendEvent('pageview');
-        
-        // Update session activity
         sessionStorage.setItem('__analytics_last_activity', Date.now());
     }
     
@@ -202,7 +212,7 @@
         );
         if (scrollPercent > maxScrollDepth) {
             maxScrollDepth = scrollPercent;
-            if (maxScrollDepth % 25 === 0) { // Track at 25%, 50%, 75%, 100%
+            if (maxScrollDepth % 25 === 0) {
                 sendEvent('scroll', { scroll_depth: maxScrollDepth });
             }
         }
@@ -223,30 +233,26 @@
     function init() {
         sessionStorage.setItem('__analytics_page_start', Date.now());
         
-        // Track initial pageview
+        console.log('[Analytics] Initializing...');
         trackPageview();
         
-        // Track performance after load
         if (document.readyState === 'complete') {
             trackPerformance();
         } else {
             window.addEventListener('load', trackPerformance);
         }
         
-        // Scroll tracking (throttled)
         let scrollTimeout;
         window.addEventListener('scroll', () => {
             clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(trackScroll, 250);
         }, { passive: true });
         
-        // Exit tracking
         window.addEventListener('beforeunload', trackExit);
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') trackExit();
         });
         
-        // SPA navigation support (History API)
         let lastUrl = location.href;
         new MutationObserver(() => {
             const currentUrl = location.href;
@@ -256,7 +262,6 @@
             }
         }).observe(document, { subtree: true, childList: true });
         
-        // Heartbeat (every 30s to keep session alive)
         setInterval(() => {
             sendEvent('heartbeat', { elapsed_ms: Date.now() - parseInt(sessionStorage.getItem('__analytics_page_start')) });
         }, 30000);
@@ -271,11 +276,13 @@
     
     // Expose API for manual events
     window.Analytics = {
-        track: (eventName, data = {}) => sendEvent('custom', { event_name: eventName, ...data }),
+        track: function(eventName, data) {
+            sendEvent('custom', Object.assign({ event_name: eventName }, data));
+        },
         pageview: trackPageview,
-        identify: (userId, traits = {}) => {
+        identify: function(userId, traits) {
             localStorage.setItem('__analytics_user_id', userId);
-            sendEvent('identify', { user_id: userId, traits });
+            sendEvent('identify', { user_id: userId, traits: traits || {} });
         }
     };
 })();
