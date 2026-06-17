@@ -17,8 +17,11 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 // ==========================================
 // PUBLIC TRACKING ENDPOINTS (No Auth Required)
 // ==========================================
-Route::post('/collect', [AnalyticsCollectController::class, 'collect']);
-Route::options('/collect', [AnalyticsCollectController::class, 'options']);
+// CORS middleware applied explicitly for cross-origin tracking
+Route::post('/collect', [AnalyticsCollectController::class, 'collect'])
+    ->middleware([\App\Http\Middleware\AnalyticsCors::class]);
+Route::options('/collect', [AnalyticsCollectController::class, 'options'])
+    ->middleware([\App\Http\Middleware\AnalyticsCors::class]);
 
 // ==========================================
 // EXISTING ANALYTICS API (Your Current Routes)
