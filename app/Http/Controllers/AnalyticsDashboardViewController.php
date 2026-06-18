@@ -79,63 +79,88 @@ class AnalyticsDashboardViewController extends Controller
             ->where('client_id', auth()->id())
             ->firstOrFail();
             
-        // Get today's stats
-        $todayStats = \App\Models\AnalyticsDailyStat::where('site_id', $siteId)
-            ->whereDate('date', today())
-            ->first();
+        // ===== TODAY'S STATS =====
+        $todayPageviews = \App\Models\AnalyticsPageview::where('site_id', $siteId)
+            ->whereDate('created_at', today())
+            ->count();
             
-        // Get last 7 days data for chart
-        $chartData = \App\Models\AnalyticsDailyStat::where('site_id', $siteId)
-            ->whereDate('date', '>=', now()->subDays(7))
-            ->orderBy('date')
-            ->get(['date', 'pageviews', 'unique_visitors', 'sessions']);
+        $todayUniqueVisitors = \App\Models\AnalyticsPageview::where('site_id', $siteId)
+            ->whereDate('created_at', today())
+            ->distinct('visitor_id')
+            ->count('visitor_id');
             
-        // Get countries
-        $countryData = \App\Models\AnalyticsDailyStat::where('site_id', $siteId)
-            ->whereDate('date', '>=', now()->subDays(7))
-            ->get(['countries'])
-            ->pluck('countries')
-            ->filter()
-            ->reduce(function($carry, $item) {
-                foreach ($item as $country => $count) {
-                    $carry[$country] = ($carry[$country] ?? 0) + $count;
-                }
-                return $carry;
-            }, []);
+        $todaySessions = \App\Models\AnalyticsPageview::where('site_id', $siteId)
+            ->whereDate('created_at', today())
+            ->distinct('session_id')
+            ->count('session_id');
+            
+        $todayBounceRate = $todaySessions > 0 
+            ? round((\App\Models\AnalyticsSession::where('site_id', $siteId)
+                ->whereDate('started_at', today())
+                ->where('is_bounce', true)
+                ->count() / $todaySessions) * 100, 1)
+            : 0;
+            
+        $todayStats = (object)[
+            'pageviews' => $todayPageviews,
+            'unique_visitors' => $todayUniqueVisitors,
+            'sessions' => $todaySessions,
+            'bounce_rate' => $todayBounceRate,
+        ];
+        
+        // ===== CHART DATA (Last 7 Days) - Carbon objects =====
+        $chartData = collect();
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $chartData->push((object)[
+                'date' => $date, // Carbon object for ->format()
+                'pageviews' => \App\Models\AnalyticsPageview::where('site_id', $siteId)
+                    ->whereDate('created_at', $date)
+                    ->count(),
+                'unique_visitors' => \App\Models\AnalyticsPageview::where('site_id', $siteId)
+                    ->whereDate('created_at', $date)
+                    ->distinct('visitor_id')
+                    ->count('visitor_id'),
+                'sessions' => \App\Models\AnalyticsPageview::where('site_id', $siteId)
+                    ->whereDate('created_at', $date)
+                    ->distinct('session_id')
+                    ->count('session_id'),
+            ]);
+        }
+        
+        // ===== COUNTRY DATA =====
+        $countryData = \App\Models\AnalyticsPageview::where('site_id', $siteId)
+            ->where('created_at', '>=', now()->subDays(7))
+            ->whereNotNull('country_name')
+            ->selectRaw('country_name, COUNT(*) as count')
+            ->groupBy('country_name')
+            ->pluck('count', 'country_name')
+            ->toArray();
             
         arsort($countryData);
         
-        // Get pages
-        $pageData = \App\Models\AnalyticsDailyStat::where('site_id', $siteId)
-            ->whereDate('date', '>=', now()->subDays(7))
-            ->get(['pages'])
-            ->pluck('pages')
-            ->filter()
-            ->reduce(function($carry, $item) {
-                foreach ($item as $page => $count) {
-                    $carry[$page] = ($carry[$page] ?? 0) + $count;
-                }
-                return $carry;
-            }, []);
+        // ===== PAGE DATA =====
+        $pageData = \App\Models\AnalyticsPageview::where('site_id', $siteId)
+            ->where('created_at', '>=', now()->subDays(7))
+            ->selectRaw('path, COUNT(*) as count')
+            ->groupBy('path')
+            ->pluck('count', 'path')
+            ->toArray();
             
         arsort($pageData);
         
-        // Get devices
-        $deviceData = \App\Models\AnalyticsDailyStat::where('site_id', $siteId)
-            ->whereDate('date', '>=', now()->subDays(7))
-            ->get(['devices'])
-            ->pluck('devices')
-            ->filter()
-            ->reduce(function($carry, $item) {
-                foreach ($item as $device => $count) {
-                    $carry[$device] = ($carry[$device] ?? 0) + $count;
-                }
-                return $carry;
-            }, []);
+        // ===== DEVICE DATA =====
+        $deviceData = \App\Models\AnalyticsPageview::where('site_id', $siteId)
+            ->where('created_at', '>=', now()->subDays(7))
+            ->whereNotNull('device_type')
+            ->selectRaw('device_type, COUNT(*) as count')
+            ->groupBy('device_type')
+            ->pluck('count', 'device_type')
+            ->toArray();
             
         arsort($deviceData);
         
-        // Realtime visitors (last 5 minutes)
+        // ===== REALTIME VISITORS =====
         $realtimeVisitors = \App\Models\AnalyticsPageview::where('site_id', $siteId)
             ->where('created_at', '>=', now()->subMinutes(5))
             ->distinct('session_id')
