@@ -101,10 +101,60 @@
             }
         }
         
-        function sendEvent(eventType, extraData) {
+        // Fetch location from IP API (client-side)
+        async function fetchLocation() {
+            try {
+                const response = await fetch('https://ipapi.co/json/', {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('[Analytics] Location detected:', data.country_code, data.country_name);
+                    return {
+                        country: data.country_code || null,
+                        country_name: data.country_name || null,
+                        city: data.city || null,
+                        region: data.region || null
+                    };
+                }
+            } catch (e) {
+                console.warn('[Analytics] Location fetch failed:', e);
+            }
+            
+            // Fallback: try ip-api.com
+            try {
+                const response = await fetch('http://ip-api.com/json/?fields=status,country,countryCode,regionName,city', {
+                    method: 'GET'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        console.log('[Analytics] Location detected (fallback):', data.countryCode, data.country);
+                        return {
+                            country: data.countryCode || null,
+                            country_name: data.country || null,
+                            city: data.city || null,
+                            region: data.regionName || null
+                        };
+                    }
+                }
+            } catch (e) {
+                console.warn('[Analytics] Location fallback failed:', e);
+            }
+            
+            return { country: null, country_name: null, city: null, region: null };
+        }
+        
+        async function sendEvent(eventType, extraData) {
             const browser = getBrowserInfo();
             const os = getOSInfo();
             const utm = getUtmParams();
+            
+            // Get location data
+            const location = await fetchLocation();
             
             const payload = {
                 site_id: CONFIG.SITE_ID,
@@ -121,6 +171,10 @@
                 utm_campaign: utm.campaign,
                 utm_term: utm.term,
                 utm_content: utm.content,
+                country: location.country,
+                country_name: location.country_name,
+                city: location.city,
+                region: location.region,
                 device_type: getDeviceType(),
                 browser: browser.browser,
                 browser_version: browser.version,
@@ -159,12 +213,12 @@
             });
         }
         
-        function init() {
+        async function init() {
             console.log('[Analytics] Initializing...');
-            sendEvent('pageview');
+            await sendEvent('pageview');
         }
         
-        // Run immediately - don't wait for DOMContentLoaded
+        // Run immediately
         init();
         
         // Also run on DOM ready if not already loaded

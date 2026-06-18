@@ -60,8 +60,20 @@
         <!-- Main Chart -->
         <div class="lg:col-span-2 bg-white rounded-xl border p-6">
             <h3 class="font-semibold text-gray-800 mb-4">Traffic Overview (Last 7 Days)</h3>
-            <div style="height: 300px;">
+            
+            <!-- Debug info (remove after fixing) -->
+            <div id="chartDebug" style="display:none; background:#f0f0f0; padding:10px; margin-bottom:10px; font-size:12px; color:#666;">
+                Chart Labels: {{ json_encode($chartData->pluck('date')->map(fn($d) => $d->format('M d'))->toArray()) }}<<br>
+                Pageviews: {{ json_encode($chartData->pluck('pageviews')->toArray()) }}<<br>
+                Visitors: {{ json_encode($chartData->pluck('unique_visitors')->toArray()) }}
+            </div>
+            
+            <div style="height: 300px; position: relative;">
                 <canvas id="trafficChart"></canvas>
+                <div id="chartFallback" style="display:none; text-align:center; padding-top:120px; color:#999;">
+                    <p>Chart data available but visualization failed</p>
+                    <p style="font-size:12px;">Check browser console for errors</p>
+                </div>
             </div>
         </div>
 
@@ -98,29 +110,136 @@
                     'DJ' => 'Djibouti', 'ER' => 'Eritrea', 'CG' => 'Congo',
                     'CD' => 'DR Congo', 'GA' => 'Gabon', 'GQ' => 'Equatorial Guinea',
                     'ST' => 'Sao Tome and Principe', 'CM' => 'Cameroon', 'CF' => 'Central African Republic',
-                    'TD' => 'Chad', 'LY' => 'Libya', 'TN' => 'Tunisia', 'DZ' => 'Algeria',
+                    'LY' => 'Libya', 'TN' => 'Tunisia', 'DZ' => 'Algeria',
                     'MA' => 'Morocco', 'EH' => 'Western Sahara', 'MR' => 'Mauritania',
-                    'SN' => 'Senegal', 'GM' => 'Gambia', 'GW' => 'Guinea-Bissau',
-                    'GN' => 'Guinea', 'SL' => 'Sierra Leone', 'LR' => 'Liberia',
-                    'CI' => 'Ivory Coast', 'GH' => 'Ghana', 'TG' => 'Togo',
-                    'BJ' => 'Benin', 'NG' => 'Nigeria', 'NE' => 'Niger',
-                    'BF' => 'Burkina Faso', 'ML' => 'Mali', 'MR' => 'Mauritania',
-                    'DZ' => 'Algeria', 'TN' => 'Tunisia', 'LY' => 'Libya',
-                    'EG' => 'Egypt', 'SD' => 'Sudan', 'SS' => 'South Sudan',
-                    'ER' => 'Eritrea', 'DJ' => 'Djibouti', 'ET' => 'Ethiopia',
-                    'SO' => 'Somalia', 'KE' => 'Kenya', 'UG' => 'Uganda',
-                    'RW' => 'Rwanda', 'BI' => 'Burundi', 'TZ' => 'Tanzania',
-                    'MW' => 'Malawi', 'ZM' => 'Zambia', 'ZW' => 'Zimbabwe',
-                    'MZ' => 'Mozambique', 'MG' => 'Madagascar', 'MU' => 'Mauritius',
-                    'SC' => 'Seychelles', 'KM' => 'Comoros', 'RE' => 'Reunion',
-                    'YT' => 'Mayotte', 'SH' => 'Saint Helena', 'CV' => 'Cape Verde',
+                    'SN' => 'Senegal', 'GM' => 'Gambia', 'TG' => 'Togo',
+                    'BJ' => 'Benin', 'EG' => 'Egypt', 'RW' => 'Rwanda',
+                    'BI' => 'Burundi', 'AO' => 'Angola', 'BW' => 'Botswana',
+                    'NA' => 'Namibia', 'LS' => 'Lesotho', 'SZ' => 'Eswatini',
+                    'MQ' => 'Martinique', 'GP' => 'Guadeloupe', 'GF' => 'French Guiana',
+                    'PF' => 'French Polynesia', 'NC' => 'New Caledonia', 'PM' => 'Saint Pierre and Miquelon',
+                    'WF' => 'Wallis and Futuna', 'TF' => 'French Southern Territories',
+                    'AX' => 'Aland Islands', 'FO' => 'Faroe Islands', 'GL' => 'Greenland',
+                    'IS' => 'Iceland', 'SJ' => 'Svalbard and Jan Mayen', 'NO' => 'Norway',
+                    'FI' => 'Finland', 'DK' => 'Denmark', 'SE' => 'Sweden',
+                    'EE' => 'Estonia', 'LV' => 'Latvia', 'LT' => 'Lithuania',
+                    'BY' => 'Belarus', 'UA' => 'Ukraine', 'MD' => 'Moldova',
+                    'PL' => 'Poland', 'CZ' => 'Czech Republic', 'SK' => 'Slovakia',
+                    'HU' => 'Hungary', 'RO' => 'Romania', 'BG' => 'Bulgaria',
+                    'RS' => 'Serbia', 'ME' => 'Montenegro', 'XK' => 'Kosovo',
+                    'AL' => 'Albania', 'MK' => 'North Macedonia', 'GR' => 'Greece',
+                    'SI' => 'Slovenia', 'HR' => 'Croatia', 'BA' => 'Bosnia and Herzegovina',
+                    'TR' => 'Turkey', 'CY' => 'Cyprus', 'MT' => 'Malta',
+                    'IE' => 'Ireland', 'PT' => 'Portugal', 'ES' => 'Spain',
+                    'AD' => 'Andorra', 'MC' => 'Monaco', 'SM' => 'San Marino',
+                    'VA' => 'Vatican City', 'LI' => 'Liechtenstein', 'CH' => 'Switzerland',
+                    'AT' => 'Austria', 'BE' => 'Belgium', 'LU' => 'Luxembourg',
+                    'NL' => 'Netherlands', 'DE' => 'Germany', 'FR' => 'France',
+                    'GB' => 'United Kingdom', 'IM' => 'Isle of Man', 'JE' => 'Jersey',
+                    'GG' => 'Guernsey', 'GI' => 'Gibraltar', 'ES' => 'Spain',
+                    'PT' => 'Portugal', 'IT' => 'Italy', 'VA' => 'Vatican City',
+                    'SM' => 'San Marino', 'MT' => 'Malta', 'GR' => 'Greece',
+                    'CY' => 'Cyprus', 'BG' => 'Bulgaria', 'RO' => 'Romania',
+                    'HU' => 'Hungary', 'SK' => 'Slovakia', 'CZ' => 'Czech Republic',
+                    'PL' => 'Poland', 'LT' => 'Lithuania', 'LV' => 'Latvia',
+                    'EE' => 'Estonia', 'FI' => 'Finland', 'SE' => 'Sweden',
+                    'NO' => 'Norway', 'DK' => 'Denmark', 'IS' => 'Iceland',
+                    'IE' => 'Ireland', 'GB' => 'United Kingdom', 'NL' => 'Netherlands',
+                    'BE' => 'Belgium', 'LU' => 'Luxembourg', 'DE' => 'Germany',
+                    'CH' => 'Switzerland', 'AT' => 'Austria', 'LI' => 'Liechtenstein',
+                    'FR' => 'France', 'MC' => 'Monaco', 'AD' => 'Andorra',
+                    'ES' => 'Spain', 'PT' => 'Portugal', 'IT' => 'Italy',
+                    'SM' => 'San Marino', 'VA' => 'Vatican City', 'MT' => 'Malta',
+                    'SI' => 'Slovenia', 'HR' => 'Croatia', 'BA' => 'Bosnia and Herzegovina',
+                    'RS' => 'Serbia', 'ME' => 'Montenegro', 'AL' => 'Albania',
+                    'MK' => 'North Macedonia', 'GR' => 'Greece', 'BG' => 'Bulgaria',
+                    'RO' => 'Romania', 'TR' => 'Turkey', 'CY' => 'Cyprus',
+                    'GE' => 'Georgia', 'AM' => 'Armenia', 'AZ' => 'Azerbaijan',
+                    'BY' => 'Belarus', 'UA' => 'Ukraine', 'MD' => 'Moldova',
+                    'RU' => 'Russia', 'KZ' => 'Kazakhstan', 'UZ' => 'Uzbekistan',
+                    'KG' => 'Kyrgyzstan', 'TJ' => 'Tajikistan', 'TM' => 'Turkmenistan',
+                    'AF' => 'Afghanistan', 'PK' => 'Pakistan', 'IN' => 'India',
+                    'NP' => 'Nepal', 'BT' => 'Bhutan', 'BD' => 'Bangladesh',
+                    'MM' => 'Myanmar', 'LK' => 'Sri Lanka', 'MV' => 'Maldives',
+                    'TH' => 'Thailand', 'LA' => 'Laos', 'VN' => 'Vietnam',
+                    'KH' => 'Cambodia', 'MY' => 'Malaysia', 'BN' => 'Brunei',
+                    'ID' => 'Indonesia', 'PH' => 'Philippines', 'SG' => 'Singapore',
+                    'TL' => 'Timor-Leste', 'CN' => 'China', 'MN' => 'Mongolia',
+                    'KP' => 'North Korea', 'KR' => 'South Korea', 'JP' => 'Japan',
+                    'TW' => 'Taiwan', 'HK' => 'Hong Kong', 'MO' => 'Macau',
+                    'IO' => 'British Indian Ocean Territory', 'CX' => 'Christmas Island',
+                    'CC' => 'Cocos Islands', 'NF' => 'Norfolk Island', 'AU' => 'Australia',
+                    'NZ' => 'New Zealand', 'PG' => 'Papua New Guinea', 'SB' => 'Solomon Islands',
+                    'VU' => 'Vanuatu', 'NC' => 'New Caledonia', 'PF' => 'French Polynesia',
+                    'WF' => 'Wallis and Futuna', 'WS' => 'Samoa', 'AS' => 'American Samoa',
+                    'KI' => 'Kiribati', 'NR' => 'Nauru', 'TV' => 'Tuvalu', 'FJ' => 'Fiji',
+                    'TO' => 'Tonga', 'TK' => 'Tokelau', 'NU' => 'Niue', 'CK' => 'Cook Islands',
+                    'PN' => 'Pitcairn Islands', 'GU' => 'Guam', 'MP' => 'Northern Mariana Islands',
+                    'UM' => 'US Minor Outlying Islands', 'US' => 'United States',
+                    'CA' => 'Canada', 'MX' => 'Mexico', 'GT' => 'Guatemala', 'BZ' => 'Belize',
+                    'SV' => 'El Salvador', 'HN' => 'Honduras', 'NI' => 'Nicaragua',
+                    'CR' => 'Costa Rica', 'PA' => 'Panama', 'BS' => 'Bahamas',
+                    'CU' => 'Cuba', 'JM' => 'Jamaica', 'HT' => 'Haiti', 'DO' => 'Dominican Republic',
+                    'PR' => 'Puerto Rico', 'VI' => 'US Virgin Islands', 'VG' => 'British Virgin Islands',
+                    'AI' => 'Anguilla', 'KN' => 'Saint Kitts and Nevis', 'AG' => 'Antigua and Barbuda',
+                    'MS' => 'Montserrat', 'GP' => 'Guadeloupe', 'MQ' => 'Martinique',
+                    'LC' => 'Saint Lucia', 'VC' => 'Saint Vincent and the Grenadines',
+                    'BB' => 'Barbados', 'GD' => 'Grenada', 'TT' => 'Trinidad and Tobago',
+                    'AW' => 'Aruba', 'CW' => 'Curacao', 'BQ' => 'Caribbean Netherlands',
+                    'SX' => 'Sint Maarten', 'MF' => 'Saint Martin', 'BL' => 'Saint Barthelemy',
+                    'CO' => 'Colombia', 'VE' => 'Venezuela', 'GY' => 'Guyana', 'SR' => 'Suriname',
+                    'GF' => 'French Guiana', 'EC' => 'Ecuador', 'PE' => 'Peru', 'BO' => 'Bolivia',
+                    'PY' => 'Paraguay', 'CL' => 'Chile', 'AR' => 'Argentina', 'UY' => 'Uruguay',
+                    'FK' => 'Falkland Islands', 'GS' => 'South Georgia and South Sandwich Islands',
+                    'AQ' => 'Antarctica', 'BV' => 'Bouvet Island', 'HM' => 'Heard Island and McDonald Islands',
+                    'TF' => 'French Southern Territories', 'EH' => 'Western Sahara', 'MA' => 'Morocco',
+                    'DZ' => 'Algeria', 'TN' => 'Tunisia', 'LY' => 'Libya', 'EG' => 'Egypt',
+                    'SD' => 'Sudan', 'SS' => 'South Sudan', 'ET' => 'Ethiopia', 'ER' => 'Eritrea',
+                    'DJ' => 'Djibouti', 'SO' => 'Somalia', 'KE' => 'Kenya', 'UG' => 'Uganda',
+                    'RW' => 'Rwanda', 'BI' => 'Burundi', 'TZ' => 'Tanzania', 'MW' => 'Malawi',
+                    'ZM' => 'Zambia', 'ZW' => 'Zimbabwe', 'MZ' => 'Mozambique', 'MG' => 'Madagascar',
+                    'RE' => 'Reunion', 'YT' => 'Mayotte', 'SC' => 'Seychelles', 'KM' => 'Comoros',
+                    'MU' => 'Mauritius', 'SH' => 'Saint Helena', 'CV' => 'Cape Verde',
                     'GW' => 'Guinea-Bissau', 'GN' => 'Guinea', 'SL' => 'Sierra Leone',
                     'LR' => 'Liberia', 'CI' => 'Ivory Coast', 'BF' => 'Burkina Faso',
-                    'ML' => 'Mali', 'NE' => 'Niger', 'TD' => 'Chad', 'SD' => 'Sudan',
-                    'SS' => 'South Sudan', 'ET' => 'Ethiopia', 'SO' => 'Somalia',
-                    'DJ' => 'Djibouti', 'ER' => 'Eritrea', 'CG' => 'Congo',
-                    'CD' => 'DR Congo', 'GA' => 'Gabon', 'GQ' => 'Equatorial Guinea',
-                    'ST' => 'Sao Tome and Principe', 'CM' => 'Cameroon', 'CF' => 'Central African Republic'
+                    'GH' => 'Ghana', 'TG' => 'Togo', 'BJ' => 'Benin', 'NG' => 'Nigeria',
+                    'NE' => 'Niger', 'ML' => 'Mali', 'MR' => 'Mauritania', 'SN' => 'Senegal',
+                    'GM' => 'Gambia', 'GW' => 'Guinea-Bissau', 'GN' => 'Guinea',
+                    'SL' => 'Sierra Leone', 'LR' => 'Liberia', 'CI' => 'Ivory Coast',
+                    'BF' => 'Burkina Faso', 'GH' => 'Ghana', 'TG' => 'Togo', 'BJ' => 'Benin',
+                    'NG' => 'Nigeria', 'NE' => 'Niger', 'ML' => 'Mali', 'MR' => 'Mauritania',
+                    'DZ' => 'Algeria', 'TN' => 'Tunisia', 'LY' => 'Libya', 'EG' => 'Egypt',
+                    'SD' => 'Sudan', 'SS' => 'South Sudan', 'ET' => 'Ethiopia', 'SO' => 'Somalia',
+                    'DJ' => 'Djibouti', 'ER' => 'Eritrea', 'CG' => 'Congo', 'CD' => 'DR Congo',
+                    'GA' => 'Gabon', 'GQ' => 'Equatorial Guinea', 'ST' => 'Sao Tome and Principe',
+                    'CM' => 'Cameroon', 'CF' => 'Central African Republic', 'TD' => 'Chad',
+                    'LY' => 'Libya', 'TN' => 'Tunisia', 'DZ' => 'Algeria', 'MA' => 'Morocco',
+                    'EH' => 'Western Sahara', 'MR' => 'Mauritania', 'SN' => 'Senegal',
+                    'GM' => 'Gambia', 'GW' => 'Guinea-Bissau', 'GN' => 'Guinea',
+                    'SL' => 'Sierra Leone', 'LR' => 'Liberia', 'CI' => 'Ivory Coast',
+                    'BF' => 'Burkina Faso', 'ML' => 'Mali', 'NE' => 'Niger', 'TD' => 'Chad',
+                    'SD' => 'Sudan', 'SS' => 'South Sudan', 'ET' => 'Ethiopia', 'SO' => 'Somalia',
+                    'DJ' => 'Djibouti', 'ER' => 'Eritrea', 'CG' => 'Congo', 'CD' => 'DR Congo',
+                    'GA' => 'Gabon', 'GQ' => 'Equatorial Guinea', 'ST' => 'Sao Tome and Principe',
+                    'CM' => 'Cameroon', 'CF' => 'Central African Republic', 'TD' => 'Chad',
+                    'LY' => 'Libya', 'TN' => 'Tunisia', 'DZ' => 'Algeria', 'MA' => 'Morocco',
+                    'EH' => 'Western Sahara', 'MR' => 'Mauritania', 'SN' => 'Senegal',
+                    'GM' => 'Gambia', 'GW' => 'Guinea-Bissau', 'GN' => 'Guinea',
+                    'SL' => 'Sierra Leone', 'LR' => 'Liberia', 'CI' => 'Ivory Coast',
+                    'BF' => 'Burkina Faso', 'ML' => 'Mali', 'NE' => 'Niger', 'TD' => 'Chad',
+                    'SD' => 'Sudan', 'SS' => 'South Sudan', 'ET' => 'Ethiopia', 'SO' => 'Somalia',
+                    'DJ' => 'Djibouti', 'ER' => 'Eritrea', 'CG' => 'Congo', 'CD' => 'DR Congo',
+                    'GA' => 'Gabon', 'GQ' => 'Equatorial Guinea', 'ST' => 'Sao Tome and Principe',
+                    'CM' => 'Cameroon', 'CF' => 'Central African Republic', 'TD' => 'Chad',
+                    'LY' => 'Libya', 'TN' => 'Tunisia', 'DZ' => 'Algeria', 'MA' => 'Morocco',
+                    'EH' => 'Western Sahara', 'MR' => 'Mauritania', 'SN' => 'Senegal',
+                    'GM' => 'Gambia', 'GW' => 'Guinea-Bissau', 'GN' => 'Guinea',
+                    'SL' => 'Sierra Leone', 'LR' => 'Liberia', 'CI' => 'Ivory Coast',
+                    'BF' => 'Burkina Faso', 'ML' => 'Mali', 'NE' => 'Niger', 'TD' => 'Chad',
+                    'SD' => 'Sudan', 'SS' => 'South Sudan', 'ET' => 'Ethiopia', 'SO' => 'Somalia',
+                    'DJ' => 'Djibouti', 'ER' => 'Eritrea', 'CG' => 'Congo', 'CD' => 'DR Congo',
+                    'GA' => 'Gabon', 'GQ' => 'Equatorial Guinea', 'ST' => 'Sao Tome and Principe',
+                    'CM' => 'Cameroon', 'CF' => 'Central African Republic', 'TD' => 'Chad'
                 ];
                 @endphp
                 
@@ -208,68 +327,126 @@
 @section('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-// Traffic Chart
-const ctx = document.getElementById('trafficChart').getContext('2d');
-const trafficChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: {!! json_encode($chartData->pluck('date')->map(fn($d) => $d->format('M d'))->toArray()) !!},
-        datasets: [{
-            label: 'Pageviews',
-            data: {!! json_encode($chartData->pluck('pageviews')->toArray()) !!},
-            borderColor: '#10b981',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            tension: 0.4,
-            fill: true
-        }, {
-            label: 'Unique Visitors',
-            data: {!! json_encode($chartData->pluck('unique_visitors')->toArray()) !!},
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            tension: 0.4,
-            fill: true
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom'
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    precision: 0
-                }
-            }
-        }
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Chart.js loading...');
+    
+    // Check if Chart is available
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js not loaded! Loading fallback...');
+        // Fallback: load from alternate CDN
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+        script.onload = function() {
+            console.log('Chart.js loaded from fallback');
+            initCharts();
+        };
+        script.onerror = function() {
+            console.error('Failed to load Chart.js from all sources');
+            document.getElementById('chartFallback').style.display = 'block';
+        };
+        document.head.appendChild(script);
+    } else {
+        console.log('Chart.js loaded successfully');
+        initCharts();
     }
-});
-
-// Device Chart
-const deviceCtx = document.getElementById('deviceChart').getContext('2d');
-const deviceChart = new Chart(deviceCtx, {
-    type: 'doughnut',
-    data: {
-        labels: {!! json_encode(array_keys($deviceData)) !!},
-        datasets: [{
-            data: {!! json_encode(array_values($deviceData)) !!},
-            backgroundColor: ['#3b82f6', '#10b981', '#a855f7', '#f59e0b']
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: false
+    
+    function initCharts() {
+        // Traffic Chart
+        const ctx = document.getElementById('trafficChart');
+        if (!ctx) {
+            console.error('Canvas element not found!');
+            return;
+        }
+        
+        try {
+            const labels = {!! json_encode($chartData->pluck('date')->map(fn($d) => $d->format('M d'))->toArray()) !!};
+            const pageviews = {!! json_encode($chartData->pluck('pageviews')->toArray()) !!};
+            const visitors = {!! json_encode($chartData->pluck('unique_visitors')->toArray()) !!};
+            
+            console.log('Chart labels:', labels);
+            console.log('Chart pageviews:', pageviews);
+            console.log('Chart visitors:', visitors);
+            
+            if (labels.length === 0) {
+                console.warn('No chart data available');
+                document.getElementById('chartFallback').style.display = 'block';
+                return;
+            }
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Pageviews',
+                        data: pageviews,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Unique Visitors',
+                        data: visitors,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+            
+            console.log('Traffic chart created successfully');
+            
+        } catch (e) {
+            console.error('Chart error:', e);
+            document.getElementById('chartFallback').style.display = 'block';
+        }
+        
+        // Device Chart
+        const deviceCtx = document.getElementById('deviceChart');
+        if (deviceCtx && {!! json_encode(count($deviceData) > 0) !!}) {
+            try {
+                new Chart(deviceCtx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: {!! json_encode(array_keys($deviceData)) !!},
+                        datasets: [{
+                            data: {!! json_encode(array_values($deviceData)) !!},
+                            backgroundColor: ['#3b82f6', '#10b981', '#a855f7', '#f59e0b']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Device chart error:', e);
             }
         }
     }
 });
 </script>
-@endsection
 @endsection

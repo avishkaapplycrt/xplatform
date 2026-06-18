@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 class AnalyticsCollectController extends Controller
 {
@@ -30,6 +31,9 @@ class AnalyticsCollectController extends Controller
                     ->header('Access-Control-Allow-Origin', '*');
             }
             
+            // Get location from IP if not provided by client
+            $location = $this->getLocationFromIp($request->ip());
+            
             $payload = [
                 'site_id' => $site->id,
                 'session_id' => $request->input('session_id', 'unknown'),
@@ -44,10 +48,10 @@ class AnalyticsCollectController extends Controller
                 'utm_campaign' => $request->input('utm_campaign'),
                 'utm_term' => $request->input('utm_term'),
                 'utm_content' => $request->input('utm_content'),
-                'country' => $request->input('country'),
-                'country_name' => $request->input('country_name'),
-                'city' => $request->input('city'),
-                'region' => $request->input('region'),
+                'country' => $request->input('country') ?? $location['country'],
+                'country_name' => $request->input('country_name') ?? $location['country_name'],
+                'city' => $request->input('city') ?? $location['city'],
+                'region' => $request->input('region') ?? $location['region'],
                 'device_type' => $request->input('device_type'),
                 'browser' => $request->input('browser'),
                 'browser_version' => $request->input('browser_version'),
@@ -56,7 +60,7 @@ class AnalyticsCollectController extends Controller
                 'screen_width' => $request->input('screen_width'),
                 'screen_height' => $request->input('screen_height'),
                 'load_time_ms' => $request->input('load_time_ms'),
-                'created_at' => now(), // ← ADDED: Explicitly set created_at
+                'created_at' => now(),
             ];
             
             $pageview = AnalyticsPageview::create($payload);
@@ -81,6 +85,46 @@ class AnalyticsCollectController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+    
+    protected function getLocationFromIp(string $ip): array
+    {
+        // Skip for local/private IPs
+        if ($ip === '127.0.0.1' || $ip === '::1' || filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+            return ['country' => null, 'country_name' => null, 'city' => null, 'region' => null];
+        }
+        
+        try {
+            // Try ipapi.co (free, 1000 requests/day)
+            $response = Http::timeout(2)->get("https://ipapi.co/{$ip}/json/");
+            if ($response->successful() && !isset($response['error'])) {
+                return [
+                    'country' => $response['country_code'] ?? null,
+                    'country_name' => $response['country_name'] ?? null,
+                    'city' => $response['city'] ?? null,
+                    'region' => $response['region'] ?? null,
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::warning('ipapi.co failed: ' . $e->getMessage());
+        }
+        
+        // Fallback: ip-api.com (free, no key needed)
+        try {
+            $response = Http::timeout(2)->get("http://ip-api.com/json/{$ip}?fields=status,country,countryCode,regionName,city");
+            if ($response->successful() && $response['status'] === 'success') {
+                return [
+                    'country' => $response['countryCode'] ?? null,
+                    'country_name' => $response['country'] ?? null,
+                    'city' => $response['city'] ?? null,
+                    'region' => $response['regionName'] ?? null,
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::warning('ip-api.com failed: ' . $e->getMessage());
+        }
+        
+        return ['country' => null, 'country_name' => null, 'city' => null, 'region' => null];
     }
     
     protected function validateSite(?string $trackingId): ?AnalyticsSite
