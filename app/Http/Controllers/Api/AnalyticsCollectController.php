@@ -15,39 +15,20 @@ class AnalyticsCollectController extends Controller
 {
     public function collect(Request $request)
     {
-        Log::info('========== API HIT ==========');
-        Log::info('Full request: ' . json_encode($request->all()));
-        
-        // CRITICAL: Check if site_id is actually arriving
-        $siteId = $request->input('site_id');
-        Log::info('site_id value: [' . ($siteId ?? 'NULL') . ']');
-        Log::info('site_id empty check: ' . (empty($siteId) ? 'YES - EMPTY' : 'NO - HAS VALUE'));
-        
-        if (empty($siteId)) {
-            Log::error('BLOCKED: site_id is empty');
-            return response()->json([
-                'status' => 'error',
-                'message' => 'site_id is required',
-                'received' => $request->all()
-            ], 400);
-        }
-        
-        // Try to find site
-        $site = $this->validateSite($siteId);
-        Log::info('Site lookup result: ' . ($site ? 'FOUND - ID: ' . $site->id : 'NOT FOUND'));
-        
-        if (!$site) {
-            Log::error('BLOCKED: Site not found for tracking_id: ' . $siteId);
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Site not found',
-                'tracking_id' => $siteId
-            ], 404);
-        }
-        
-        // Now proceed with insert
         try {
-            Log::info('Proceeding with insert for site_id: ' . $site->id);
+            $siteId = $request->input('site_id');
+            
+            if (empty($siteId)) {
+                return response()->json(['status' => 'error', 'message' => 'site_id required'], 400)
+                    ->header('Access-Control-Allow-Origin', '*');
+            }
+            
+            $site = $this->validateSite($siteId);
+            
+            if (!$site) {
+                return response()->json(['status' => 'error', 'message' => 'Site not found'], 404)
+                    ->header('Access-Control-Allow-Origin', '*');
+            }
             
             $payload = [
                 'site_id' => $site->id,
@@ -75,12 +56,10 @@ class AnalyticsCollectController extends Controller
                 'screen_width' => $request->input('screen_width'),
                 'screen_height' => $request->input('screen_height'),
                 'load_time_ms' => $request->input('load_time_ms'),
+                'created_at' => now(), // ← ADDED: Explicitly set created_at
             ];
             
-            Log::info('Inserting payload: ' . json_encode($payload));
-            
             $pageview = AnalyticsPageview::create($payload);
-            Log::info('INSERT SUCCESS - ID: ' . $pageview->id);
             
             // Update session
             try {
@@ -89,14 +68,13 @@ class AnalyticsCollectController extends Controller
                 Log::error('Session update failed: ' . $e->getMessage());
             }
             
-            return response()->json([
-                'status' => 'ok',
-                'id' => $pageview->id
-            ], 201);
-            
+            return response()->json(['status' => 'ok', 'id' => $pageview->id], 201)
+                ->header('Access-Control-Allow-Origin', '*')
+                ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type');
+                
         } catch (\Exception $e) {
-            Log::error('INSERT ERROR: ' . $e->getMessage());
-            Log::error('Stack: ' . $e->getTraceAsString());
+            Log::error('Collect error: ' . $e->getMessage());
             
             return response()->json([
                 'status' => 'error',
@@ -111,16 +89,11 @@ class AnalyticsCollectController extends Controller
             return null;
         }
         
-        // Clear cache to ensure fresh lookup
-        Cache::forget("analytics:site:{$trackingId}");
-        
-        $site = AnalyticsSite::where('tracking_id', $trackingId)
-            ->where('is_active', true)
-            ->first();
-            
-        Log::info('validateSite query: tracking_id=' . $trackingId . ', result=' . ($site ? 'FOUND' : 'NOT FOUND'));
-        
-        return $site;
+        return Cache::remember("analytics:site:{$trackingId}", 3600, function() use ($trackingId) {
+            return AnalyticsSite::where('tracking_id', $trackingId)
+                ->where('is_active', true)
+                ->first();
+        });
     }
     
     protected function updateSession(int $siteId, array $data): void
