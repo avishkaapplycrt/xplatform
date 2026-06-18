@@ -13,7 +13,7 @@ class AnalyticsPageview extends Model
         'country', 'country_name', 'city', 'region',
         'latitude', 'longitude', 'device_type', 'browser',
         'browser_version', 'os', 'os_version', 'screen_width',
-        'screen_height', 'load_time_ms'
+        'screen_height', 'load_time_ms', 'created_at'
     ];
     
     public $timestamps = false;
