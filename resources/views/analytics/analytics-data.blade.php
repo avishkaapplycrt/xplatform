@@ -1,6 +1,5 @@
 <?php
 // resources/views/analytics/analytics-data.blade.php
-
 ?>
 @extends('layouts.client')
 
@@ -61,25 +60,85 @@
         <!-- Main Chart -->
         <div class="lg:col-span-2 bg-white rounded-xl border p-6">
             <h3 class="font-semibold text-gray-800 mb-4">Traffic Overview (Last 7 Days)</h3>
-            <canvas id="trafficChart" height="300"></canvas>
+            <div style="height: 300px;">
+                <canvas id="trafficChart"></canvas>
+            </div>
         </div>
 
         <!-- Countries -->
         <div class="bg-white rounded-xl border p-6">
             <h3 class="font-semibold text-gray-800 mb-4">Top Countries</h3>
             <div class="space-y-3">
-                @forelse(array_slice($countryData, 0, 8, true) as $country => $count)
+                @php
+                $countryNames = [
+                    'US' => 'United States', 'IN' => 'India', 'GB' => 'United Kingdom', 
+                    'CA' => 'Canada', 'AU' => 'Australia', 'DE' => 'Germany', 
+                    'FR' => 'France', 'BR' => 'Brazil', 'JP' => 'Japan', 
+                    'CN' => 'China', 'PK' => 'Pakistan', 'BD' => 'Bangladesh',
+                    'NP' => 'Nepal', 'LK' => 'Sri Lanka', 'AE' => 'UAE',
+                    'SA' => 'Saudi Arabia', 'SG' => 'Singapore', 'MY' => 'Malaysia',
+                    'ID' => 'Indonesia', 'PH' => 'Philippines', 'TH' => 'Thailand',
+                    'KR' => 'South Korea', 'RU' => 'Russia', 'IT' => 'Italy',
+                    'ES' => 'Spain', 'NL' => 'Netherlands', 'SE' => 'Sweden',
+                    'NZ' => 'New Zealand', 'ZA' => 'South Africa', 'MX' => 'Mexico',
+                    'AR' => 'Argentina', 'CO' => 'Colombia', 'CL' => 'Chile',
+                    'PE' => 'Peru', 'VE' => 'Venezuela', 'EC' => 'Ecuador',
+                    'BO' => 'Bolivia', 'PY' => 'Paraguay', 'UY' => 'Uruguay',
+                    'GY' => 'Guyana', 'SR' => 'Suriname', 'GF' => 'French Guiana',
+                    'FK' => 'Falkland Islands', 'NG' => 'Nigeria', 'KE' => 'Kenya',
+                    'GH' => 'Ghana', 'UG' => 'Uganda', 'TZ' => 'Tanzania',
+                    'ZW' => 'Zimbabwe', 'ZM' => 'Zambia', 'MW' => 'Malawi',
+                    'MZ' => 'Mozambique', 'MG' => 'Madagascar', 'MU' => 'Mauritius',
+                    'SC' => 'Seychelles', 'KM' => 'Comoros', 'RE' => 'Reunion',
+                    'YT' => 'Mayotte', 'SH' => 'Saint Helena', 'CV' => 'Cape Verde',
+                    'GW' => 'Guinea-Bissau', 'GN' => 'Guinea', 'SL' => 'Sierra Leone',
+                    'LR' => 'Liberia', 'CI' => 'Ivory Coast', 'BF' => 'Burkina Faso',
+                    'ML' => 'Mali', 'NE' => 'Niger', 'TD' => 'Chad', 'SD' => 'Sudan',
+                    'SS' => 'South Sudan', 'ET' => 'Ethiopia', 'SO' => 'Somalia',
+                    'DJ' => 'Djibouti', 'ER' => 'Eritrea', 'CG' => 'Congo',
+                    'CD' => 'DR Congo', 'GA' => 'Gabon', 'GQ' => 'Equatorial Guinea',
+                    'ST' => 'Sao Tome and Principe', 'CM' => 'Cameroon', 'CF' => 'Central African Republic',
+                    'TD' => 'Chad', 'LY' => 'Libya', 'TN' => 'Tunisia', 'DZ' => 'Algeria',
+                    'MA' => 'Morocco', 'EH' => 'Western Sahara', 'MR' => 'Mauritania',
+                    'SN' => 'Senegal', 'GM' => 'Gambia', 'GW' => 'Guinea-Bissau',
+                    'GN' => 'Guinea', 'SL' => 'Sierra Leone', 'LR' => 'Liberia',
+                    'CI' => 'Ivory Coast', 'GH' => 'Ghana', 'TG' => 'Togo',
+                    'BJ' => 'Benin', 'NG' => 'Nigeria', 'NE' => 'Niger',
+                    'BF' => 'Burkina Faso', 'ML' => 'Mali', 'MR' => 'Mauritania',
+                    'DZ' => 'Algeria', 'TN' => 'Tunisia', 'LY' => 'Libya',
+                    'EG' => 'Egypt', 'SD' => 'Sudan', 'SS' => 'South Sudan',
+                    'ER' => 'Eritrea', 'DJ' => 'Djibouti', 'ET' => 'Ethiopia',
+                    'SO' => 'Somalia', 'KE' => 'Kenya', 'UG' => 'Uganda',
+                    'RW' => 'Rwanda', 'BI' => 'Burundi', 'TZ' => 'Tanzania',
+                    'MW' => 'Malawi', 'ZM' => 'Zambia', 'ZW' => 'Zimbabwe',
+                    'MZ' => 'Mozambique', 'MG' => 'Madagascar', 'MU' => 'Mauritius',
+                    'SC' => 'Seychelles', 'KM' => 'Comoros', 'RE' => 'Reunion',
+                    'YT' => 'Mayotte', 'SH' => 'Saint Helena', 'CV' => 'Cape Verde',
+                    'GW' => 'Guinea-Bissau', 'GN' => 'Guinea', 'SL' => 'Sierra Leone',
+                    'LR' => 'Liberia', 'CI' => 'Ivory Coast', 'BF' => 'Burkina Faso',
+                    'ML' => 'Mali', 'NE' => 'Niger', 'TD' => 'Chad', 'SD' => 'Sudan',
+                    'SS' => 'South Sudan', 'ET' => 'Ethiopia', 'SO' => 'Somalia',
+                    'DJ' => 'Djibouti', 'ER' => 'Eritrea', 'CG' => 'Congo',
+                    'CD' => 'DR Congo', 'GA' => 'Gabon', 'GQ' => 'Equatorial Guinea',
+                    'ST' => 'Sao Tome and Principe', 'CM' => 'Cameroon', 'CF' => 'Central African Republic'
+                ];
+                @endphp
+                
+                @forelse(array_slice($countryData, 0, 8, true) as $countryCode => $count)
                 @php
                     $total = array_sum($countryData);
                     $percentage = $total > 0 ? round(($count / $total) * 100, 1) : 0;
-                    $countryNames = ['US' => 'United States', 'IN' => 'India', 'GB' => 'UK', 'CA' => 'Canada', 'AU' => 'Australia', 'DE' => 'Germany', 'FR' => 'France', 'BR' => 'Brazil', 'JP' => 'Japan', 'CN' => 'China'];
-                    $flag = strtolower($country);
+                    $flag = strtolower($countryCode);
+                    $countryName = $countryNames[$countryCode] ?? $countryCode;
                 @endphp
                 <div class="flex items-center gap-3">
-                    <img src="https://flagcdn.com/w40/{{ $flag }}.png" class="w-6 h-4 rounded object-cover" alt="{{ $country }}">
+                    <img src="https://flagcdn.com/w40/{{ $flag }}.png" 
+                         class="w-6 h-4 rounded object-cover" 
+                         alt="{{ $countryCode }}"
+                         onerror="this.style.display='none'">
                     <div class="flex-1">
                         <div class="flex justify-between text-sm mb-1">
-                            <span class="font-medium">{{ $countryNames[$country] ?? $country }}</span>
+                            <span class="font-medium">{{ $countryName }}</span>
                             <span class="text-gray-500">{{ $count }}</span>
                         </div>
                         <div class="w-full bg-gray-100 rounded-full h-2">
@@ -120,7 +179,7 @@
             <div class="flex justify-center mb-4">
                 <canvas id="deviceChart" width="200" height="200"></canvas>
             </div>
-            <div class="flex justify-center gap-4 text-sm">
+            <div class="flex justify-center gap-4 text-sm flex-wrap">
                 @foreach($deviceData as $device => $count)
                 <div class="flex items-center gap-2">
                     <span class="w-3 h-3 rounded-full 
@@ -147,6 +206,7 @@
 </div>
 
 @section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 // Traffic Chart
 const ctx = document.getElementById('trafficChart').getContext('2d');

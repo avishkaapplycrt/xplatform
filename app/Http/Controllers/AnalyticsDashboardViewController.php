@@ -131,10 +131,10 @@ class AnalyticsDashboardViewController extends Controller
         // ===== COUNTRY DATA =====
         $countryData = \App\Models\AnalyticsPageview::where('site_id', $siteId)
             ->where('created_at', '>=', now()->subDays(7))
-            ->whereNotNull('country_name')
-            ->selectRaw('country_name, COUNT(*) as count')
-            ->groupBy('country_name')
-            ->pluck('count', 'country_name')
+            ->whereNotNull('country') // Use 2-letter code
+            ->selectRaw('country, COUNT(*) as count')
+            ->groupBy('country')
+            ->pluck('count', 'country')
             ->toArray();
             
         arsort($countryData);
