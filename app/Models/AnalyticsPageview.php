@@ -1,5 +1,4 @@
 <?php
-// app/Models/AnalyticsPageview.php
 
 namespace App\Models;
 
@@ -14,10 +13,8 @@ class AnalyticsPageview extends Model
         'country', 'country_name', 'city', 'region',
         'latitude', 'longitude', 'device_type', 'browser',
         'browser_version', 'os', 'os_version', 'screen_width',
-        'screen_height', 'load_time_ms', 'created_at'
+        'screen_height', 'load_time_ms'
     ];
     
     public $timestamps = false;
-    
-    const UPDATED_AT = null;
 }
