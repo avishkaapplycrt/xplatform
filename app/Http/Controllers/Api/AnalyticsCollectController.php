@@ -31,8 +31,8 @@ class AnalyticsCollectController extends Controller
                     ->header('Access-Control-Allow-Origin', '*');
             }
             
-            // Get location from IP if not provided by client
-            $location = $this->getLocationFromIp($request->ip());
+            // Get location from real visitor IP
+            $location = $this->getLocationFromIp($request);
             
             $payload = [
                 'site_id' => $site->id,
@@ -87,17 +87,34 @@ class AnalyticsCollectController extends Controller
         }
     }
     
-    protected function getLocationFromIp(string $ip): array
+    protected function getLocationFromIp(Request $request): array
     {
-        // Skip for local/private IPs
-        if ($ip === '127.0.0.1' || $ip === '::1' || filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+        // Get real visitor IP (handles proxies/load balancers)
+        $ip = $request->header('X-Forwarded-For') 
+            ?? $request->header('X-Real-IP') 
+            ?? $request->ip();
+        
+        // X-Forwarded-For can contain multiple IPs, take the first one
+        if (strpos($ip, ',') !== false) {
+            $ip = trim(explode(',', $ip)[0]);
+        }
+        
+        Log::info('IP detection raw: ' . $request->ip() . ' | Forwarded: ' . ($request->header('X-Forwarded-For') ?? 'none') . ' | Using: ' . $ip);
+        
+        // Skip local/private IPs
+        if ($ip === '127.0.0.1' || $ip === '::1' || $ip === 'localhost') {
+            return ['country' => null, 'country_name' => null, 'city' => null, 'region' => null];
+        }
+        
+        // Check if private IP range
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
             return ['country' => null, 'country_name' => null, 'city' => null, 'region' => null];
         }
         
         try {
-            // Try ipapi.co (free, 1000 requests/day)
-            $response = Http::timeout(2)->get("https://ipapi.co/{$ip}/json/");
+            $response = Http::timeout(3)->get("https://ipapi.co/{$ip}/json/");
             if ($response->successful() && !isset($response['error'])) {
+                Log::info('Location detected via ipapi.co: ' . ($response['country_name'] ?? 'unknown') . ' for IP: ' . $ip);
                 return [
                     'country' => $response['country_code'] ?? null,
                     'country_name' => $response['country_name'] ?? null,
@@ -109,10 +126,11 @@ class AnalyticsCollectController extends Controller
             Log::warning('ipapi.co failed: ' . $e->getMessage());
         }
         
-        // Fallback: ip-api.com (free, no key needed)
+        // Fallback: ip-api.com
         try {
-            $response = Http::timeout(2)->get("http://ip-api.com/json/{$ip}?fields=status,country,countryCode,regionName,city");
+            $response = Http::timeout(3)->get("http://ip-api.com/json/{$ip}?fields=status,country,countryCode,regionName,city");
             if ($response->successful() && $response['status'] === 'success') {
+                Log::info('Location detected via ip-api.com: ' . ($response['country'] ?? 'unknown') . ' for IP: ' . $ip);
                 return [
                     'country' => $response['countryCode'] ?? null,
                     'country_name' => $response['country'] ?? null,

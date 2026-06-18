@@ -61,20 +61,57 @@
         <div class="lg:col-span-2 bg-white rounded-xl border p-6">
             <h3 class="font-semibold text-gray-800 mb-4">Traffic Overview (Last 7 Days)</h3>
             
-            <!-- Debug info (remove after fixing) -->
-            <div id="chartDebug" style="display:none; background:#f0f0f0; padding:10px; margin-bottom:10px; font-size:12px; color:#666;">
-                Chart Labels: {{ json_encode($chartData->pluck('date')->map(fn($d) => $d->format('M d'))->toArray()) }}<<br>
-                Pageviews: {{ json_encode($chartData->pluck('pageviews')->toArray()) }}<<br>
-                Visitors: {{ json_encode($chartData->pluck('unique_visitors')->toArray()) }}
-            </div>
+            @php
+                $labels = $chartData->pluck('date')->map(fn($d) => $d->format('M d'))->toArray();
+                $pageviewsData = $chartData->pluck('pageviews')->toArray();
+                $visitorsData = $chartData->pluck('unique_visitors')->toArray();
+                
+                $maxValue = max(max($pageviewsData), max($visitorsData), 1);
+                $chartHeight = 250;
+                $chartWidth = 100;
+                $barWidth = 8;
+            @endphp
             
+            @if(count($labels) > 0)
             <div style="height: 300px; position: relative;">
-                <canvas id="trafficChart"></canvas>
-                <div id="chartFallback" style="display:none; text-align:center; padding-top:120px; color:#999;">
-                    <p>Chart data available but visualization failed</p>
-                    <p style="font-size:12px;">Check browser console for errors</p>
+                <!-- Simple CSS Bar Chart -->
+                <div style="display: flex; align-items: flex-end; justify-content: space-around; height: 250px; padding: 20px 10px 40px 10px; border-left: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; position: relative;">
+                    
+                    @foreach($labels as $index => $label)
+                        @php
+                            $pvHeight = ($pageviewsData[$index] / $maxValue) * 200;
+                            $uvHeight = ($visitorsData[$index] / $maxValue) * 200;
+                        @endphp
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                            <div style="display: flex; align-items: flex-end; gap: 2px; height: 200px;">
+                                <!-- Pageviews bar -->
+                                <div style="width: 12px; height: {{ $pvHeight }}px; background: #10b981; border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.3s;" title="Pageviews: {{ $pageviewsData[$index] }}"></div>
+                                <!-- Visitors bar -->
+                                <div style="width: 12px; height: {{ $uvHeight }}px; background: #3b82f6; border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.3s;" title="Visitors: {{ $visitorsData[$index] }}"></div>
+                            </div>
+                            <span style="font-size: 11px; color: #6b7280; margin-top: 8px;">{{ $label }}</span>
+                        </div>
+                    @endforeach
+                    
+                </div>
+                
+                <!-- Legend -->
+                <div style="display: flex; justify-content: center; gap: 20px; margin-top: 10px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <div style="width: 12px; height: 12px; background: #10b981; border-radius: 2px;"></div>
+                        <span style="font-size: 12px; color: #374151;">Pageviews</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <div style="width: 12px; height: 12px; background: #3b82f6; border-radius: 2px;"></div>
+                        <span style="font-size: 12px; color: #374151;">Unique Visitors</span>
+                    </div>
                 </div>
             </div>
+            @else
+            <div style="text-align: center; padding: 80px 20px; color: #9ca3af;">
+                <p>No data available for the last 7 days</p>
+            </div>
+            @endif
         </div>
 
         <!-- Countries -->
@@ -295,16 +332,39 @@
         <!-- Devices -->
         <div class="bg-white rounded-xl border p-6">
             <h3 class="font-semibold text-gray-800 mb-4">Devices</h3>
-            <div class="flex justify-center mb-4">
-                <canvas id="deviceChart" width="200" height="200"></canvas>
+            
+            @php
+                $deviceColors = ['desktop' => '#3b82f6', 'mobile' => '#10b981', 'tablet' => '#a855f7', 'other' => '#f59e0b'];
+                $totalDevices = array_sum($deviceData);
+            @endphp
+            
+            @if($totalDevices > 0)
+            <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+                <!-- Simple CSS Pie Chart -->
+                <div style="width: 150px; height: 150px; border-radius: 50%; position: relative; overflow: hidden;">
+                    @php
+                        $startAngle = 0;
+                    @endphp
+                    @foreach($deviceData as $device => $count)
+                        @php
+                            $percentage = ($count / $totalDevices) * 100;
+                            $angle = ($count / $totalDevices) * 360;
+                            $color = $deviceColors[$device] ?? '#9ca3af';
+                        @endphp
+                        <div style="position: absolute; width: 50%; height: 100%; right: 0; transform-origin: left center; transform: rotate({{ $startAngle }}deg); background: {{ $color }}; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);"></div>
+                        @php
+                            $startAngle += $angle;
+                        @endphp
+                    @endforeach
+                </div>
             </div>
-            <div class="flex justify-center gap-4 text-sm flex-wrap">
+            @endif
+            
+            <div style="display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
                 @foreach($deviceData as $device => $count)
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full 
-                        {{ $device === 'desktop' ? 'bg-blue-500' : ($device === 'mobile' ? 'bg-emerald-500' : 'bg-purple-500') }}">
-                    </span>
-                    <span class="text-gray-600 capitalize">{{ $device }} ({{ $count }})</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: {{ $deviceColors[$device] ?? '#9ca3af' }};"></div>
+                    <span style="font-size: 13px; color: #4b5563; text-transform: capitalize;">{{ $device }} ({{ $count }})</span>
                 </div>
                 @endforeach
             </div>
