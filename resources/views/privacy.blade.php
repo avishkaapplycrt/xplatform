@@ -60,7 +60,7 @@ p{font-size:15px;color:var(--g200);line-height:1.75;margin-bottom:14px;font-weig
     <li><a href="{{ route('simulator') }}">Simulator</a></li>
     <li><a href="{{ route('pricing') }}">Pricing</a></li>
     <li style="display:flex;align-items:center;gap:10px">
-      <a href="{{ route('client.login') }}" class="nav-login"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Log in</a>
+      <!-- <a href="{{ route('client.login') }}" class="nav-login"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Log in</a> -->
       <a href="{{ route('book-demo') }}" class="nav-cta">Book a Demo</a>
     </li>
   </ul>

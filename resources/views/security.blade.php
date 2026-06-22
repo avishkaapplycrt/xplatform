@@ -102,7 +102,7 @@ p:last-child{margin-bottom:0}
     <li><a href="{{ route('simulator') }}">Simulator</a></li>
     <li><a href="{{ route('pricing') }}">Pricing</a></li>
     <li style="display:flex;align-items:center;gap:10px">
-      <a href="{{ route('client.login') }}" class="nav-login"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Log in</a>
+      <!-- <a href="{{ route('client.login') }}" class="nav-login"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Log in</a> -->
       <a href="{{ route('book-demo') }}" class="nav-cta">Book a Demo</a>
     </li>
   </ul>
@@ -115,7 +115,7 @@ p:last-child{margin-bottom:0}
     <a class="nav-mob-link" href="{{ route('industries') }}">Industries</a>
     <a class="nav-mob-link" href="{{ route('simulator') }}">Simulator</a>
     <a class="nav-mob-link" href="{{ route('pricing') }}">Pricing</a>
-    <a class="nav-mob-link" href="{{ route('client.login') }}">Log in</a>
+    <!-- <a class="nav-mob-link" href="{{ route('client.login') }}">Log in</a> -->
     <a class="nav-mob-cta" href="{{ route('book-demo') }}">Book a Demo</a>
   </div>
 </div>
@@ -127,7 +127,7 @@ p:last-child{margin-bottom:0}
         <h1>Enterprise-grade security <span>at every layer</span></h1>
         <p class="hero-p">X Platforms is built for organisations that handle sensitive customer data. Every layer of our architecture &mdash; from data ingestion to model execution to output delivery &mdash; is engineered to the highest security standards.</p>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
-            <a href="{{ route('client.login') }}" class="btn-fill">Request Security Documentation</a>
+            <!-- <a href="{{ route('client.login') }}" class="btn-fill">Request Security Documentation</a> -->
             <a href="#certifications" class="btn-g">View Certifications</a>
         </div>
     </div>
@@ -187,8 +187,8 @@ p:last-child{margin-bottom:0}
         <h2 class="rv" style="margin-bottom:12px">Need security documentation?</h2>
         <p class="rv" style="font-size:15px;color:var(--g300);margin-bottom:28px">We provide SOC 2 reports, penetration test summaries, Data Processing Agreements, and detailed security questionnaire responses for enterprise security reviews.</p>
         <div class="rv" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-            <a href="{{ route('client.login') }}" class="btn-fill">Request Documentation</a>
-            <a href="{{ route('client.login') }}" class="btn-g">Contact Security Team</a>
+            <!-- <a href="{{ route('client.login') }}" class="btn-fill">Request Documentation</a> -->
+            <!-- <a href="{{ route('client.login') }}" class="btn-g">Contact Security Team</a> -->
         </div>
     </div>
 </div>
