@@ -129,6 +129,8 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('layers/rl',      fn() => view('client.layers.rl'))->name('layer.rl');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('data-collection');
+    
+    Route::get('behavioral-analytics', [DecisionCentreController::class, 'analytics'])->name('analytics');
 
     // Database data sources
     Route::get('sources',                [DataSourceController::class, 'index'])->name('sources.index');

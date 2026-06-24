@@ -38,13 +38,13 @@
     @else
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             @foreach($sources as $source)
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3" id="source-card-{{ $source->id }}">
                     <div class="flex items-start justify-between gap-2">
                         <div>
                             <p class="text-sm font-semibold text-gray-800">{{ $source->connection_name }}</p>
                             <p class="text-xs text-gray-400 uppercase tracking-wide mt-0.5">{{ $source->db_type }}</p>
                         </div>
-                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0
+                        <span id="status-badge-{{ $source->id }}" class="text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0
                             {{ $source->status === 'connected' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200' }}">
                             {{ ucfirst($source->status) }}
                         </span>
@@ -56,6 +56,16 @@
                     </div>
 
                     <div class="flex items-center gap-2 pt-2 border-t border-gray-100">
+                        <button type="button"
+                                onclick="testConnection({{ $source->id }})"
+                                id="test-btn-{{ $source->id }}"
+                                class="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-2 py-1 rounded transition flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            Test
+                        </button>
+
                         <form method="POST" action="{{ route('client.sources.destroy', $source) }}"
                               onsubmit="return confirm('Remove this data source?')" class="ml-auto">
                             @csrf
@@ -72,4 +82,42 @@
     @endif
 
 </div>
+
+<script>
+function testConnection(sourceId) {
+    const btn = document.getElementById('test-btn-' + sourceId);
+    const badge = document.getElementById('status-badge-' + sourceId);
+    
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Testing...';
+
+    fetch(`/app/sources/${sourceId}/test`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            badge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 bg-emerald-50 text-emerald-700 border border-emerald-200';
+            badge.textContent = 'Connected';
+            alert('✅ Connection is working!\nStatus: ' + data.status);
+        } else {
+            badge.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 bg-red-50 text-red-600 border border-red-200';
+            badge.textContent = 'Failed';
+            alert('❌ Connection failed!\nError: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(err => {
+        alert('❌ Request failed: ' + err.message);
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Test';
+    });
+}
+</script>
 @endsection
