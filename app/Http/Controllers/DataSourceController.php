@@ -30,7 +30,7 @@ class DataSourceController extends Controller
             'port'            => 'required|integer',
             'database_name'   => 'required|string|max:255',
             'username'        => 'required|string|max:255',
-            'password'        => 'required|string|max:255',
+            'password'        => 'nullable|string|max:255',
         ]);
 
         // Check limits

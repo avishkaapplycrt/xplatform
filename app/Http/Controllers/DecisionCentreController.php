@@ -5,9 +5,48 @@ namespace App\Http\Controllers;
 use App\Models\BehavioralProfile;
 use App\Models\UserEvent;
 use App\Services\DecisionEngine;
+use App\Services\EdTechBehavioralEngine;
 
 class DecisionCentreController extends Controller
 {
+    // ── EdTech helpers ─────────────────────────────────────────────────────────
+    private function getEdTechEngine(): ?EdTechBehavioralEngine
+    {
+        $client = auth('client')->user();
+        if (!$client) return null;
+
+        $dataSource = $client->dataSources()->where('status', 'connected')->first();
+        return $dataSource ? new EdTechBehavioralEngine($dataSource) : null;
+    }
+
+    private function hasEdTechData(): bool
+    {
+        $engine = $this->getEdTechEngine();
+        return $engine && $engine->isConnected();
+    }
+
+    private function getCompany(string $email): string
+    {
+        $companies = ['MockMaster Academy','PTE Prep Hub','English Pro Institute','IELTS Mastery','ScoreBoost EdTech','LinguaLearn','TestPrep Global','Bright Future Coaching','Ace English','SmartStudy Platform','EduSpark','Knowledge Nest','LearnSmart AI','StudyBuddy','ExamCracker','Global Learners','SkillForge','EduVantage','StudyStream','BrainWave Academy'];
+        return $companies[abs(crc32($email)) % count($companies)];
+    }
+
+    private function getInitials(string $name): string
+    {
+        $parts = explode(' ', $name);
+        return strtoupper(substr($parts[0] ?? 'S', 0, 1) . substr($parts[1] ?? '', 0, 1));
+    }
+
+    private function timeAgo(?string $dt): string
+    {
+        return $dt ? \Carbon\Carbon::parse($dt)->diffForHumans() : 'Unknown';
+    }
+
+    private function daysSince(?string $dt): int
+    {
+        return $dt ? (int)\Carbon\Carbon::parse($dt)->diffInDays() : 30;
+    }
+
     private const COMPANIES = [
         'Beam Analytics','Nexus Labs','Bright Digital','Peak Solutions',
         'Stride Health','Nova Retail','Flux Systems','Spark Inc',
@@ -1051,9 +1090,401 @@ class DecisionCentreController extends Controller
         return compact('scenarios', 'userGroups');
     }
 
+    // public function index()
+    // {
+    //     $client = auth('client')->user();
+    //     $dataSource = $client ? $client->dataSources()->first() : null;
+    //     $hasDataSource = $dataSource !== null;
+    //     $sourceIsConnected = $hasDataSource && $dataSource->status === 'connected';
+
+    //     // Try to load EdTech data if source is marked as connected
+    //     if ($sourceIsConnected) {
+    //         try {
+    //             $engine = $this->getEdTechEngine();
+    //             if ($engine && $engine->isConnected()) {
+    //                 $profiles = $engine->getStudentProfiles(100);
+    //                 if (!empty($profiles)) {
+    //                     return view('client.decision-centre', [
+    //                         'scenarios'   => ['l4' => $this->buildEdTechScenarios($profiles)],
+    //                         'userGroups'  => $this->buildEdTechUserGroups($profiles),
+    //                         'activeLayer' => 'l4',
+    //                         'dataSourceConnected' => true,
+    //                     ]);
+    //                 }
+    //             }
+    //         } catch (\Exception $e) {
+    //             \Log::error('EdTech data fetch failed in DecisionCentreController: ' . $e->getMessage());
+    //         }
+    //     }
+
+    //     // Fallback: demo data from local BehavioralProfile
+    //     $data = $this->prepareData();
+    //     return view('client.decision-centre', [
+    //         'scenarios'   => $data['scenarios'],
+    //         'userGroups'  => $data['userGroups'],
+    //         'activeLayer' => 'l4',
+    //         'dataSourceConnected' => $sourceIsConnected,
+    //     ]);
+    // }
+
     public function index()
     {
-        return view('client.decision-centre', $this->prepareData() + ['activeLayer' => 'l4']);
+        return redirect()->route('client.analytics');
+    }
+
+    // ── EdTech Card Builders ───────────────────────────────────────────────────
+    private function edCard(array $p, string $type): array
+    {
+        $plan = match($p['segment']) {
+            'champion' => 'Enterprise', 'loyal' => 'Business',
+            'at_risk'  => 'Growth',     'new'   => 'Growth',
+            'dormant'  => 'Starter',    default => 'Growth',
+        };
+        [$tc, $tb] = match($p['segment']) {
+            'champion' => ['#FFD700', '#0A0700'], 'loyal'    => ['#A855F7', '#0A0014'],
+            'at_risk'  => ['#F43F5E', '#140005'], 'new'      => ['#0EA5E9', '#00080E'],
+            'dormant'  => ['#10B981', '#000D09'], default    => ['#0EA5E9', '#00080E'],
+        };
+        $ac = match($p['segment']) {
+            'champion' => '#FFD700', 'loyal' => '#A855F7', 'at_risk' => '#F43F5E',
+            'new' => '#0EA5E9', 'dormant' => '#10B981', default => '#0EA5E9',
+        };
+
+        $base = [
+            'id' => $p['id'], 'name' => $p['name'], 'initials' => $this->getInitials($p['name']),
+            'company' => $this->getCompany($p['email'] ?? ''), 'industry' => 'EdTech',
+            'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb, 'avatarColor' => $ac,
+        ];
+
+        $last = $this->timeAgo($p['last_login']);
+        $days = $this->daysSince($p['last_login']);
+
+        return match($type) {
+            'hot' => array_merge($base, [
+                'amountLabel' => "Intent {$p['intent_score']}",
+                'tags' => array_filter([
+                    $p['readiness_score'] >= 80 ? 'Highest intent' : null,
+                    $p['performance_score'] >= 80 ? 'High performer' : null,
+                    $p['total_spent'] > 0 ? 'Paid learner' : null,
+                    $p['completed_courses'] >= 3 ? 'Course completer' : null,
+                ]),
+                'fields' => [
+                    ['Intent score', $p['intent_score'] . '/100'],
+                    ['Buying readiness', $p['readiness_score'] . '/100'],
+                    ['Avg quiz score', $p['avg_quiz_score'] . '/100'],
+                    ['Courses completed', $p['completed_courses'] . '/' . $p['enrollment_count']],
+                    ['Total spent', '$' . number_format($p['total_spent'])],
+                    ['Loyalty score', $p['loyalty_score'] . '/100'],
+                    ['Churn risk', $p['churn_score'] . '%'],
+                    ['Engagement', $p['engagement_score'] . '/100'],
+                    ['Last active', $last],
+                ],
+                'timeline' => [
+                    ['e' => "Quiz avg {$p['avg_quiz_score']} — strong performance", 't' => '3 days ago', 'c' => '#0EA5E9'],
+                    ['e' => "Completed {$p['completed_courses']} courses", 't' => '1 day ago', 'c' => '#10B981'],
+                    ['e' => "Intent {$p['intent_score']} + Readiness {$p['readiness_score']} → Hot Learner", 't' => $last, 'c' => '#F59E0B'],
+                    ['e' => "Upsell offer prepared — awaiting dispatch", 't' => 'now', 'c' => '#FF6B35'],
+                ],
+                'actions' => [
+                    ['l' => 'Send upsell offer', 'c' => '#10B981', 'bc' => '#10B98144'],
+                    ['l' => 'Preview offer', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
+                ],
+            ]),
+            'atrisk' => array_merge($base, [
+                'amountLabel' => '$' . number_format(max(100, $p['total_spent'] * 2)) . ' at risk',
+                'tags' => array_filter([
+                    $p['churn_score'] >= 75 ? 'Imminent churn' : null,
+                    $p['avg_progress'] < 20 ? 'Stalled progress' : null,
+                    $days > 14 ? 'Inactive 14d+' : null,
+                    $p['frustration_score'] > 50 ? 'Frustrated' : null,
+                ]),
+                'fields' => [
+                    ['Churn probability', $p['churn_score'] . '%'],
+                    ['Revenue at risk', '$' . number_format(max(100, $p['total_spent'] * 2))],
+                    ['Days since login', $days . 'd'],
+                    ['Avg progress', $p['avg_progress'] . '%'],
+                    ['Frustration score', $p['frustration_score'] . '/100'],
+                    ['Engagement score', $p['engagement_score'] . '/100'],
+                    ['Total spent', '$' . number_format($p['total_spent'])],
+                    ['Intervention tier', $p['churn_score'] >= 75 ? 'Tier 1 — Personal outreach' : 'Tier 2 — Email sequence'],
+                    ['Last active', $last],
+                ],
+                'timeline' => [
+                    ['e' => 'Login frequency dropped — early churn signal', 't' => $days . ' days ago', 'c' => '#F59E0B'],
+                    ['e' => "Progress stalled at {$p['avg_progress']}%", 't' => ($days - 2) . ' days ago', 'c' => '#F43F5E'],
+                    ['e' => "Churn probability hit {$p['churn_score']}%", 't' => 'Today', 'c' => '#F43F5E'],
+                    ['e' => 'Intervention queued', 't' => 'now', 'c' => '#0EA5E9'],
+                ],
+                'actions' => [
+                    ['l' => 'Send win-back', 'c' => '#F43F5E', 'bc' => '#F43F5E44'],
+                    ['l' => 'Escalate to tutor', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
+                ],
+            ]),
+            'loyal' => array_merge($base, [
+                'amountLabel' => "Loyalty {$p['loyalty_score']}",
+                'tags' => array_filter([
+                    $p['loyalty_score'] > 80 ? 'Ambassador ready' : null,
+                    $p['completed_courses'] >= 5 ? 'Super learner' : null,
+                    $p['performance_score'] >= 85 ? 'Top performer' : null,
+                    $p['total_spent'] > 500 ? 'High value' : null,
+                ]),
+                'fields' => [
+                    ['Loyalty score', $p['loyalty_score'] . '/100'],
+                    ['Courses completed', $p['completed_courses'] . ''],
+                    ['Avg quiz score', $p['avg_quiz_score'] . '/100'],
+                    ['Engagement', $p['engagement_score'] . '/100'],
+                    ['Churn risk', $p['churn_score'] . '%'],
+                    ['Next tier gap', max(0, (100 - $p['loyalty_score']) * 12) . ' pts'],
+                    ['Total spent', '$' . number_format($p['total_spent'])],
+                    ['Last active', $last],
+                    ['Industry', 'EdTech'],
+                ],
+                'timeline' => [
+                    ['e' => 'Loyalty milestone reached', 't' => '2 days ago', 'c' => '#10B981'],
+                    ['e' => "Loyalty score {$p['loyalty_score']} confirmed", 't' => '1 day ago', 'c' => '#F59E0B'],
+                    ['e' => "{$p['completed_courses']} courses completed", 't' => 'this month', 'c' => '#10B981'],
+                    ['e' => $p['loyalty_score'] > 80 ? 'Ambassador invitation ready' : 'Tier nudge ready', 't' => 'now', 'c' => '#0EA5E9'],
+                ],
+                'actions' => [
+                    ['l' => 'Send referral invite', 'c' => '#10B981', 'bc' => '#10B98144'],
+                    ['l' => $p['loyalty_score'] > 80 ? 'Send ambassador invite' : 'Send tier nudge', 'c' => '#F59E0B', 'bc' => '#F59E0B44'],
+                ],
+            ]),
+            'react' => array_merge($base, [
+                'amountLabel' => "Score {$p['reactivation_potential']}",
+                'tags' => array_filter([
+                    $p['reactivation_potential'] >= 80 ? 'High potential' : null,
+                    $p['engagement_score'] < 20 ? 'Deeply dormant' : null,
+                    $p['total_spent'] > 0 ? 'Past customer' : null,
+                ]),
+                'fields' => [
+                    ['Reactivation score', $p['reactivation_potential'] . '/100'],
+                    ['Churn reason', $p['frustration_score'] > 40 ? 'Difficulty with content' : 'Life events / competing priorities'],
+                    ['Days since active', $days . 'd'],
+                    ['Previous spend', '$' . number_format($p['total_spent'])],
+                    ['Email response', $p['reactivation_potential'] > 78 ? 'High' : 'Medium'],
+                    ['Win-back message', substr($p['frustration_score'] > 40 ? 'Personal tutoring session + simplified study plan' : 'We miss you — 30% off your next course', 0, 40) . '…'],
+                    ['Last plan', $plan],
+                    ['Industry', 'EdTech'],
+                    ['Last active', $last],
+                ],
+                'timeline' => [
+                    ['e' => 'Churned — primary reason identified', 't' => $days . 'd ago', 'c' => '#F43F5E'],
+                    ['e' => "Reactivation score {$p['reactivation_potential']} reached", 't' => 'Today', 'c' => '#10B981'],
+                    ['e' => 'Segment assigned', 't' => '< 1hr ago', 'c' => '#0EA5E9'],
+                    ['e' => 'Win-back message ready', 't' => 'now', 'c' => '#F59E0B'],
+                ],
+                'actions' => [
+                    ['l' => 'Send win-back message', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
+                    ['l' => $p['frustration_score'] > 40 ? 'Route to tutor' : 'Preview message', 'c' => '#10B981', 'bc' => '#10B98144'],
+                ],
+            ]),
+            'struggle' => array_merge($base, [
+                'amountLabel' => "Help Needed",
+                'tags' => array_filter(['Needs help', 'Low quiz scores',
+                    $p['avg_progress'] < 20 ? 'Stalled progress' : null,
+                    $p['login_count_30d'] > 5 ? 'Trying hard' : null,
+                    $p['frustration_score'] > 60 ? 'Highly frustrated' : null,
+                ]),
+                'fields' => [
+                    ['Frustration score', $p['frustration_score'] . '/100'],
+                    ['Avg quiz score', $p['avg_quiz_score'] . '/100'],
+                    ['Avg progress', $p['avg_progress'] . '%'],
+                    ['Login attempts', $p['login_count_30d'] . ' (30d)'],
+                    ['Courses enrolled', $p['enrollment_count'] . ''],
+                    ['Engagement', $p['engagement_score'] . '/100'],
+                    ['Recommended action', 'Tutor + simplified content'],
+                    ['Last active', $last],
+                    ['Industry', 'EdTech'],
+                ],
+                'timeline' => [
+                    ['e' => "Quiz score {$p['avg_quiz_score']} — struggling detected", 't' => '3 days ago', 'c' => '#F43F5E'],
+                    ['e' => "Progress stalled at {$p['avg_progress']}%", 't' => '2 days ago', 'c' => '#F59E0B'],
+                    ['e' => "{$p['login_count_30d']} logins but low progress", 't' => '1 day ago', 'c' => '#0EA5E9'],
+                    ['e' => 'Tutor intervention queued', 't' => 'now', 'c' => '#10B981'],
+                ],
+                'actions' => [
+                    ['l' => 'Assign tutor', 'c' => '#10B981', 'bc' => '#10B98144'],
+                    ['l' => 'Send study plan', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
+                ],
+            ]),
+            default => $base,
+        };
+    }
+
+    // ── Scenario Builder ───────────────────────────────────────────────────────
+
+    private function buildEdTechScenarios(array $profiles): array
+    {
+        $hl = array_filter($profiles, fn($p) => $p['intent_score'] >= 70 && $p['readiness_score'] >= 65);
+        $ar = array_filter($profiles, fn($p) => $p['churn_score'] >= 60);
+        $lo = array_filter($profiles, fn($p) => $p['loyalty_score'] >= 65 && $p['engagement_score'] >= 50);
+        $rv = array_filter($profiles, fn($p) => $p['reactivation_potential'] >= 60 && $p['engagement_score'] < 30);
+        $sg = array_filter($profiles, fn($p) => $p['frustration_score'] >= 50 && $p['engagement_score'] >= 30);
+
+        $hlc = count($hl); $arc = count($ar); $loc = count($lo); $rvc = count($rv); $sgc = count($sg);
+
+        $hli = $hlc > 0 ? round(array_sum(array_column($hl, 'intent_score')) / $hlc) : 0;
+        $hlr = $hlc > 0 ? round(array_sum(array_column($hl, 'readiness_score')) / $hlc) : 0;
+        $arf = $hlc > 0 ? count(array_filter($hl, fn($p) => $p['trust_score'] >= 65)) : 0;
+        $fp = $hlc > 0 ? (int)round($arf / $hlc * 100) : 38;
+
+        return [
+            [
+                'id' => 'hotlearner', 'lc' => '#FF6B35', 'ico' => '🔥',
+                'name' => 'Hot Learner — ' . $hlc . ' Students', 'users' => 'Intent >70 · Readiness >65',
+                'rev' => '$' . number_format($hlc * 294) . ' · 48hr', 'urg' => 'opportunity', 'ul' => 'Revenue ready', 'urgDot' => '#10B981',
+                'banner' => ['text' => $hlc . ' students in active learning mode. AI prepared course recommendations. 48-hour window: 34% conversion.', 'c' => '#FF6B35'],
+                'kpis' => [
+                    ['v' => (string)$hlc, 'l' => 'Hot Learners', 'p' => min(100, $hlc * 12), 'c' => '#FF6B35'],
+                    ['v' => (string)$hli, 'l' => 'Avg intent score', 'p' => $hli, 'c' => '#10B981'],
+                    ['v' => (string)$hlr, 'l' => 'Avg readiness', 'p' => $hlr, 'c' => '#FF6B35'],
+                    ['v' => $fp . '%', 'l' => 'Full-price (no disc)', 'p' => $fp, 'c' => '#10B981'],
+                ],
+                'dec' => [
+                    ['l' => 'Act within 48 hours', 'v' => '34%', 's' => round($hlc * .34) . ' enrollments · $' . number_format($hlc * 294) . ' revenue', 'g' => true],
+                    ['l' => 'Act after 48 hours', 'v' => '8%', 's' => round($hlc * .08) . ' enrollments · revenue lost', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Full-price (no discount)', 'v' => $arf . ' students'],
+                    ['l' => 'Calibrated discount offer', 'v' => ($hlc - $arf) . ' students'],
+                    ['l' => 'Expected conversions', 'v' => round($hlc * .34) . ' · $' . number_format($hlc * 294)],
+                    ['l' => 'Window', 'v' => '48 hours'],
+                ],
+                'ctas' => [
+                    ['ico' => '🚀', 'l' => 'Dispatch offers to all ' . $hlc . ' Hot Learners', 'd' => $arf . ' full-price + ' . ($hlc - $arf) . ' discount offers. Within 2 hours.', 'b' => 'Est. $' . number_format($hlc * 294), 'c' => '#FF6B35', 'view' => 'hl_all', 'vt' => 'Hot Learners — All ' . $hlc . ' Students', 'vs' => 'Click any student to see intent breakdown and recommendations', 'vf' => ['All', 'Full price', '10% discount', 'High performer', 'Highest intent']],
+                    ['ico' => '📞', 'l' => 'Flag high-value learners for tutor', 'd' => 'High-spending students. Tutor contact justified by LTV.', 'b' => count(array_filter($hl, fn($p) => $p['total_spent'] > 200)) . ' students', 'c' => '#A855F7', 'view' => 'hl_tutor', 'vt' => 'High-Value Learners', 'vs' => 'Tutor outreach recommended', 'vf' => ['All']],
+                ],
+            ],
+            [
+                'id' => 'atrisk', 'lc' => '#F43F5E', 'ico' => '⚠️',
+                'name' => 'At Risk — ' . $arc . ' Students', 'users' => 'Churn >60 · Engagement <30',
+                'rev' => '$' . number_format($arc * 1200) . ' at risk', 'urg' => 'critical', 'ul' => '72-hour window', 'urgDot' => '#F43F5E',
+                'banner' => ['text' => $arc . ' students crossed churn threshold. $' . number_format($arc * 1200) . ' revenue at risk. Act within 72 hours: 41% retention.', 'c' => '#F43F5E'],
+                'kpis' => [
+                    ['v' => (string)$arc, 'l' => 'At Risk students', 'p' => min(100, $arc * 8), 'c' => '#F43F5E'],
+                    ['v' => '$' . number_format($arc * 1200), 'l' => 'Revenue at risk', 'p' => 80, 'c' => '#F43F5E'],
+                    ['v' => (string)($arc > 0 ? round(array_sum(array_column($ar, 'churn_score')) / $arc) : 0), 'l' => 'Avg churn score', 'p' => $arc > 0 ? round(array_sum(array_column($ar, 'churn_score')) / $arc) : 0, 'c' => '#F43F5E'],
+                    ['v' => (string)($arc > 0 ? round(array_sum(array_column($ar, 'frustration_score')) / $arc) : 0), 'l' => 'Avg frustration', 'p' => $arc > 0 ? round(array_sum(array_column($ar, 'frustration_score')) / $arc) : 0, 'c' => '#F59E0B'],
+                ],
+                'dec' => [
+                    ['l' => 'Act within 72 hours', 'v' => '41%', 's' => round($arc * .41) . ' retained · revenue protected', 'g' => true],
+                    ['l' => 'Wait beyond 72hrs', 'v' => '<20%', 's' => round($arc * .20) . ' retained · revenue lost', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Students in win-back', 'v' => $arc . ''],
+                    ['l' => 'Expected retentions', 'v' => round($arc * .41) . ' (41%)'],
+                    ['l' => 'Revenue protected', 'v' => 'Est. $' . number_format($arc * 1200)],
+                    ['l' => 'Decision window', 'v' => '72 hours'],
+                ],
+                'ctas' => [
+                    ['ico' => '⚡', 'l' => 'Launch 3-tier win-back plan', 'd' => 'High LTV → Tutor + offer. Mid LTV → 3-touch sequence. Free → email.', 'b' => '$' . number_format($arc * 1200) . ' protected', 'c' => '#F43F5E', 'view' => 'ar_all', 'vt' => 'At Risk — All ' . $arc . ' Students', 'vs' => 'Ranked by churn risk · click to see risk factors', 'vf' => ['All', 'Imminent churn', 'Stalled progress']],
+                    ['ico' => '📊', 'l' => 'Top students by Revenue at Risk', 'd' => 'Ranked by churn probability × LTV.', 'b' => 'Priority list', 'c' => '#F59E0B', 'view' => 'ar_top50', 'vt' => 'Top Students by Revenue at Risk', 'vs' => 'Highest priority — ranked by churn × LTV', 'vf' => ['All']],
+                    ['ico' => '🎁', 'l' => 'Approve retention discount', 'd' => 'LTV > threshold eligible for 20% off. Recovers additional 12%.', 'b' => $arc . ' eligible', 'c' => '#00FFB2', 'view' => 'ar_disc', 'vt' => 'Retention Offer', 'vs' => 'Discount approved · awaiting dispatch', 'vf' => ['All', 'Imminent churn']],
+                ],
+            ],
+            [
+                'id' => 'loyal', 'lc' => '#10B981', 'ico' => '⭐',
+                'name' => 'Loyal Learners — ' . $loc, 'users' => 'Loyalty >65 · Active learners',
+                'rev' => '+$' . number_format($loc * 1480) . ' potential', 'urg' => 'opportunity', 'ul' => 'Amplify', 'urgDot' => '#10B981',
+                'banner' => ['text' => $loc . ' students in Loyal Learner state — 40% lower churn, 3.2× LTV. Referral amplification ready.', 'c' => '#10B981'],
+                'kpis' => [
+                    ['v' => (string)$loc, 'l' => 'Loyal Learners', 'p' => 100, 'c' => '#10B981'],
+                    ['v' => (string)($loc > 0 ? round(array_sum(array_column($lo, 'loyalty_score')) / $loc) : 0), 'l' => 'Avg loyalty score', 'p' => $loc > 0 ? round(array_sum(array_column($lo, 'loyalty_score')) / $loc) : 0, 'c' => '#10B981'],
+                    ['v' => (string)($loc > 0 ? round(array_sum(array_column($lo, 'engagement_score')) / $loc) : 0), 'l' => 'Avg engagement', 'p' => $loc > 0 ? round(array_sum(array_column($lo, 'engagement_score')) / $loc) : 0, 'c' => '#F59E0B'],
+                    ['v' => '+$' . number_format($loc * 1480), 'l' => 'Referral potential', 'p' => 65, 'c' => '#0EA5E9'],
+                ],
+                'dec' => [
+                    ['l' => 'Amplify now', 'v' => '+$' . number_format($loc * 1480), 's' => 'Additional referral revenue this month', 'g' => true],
+                    ['l' => 'No action', 'v' => '$0', 's' => 'Momentum declines · revenue missed', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Learners notified', 'v' => $loc . ''],
+                    ['l' => 'Near-tier nudges', 'v' => round($loc * .4) . ''],
+                    ['l' => 'Ambassador invitations', 'v' => count(array_filter($lo, fn($p) => $p['loyalty_score'] > 80)) . ''],
+                    ['l' => 'Expected referral revenue', 'v' => '+$' . number_format($loc * 1480) . '/month'],
+                ],
+                'ctas' => [
+                    ['ico' => '⭐', 'l' => 'Launch referral amplification', 'd' => 'All ' . $loc . ' get referral message + bonus points.', 'b' => '+$' . number_format($loc * 1480) . ' revenue', 'c' => '#10B981', 'view' => 'loyal_all', 'vt' => 'Loyal Learners — All ' . $loc, 'vs' => 'Click any student to see loyalty score and tier gap', 'vf' => ['All', 'Super learner', 'Near tier upgrade', 'Ambassador ready']],
+                    ['ico' => '🎖️', 'l' => 'Ambassador invitations — top ' . count(array_filter($lo, fn($p) => $p['loyalty_score'] > 80)), 'd' => 'Top learners — early course access + dedicated tutor.', 'b' => count(array_filter($lo, fn($p) => $p['loyalty_score'] > 80)) . ' invitations', 'c' => '#FFD700', 'view' => 'loyal_amb', 'vt' => 'Ambassador Candidates', 'vs' => 'Highest loyalty · early access + dedicated tutor', 'vf' => ['All']],
+                ],
+            ],
+            [
+                'id' => 'reactready', 'lc' => '#0EA5E9', 'ico' => '🔄',
+                'name' => 'Reactivation Ready — ' . $rvc, 'users' => 'Churned · High reactivation score',
+                'rev' => '$' . number_format($rvc * 4200) . ' recoverable', 'urg' => 'opportunity', 'ul' => 'Revenue recovery', 'urgDot' => '#10B981',
+                'banner' => ['text' => $rvc . ' churned students scored high on reactivation. Personalised win-back ready. 31% CVR vs 8% generic.', 'c' => '#0EA5E9'],
+                'kpis' => [
+                    ['v' => (string)$rvc, 'l' => 'Reactivation candidates', 'p' => min(100, $rvc * 12), 'c' => '#0EA5E9'],
+                    ['v' => (string)($rvc > 0 ? round(array_sum(array_column($rv, 'reactivation_potential')) / $rvc) : 0), 'l' => 'Avg reactivation score', 'p' => $rvc > 0 ? round(array_sum(array_column($rv, 'reactivation_potential')) / $rvc) : 0, 'c' => '#0EA5E9'],
+                    ['v' => (string)($rvc > 0 ? round(array_sum(array_column($rv, 'engagement_score')) / $rvc) : 0), 'l' => 'Avg engagement (dormant)', 'p' => $rvc > 0 ? round(array_sum(array_column($rv, 'engagement_score')) / $rvc) : 0, 'c' => '#F43F5E'],
+                    ['v' => '$' . number_format($rvc * 4200), 'l' => 'Re-revenue potential', 'p' => 75, 'c' => '#F59E0B'],
+                ],
+                'dec' => [
+                    ['l' => 'Personalised (4 variants)', 'v' => '31%', 's' => round($rvc * .31) . ' return · $' . number_format($rvc * 4200) . '/year', 'g' => true],
+                    ['l' => 'Generic campaign', 'v' => '8%', 's' => round($rvc * .08) . ' return · revenue missed', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Segments deployed', 'v' => '4 personalised'],
+                    ['l' => 'Expected reactivations', 'v' => round($rvc * .31) . ' (31%)'],
+                    ['l' => 'Re-revenue', 'v' => '$' . number_format($rvc * 4200) . '/year'],
+                    ['l' => 'Net ROI', 'v' => 'Positive from month 3'],
+                ],
+                'ctas' => [
+                    ['ico' => '🔄', 'l' => 'Launch personalised win-back', 'd' => 'Difficulty → tutoring. Price → discount. Support → apology. All in 24hrs.', 'b' => '$' . number_format($rvc * 4200) . ' re-revenue', 'c' => '#0EA5E9', 'view' => 'reactiv_all', 'vt' => 'Win-Back Campaign — ' . $rvc . ' Students', 'vs' => '4 segments · click any student to see churn reason and message', 'vf' => ['All', 'High potential', 'Deeply dormant']],
+                    ['ico' => '📞', 'l' => 'Route struggling students to tutor', 'd' => 'Difficulty-based churn students respond better to tutor call.', 'b' => round($rvc * .35) . ' students', 'c' => '#F43F5E', 'view' => 'reactiv_tutor', 'vt' => 'Struggling Students Segment', 'vs' => 'Tutor outreach recommended', 'vf' => ['All']],
+                ],
+            ],
+            [
+                'id' => 'struggling', 'lc' => '#F59E0B', 'ico' => '📚',
+                'name' => 'Struggling Students — ' . $sgc, 'users' => 'Frustration >50 · Still engaged',
+                'rev' => '$' . number_format($sgc * 500) . ' intervention value', 'urg' => 'warning', 'ul' => 'Intervene now', 'urgDot' => '#F59E0B',
+                'banner' => ['text' => $sgc . ' students struggling but still engaged. Early intervention prevents churn. Tutor support can recover 65%.', 'c' => '#F59E0B'],
+                'kpis' => [
+                    ['v' => (string)$sgc, 'l' => 'Struggling students', 'p' => min(100, $sgc * 10), 'c' => '#F59E0B'],
+                    ['v' => (string)($sgc > 0 ? round(array_sum(array_column($sg, 'frustration_score')) / $sgc) : 0), 'l' => 'Avg frustration', 'p' => $sgc > 0 ? round(array_sum(array_column($sg, 'frustration_score')) / $sgc) : 0, 'c' => '#F43F5E'],
+                    ['v' => (string)($sgc > 0 ? round(array_sum(array_column($sg, 'avg_quiz_score')) / $sgc) : 0), 'l' => 'Avg quiz score', 'p' => $sgc > 0 ? round(array_sum(array_column($sg, 'avg_quiz_score')) / $sgc) : 0, 'c' => '#0EA5E9'],
+                    ['v' => '65%', 'l' => 'Recovery with intervention', 'p' => 65, 'c' => '#10B981'],
+                ],
+                'dec' => [
+                    ['l' => 'Tutor intervention + content adjustment', 'v' => '65%', 's' => round($sgc * .65) . ' recovered · $' . number_format(round($sgc * .65) * 500) . ' retained', 'g' => true],
+                    ['l' => 'No intervention', 'v' => '18%', 's' => 'Natural recovery · most will churn', 'g' => false],
+                ],
+                'out' => [
+                    ['l' => 'Students receiving help', 'v' => $sgc . ''],
+                    ['l' => 'Expected recoveries', 'v' => round($sgc * .65) . ' (65%)'],
+                    ['l' => 'Revenue retained', 'v' => '$' . number_format(round($sgc * .65) * 500)],
+                    ['l' => 'Intervention window', 'v' => '48 hours'],
+                ],
+                'ctas' => [
+                    ['ico' => '👨‍🏫', 'l' => 'Assign tutor to all ' . $sgc . ' struggling students', 'd' => 'Personal tutor + simplified study plan + practice quizzes. Within 24 hours.', 'b' => round($sgc * .65) . ' recoveries', 'c' => '#F59E0B', 'view' => 'struggle_all', 'vt' => 'Struggling Students — All ' . $sgc, 'vs' => 'Ranked by frustration score · click to see quiz history', 'vf' => ['All', 'High frustration', 'Low quiz scores']],
+                ],
+            ],
+        ];
+    }
+
+    // ── User Group Builder ─────────────────────────────────────────────────────
+
+    private function buildEdTechUserGroups(array $profiles): array
+    {
+        $hl = array_filter($profiles, fn($p) => $p['intent_score'] >= 70 && $p['readiness_score'] >= 65);
+        $ar = array_filter($profiles, fn($p) => $p['churn_score'] >= 60);
+        $lo = array_filter($profiles, fn($p) => $p['loyalty_score'] >= 65 && $p['engagement_score'] >= 50);
+        $rv = array_filter($profiles, fn($p) => $p['reactivation_potential'] >= 60 && $p['engagement_score'] < 30);
+        $sg = array_filter($profiles, fn($p) => $p['frustration_score'] >= 50 && $p['engagement_score'] >= 30);
+
+        return [
+            'hl_all'        => array_values(array_map(fn($p) => $this->edCard($p, 'hot'), $hl)),
+            'hl_tutor'      => array_values(array_map(fn($p) => $this->edCard($p, 'hot'), array_filter($hl, fn($p) => $p['total_spent'] > 200))),
+            'ar_all'        => array_values(array_map(fn($p) => $this->edCard($p, 'atrisk'), $ar)),
+            'ar_top50'      => array_slice(array_values(array_map(fn($p) => $this->edCard($p, 'atrisk'), $ar)), 0, 5),
+            'ar_disc'       => array_values(array_map(fn($p) => $this->edCard($p, 'atrisk'), $ar)),
+            'loyal_all'     => array_values(array_map(fn($p) => $this->edCard($p, 'loyal'), $lo)),
+            'loyal_amb'     => array_values(array_map(fn($p) => $this->edCard($p, 'loyal'), array_filter($lo, fn($p) => $p['loyalty_score'] > 80))),
+            'reactiv_all'   => array_values(array_map(fn($p) => $this->edCard($p, 'react'), $rv)),
+            'reactiv_tutor' => array_values(array_map(fn($p) => $this->edCard($p, 'react'), array_filter($rv, fn($p) => $p['frustration_score'] > 40))),
+            'struggle_all'  => array_values(array_map(fn($p) => $this->edCard($p, 'struggle'), $sg)),
+        ];
     }
 
     public function l5()
@@ -1899,5 +2330,221 @@ class DecisionCentreController extends Controller
         ];
 
         return view('client.layers.l8', compact('scenarios', 'userGroups'));
+    }
+
+    // ── Analytics Dashboard ──────────────────────────────────────────────────────
+    // public function analytics()
+    // {
+    //     $all = BehavioralProfile::orderByDesc('overall_score')->get();
+
+    //     $totalProfiles = $all->count();
+    //     $avgIntent = round($all->avg('intent_score') ?? 0);
+    //     $avgChurn = round($all->avg('churn_score') ?? 0);
+    //     $avgLoyalty = round($all->avg('loyalty_score') ?? 0);
+    //     $avgEngagement = round($all->avg('engagement_score') ?? 0);
+
+    //     // Segment distribution
+    //     $segments = [
+    //         'champion' => $all->where('segment', 'champion')->count(),
+    //         'loyal' => $all->where('segment', 'loyal')->count(),
+    //         'at_risk' => $all->where('segment', 'at_risk')->count(),
+    //         'new' => $all->where('segment', 'new')->count(),
+    //         'dormant' => $all->where('segment', 'dormant')->count(),
+    //     ];
+
+    //     // Score distributions for charts
+    //     $intentDistribution = [
+    //         '0-20' => $all->whereBetween('intent_score', [0, 20])->count(),
+    //         '21-40' => $all->whereBetween('intent_score', [21, 40])->count(),
+    //         '41-60' => $all->whereBetween('intent_score', [41, 60])->count(),
+    //         '61-80' => $all->whereBetween('intent_score', [61, 80])->count(),
+    //         '81-100' => $all->whereBetween('intent_score', [81, 100])->count(),
+    //     ];
+
+    //     $churnDistribution = [
+    //         'Low (0-25)' => $all->whereBetween('churn_score', [0, 25])->count(),
+    //         'Medium (26-50)' => $all->whereBetween('churn_score', [26, 50])->count(),
+    //         'High (51-75)' => $all->whereBetween('churn_score', [51, 75])->count(),
+    //         'Critical (76-100)' => $all->whereBetween('churn_score', [76, 100])->count(),
+    //     ];
+
+    //     // Top profiles
+    //     $topIntent = $all->sortByDesc('intent_score')->take(5)->values();
+    //     $topChurnRisk = $all->sortByDesc('churn_score')->take(5)->values();
+    //     $topLoyal = $all->sortByDesc('loyalty_score')->take(5)->values();
+
+    //     // Recent activity
+    //     $recentActive = $all->where('last_active_at', '>=', now()->subDays(7))->count();
+    //     $recentInactive = $all->where('last_active_at', '<', now()->subDays(30))->count();
+
+    //     // Revenue metrics
+    //     $totalLTV = $all->sum(fn($p) => $p->overall_score * 980);
+    //     $atRiskLTV = $all->where('churn_score', '>=', 65)->sum(fn($p) => $p->overall_score * 620);
+
+    //     // Weekly trend data
+    //     $trendLabels = [];
+    //     $trendIntent = [];
+    //     $trendChurn = [];
+    //     $trendEngagement = [];
+    //     for ($i = 6; $i >= 0; $i--) {
+    //         $trendLabels[] = now()->subDays($i * 7)->format('M d');
+    //         $trendIntent[] = max(0, min(100, $avgIntent + rand(-10, 10)));
+    //         $trendChurn[] = max(0, min(100, $avgChurn + rand(-8, 8)));
+    //         $trendEngagement[] = max(0, min(100, $avgEngagement + rand(-5, 5)));
+    //     }
+
+    //     return view('client.behavioral-analytics', compact(
+    //         'totalProfiles', 'avgIntent', 'avgChurn', 'avgLoyalty', 'avgEngagement',
+    //         'segments', 'intentDistribution', 'churnDistribution',
+    //         'topIntent', 'topChurnRisk', 'topLoyal',
+    //         'recentActive', 'recentInactive',
+    //         'totalLTV', 'atRiskLTV',
+    //         'trendLabels', 'trendIntent', 'trendChurn', 'trendEngagement'
+    //     ));
+    // }
+
+    public function analytics()
+    {
+        $client = auth('client')->user();
+        $dataSource = $client ? $client->dataSources()->first() : null;
+        $hasConnectedSource = $dataSource && $dataSource->status === 'connected';
+        $dataSourceConnected = false;
+
+        // Try to use connected EdTech data if available
+        if ($hasConnectedSource) {
+            try {
+                $engine = $this->getEdTechEngine();
+                if ($engine && $engine->isConnected()) {
+                    $profiles = $engine->getStudentProfiles(100);
+                    if (!empty($profiles)) {
+                        $dataSourceConnected = true;
+                        $all = collect($profiles)->map(function($p) {
+                            return (object) $p;
+                        });
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('EdTech analytics failed: ' . $e->getMessage());
+            }
+        }
+
+        // Fallback: local BehavioralProfile demo data
+        if (!isset($all)) {
+            $all = BehavioralProfile::orderByDesc('overall_score')->get();
+        }
+
+        $totalProfiles = $all->count();
+        $avgIntent = round($all->avg('intent_score') ?? 0);
+        $avgChurn = round($all->avg('churn_score') ?? 0);
+        $avgLoyalty = round($all->avg('loyalty_score') ?? 0);
+        $avgEngagement = round($all->avg('engagement_score') ?? 0);
+
+        // Segment distribution
+        $segments = [
+            'champion' => $all->where('segment', 'champion')->count(),
+            'loyal' => $all->where('segment', 'loyal')->count(),
+            'at_risk' => $all->where('segment', 'at_risk')->count(),
+            'new' => $all->where('segment', 'new')->count(),
+            'dormant' => $all->where('segment', 'dormant')->count(),
+        ];
+
+        // Score distributions for charts
+        $intentDistribution = [
+            '0-20' => $all->whereBetween('intent_score', [0, 20])->count(),
+            '21-40' => $all->whereBetween('intent_score', [21, 40])->count(),
+            '41-60' => $all->whereBetween('intent_score', [41, 60])->count(),
+            '61-80' => $all->whereBetween('intent_score', [61, 80])->count(),
+            '81-100' => $all->whereBetween('intent_score', [81, 100])->count(),
+        ];
+
+        $churnDistribution = [
+            'Low (0-25)' => $all->whereBetween('churn_score', [0, 25])->count(),
+            'Medium (26-50)' => $all->whereBetween('churn_score', [26, 50])->count(),
+            'High (51-75)' => $all->whereBetween('churn_score', [51, 75])->count(),
+            'Critical (76-100)' => $all->whereBetween('churn_score', [76, 100])->count(),
+        ];
+
+        // Top profiles
+        $topIntent = $all->sortByDesc('intent_score')->take(5)->values();
+        $topChurnRisk = $all->sortByDesc('churn_score')->take(5)->values();
+        $topLoyal = $all->sortByDesc('loyalty_score')->take(5)->values();
+
+        // Recent activity - handle both EdTech and local data
+        if ($dataSourceConnected) {
+            $recentActive = $all->filter(fn($p) => 
+                !empty($p->last_login) && \Carbon\Carbon::parse($p->last_login)->gte(now()->subDays(7))
+            )->count();
+            $recentInactive = $all->filter(fn($p) => 
+                empty($p->last_login) || \Carbon\Carbon::parse($p->last_login)->lt(now()->subDays(30))
+            )->count();
+        } else {
+            $recentActive = $all->where('last_active_at', '>=', now()->subDays(7))->count();
+            $recentInactive = $all->where('last_active_at', '<', now()->subDays(30))->count();
+        }
+
+        // Revenue metrics
+        $totalLTV = $all->sum(fn($p) => ($p->overall_score ?? 0) * 980);
+        $atRiskLTV = $all->where('churn_score', '>=', 65)->sum(fn($p) => ($p->overall_score ?? 0) * 620);
+
+        // Weekly trend data
+        $trendLabels = [];
+        $trendIntent = [];
+        $trendChurn = [];
+        $trendEngagement = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $trendLabels[] = now()->subDays($i * 7)->format('M d');
+            $trendIntent[] = max(0, min(100, $avgIntent + rand(-10, 10)));
+            $trendChurn[] = max(0, min(100, $avgChurn + rand(-8, 8)));
+            $trendEngagement[] = max(0, min(100, $avgEngagement + rand(-5, 5)));
+        }
+
+        return view('client.behavioral-analytics', compact(
+            'totalProfiles', 'avgIntent', 'avgChurn', 'avgLoyalty', 'avgEngagement',
+            'segments', 'intentDistribution', 'churnDistribution',
+            'topIntent', 'topChurnRisk', 'topLoyal',
+            'recentActive', 'recentInactive',
+            'totalLTV', 'atRiskLTV',
+            'trendLabels', 'trendIntent', 'trendChurn', 'trendEngagement',
+            'dataSourceConnected'
+        ));
+    }
+
+    private function renderAnalyticsFromEdTech(array $profiles, bool $isLive)
+    {
+        $totalProfiles = count($profiles);
+        $avgIntent = $totalProfiles > 0 ? round(array_sum(array_column($profiles, 'intent_score')) / $totalProfiles) : 0;
+        $avgChurn = $totalProfiles > 0 ? round(array_sum(array_column($profiles, 'churn_score')) / $totalProfiles) : 0;
+        $avgLoyalty = $totalProfiles > 0 ? round(array_sum(array_column($profiles, 'loyalty_score')) / $totalProfiles) : 0;
+        $avgEngagement = $totalProfiles > 0 ? round(array_sum(array_column($profiles, 'engagement_score')) / $totalProfiles) : 0;
+        
+        // Segment distribution from EdTech segments
+        $segments = [
+            'champion' => count(array_filter($profiles, fn($p) => $p['segment'] === 'champion')),
+            'loyal' => count(array_filter($profiles, fn($p) => $p['segment'] === 'loyal')),
+            'at_risk' => count(array_filter($profiles, fn($p) => $p['segment'] === 'at_risk')),
+            'new' => count(array_filter($profiles, fn($p) => $p['segment'] === 'new')),
+            'dormant' => count(array_filter($profiles, fn($p) => $p['segment'] === 'dormant')),
+        ];
+        
+        // ... rest of calculations adapted for array data ...
+        
+        return view('client.behavioral-analytics', compact(
+            'totalProfiles', 'avgIntent', 'avgChurn', 'avgLoyalty', 'avgEngagement',
+            'segments', 'intentDistribution', 'churnDistribution',
+            'topIntent', 'topChurnRisk', 'topLoyal',
+            'recentActive', 'recentInactive',
+            'totalLTV', 'atRiskLTV',
+            'trendLabels', 'trendIntent', 'trendChurn', 'trendEngagement'
+        ) + ['dataSourceConnected' => $isLive]);
+    }
+
+    private function renderAnalyticsFromLocal()
+    {
+        $all = BehavioralProfile::orderByDesc('overall_score')->get();
+        // ... existing analytics() code ...
+        
+        return view('client.behavioral-analytics', compact(
+            // ... all existing variables ...
+        ) + ['dataSourceConnected' => false]);
     }
 }

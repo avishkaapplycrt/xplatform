@@ -140,6 +140,24 @@
 <header class="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
   <div>
     <h1 class="text-[16px] font-semibold text-gray-900">{{ $headerTitle }}</h1>
+
+    <div class="flex items-center gap-3 mt-1">
+        @if($dataSourceConnected ?? false)
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Live EdTech Data
+            </span>
+        @else
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                Demo Data
+            </span>
+            <a href="{{ route('client.sources.create') }}" class="text-[10px] text-indigo-600 hover:underline font-medium">
+                Connect Database →
+            </a>
+        @endif
+    </div>
+
     <p class="text-[11px] text-gray-500 mt-0.5">
       Tenant: <span class="text-teal-600 font-medium">{{ $cn }}</span>
       <span class="ml-2 inline-flex items-center gap-1 text-green-600 font-medium text-[10px]">
@@ -300,8 +318,14 @@ function dcRenderScenarios() {
 
 // ── Select scenario → render center panel, reset right panel ─────────────────
 function dcSelectScen(scenId) {
-  const s = (DC_SCENARIOS[DC_ACTIVE] || []).find(x => x.id === scenId);
-  if (!s) return;
+  const scenarios = DC_SCENARIOS[DC_ACTIVE] || [];
+  const s = scenarios.find(x => x.id === scenId);
+  if (!s) {
+      console.error('Scenario not found:', scenId, 'in layer', DC_ACTIVE);
+      return;
+  }
+  // const s = (DC_SCENARIOS[DC_ACTIVE] || []).find(x => x.id === scenId);
+  // if (!s) return;
 
   // Only reset right panel if a different scenario is selected
   if (!dcScen || dcScen.id !== scenId) {
@@ -332,6 +356,11 @@ function dcSelectScen(scenId) {
 }
 
 function dcCenterBody(s) {
+  if (!s || !Array.isArray(s.kpis) || !Array.isArray(s.dec)) {
+      console.error('Invalid scenario data:', s);
+      return '<div class="dc-empty"><div class="dc-empty-ico">⚠️</div><div style="font-size:11px">Error loading scenario data</div></div>';
+  }
+
   const kpis = `
     <div class="dc-sec"><span>Key Signals</span><div class="dc-sl"></div></div>
     <div class="dc-kgrid">
@@ -494,7 +523,19 @@ function dcToast(ico, title, body) {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', dcRenderScenarios);
+// document.addEventListener('DOMContentLoaded', dcRenderScenarios);
+// ── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    dcRenderScenarios();
+
+    // Auto-select first scenario after ensuring DOM is ready
+    setTimeout(function() {
+        const scenarios = DC_SCENARIOS[DC_ACTIVE] || [];
+        if (scenarios.length > 0) {
+            dcSelectScen(scenarios[0].id);
+        }
+    }, 50);
+});
 
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('dcAvatarWrap');
