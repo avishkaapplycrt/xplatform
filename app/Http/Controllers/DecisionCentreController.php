@@ -1544,9 +1544,87 @@ class DecisionCentreController extends Controller
         ];
     }
 
+    // public function l5()
+    // {
+    //     return view('client.decision-centre', $this->prepareData() + ['activeLayer' => 'l5']);
+    // }
+
     public function l5()
     {
-        return view('client.decision-centre', $this->prepareData() + ['activeLayer' => 'l5']);
+        $client = auth('client')->user();
+        $dataSource = $client ? $client->dataSources()->first() : null;
+        $hasConnectedSource = $dataSource && $dataSource->status === 'connected';
+        $dataSourceConnected = false;
+        $profiles = null;
+        $edProfiles = [];
+
+        // Try to use connected EdTech data if available
+        if ($hasConnectedSource) {
+            try {
+                $engine = $this->getEdTechEngine();
+                if ($engine && $engine->isConnected()) {
+                    $edProfiles = $engine->getStudentProfiles(100);
+                    if (!empty($edProfiles)) {
+                        $dataSourceConnected = true;
+                        $profiles = collect($edProfiles)->map(
+                            fn($p) => new \App\Adapters\EdTechProfileAdapter($p)
+                        );
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('EdTech L5 data fetch failed: ' . $e->getMessage());
+            }
+        }
+
+        // Use EdTech data for scenarios if connected, else fallback to demo
+        if ($dataSourceConnected && !empty($edProfiles)) {
+            $data = $this->prepareEdTechData($edProfiles);
+        } else {
+            if (!isset($profiles) || $profiles === null) {
+                $profiles = BehavioralProfile::orderByDesc('overall_score')->get();
+            }
+            $data = $this->prepareData();
+        }
+
+        return view('client.layers.l5', [
+            'scenarios'           => $data['scenarios'],
+            'userGroups'          => $data['userGroups'],
+            'activeLayer'         => 'l5',
+            'dataSourceConnected' => $dataSourceConnected,
+            'profiles'            => $profiles,
+        ]);
+    }
+
+    public function aimlDashboard()
+    {
+        $client = auth('client')->user();
+        $dataSource = $client ? $client->dataSources()->first() : null;
+        $hasConnectedSource = $dataSource && $dataSource->status === 'connected';
+        $dataSourceConnected = false;
+        $edProfiles = [];
+
+        if ($hasConnectedSource) {
+            try {
+                $engine = $this->getEdTechEngine();
+                if ($engine && $engine->isConnected()) {
+                    $edProfiles = $engine->getStudentProfiles(100);
+                    if (!empty($edProfiles)) {
+                        $dataSourceConnected = true;
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('EdTech dashboard fetch failed: ' . $e->getMessage());
+            }
+        }
+
+        $data = $this->prepareData();
+
+        return view('client.aiml-dashboard', [
+            'scenarios'           => $data['scenarios'],
+            'userGroups'          => $data['userGroups'],
+            'dataSourceConnected' => $dataSourceConnected,
+            'profiles'            => $dataSourceConnected ? collect($edProfiles) : BehavioralProfile::orderByDesc('overall_score')->get(),
+        ]);
     }
 
     // ── Shared card helper ─────────────────────────────────────────────────────

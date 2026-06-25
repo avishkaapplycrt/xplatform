@@ -53,7 +53,7 @@
                     ['num'=>'L2','label'=>'Identity Resolution',    'color'=>'text-blue-600',   'bg'=>'bg-blue-50',   'route'=>'client.layer.l2'],
                     ['num'=>'L3','label'=>'Data Processing',        'color'=>'text-violet-600', 'bg'=>'bg-violet-50', 'route'=>'client.layer.l3'],
                     ['num'=>'L4','label'=>'Behavioral Intelligence','color'=>'text-amber-600',  'bg'=>'bg-amber-50',  'route'=>'client.analytics'],
-                    ['num'=>'L5','label'=>'AI/ML Predictions',      'color'=>'text-orange-600', 'bg'=>'bg-orange-50', 'route'=>'client.layer.l5'],
+                    ['num'=>'L5','label'=>'AI/ML Predictions',      'color'=>'text-orange-600', 'bg'=>'bg-orange-50', 'route'=>'client.aiml.dashboard'],
                     ['num'=>'L6','label'=>'Decision & Actions',     'color'=>'text-green-600',  'bg'=>'bg-green-50',  'route'=>'client.layer.l6'],
                     ['num'=>'L7','label'=>'Application Layer',      'color'=>'text-red-600',    'bg'=>'bg-red-50',    'route'=>'client.layer.l7'],
                     ['num'=>'L8','label'=>'Governance & Security',  'color'=>'text-gray-600',   'bg'=>'bg-gray-100',  'route'=>'client.layer.l8'],
