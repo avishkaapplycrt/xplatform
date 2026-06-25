@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\DemoBookedNotification;
 use App\Models\BookDemo;
 use App\Models\Client;
 use Carbon\Carbon;
@@ -9,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class BookDemoController extends Controller
@@ -45,6 +47,7 @@ class BookDemoController extends Controller
         ]);
 
         // Parse the human-readable date string ("15 May 2026") into Y-m-d for DB
+        $displayDate = $data['demo_date'] ?? null;
         if (!empty($data['demo_date'])) {
             try {
                 $data['demo_date'] = Carbon::parse($data['demo_date'])->format('Y-m-d');
@@ -72,6 +75,25 @@ class BookDemoController extends Controller
             // Log the client in
             Auth::guard('client')->login($client);
             $request->session()->regenerate();
+
+            // ───────────────────────────────────────────────
+            // SEND ADMIN EMAIL NOTIFICATION
+            // ───────────────────────────────────────────────
+            try {
+                // Use display date for email (human readable)
+                $emailData = array_merge($data, ['demo_date' => $displayDate]);
+                
+                // Admin email — change this to your actual admin email
+                $adminEmail = config('mail.admin_email', 'cnsharma@applykart.co');
+                
+                Mail::to($adminEmail)->send(new DemoBookedNotification($emailData));
+                
+                Log::info('Demo booking admin email sent to: ' . $adminEmail);
+            } catch (\Exception $emailException) {
+                // Log email error but don't break the flow
+                Log::error('Failed to send demo booking admin email: ' . $emailException->getMessage());
+            }
+            // ───────────────────────────────────────────────
 
             $demoDate = null;
             if (!empty($data['demo_date']) && !empty($data['demo_time'])) {
