@@ -1127,9 +1127,20 @@ class DecisionCentreController extends Controller
     //     ]);
     // }
 
+    // public function index()
+    // {
+    //     return redirect()->route('client.analytics');
+    // }
+
     public function index()
     {
-        return redirect()->route('client.analytics');
+        $data = $this->prepareData();
+        return view('client.decision-centre', [
+            'scenarios'   => $data['scenarios'],
+            'userGroups'  => $data['userGroups'],
+            'activeLayer' => 'l4',
+            'dataSourceConnected' => false,
+        ]);
     }
 
     // ── EdTech Card Builders ───────────────────────────────────────────────────
