@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Intelligence for 15 Industries — X Platforms | Pre-trained Industry Models</title>
+<link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
 <meta name="description" content="X Platforms delivers pre-trained AI intelligence models for 15 industries — Retail, Banking, Healthcare, Telecom, Travel, Insurance, Manufacturing, Energy and more. Industry-specific predictions, playbooks, and benchmarks out of the box.">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <link rel="canonical" href="{{ url('/industries') }}">
@@ -166,7 +167,8 @@ canvas#neural{position:fixed;inset:0;z-index:0;pointer-events:none}
 <canvas id="neural"></canvas>
 
 <nav class="nav"><div class="nav-bg"></div><div class="nav-in">
-  <a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a>
+  <!-- <a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a> -->
+  <a href="{{ url('/') }}" class="logo"><img src="{{ asset('images/xplatforms_logo.jpeg') }}" alt="X Platforms" style="height:32px;width:auto;display:block"></a>
   <ul class="nav-l">
     <li><a href="{{ url('/') }}">Home</a></li>
     <li><a href="{{ route('industries') }}">Industries</a></li>
@@ -603,7 +605,7 @@ canvas#neural{position:fixed;inset:0;z-index:0;pointer-events:none}
 
 <!-- FOOTER -->
 <footer class="foot"><div class="foot-in">
-  <div><a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
+  <div><a href="{{ url('/') }}" class="logo"><img src="{{ asset('images/xplatforms_logo.jpeg') }}" alt="X Platforms" style="height:32px;width:auto;display:block"></a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
   <div class="foot-c"><h5>Product</h5><a href="{{ route('platform.architecture') }}">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
   <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="{{ route('careers') }}">Careers</a><a href="{{ route('blog') }}">Blog</a><a href="{{ route('contact') }}">Contact</a></div>
   <div class="foot-c"><h5>Resources</h5><a href="#">Documentation</a><a href="{{ route('case-studies') }}">Case Studies</a><a href="#">API Reference</a><a href="{{ route('security') }}">Security</a></div>

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Customer Journey Simulator â Watch 8 Layers of Intelligence in Action | X Platforms</title>
+<link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
 <meta name="description" content="Interactive simulator showing exactly how X Platforms processes your customers through 8 AI layers â from raw data ingestion to live predictions. Choose your industry, pick a scenario, watch intelligence happen.">
 <meta name="keywords" content="AI customer journey simulator, predictive analytics demo, 8 layer AI engine, customer intelligence platform, churn prediction demo, EdTech AI, SaaS churn, eLearning analytics, X Platforms">
 <meta name="robots" content="index, follow, max-snippet:-1">
@@ -431,7 +432,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
 
 <!-- NAV -->
 <nav class="nav"><div class="nav-bg"></div><div class="nav-in">
-  <a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a>
+  <!-- <a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a> -->
+  <a href="{{ url('/') }}" class="logo"><img src="{{ asset('images/xplatforms_logo.jpeg') }}" alt="X Platforms" style="height:32px;width:auto;display:block"></a>
   <ul class="nav-l">
     <li><a href="{{ url('/') }}">Home</a></li>
     <li><a href="{{ route('industries') }}">Industries</a></li>
@@ -706,7 +708,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
 
 <!-- FOOTER -->
 <footer class="foot"><div class="foot-in">
-  <div><a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
+  <div><a href="{{ url('/') }}" class="logo"><img src="{{ asset('images/xplatforms_logo.jpeg') }}" alt="X Platforms" style="height:32px;width:auto;display:block"></a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
   <div class="foot-c"><h5>Product</h5><a href="{{ route('platform.architecture') }}">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
   <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="{{ route('careers') }}">Careers</a><a href="{{ route('blog') }}">Blog</a><a href="{{ route('contact') }}">Contact</a></div>
   <div class="foot-c"><h5>Resources</h5><a href="#">Documentation</a><a href="{{ route('case-studies') }}">Case Studies</a><a href="#">API Reference</a><a href="{{ route('security') }}">Security</a></div>
