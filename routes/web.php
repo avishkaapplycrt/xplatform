@@ -131,6 +131,7 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('data-collection');
     
     Route::get('behavioral-analytics', [DecisionCentreController::class, 'analytics'])->name('analytics');
+    Route::get('aiml-dashboard', [DecisionCentreController::class, 'aimlDashboard'])->name('aiml.dashboard');
 
     // Database data sources
     Route::get('sources',                [DataSourceController::class, 'index'])->name('sources.index');
