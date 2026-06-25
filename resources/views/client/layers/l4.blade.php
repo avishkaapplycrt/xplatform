@@ -22,6 +22,16 @@
   $cn = auth('client')->user()?->company_name ?? 'Acme Retail';
   $av = strtoupper(implode('', array_map(fn($w)=>$w[0], array_slice(explode(' ',$cn),0,2))));
 
+  // Helper: get last active display (works with both Carbon and string)
+  $getLastActive = function($profile) {
+      $la = $profile->last_active_at ?? null;
+      if (!$la) return null;
+      if (is_string($la)) {
+          try { return \Carbon\Carbon::parse($la); } catch (\Exception $e) { return null; }
+      }
+      return $la; // Already Carbon
+  };
+
   $scoreTypes = [
     ['key'=>'intent_score',          'label'=>'Intent',       'inverted'=>false],
     ['key'=>'engagement_score',      'label'=>'Engagement',   'inverted'=>false],
@@ -129,9 +139,15 @@
     <h1 class="text-[16px] font-semibold text-gray-900">Behavioral Intelligence</h1>
     <p class="text-[11px] text-gray-500 mt-0.5">
       Tenant: <span class="text-teal-600 font-medium">{{ $cn }}</span>
-      <span class="ml-2 inline-flex items-center gap-1 text-green-600 font-medium text-[10px]">
-        <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Live · ML Scoring Active
-      </span>
+      @if($dataSourceConnected ?? false)
+          <span class="ml-2 inline-flex items-center gap-1 text-green-600 font-medium text-[10px]">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block animate-pulse"></span>Live EdTech Data
+          </span>
+      @else
+          <span class="ml-2 inline-flex items-center gap-1 text-green-600 font-medium text-[10px]">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Live · ML Scoring Active
+          </span>
+      @endif
     </p>
   </div>
   <div class="flex items-center gap-4 text-[11px] text-gray-500">
@@ -149,7 +165,7 @@
       <svg class="w-3.5 h-3.5 text-violet-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/>
       </svg>
-      <span class="font-medium text-gray-600">8.7M profiles</span>
+      <span class="font-medium text-gray-600">{{ $profiles->count() }} profiles</span>
     </span>
     <span class="flex items-center gap-1.5">
       <svg class="w-3.5 h-3.5 text-pink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -256,6 +272,7 @@
     @foreach($profiles as $profile)
     @php
       $oc = $profile->overall_score >= 70 ? '#10b981' : ($profile->overall_score >= 45 ? '#f59e0b' : '#ef4444');
+      $lastActive = $getLastActive($profile);
     @endphp
     <div id="profile-{{ $profile->id }}" class="profile-detail"
          style="{{ $loop->first ? 'display:block' : 'display:none' }}">
@@ -277,8 +294,8 @@
           <p style="font-size:12px;color:#6b7280;margin-bottom:4px">{{ $profile->email }}</p>
           <p style="font-size:11px;color:#9ca3af">
             Last active:
-            @if($profile->last_active_at)
-              {{ $profile->last_active_at->diffForHumans() }}
+            @if($lastActive)
+              {{ $lastActive->diffForHumans() }}
             @else
               Unknown
             @endif

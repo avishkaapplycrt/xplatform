@@ -1132,14 +1132,60 @@ class DecisionCentreController extends Controller
     //     return redirect()->route('client.analytics');
     // }
 
+    // public function index()
+    // {
+    //     $data = $this->prepareData();
+    //     return view('client.decision-centre', [
+    //         'scenarios'   => $data['scenarios'],
+    //         'userGroups'  => $data['userGroups'],
+    //         'activeLayer' => 'l4',
+    //         'dataSourceConnected' => false,
+    //     ]);
+    // }
+
     public function index()
     {
-        $data = $this->prepareData();
+        $client = auth('client')->user();
+        $dataSource = $client ? $client->dataSources()->first() : null;
+        $hasConnectedSource = $dataSource && $dataSource->status === 'connected';
+        $dataSourceConnected = false;
+        $profiles = null;
+        $edProfiles = [];
+
+        // Try to use connected EdTech data if available
+        if ($hasConnectedSource) {
+            try {
+                $engine = $this->getEdTechEngine();
+                if ($engine && $engine->isConnected()) {
+                    $edProfiles = $engine->getStudentProfiles(100);
+                    if (!empty($edProfiles)) {
+                        $dataSourceConnected = true;
+                        $profiles = collect($edProfiles)->map(
+                            fn($p) => new \App\Adapters\EdTechProfileAdapter($p)
+                        );
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('EdTech L4 data fetch failed: ' . $e->getMessage());
+            }
+        }
+
+        // Use EdTech data for scenarios if connected, else fallback to demo
+        if ($dataSourceConnected && !empty($edProfiles)) {
+            $data = $this->prepareEdTechData($edProfiles);
+        } else {
+            if (!isset($profiles) || $profiles === null) {
+                $profiles = BehavioralProfile::orderByDesc('overall_score')->get();
+            }
+            $data = $this->prepareData();
+        }
+
         return view('client.decision-centre', [
-            'scenarios'   => $data['scenarios'],
-            'userGroups'  => $data['userGroups'],
-            'activeLayer' => 'l4',
-            'dataSourceConnected' => false,
+            'scenarios'           => $data['scenarios'],
+            'userGroups'          => $data['userGroups'],
+            'activeLayer'         => 'l4',
+            'dataSourceConnected' => $dataSourceConnected,
+            'profiles'            => $profiles,
         ]);
     }
 
@@ -2557,5 +2603,454 @@ class DecisionCentreController extends Controller
         return view('client.behavioral-analytics', compact(
             // ... all existing variables ...
         ) + ['dataSourceConnected' => false]);
+    }
+
+     // ── EdTech Data Preparation for Decision Centre ──────────────────────────
+    private function prepareEdTechData(array $profiles): array
+    {
+        $all = collect($profiles);
+
+        // L4 Cohorts from EdTech data
+        $hotBuyers  = $all->filter(fn($p) => ($p['buying_readiness'] ?? 0) >= 70 && ($p['intent_score'] ?? 0) >= 80);
+        $atRisk     = $all->filter(fn($p) => ($p['churn_score'] ?? 0) >= 65);
+        $loyals     = $all->filter(fn($p) => ($p['loyalty_score'] ?? 0) >= 72);
+        $reactivate = $all->filter(fn($p) => ($p['reactivation_potential'] ?? 0) >= 70 && ($p['engagement_score'] ?? 0) < 30);
+
+        // L1 Cohorts (derived from EdTech behavior patterns)
+        $pricingUsers = $all->filter(fn($p) => ($p['intent_score'] ?? 0) >= 60 && ($p['buying_readiness'] ?? 0) >= 40);
+        $rageUsers    = $all->filter(fn($p) => ($p['frustration_score'] ?? 0) >= 50);
+        $cartUsers    = $all->filter(fn($p) => ($p['buying_readiness'] ?? 0) >= 30 && ($p['intent_score'] ?? 0) >= 40);
+        $paymentUsers = $all->filter(fn($p) => ($p['total_spent'] ?? 0) > 0);
+
+        // Stats
+        $hbFullPrice = $hotBuyers->filter(fn($p) => ($p['trust_score'] ?? 0) >= 65)->count();
+        $hbDiscount  = $hotBuyers->filter(fn($p) => ($p['trust_score'] ?? 0) < 65)->count();
+        $hbTotal     = $hotBuyers->count();
+        $hbRevEst    = '$' . number_format($hbTotal * 294);
+        $fullPct     = $hbTotal > 0 ? (int) round($hbFullPrice / $hbTotal * 100) : 38;
+        $discPct     = 100 - $fullPct;
+
+        $hbAvgReadiness    = $hbTotal > 0 ? (int) round($hotBuyers->avg('buying_readiness') ?? 0) : 0;
+        $arAvgChurn        = $atRisk->count() > 0 ? (int) round($atRisk->avg('churn_score') ?? 0) : 0;
+        $arAvgFrustration  = $atRisk->count() > 0 ? (int) round($atRisk->avg('frustration_score') ?? 0) : 0;
+        $loAvgLoyalty      = $loyals->count() > 0 ? (int) round($loyals->avg('loyalty_score') ?? 0) : 0;
+        $loAvgEngagement   = $loyals->count() > 0 ? (int) round($loyals->avg('engagement_score') ?? 0) : 0;
+        $rvAvgReactivation = $reactivate->count() > 0 ? (int) round($reactivate->avg('reactivation_potential') ?? 0) : 0;
+        $rvAvgEngagement   = $reactivate->count() > 0 ? (int) round($reactivate->avg('engagement_score') ?? 0) : 0;
+        $prAvgIntent       = $pricingUsers->count() > 0 ? (int) round($pricingUsers->avg('intent_score') ?? 0) : 0;
+        $prAvgReadiness    = $pricingUsers->count() > 0 ? (int) round($pricingUsers->avg('buying_readiness') ?? 0) : 0;
+        $raAvgIntent       = $rageUsers->count() > 0 ? (int) round($rageUsers->avg('intent_score') ?? 0) : 0;
+        $raAvgFrustration  = $rageUsers->count() > 0 ? (int) round($rageUsers->avg('frustration_score') ?? 0) : 0;
+        $caAvgReadiness    = $cartUsers->count() > 0 ? (int) round($cartUsers->avg('buying_readiness') ?? 0) : 0;
+        $caAvgIntent       = $cartUsers->count() > 0 ? (int) round($cartUsers->avg('intent_score') ?? 0) : 0;
+        $paAvgTrust        = $paymentUsers->count() > 0 ? (int) round($paymentUsers->avg('trust_score') ?? 0) : 0;
+        $paAvgIntent       = $paymentUsers->count() > 0 ? (int) round($paymentUsers->avg('intent_score') ?? 0) : 0;
+
+        $realAbandonPct = 72;
+        $realConvPct    = 28;
+        $avgPricingPerUser = $pricingUsers->count() > 0 ? 3.4 : 3.4;
+        $avgRagePerUser    = $rageUsers->count() > 0 ? 8 : 8;
+
+        $marginSaved = (int) round($hbFullPrice * 294 * 0.1);
+        $blanketCost = (int) round($hbTotal * 294 * 0.1);
+        $discountCost = (int) round($hbDiscount * 294 * 0.1);
+        $netRevSmart = (int) round($hbTotal * 294 - $discountCost);
+        $netRevBlanket = (int) round($hbTotal * 294 - $blanketCost);
+        $retentionNow = (int) round($atRisk->count() * 4200 * 0.41);
+        $retentionWait = (int) round($atRisk->count() * 4200 * 0.20);
+        $avgPNow = 41; $avgPWait = 20; $avgPPers = 31; $avgPGen = 8;
+
+        $arRevRisk = '$' . number_format($atRisk->sum(fn($p) => max(1000, ($p['overall_score'] ?? 0) * 620)));
+
+        $stats = [
+            'l4' => [
+                'hotbuyer'  => [
+                    'count' => $hbTotal, 'avgIntent' => $hotBuyers->count() > 0 ? (int) round($hotBuyers->avg('intent_score') ?? 0) : 0,
+                    'avgReadiness' => $hbAvgReadiness, 'fullPrice' => $hbFullPrice, 'fullPricePct' => $fullPct,
+                    'discount' => $hbDiscount, 'revEst' => $hbRevEst,
+                    'entCount' => $hotBuyers->filter(fn($p) => ($p['segment'] ?? '') === 'champion')->count(),
+                ],
+                'atrisk'    => [
+                    'count' => $atRisk->count(), 'revRisk' => $arRevRisk,
+                    'avgChurn' => $arAvgChurn, 'avgFrustration' => $arAvgFrustration,
+                ],
+                'loyal'     => [
+                    'count' => $loyals->count(), 'avgLoyalty' => $loAvgLoyalty,
+                    'avgEngagement' => $loAvgEngagement,
+                    'ambassadors' => $loyals->filter(fn($p) => ($p['loyalty_score'] ?? 0) > 88)->count(),
+                ],
+                'reactready' => [
+                    'count' => $reactivate->count(), 'revRec' => '$' . number_format($reactivate->count() * 4200),
+                    'avgReactivation' => $rvAvgReactivation, 'avgEngagement' => $rvAvgEngagement,
+                ],
+            ],
+            'l1' => [
+                'cart'    => [
+                    'count' => $cartUsers->count(), 'hv' => $cartUsers->filter(fn($p) => ($p['buying_readiness'] ?? 0) >= 50)->count(),
+                    'avgReadiness' => $caAvgReadiness, 'avgIntent' => $caAvgIntent,
+                    'abandonPct' => $realAbandonPct, 'convPct' => $realConvPct,
+                ],
+                'pricing' => [
+                    'count' => $pricingUsers->count(), 'avgIntent' => $prAvgIntent,
+                    'avgReadiness' => $prAvgReadiness, 'avgPerUser' => $avgPricingPerUser,
+                ],
+                'rage'    => [
+                    'count' => $rageUsers->count(), 'avgIntent' => $raAvgIntent,
+                    'avgFrustration' => $raAvgFrustration, 'avgClicks' => $avgRagePerUser,
+                ],
+                'payment' => [
+                    'count' => $paymentUsers->count(), 'avgTrust' => $paAvgTrust, 'avgIntent' => $paAvgIntent,
+                ],
+            ],
+            'l5' => [
+                'fullPrice' => $hbFullPrice, 'fullPct' => $fullPct, 'discount' => $hbDiscount, 'discPct' => $discPct,
+                'marginSaved' => $marginSaved, 'blanketCost' => $blanketCost, 'discountCost' => $discountCost,
+                'netRevSmart' => $netRevSmart, 'netRevBlanket' => $netRevBlanket,
+                'retentionNow' => $retentionNow, 'retentionWait' => $retentionWait,
+                'avgPNow' => $avgPNow, 'avgPWait' => $avgPWait, 'avgPPers' => $avgPPers, 'avgPGen' => $avgPGen,
+            ],
+        ];
+
+        $scenarios = $this->buildScenarios($stats);
+
+        $hbCards = $hotBuyers->map(fn($p) => $this->edHotBuyerCard($p))->values();
+        $arCards = $atRisk->map(fn($p) => $this->edAtRiskCard($p))->values();
+        $loCards = $loyals->map(fn($p) => $this->edLoyalCard($p))->values();
+        $rvCards = $reactivate->map(fn($p) => $this->edReactivCard($p))->values();
+        $prCards = $pricingUsers->map(fn($p) => $this->edPricingCard($p))->values();
+        $raCards = $rageUsers->map(fn($p) => $this->edRageCard($p))->values();
+        $caCards = $cartUsers->map(fn($p) => $this->edCartCard($p))->values();
+        $paCards = $paymentUsers->map(fn($p) => $this->edPaymentCard($p))->values();
+        $dcCards = $hotBuyers->map(fn($p) => $this->edDiscCard($p))->values();
+
+        $userGroups = [
+            'hb_all' => $hbCards, 'hb_ent' => $hbCards->filter(fn($c) => $c['tier'] === 'Enterprise')->values(),
+            'ar_all' => $arCards, 'ar_top50' => $arCards->sortByDesc('scoreValue')->take(5)->values(), 'ar_disc' => $arCards,
+            'loyal_all' => $loCards, 'loyal_amb' => $loCards->filter(fn($c) => in_array('Ambassador ready', $c['tags']))->values(),
+            'loyboost_all' => $loCards, 'loyboost_top' => $loCards->filter(fn($c) => in_array('Ambassador ready', $c['tags']))->values(),
+            'reactiv_all' => $rvCards, 'reactiv_sup' => $rvCards, 'reactval_all' => $rvCards,
+            'pricing_all' => $prCards, 'pricing_trial' => $prCards, 'demo_all' => $prCards, 'demo_review' => $prCards,
+            'rage_live' => $raCards, 'rage_chat' => $raCards, 'rage_bug' => $raCards,
+            'cart_all' => $caCards, 'cart_high' => $caCards->filter(fn($c) => in_array('High value', $c['tags']))->values(),
+            'cart_ent' => $caCards->filter(fn($c) => $c['tier'] === 'Enterprise')->values(),
+            'nologin_all' => $arCards, 'nologin_ent' => $arCards->filter(fn($c) => $c['tier'] === 'Enterprise')->values(),
+            'payment_upsell' => $paCards, 'payment_loyalty' => $paCards,
+            'disc_run' => $dcCards, 'disc_ab' => $dcCards,
+            'nochurn_all' => $arCards, 'nochurn_wait' => $arCards,
+        ];
+
+        return compact('scenarios', 'userGroups');
+    }
+
+    // ── EdTech Card Builders ─────────────────────────────────────────────────
+    private function edHotBuyerCard(array $p): array
+    {
+        $plan = $this->plan($p['segment'] ?? 'new');
+        [$tc, $tb] = $this->tierStyle($p['segment'] ?? 'new');
+        $sens = ($p['trust_score'] ?? 0) >= 65 ? 'Price-insensitive' : 'Price-sensitive';
+        $offer = $sens === 'Price-insensitive' ? "{$plan} — feature highlight, no discount" : "10% off {$plan} plan";
+        $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
+        $tags = [];
+        if ($sens === 'Price-insensitive') $tags[] = 'Full price (no discount)'; else $tags[] = '10% discount offer';
+        if (($p['segment'] ?? '') === 'champion') $tags[] = 'Enterprise';
+        if (($p['intent_score'] ?? 0) >= 88) $tags[] = 'Highest intent';
+        return [
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
+            'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
+            'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
+            'amountLabel' => "Intent " . ($p['intent_score'] ?? 0), 'tags' => $tags,
+            'fields' => [
+                ['Intent score', ($p['intent_score'] ?? 0) . '/100'], ['Buying readiness', ($p['readiness_score'] ?? 0) . '/100'],
+                ['Plan evaluating', $plan], ['Price sensitivity', $sens], ['Offer assigned', $offer],
+                ['Loyalty score', ($p['loyalty_score'] ?? 0) . '/100'], ['Churn risk', ($p['churn_score'] ?? 0) . '%'],
+                ['Engagement', ($p['engagement_score'] ?? 0) . '/100'], ['Last active', $last],
+            ],
+            'timeline' => [
+                ['e' => "Quiz avg " . ($p['avg_quiz_score'] ?? 0) . " — strong performance", 't' => '3 days ago', 'c' => '#0EA5E9'],
+                ['e' => "Completed " . ($p['completed_courses'] ?? 0) . " courses", 't' => '1 day ago', 'c' => '#10B981'],
+                ['e' => "Intent " . ($p['intent_score'] ?? 0) . " + Readiness " . ($p['readiness_score'] ?? 0) . " → Hot Learner", 't' => $last, 'c' => '#F59E0B'],
+                ['e' => "Upsell offer prepared — awaiting dispatch", 't' => 'now', 'c' => '#FF6B35'],
+            ],
+            'actions' => [
+                ['l' => 'Send offer now', 'c' => '#10B981', 'bc' => '#10B98144'],
+                ['l' => 'Preview offer', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
+            ],
+        ];
+    }
+
+    private function edAtRiskCard(array $p): array
+    {
+        $plan = $this->plan($p['segment'] ?? 'new');
+        [$tc, $tb] = $this->tierStyle($p['segment'] ?? 'new');
+        $revRisk = number_format(max(100, ($p['overall_score'] ?? 0) * 620));
+        $days = !empty($p['last_login']) ? (int) \Carbon\Carbon::parse($p['last_login'])->diffInDays() : 18;
+        $rf = ($p['frustration_score'] ?? 0) > 55 ? "Frustration score: {$p['frustration_score']}" : "Login recency: {$days} days";
+        $intervention = ($p['segment'] ?? '') === 'champion' ? 'Tier 1 — CSM outreach' : (($p['churn_score'] ?? 0) >= 75 ? 'Tier 2 — 3-touch sequence' : 'Tier 3 — email only');
+        $tags = []; if (($p['churn_score'] ?? 0) >= 75) $tags[] = 'Imminent churn'; if (($p['segment'] ?? '') === 'champion') $tags[] = 'Enterprise';
+        $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
+        return [
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
+            'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
+            'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
+            'amountLabel' => '$' . $revRisk . ' at risk', 'tags' => $tags,
+            'fields' => [
+                ['Churn probability', ($p['churn_score'] ?? 0) . '%'], ['Revenue at risk', '$' . $revRisk],
+                ['Top risk factor', $rf], ['Days since login', $days . 'd'],
+                ['Frustration score', ($p['frustration_score'] ?? 0) . '/100'], ['Engagement score', ($p['engagement_score'] ?? 0) . '/100'],
+                ['LTV', '$' . number_format(($p['overall_score'] ?? 0) * 980)], ['Intervention tier', $intervention], ['Last active', $last],
+            ],
+            'timeline' => [
+                ['e' => 'Login frequency dropped — early churn signal', 't' => '5 days ago', 'c' => '#F59E0B'],
+                ['e' => "Risk factor: \"{$rf}\" — churn model re-evaluated", 't' => '2 days ago', 'c' => '#F43F5E'],
+                ['e' => "Churn probability hit " . ($p['churn_score'] ?? 0) . "% — At Risk state triggered", 't' => 'Today', 'c' => '#F43F5E'],
+                ['e' => "{$intervention} — intervention queued", 't' => 'now', 'c' => '#0EA5E9'],
+            ],
+            'actions' => [
+                ['l' => 'Send win-back', 'c' => '#F43F5E', 'bc' => '#F43F5E44'],
+                ['l' => 'Escalate to CSM', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
+            ],
+        ];
+    }
+
+    private function edLoyalCard(array $p): array
+    {
+        $plan = $this->plan($p['segment'] ?? 'new');
+        [$tc, $tb] = $this->tierStyle($p['segment'] ?? 'new');
+        $isAmb = ($p['loyalty_score'] ?? 0) > 88; $gap = max(0, (100 - ($p['loyalty_score'] ?? 0)) * 12);
+        $refs = max(1, (int) round(($p['loyalty_score'] ?? 0) / 15));
+        $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
+        $tags = []; if ($isAmb) $tags[] = 'Ambassador ready'; if ($refs >= 6) $tags[] = 'Super referrer'; if ($gap < 200) $tags[] = 'Near tier upgrade';
+        return [
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
+            'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
+            'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
+            'amountLabel' => "Loyalty " . ($p['loyalty_score'] ?? 0), 'tags' => $tags,
+            'fields' => [
+                ['Loyalty score', ($p['loyalty_score'] ?? 0) . '/100'], ['Referrals sent', $refs . ''],
+                ['Converted', max(1, (int) round($refs * 0.65)) . ''], ['Engagement', ($p['engagement_score'] ?? 0) . '/100'],
+                ['Churn risk', ($p['churn_score'] ?? 0) . '%'], ['Next tier gap', $gap . ' pts'],
+                ['LTV', '$' . number_format(($p['overall_score'] ?? 0) * 980)], ['Last active', $last], ['Industry', 'EdTech'],
+            ],
+            'timeline' => [
+                ['e' => 'Loyalty milestone reached — consecutive active weeks', 't' => '2 days ago', 'c' => '#10B981'],
+                ['e' => "Loyalty score " . ($p['loyalty_score'] ?? 0) . " — Loyal Advocate confirmed", 't' => '1 day ago', 'c' => '#F59E0B'],
+                ['e' => "{$refs} referrals sent · " . max(1, (int)round($refs * .65)) . ' converted this month', 't' => 'this month', 'c' => '#10B981'],
+                ['e' => $isAmb ? 'Ambassador invitation ready' : "{$gap} pts from next tier — tier nudge ready", 't' => 'now', 'c' => '#0EA5E9'],
+            ],
+            'actions' => [
+                ['l' => 'Send referral amplification', 'c' => '#10B981', 'bc' => '#10B98144'],
+                ['l' => $isAmb ? 'Send ambassador invite' : 'Send tier nudge', 'c' => '#F59E0B', 'bc' => '#F59E0B44'],
+            ],
+        ];
+    }
+
+    private function edReactivCard(array $p): array
+    {
+        $plan = $this->plan($p['segment'] ?? 'new');
+        [$tc, $tb] = $this->tierStyle($p['segment'] ?? 'new');
+        $daysGone = !empty($p['last_login']) ? (int) \Carbon\Carbon::parse($p['last_login'])->diffInDays() : 55;
+        $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
+        $reason = ($p['frustration_score'] ?? 0) > 40 ? 'Support failure' : 'Feature gap';
+        $msg = $reason === 'Support failure' ? 'Personal apology from Head of CS + dedicated contact' : 'We shipped the feature you asked for — free 30-day trial';
+        $tags = []; if (($p['reactivation_potential'] ?? 0) >= 80) $tags[] = 'High potential'; if (($p['engagement_score'] ?? 0) < 20) $tags[] = 'Deeply dormant';
+        return [
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
+            'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
+            'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
+            'amountLabel' => "Score " . ($p['reactivation_potential'] ?? 0), 'tags' => $tags,
+            'fields' => [
+                ['Reactivation score', ($p['reactivation_potential'] ?? 0) . '/100'], ['Churn reason', $reason],
+                ['Days since churn', $daysGone . 'd'], ['Previous LTV', '$' . number_format(($p['overall_score'] ?? 0) * 720)],
+                ['Email resp.', ($p['reactivation_potential'] ?? 0) > 78 ? 'High' : 'Medium'],
+                ['Win-back message', substr($msg, 0, 40) . '…'], ['Last plan', $plan], ['Industry', 'EdTech'], ['Last active', $last],
+            ],
+            'timeline' => [
+                ['e' => "Churned — primary reason: {$reason}", 't' => $daysGone . 'd ago', 'c' => '#F43F5E'],
+                ['e' => "Reactivation score reached " . ($p['reactivation_potential'] ?? 0) . " — qualified for win-back", 't' => 'Today', 'c' => '#10B981'],
+            ['e' => 'Segment assigned: "' . $reason . '"', 't' => '< 1hr ago', 'c' => '#0EA5E9'],
+            ['e' => 'Message ready: "' . substr($msg, 0, 48) . '"…"', 't' => 'now', 'c' => '#F59E0B'],
+            ],
+            'actions' => [
+                ['l' => 'Send win-back message', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
+                ['l' => $reason === 'Support failure' ? 'Route to CS team' : 'Preview message', 'c' => '#10B981', 'bc' => '#10B98144'],
+            ],
+        ];
+    }
+
+    private function edPricingCard(array $p): array
+    {
+        $plan = $this->plan($p['segment'] ?? 'new');
+        [$tc, $tb] = $this->tierStyle($p['segment'] ?? 'new');
+        $sens = ($p['trust_score'] ?? 0) >= 65 ? 'Price-insensitive' : 'Price-sensitive';
+        $offer = $sens === 'Price-insensitive' ? 'Feature highlight, no discount' : 'Upgrade + 10% off';
+        $visits = max(2, (int) round(($p['intent_score'] ?? 0) / 20));
+        $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
+        $tags = []; if ($sens === 'Price-insensitive') $tags[] = 'Price insensitive'; else $tags[] = 'Price sensitive'; if (($p['intent_score'] ?? 0) > 85) $tags[] = 'Highest intent';
+        return [
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
+            'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
+            'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
+            'amountLabel' => "Intent " . ($p['intent_score'] ?? 0), 'priceSensitivity' => $sens, 'offer' => $offer, 'tags' => $tags,
+            'fields' => [
+                ['Intent score', ($p['intent_score'] ?? 0) . '/100'], ['Pricing visits', $visits . ' this week'],
+                ['Plan evaluating', $plan], ['Price sensitivity', $sens], ['Offer assigned', $offer],
+                ['Engagement', ($p['engagement_score'] ?? 0) . '/100'], ['Buying readiness', ($p['buying_readiness'] ?? 0) . '/100'],
+                ['Last session', $last], ['Industry', 'EdTech'],
+            ],
+            'timeline' => [
+                ['e' => "1st pricing visit — {$plan} tier — " . max(3, (int)(($p['intent_score'] ?? 0) / 10)) . 'min dwell', 't' => '3 days ago', 'c' => '#3A4A60'],
+                ['e' => '2nd pricing visit — plan comparison detected', 't' => '1 day ago', 'c' => '#0EA5E9'],
+                ['e' => "3rd pricing visit — intent score hit " . ($p['intent_score'] ?? 0), 't' => $last, 'c' => '#10B981'],
+                ['e' => "Hot Buyer state triggered — \"{$offer}\" queued", 't' => '< 10 min ago', 'c' => '#F59E0B'],
+            ],
+            'actions' => [
+                ['l' => 'Send upgrade outreach', 'c' => '#00FFB2', 'bc' => '#00FFB244'],
+                ['l' => 'Create CRM task (B2B)', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
+            ],
+        ];
+    }
+
+    private function edRageCard(array $p): array
+    {
+        $plan = $this->plan($p['segment'] ?? 'new');
+        [$tc, $tb] = $this->tierStyle($p['segment'] ?? 'new');
+        $clicks = max(6, (int) round(($p['frustration_score'] ?? 0) / 9));
+        $cv = max(79, ($p['buying_readiness'] ?? 0) * 9);
+        $tags = []; if ($cv > 400) $tags[] = 'High value cart'; if (($p['segment'] ?? '') === 'champion') $tags[] = 'Enterprise'; $tags[] = 'Live session';
+        return [
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
+            'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
+            'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
+            'amountLabel' => "{$clicks} clicks", 'tags' => $tags,
+            'fields' => [
+                ['Rage clicks', $clicks . ' on same element'], ['Element', 'Submit Payment button'],
+                ['Error', 'Validation error not shown'], ['Cart value', '$' . number_format($cv)],
+                ['Intent score', ($p['intent_score'] ?? 0) . '/100'], ['Frustration', ($p['frustration_score'] ?? 0) . '/100'],
+                ['Session time', max(4, (int)(($p['engagement_score'] ?? 0) / 5)) . 'm'], ['Page', '/checkout'], ['Industry', 'EdTech'],
+            ],
+            'timeline' => [
+                ['e' => 'Session started on /checkout from ' . (($p['intent_score'] ?? 0) > 80 ? 'email link' : 'direct'), 't' => max(8, $clicks * 2) . 'min ago', 'c' => '#0EA5E9'],
+                ['e' => 'Validation error on Submit Payment button', 't' => '5min ago', 'c' => '#F43F5E'],
+                ['e' => "{$clicks} rage clicks — Frustrated Buyer state triggered", 't' => '2min ago', 'c' => '#F43F5E'],
+                ['e' => 'Real-time help widget queued — awaiting trigger', 't' => '< 30s', 'c' => '#F59E0B'],
+            ],
+            'actions' => [
+                ['l' => 'Trigger help widget now', 'c' => '#F43F5E', 'bc' => '#F43F5E44'],
+                ['l' => 'Connect to support agent', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
+            ],
+        ];
+    }
+
+    private function edCartCard(array $p): array
+    {
+        $plan = $this->plan($p['segment'] ?? 'new');
+        [$tc, $tb] = $this->tierStyle($p['segment'] ?? 'new');
+        $cv = max(55, ($p['buying_readiness'] ?? 0) * 8);
+        $mins = max(31, ($p['churn_score'] ?? 0) * 3);
+        $sens = ($p['trust_score'] ?? 0) >= 65 ? 'Price-insensitive' : 'Price-sensitive';
+        $offer = $sens === 'Price-sensitive' ? '10% off — complete now' : 'Your cart is waiting';
+        $tags = []; if ($cv > 300) $tags[] = 'High value'; if ($sens === 'Price-sensitive') $tags[] = 'Price sensitive'; if (($p['segment'] ?? '') === 'champion') $tags[] = 'Enterprise';
+        return [
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
+            'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
+            'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
+            'amountLabel' => '$' . number_format($cv), 'priceSensitivity' => $sens, 'offer' => $offer, 'tags' => $tags,
+            'fields' => [
+                ['Cart value', '$' . number_format($cv)], ['Recovery offer', $offer], ['Abandoned', $mins . 'min ago'],
+                ['Price sensitivity', $sens], ['Intent score', ($p['intent_score'] ?? 0) . '/100'], ['Channel', 'Email'],
+                ['Session time', max(2, (int)(($p['engagement_score'] ?? 0) / 10)) . 'm'],
+                ['Pages viewed', max(3, (int)(($p['engagement_score'] ?? 0) / 8)) . ''], ['Industry', 'EdTech'],
+            ],
+            'timeline' => [
+                ['e' => 'Added item ($' . number_format($cv) . ') to cart', 't' => ($mins + 15) . 'min ago', 'c' => '#10B981'],
+                ['e' => 'Reached /checkout — entered shipping address', 't' => ($mins + 8) . 'min ago', 'c' => '#0EA5E9'],
+                ['e' => 'Exited checkout — cart remains active', 't' => $mins . 'min ago', 'c' => '#F43F5E'],
+                ['e' => "Recovery \"{$offer}\" queued", 't' => 'now', 'c' => '#F59E0B'],
+            ],
+            'actions' => [
+                ['l' => 'Send recovery message now', 'c' => '#00FFB2', 'bc' => '#00FFB244'],
+                ['l' => $sens === 'Price-sensitive' ? 'Apply 10% discount' : 'Send reminder', 'c' => '#F59E0B', 'bc' => '#F59E0B44'],
+            ],
+        ];
+    }
+
+    private function edPaymentCard(array $p): array
+    {
+        $plan = $this->plan($p['segment'] ?? 'new');
+        [$tc, $tb] = $this->tierStyle($p['segment'] ?? 'new');
+        $amount = max(150, ($p['trust_score'] ?? 0) * 18);
+        $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
+        $tags = []; if (($p['trust_score'] ?? 0) >= 65) $tags[] = 'Price insensitive'; if (($p['segment'] ?? '') === 'champion') $tags[] = 'Enterprise';
+        return [
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
+            'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
+            'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
+            'amountLabel' => '$' . number_format($amount), 'tags' => $tags,
+            'fields' => [
+                ['Purchase amount', '$' . number_format($amount)], ['Upsell window', '48 hours'], ['Plan', $plan],
+                ['Trust score', ($p['trust_score'] ?? 0) . '/100'], ['Intent score', ($p['intent_score'] ?? 0) . '/100'],
+                ['Upsell predicted', 'Yes (34% CVR)'], ['Industry', 'EdTech'],
+                ['Loyalty score', ($p['loyalty_score'] ?? 0) . '/100'], ['Last active', $last],
+            ],
+            'timeline' => [
+                ['e' => 'Payment $' . number_format($amount) . ' completed — ' . $plan . ' plan', 't' => $last, 'c' => '#10B981'],
+                ['e' => '48-hour upsell window opened (3.2× conversion rate)', 't' => $last, 'c' => '#0EA5E9'],
+                ['e' => 'Personalised cross-sell prepared from purchase history', 't' => 'now', 'c' => '#F59E0B'],
+                ['e' => 'Ad retargeting suppressed — customer already converted', 't' => 'now', 'c' => '#10B981'],
+            ],
+            'actions' => [
+                ['l' => 'Send post-purchase offer', 'c' => '#00FFB2', 'bc' => '#00FFB244'],
+                ['l' => 'Award loyalty points', 'c' => '#F59E0B', 'bc' => '#F59E0B44'],
+            ],
+        ];
+    }
+
+    private function edDiscCard(array $p): array
+    {
+        $plan = $this->plan($p['segment'] ?? 'new');
+        [$tc, $tb] = $this->tierStyle($p['segment'] ?? 'new');
+        $sens = ($p['trust_score'] ?? 0) >= 65 ? 'Price-insensitive' : 'Price-sensitive';
+        $offer = $sens === 'Price-insensitive' ? "{$plan} — feature email, no discount" : "{$plan} — 10% time-limited offer";
+        $cvr = $sens === 'Price-insensitive' ? '34% (full price)' : (round(18 + ($p['buying_readiness'] ?? 0) / 5) . '%');
+        $tags = []; if ($sens === 'Price-insensitive') $tags[] = 'Margin protected'; if (($p['intent_score'] ?? 0) >= 88) $tags[] = 'Highest intent';
+        $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
+        return [
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
+            'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
+            'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
+            'amountLabel' => "Intent " . ($p['intent_score'] ?? 0), 'priceSensitivity' => $sens, 'offer' => $offer, 'tags' => $tags,
+            'fields' => [
+                ['Intent score', ($p['intent_score'] ?? 0) . '/100'], ['Sensitivity', $sens], ['Plan evaluating', $plan],
+                ['Offer assigned', $offer], ['Expected CVR', $cvr], ['Buying readiness', ($p['buying_readiness'] ?? 0) . '/100'],
+                ['Hot Buyer since', $last], ['LTV', '$' . number_format(($p['overall_score'] ?? 0) * 880)], ['Industry', 'EdTech'],
+            ],
+            'timeline' => [
+                ['e' => "Pricing page — {$plan} tier — " . max(3, (int)(($p['intent_score'] ?? 0) / 10)) . 'min dwell', 't' => '3hr ago', 'c' => '#0EA5E9'],
+                ['e' => "Intent " . ($p['intent_score'] ?? 0) . " — Hot Buyer state triggered", 't' => '1hr ago', 'c' => '#F59E0B'],
+                ['e' => "Price sensitivity: {$sens} — offer assigned", 't' => '< 30min ago', 'c' => '#10B981'],
+            ['e' => '"' . $offer . '" — dispatch queued', 't' => 'now', 'c' => '#FF6B35'],
+            ],
+            'actions' => [
+                ['l' => 'Dispatch offer', 'c' => '#10B981', 'bc' => '#10B98144'],
+                ['l' => 'Edit offer', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
+            ],
+        ];
+    }
+
+    private function edSegmentColor(string $segment): string
+    {
+        return match($segment) {
+            'champion' => '#FFD700', 'loyal' => '#A855F7', 'at_risk' => '#F43F5E',
+            'new' => '#0EA5E9', 'dormant' => '#10B981', default => '#0EA5E9',
+        };
     }
 }
