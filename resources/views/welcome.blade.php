@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>X Platforms &ndash; The Intelligence Layer</title>
+<link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -414,7 +415,8 @@ canvas#gmap{width:100%;height:100%}
 
 <!-- NAV -->
 <nav class="nav"><div class="nav-bg"></div><div class="nav-in">
-  <a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a>
+  <!-- <a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a> -->
+  <a href="{{ url('/') }}" class="logo"><img src="{{ asset('images/xplatforms_logo.jpeg') }}" alt="X Platforms" style="height:32px;width:auto;display:block"></a>
   <ul class="nav-l">
     <li><a href="{{ url('/') }}">Home</a></li>
     <li><a href="{{ route('industries') }}">Industries</a></li>
@@ -744,7 +746,7 @@ canvas#gmap{width:100%;height:100%}
 
 <!-- FOOTER -->
 <footer class="foot"><div class="foot-in">
-  <div><a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
+  <div><a href="{{ url('/') }}" class="logo"><img src="{{ asset('images/xplatforms_logo.jpeg') }}" alt="X Platforms" style="height:32px;width:auto;display:block"></a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
   <div class="foot-c"><h5>Product</h5><a href="{{ route('platform.architecture') }}">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
   <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="{{ route('careers') }}">Careers</a><a href="{{ route('blog') }}">Blog</a><a href="{{ route('contact') }}">Contact</a></div>
   <div class="foot-c"><h5>Resources</h5><a href="#">Documentation</a><a href="{{ route('case-studies') }}">Case Studies</a><a href="#">API Reference</a><a href="{{ route('security') }}">Security</a></div>
