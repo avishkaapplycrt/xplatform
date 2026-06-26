@@ -40,6 +40,19 @@ Route::get('contact',        fn() => view('contact'))->name('contact');
 Route::get('blog',           fn() => view('blog'))->name('blog');
 Route::get('platform/architecture', fn() => view('platform-architecture'))->name('platform.architecture');
 
+Route::get('/test-mail-config', function () {
+    return response()->json([
+        'mailer' => config('mail.default'),
+        'host' => config('mail.mailers.smtp.host'),
+        'port' => config('mail.mailers.smtp.port'),
+        'username' => config('mail.mailers.smtp.username'),
+        'password_set' => !empty(config('mail.mailers.smtp.password')),
+        'encryption' => config('mail.mailers.smtp.encryption'),
+        'from_address' => config('mail.from.address'),
+        'admin_email' => config('mail.admin_email'),
+    ]);
+});
+
 
 // ─── Master Admin ─────────────────────────────────────────────────────────────
 Route::prefix('admin')->name('admin.')->group(function () {
