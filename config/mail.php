@@ -67,6 +67,6 @@ return [
         'name' => env('MAIL_FROM_NAME', 'X Platforms'),
     ],
 
-    'admin_email' => env('ADMIN_EMAIL', 'cnsharma@applykart.co'),
+    'admin_email' => env('ADMIN_EMAIL', 'bharati@applykart.co'),
 
 ];
