@@ -46,7 +46,6 @@ class BookDemoController extends Controller
             'timezone'                 => 'nullable|string|max:100',
         ]);
 
-        // Parse the human-readable date string ("15 May 2026") into Y-m-d for DB
         $displayDate = $data['demo_date'] ?? null;
         if (!empty($data['demo_date'])) {
             try {
@@ -57,10 +56,8 @@ class BookDemoController extends Controller
         }
 
         try {
-            // Save the demo booking
             BookDemo::create($data);
 
-            // Create or retrieve a client account from the form details
             $client = Client::firstOrCreate(
                 ['email' => $data['email']],
                 [
@@ -72,28 +69,20 @@ class BookDemoController extends Controller
                 ]
             );
 
-            // Log the client in
             Auth::guard('client')->login($client);
             $request->session()->regenerate();
 
-            // ───────────────────────────────────────────────
-            // SEND ADMIN EMAIL NOTIFICATION
-            // ───────────────────────────────────────────────
+            // Send admin email notification
             try {
-                // Use display date for email (human readable)
                 $emailData = array_merge($data, ['demo_date' => $displayDate]);
-                
-                // Admin email — change this to your actual admin email
-                $adminEmail = config('mail.admin_email', 'cnsharma@applykart.co');
-                
+                $adminEmail = config('mail.admin_email', 'contact@mockmaster.ai');
+
                 Mail::to($adminEmail)->send(new DemoBookedNotification($emailData));
-                
-                Log::info('Demo booking admin email sent to: ' . $adminEmail);
+
+                Log::info('Demo booking admin email sent successfully to: ' . $adminEmail);
             } catch (\Exception $emailException) {
-                // Log email error but don't break the flow
                 Log::error('Failed to send demo booking admin email: ' . $emailException->getMessage());
             }
-            // ───────────────────────────────────────────────
 
             $demoDate = null;
             if (!empty($data['demo_date']) && !empty($data['demo_time'])) {
