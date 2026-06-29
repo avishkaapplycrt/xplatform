@@ -1083,6 +1083,12 @@ class DecisionCentreController extends Controller
             'disc_ab'       => $dcCards,
             'nochurn_all'   => $arCards,
             'nochurn_wait'  => $arCards,
+            // ── AIML Dashboard filtered groups ──────────────────────────────────────
+            'disc10_not_purchased' => $hbCards->filter(fn($c) => $c['tier'] === 'Growth' || $c['tier'] === 'Starter')->values(),
+            'nochurn_at_risk'      => $arCards,
+            'reactval_ready'       => $rvCards,
+            'loyboost_loyal'       => $loCards,
+            'speaking_low'         => collect(), // placeholder for low speaking scores
         ];
 
         $scenarios = $this->buildScenarios($stats);
@@ -1617,7 +1623,12 @@ class DecisionCentreController extends Controller
             }
         }
 
-        $data = $this->prepareData();
+        // Use EdTech data for scenarios if connected, else fallback to demo
+        if ($dataSourceConnected && !empty($edProfiles)) {
+            $data = $this->prepareEdTechData($edProfiles);
+        } else {
+            $data = $this->prepareData();
+        }
 
         return view('client.aiml-dashboard', [
             'scenarios'           => $data['scenarios'],
@@ -2689,15 +2700,53 @@ class DecisionCentreController extends Controller
         $all = collect($profiles);
 
         // L4 Cohorts from EdTech data
-        $hotBuyers  = $all->filter(fn($p) => ($p['buying_readiness'] ?? 0) >= 70 && ($p['intent_score'] ?? 0) >= 80);
-        $atRisk     = $all->filter(fn($p) => ($p['churn_score'] ?? 0) >= 65);
-        $loyals     = $all->filter(fn($p) => ($p['loyalty_score'] ?? 0) >= 72);
+        // Hot Buyers: Students who have NOT purchased (total_spent <= 0 means no payment record)
+        // Condition: user exists in studentuser table AND studentid is NOT present in payments.buyerid
+        // We use total_spent as a proxy for whether the student has purchased
+        $hotBuyers  = $all->filter(fn($p) =>
+            ($p['total_spent'] ?? 0) <= 0 &&
+            ($p['intent_score'] ?? 0) >= 40
+        );
+
+        // At Risk: Students who HAVE purchased (total_spent > 0) but show churn signals
+        // $atRisk     = $all->filter(fn($p) =>
+        //     ($p['total_spent'] ?? 0) > 0 &&
+        //     ($p['churn_score'] ?? 0) >= 65
+        // );
+        $atRisk = $all->filter(fn($p) => ($p['churn_score'] ?? 0) >= 65);
+
+        // Loyals: Students who HAVE purchased and have high loyalty
+        // $loyals     = $all->filter(fn($p) =>
+        //     ($p['total_spent'] ?? 0) > 0 &&
+        //     ($p['loyalty_score'] ?? 0) >= 72
+        // );
+        $loyals = $all->filter(fn($p) => ($p['loyalty_score'] ?? 0) >= 72);
+
+        // Reactivation: Students who HAVE purchased but are dormant
+        // $reactivate = $all->filter(fn($p) =>
+        //     ($p['total_spent'] ?? 0) > 0 &&
+        //     ($p['reactivation_potential'] ?? 0) >= 70 &&
+        //     ($p['engagement_score'] ?? 0) < 30
+        // );
         $reactivate = $all->filter(fn($p) => ($p['reactivation_potential'] ?? 0) >= 70 && ($p['engagement_score'] ?? 0) < 30);
 
         // L1 Cohorts (derived from EdTech behavior patterns)
-        $pricingUsers = $all->filter(fn($p) => ($p['intent_score'] ?? 0) >= 60 && ($p['buying_readiness'] ?? 0) >= 40);
+        // Pricing users: Non-purchased students with browsing behavior
+        $pricingUsers = $all->filter(fn($p) =>
+            ($p['total_spent'] ?? 0) <= 0 &&
+            ($p['intent_score'] ?? 0) >= 60 &&
+            ($p['buying_readiness'] ?? 0) >= 40
+        );
         $rageUsers    = $all->filter(fn($p) => ($p['frustration_score'] ?? 0) >= 50);
-        $cartUsers    = $all->filter(fn($p) => ($p['buying_readiness'] ?? 0) >= 30 && ($p['intent_score'] ?? 0) >= 40);
+
+        // Cart users: Non-purchased students with cart behavior
+        $cartUsers    = $all->filter(fn($p) =>
+            ($p['total_spent'] ?? 0) <= 0 &&
+            ($p['buying_readiness'] ?? 0) >= 30 &&
+            ($p['intent_score'] ?? 0) >= 40
+        );
+
+        // Payment users: Students who HAVE purchased
         $paymentUsers = $all->filter(fn($p) => ($p['total_spent'] ?? 0) > 0);
 
         // Stats
@@ -2815,6 +2864,12 @@ class DecisionCentreController extends Controller
             'payment_upsell' => $paCards, 'payment_loyalty' => $paCards,
             'disc_run' => $dcCards, 'disc_ab' => $dcCards,
             'nochurn_all' => $arCards, 'nochurn_wait' => $arCards,
+            // ── AIML Dashboard filtered groups ──────────────────────────────────────
+            'disc10_not_purchased' => $hbCards->filter(fn($c) => in_array('Paid learner', $c['tags']) === false)->values(),
+            'nochurn_at_risk'      => $arCards,
+            'reactval_ready'       => $rvCards,
+            'loyboost_loyal'       => $loCards,
+            'speaking_low'         => collect(), // placeholder — requires speaking_score from EdTech DB
         ];
 
         return compact('scenarios', 'userGroups');

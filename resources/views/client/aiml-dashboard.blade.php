@@ -7,15 +7,15 @@
   .aiml-root {
     display: flex;
     flex-direction: column;
-    height: 100vh; /* Full viewport height */
-    overflow: hidden; /* Prevent body scroll */
+    height: 100vh;
+    overflow: hidden;
     background: #f9fafb;
   }
 
   .aiml-main {
     flex: 1;
-    min-height: 0; /* CRITICAL: allows flex child to shrink and scroll */
-    overflow-y: auto; /* Enable scrolling */
+    min-height: 0;
+    overflow-y: auto;
     padding: 24px;
   }
 
@@ -26,7 +26,7 @@
 
   /* ── Top bar / header ── */
   .aiml-topbar {
-    flex-shrink: 0; /* Prevent header from shrinking */
+    flex-shrink: 0;
     background: #fff;
     border-bottom: 1px solid #e5e7eb;
     padding: 16px 24px;
@@ -439,6 +439,13 @@
   $cn = auth('client')->user()?->company_name ?? 'Test Company';
   $profileCount = ($profiles ?? collect())->count();
 
+  // ── NEW: Filtered user counts for each scenario ─────────────────────────────
+  $disc10Users     = ($userGroups['disc10_not_purchased'] ?? collect())->count();
+  $nochurnUsers    = ($userGroups['nochurn_at_risk'] ?? collect())->count();
+  $reactvalUsers   = ($userGroups['reactval_ready'] ?? collect())->count();
+  $loyboostUsers   = ($userGroups['loyboost_loyal'] ?? collect())->count();
+  $speakingUsers   = ($userGroups['speaking_low'] ?? collect())->count();
+
   $models = [
     ['name'=>'Churn Prediction', 'type'=>'CLASSIFICATION', 'tc'=>'#10b981', 'accuracy'=>94.2, 'status'=>'live'],
     ['name'=>'Purchase Propensity', 'type'=>'CLASSIFICATION', 'tc'=>'#10b981', 'accuracy'=>91.8, 'status'=>'live'],
@@ -454,10 +461,11 @@
   ];
 
   $scenarios = [
-    ['id'=>'disc10', 'ico'=>'💰', 'color'=>'#FF6B35', 'title'=>'10% Discount → Hot Buyers', 'desc'=>'Smart segmentation saves margin vs blanket discount. Full-price users convert without discount, price-sensitive get 10% off.', 'users'=>($userGroups['disc_run'] ?? collect())->count(), 'revenue'=>'$' . number_format(($userGroups['disc_run'] ?? collect())->count() * 294)],
-    ['id'=>'nochurn', 'ico'=>'🛡️', 'color'=>'#F43F5E', 'title'=>'Win-Back Now vs Wait', 'desc'=>'Acting now saves more ARR than waiting 72hrs. Churn model computes retention probability now vs after window.', 'users'=>($userGroups['nochurn_all'] ?? collect())->count(), 'revenue'=>'$' . number_format(($userGroups['nochurn_all'] ?? collect())->count() * 4200)],
-    ['id'=>'reactval', 'ico'=>'📈', 'color'=>'#0EA5E9', 'title'=>'Reactivation Value', 'desc'=>'Personalised win-back delivers 3.9× the ROI of generic campaigns. EV model: personalised vs generic CVR.', 'users'=>($userGroups['reactiv_all'] ?? collect())->count(), 'revenue'=>'$' . number_format(($userGroups['reactiv_all'] ?? collect())->count() * 4200)],
-    ['id'=>'loyboost', 'ico'=>'🏆', 'color'=>'#10B981', 'title'=>'Loyalty ROI', 'desc'=>'Loyal Advocates generate 3.2× LTV vs average. Amplifying referral programme adds monthly revenue with zero acquisition cost.', 'users'=>($userGroups['loyboost_all'] ?? collect())->count(), 'revenue'=>'$' . number_format(($userGroups['loyboost_all'] ?? collect())->count() * 1480)],
+    ['id'=>'disc10', 'ico'=>'💰', 'color'=>'#FF6B35', 'title'=>'10% Discount → Hot Buyers (Not Purchased)', 'desc'=>'Students who created an account but have not purchased any plan. Pitch them with a 10% discount to convert.', 'users'=>$disc10Users, 'revenue'=>'$' . number_format($disc10Users * 294)],
+    ['id'=>'nochurn', 'ico'=>'🛡️', 'color'=>'#F43F5E', 'title'=>'Win-Back Now vs Wait', 'desc'=>'Acting now saves more ARR than waiting 72hrs. Churn model computes retention probability now vs after window.', 'users'=>$nochurnUsers, 'revenue'=>'$' . number_format($nochurnUsers * 4200)],
+    ['id'=>'reactval', 'ico'=>'📈', 'color'=>'#0EA5E9', 'title'=>'Reactivation Value', 'desc'=>'Personalised win-back delivers 3.9× the ROI of generic campaigns. EV model: personalised vs generic CVR.', 'users'=>$reactvalUsers, 'revenue'=>'$' . number_format($reactvalUsers * 4200)],
+    ['id'=>'loyboost', 'ico'=>'🏆', 'color'=>'#10B981', 'title'=>'Loyalty ROI', 'desc'=>'Loyal Advocates generate 3.2× LTV vs average. Amplifying referral programme adds monthly revenue with zero acquisition cost.', 'users'=>$loyboostUsers, 'revenue'=>'$' . number_format($loyboostUsers * 1480)],
+    ['id'=>'speaking', 'ico'=>'🎤', 'color'=>'#A855F7', 'title'=>'Speaking Score Intervention', 'desc'=>'Students with low speaking scores who need 1-on-1 coaching sessions. Pitch personalised tutoring to improve scores.', 'users'=>$speakingUsers, 'revenue'=>'$' . number_format($speakingUsers * 150)],
   ];
 @endphp
 
