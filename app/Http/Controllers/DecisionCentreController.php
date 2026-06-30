@@ -2694,28 +2694,68 @@ class DecisionCentreController extends Controller
         ) + ['dataSourceConnected' => false]);
     }
 
-        // ── EdTech Data Preparation for Decision Centre ──────────────────────────
+    // ── EdTech Data Preparation for Decision Centre ──────────────────────────
     private function prepareEdTechData(array $profiles): array
     {
         $all = collect($profiles);
 
+        // Ensure edtech_temp connection exists
+        $client = auth('client')->user();
+        if ($client) {
+            $dataSource = $client->dataSources()->where('status', 'connected')->first();
+            if ($dataSource) {
+                $config = [
+                    'driver'    => $dataSource->db_type,
+                    'host'      => $dataSource->host,
+                    'port'      => $dataSource->port,
+                    'database'  => $dataSource->database_name,
+                    'username'  => $dataSource->username,
+                    'password'  => $dataSource->password ?? '',
+                    'charset'   => 'utf8mb4',
+                    'collation' => 'utf8mb4_unicode_ci',
+                    'prefix'    => '',
+                    'strict'    => true,
+                    'engine'    => null,
+                ];
+                config()->set('database.connections.edtech_temp', $config);
+            }
+        }
+
         // Fetch speaking scores from mock_test_results (lowest score per student)
         $speakingScores = [];
         try {
-            $speakingScores = \DB::connection('edtech')
+            $speakingScores = \DB::connection('edtech_temp')
                 ->table('mock_test_results')
                 ->select('studentId', \DB::raw('MIN(speaking_score) as lowest_speaking_score'))
                 ->whereNotNull('speaking_score')
                 ->groupBy('studentId')
                 ->pluck('lowest_speaking_score', 'studentId')
                 ->toArray();
+            
+            \Log::info('Speaking scores fetched: ' . count($speakingScores) . ' students');
         } catch (\Exception $e) {
             \Log::warning('Could not fetch speaking scores: ' . $e->getMessage());
         }
 
-        // Merge speaking scores into profiles
+        // Merge speaking scores into profiles - try multiple ID fields for matching
         $all = $all->map(function($p) use ($speakingScores) {
-            $p['speaking_score'] = $speakingScores[$p['id']] ?? null;
+            // Try multiple possible ID fields that might match studentId
+            $possibleIds = array_filter([
+                $p['id'] ?? null,
+                $p['studentId'] ?? null,
+                $p['student_id'] ?? null,
+                $p['user_id'] ?? null,
+                $p['studentID'] ?? null,
+            ]);
+            
+            $p['speaking_score'] = null;
+            foreach ($possibleIds as $possibleId) {
+                if (isset($speakingScores[$possibleId])) {
+                    $p['speaking_score'] = $speakingScores[$possibleId];
+                    break;
+                }
+            }
+            
             return $p;
         });
 
@@ -2744,10 +2784,15 @@ class DecisionCentreController extends Controller
         );
 
         // Speaking Score Intervention: Students with speaking_score < 30
-        $speakingLow = $all->filter(fn($p) =>
-            !is_null($p['speaking_score'] ?? null) &&
-            ($p['speaking_score'] ?? 100) < 30
-        );
+        $speakingLow = $all->filter(function($p) {
+            $score = $p['speaking_score'] ?? null;
+            return $score !== null && is_numeric($score) && (float)$score < 30;
+        });
+
+        // Debug log
+        $withScores = $all->filter(fn($p) => ($p['speaking_score'] ?? null) !== null)->count();
+        $lowScores = $speakingLow->count();
+        \Log::info("Speaking scores: {$withScores} students matched, {$lowScores} have score < 30");
 
         // L1 Cohorts (derived from EdTech behavior patterns)
         // Pricing users: Non-purchased students with browsing behavior

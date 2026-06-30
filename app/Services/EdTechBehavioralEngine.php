@@ -17,7 +17,7 @@ class EdTechBehavioralEngine
     private const TABLE_MAPPINGS = [
         'students'      => 'studentuser',
         'login_logs'    => 'login_history',
-        'quiz_attempts' => 'ct_mock_user_test_results',
+        'quiz_attempts' => 'mock_test_results',  // ← CORRECT
         'payments'      => 'payments',
     ];
 
@@ -35,10 +35,14 @@ class EdTechBehavioralEngine
             'user_id'   => 'user_id',
             'date'      => 'login_time',
         ],
-        'ct_mock_user_test_results' => [
-            'user_id'   => 'user_id',
-            'score'     => 'score_percentage',
-            'date'      => 'created_at',
+        'mock_test_results' => [
+            'user_id'   => 'studentId',
+            'score'     => 'overall_score',
+            'date'      => 'create_date',
+            'speaking_score' => 'speaking_score',
+            'reading_score' => 'reading_score',
+            'listening_score' => 'listening_score',
+            'writing_score' => 'writing_score',
         ],
         'payments' => [
             'user_id'   => 'buyerid',
@@ -254,8 +258,8 @@ class EdTechBehavioralEngine
                 $bestQuizScore = 0;
                 
                 if ($quizAttemptsTable) {
-                    $quizUserIdCol = self::COLUMN_OVERRIDES['ct_mock_user_test_results']['user_id']; // user_id
-                    $scoreCol = self::COLUMN_OVERRIDES['ct_mock_user_test_results']['score'];        // score_percentage
+                    $quizUserIdCol = self::COLUMN_OVERRIDES['mock_test_results']['user_id']; // studentId
+                    $scoreCol = self::COLUMN_OVERRIDES['mock_test_results']['score'];        // overall_score
                     
                     try {
                         $quizStats = $conn->table($quizAttemptsTable)
