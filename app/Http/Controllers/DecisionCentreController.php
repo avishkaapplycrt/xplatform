@@ -2694,41 +2694,60 @@ class DecisionCentreController extends Controller
         ) + ['dataSourceConnected' => false]);
     }
 
-     // ── EdTech Data Preparation for Decision Centre ──────────────────────────
+        // ── EdTech Data Preparation for Decision Centre ──────────────────────────
     private function prepareEdTechData(array $profiles): array
     {
         $all = collect($profiles);
 
+        // Fetch speaking scores from mock_test_results (lowest score per student)
+        $speakingScores = [];
+        try {
+            $speakingScores = \DB::connection('edtech')
+                ->table('mock_test_results')
+                ->select('studentId', \DB::raw('MIN(speaking_score) as lowest_speaking_score'))
+                ->whereNotNull('speaking_score')
+                ->groupBy('studentId')
+                ->pluck('lowest_speaking_score', 'studentId')
+                ->toArray();
+        } catch (\Exception $e) {
+            \Log::warning('Could not fetch speaking scores: ' . $e->getMessage());
+        }
+
+        // Merge speaking scores into profiles
+        $all = $all->map(function($p) use ($speakingScores) {
+            $p['speaking_score'] = $speakingScores[$p['id']] ?? null;
+            return $p;
+        });
+
         // L4 Cohorts from EdTech data
         // Hot Buyers: Students who have NOT purchased (total_spent <= 0 means no payment record)
-        // Condition: user exists in studentuser table AND studentid is NOT present in payments.buyerid
-        // We use total_spent as a proxy for whether the student has purchased
         $hotBuyers  = $all->filter(fn($p) =>
             ($p['total_spent'] ?? 0) <= 0 &&
             ($p['intent_score'] ?? 0) >= 40
         );
 
-        // At Risk: Students who HAVE purchased (total_spent > 0) but show churn signals
-        // $atRisk     = $all->filter(fn($p) =>
-        //     ($p['total_spent'] ?? 0) > 0 &&
-        //     ($p['churn_score'] ?? 0) >= 65
-        // );
-        $atRisk = $all->filter(fn($p) => ($p['churn_score'] ?? 0) >= 65);
+        // At Risk: Students with high churn score (any student, purchased or not)
+        $atRisk = $all->filter(fn($p) =>
+            ($p['churn_score'] ?? 0) >= 65
+        );
 
-        // Loyals: Students who HAVE purchased and have high loyalty
-        // $loyals     = $all->filter(fn($p) =>
-        //     ($p['total_spent'] ?? 0) > 0 &&
-        //     ($p['loyalty_score'] ?? 0) >= 72
-        // );
-        $loyals = $all->filter(fn($p) => ($p['loyalty_score'] ?? 0) >= 72);
+        // Loyals: Students with high loyalty score OR high overall score as fallback
+        $loyals = $all->filter(fn($p) =>
+            ($p['loyalty_score'] ?? 0) >= 40 ||
+            ($p['overall_score'] ?? 0) >= 60
+        );
 
-        // Reactivation: Students who HAVE purchased but are dormant
-        // $reactivate = $all->filter(fn($p) =>
-        //     ($p['total_spent'] ?? 0) > 0 &&
-        //     ($p['reactivation_potential'] ?? 0) >= 70 &&
-        //     ($p['engagement_score'] ?? 0) < 30
-        // );
-        $reactivate = $all->filter(fn($p) => ($p['reactivation_potential'] ?? 0) >= 70 && ($p['engagement_score'] ?? 0) < 30);
+        // Reactivation: Students with high reactivation potential and low engagement
+        $reactivate = $all->filter(fn($p) =>
+            ($p['reactivation_potential'] ?? 0) >= 70 &&
+            ($p['engagement_score'] ?? 0) < 30
+        );
+
+        // Speaking Score Intervention: Students with speaking_score < 30
+        $speakingLow = $all->filter(fn($p) =>
+            !is_null($p['speaking_score'] ?? null) &&
+            ($p['speaking_score'] ?? 100) < 30
+        );
 
         // L1 Cohorts (derived from EdTech behavior patterns)
         // Pricing users: Non-purchased students with browsing behavior
@@ -2849,6 +2868,7 @@ class DecisionCentreController extends Controller
         $caCards = $cartUsers->map(fn($p) => $this->edCartCard($p))->values();
         $paCards = $paymentUsers->map(fn($p) => $this->edPaymentCard($p))->values();
         $dcCards = $hotBuyers->map(fn($p) => $this->edDiscCard($p))->values();
+        $spCards = $speakingLow->map(fn($p) => $this->edSpeakingCard($p))->values();
 
         $userGroups = [
             'hb_all' => $hbCards, 'hb_ent' => $hbCards->filter(fn($c) => $c['tier'] === 'Enterprise')->values(),
@@ -2869,7 +2889,7 @@ class DecisionCentreController extends Controller
             'nochurn_at_risk'      => $arCards,
             'reactval_ready'       => $rvCards,
             'loyboost_loyal'       => $loCards,
-            'speaking_low'         => collect(), // placeholder — requires speaking_score from EdTech DB
+            'speaking_low'         => $spCards,
         ];
 
         return compact('scenarios', 'userGroups');
@@ -3175,6 +3195,46 @@ class DecisionCentreController extends Controller
             'actions' => [
                 ['l' => 'Dispatch offer', 'c' => '#10B981', 'bc' => '#10B98144'],
                 ['l' => 'Edit offer', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
+            ],
+        ];
+    }
+
+    private function edSpeakingCard(array $p): array
+    {
+        $plan = $this->plan($p['segment'] ?? 'new');
+        [$tc, $tb] = $this->tierStyle($p['segment'] ?? 'new');
+        $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
+        $speakingScore = $p['speaking_score'] ?? 0;
+        
+        return [
+            'id' => $p['id'],
+            'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'initials' => $this->getInitials($p['name'] ?? ''),
+            'company' => $this->getCompany($p['email'] ?? ''),
+            'industry' => 'EdTech',
+            'tier' => $plan,
+            'tierColor' => $tc,
+            'tierBg' => $tb,
+            'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
+            'amountLabel' => "Speaking {$speakingScore}",
+            'tags' => ['Low speaking score', 'Needs tutoring', '1-on-1 coaching'],
+            'fields' => [
+                ['Speaking score', "{$speakingScore}/90"],
+                ['Overall score', ($p['overall_score'] ?? 0) . '/90'],
+                ['Student ID', $p['id']],
+                ['Last active', $last],
+                ['Recommended action', 'Personalised tutoring session'],
+                ['Intervention type', 'Speaking coaching'],
+            ],
+            'timeline' => [
+                ['e' => "Speaking score {$speakingScore} detected — below threshold (30)", 't' => 'Recently', 'c' => '#F43F5E'],
+                ['e' => 'Flagged for speaking intervention', 't' => '2 days ago', 'c' => '#F59E0B'],
+                ['e' => 'Personalised tutoring plan prepared', 't' => '1 day ago', 'c' => '#0EA5E9'],
+                ['e' => '1-on-1 coaching session recommended', 't' => 'now', 'c' => '#10B981'],
+            ],
+            'actions' => [
+                ['l' => 'Assign speaking tutor', 'c' => '#10B981', 'bc' => '#10B98144'],
+                ['l' => 'Send study plan', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
             ],
         ];
     }
