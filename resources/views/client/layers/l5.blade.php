@@ -138,6 +138,9 @@
 
   $layerScenarios = $scenarios['l5'] ?? [];
   $selectedScenario = $layerScenarios[0] ?? null;
+
+  // ── NEW: Speaking Score Intervention counts ──────────────────────────────
+  $speakingUsers = ($userGroups['speaking_low'] ?? collect())->count();
 @endphp
 
 <div class="l5-root">
@@ -345,6 +348,112 @@
           </div>
         @endforelse
 
+        {{-- ── NEW: Speaking Score Intervention Card ─────────────────────────── --}}
+        @if($speakingUsers > 0)
+          <div class="l5-scenario" style="border-left:3px solid #A855F7;" data-scenario="speaking">
+            <div class="l5-sc-hd">
+              <div class="l5-sc-ico" style="background:#A855F720; color:#A855F7;">🎤</div>
+              <div style="flex:1;">
+                <div class="l5-sc-name">Speaking Score Intervention — {{ $speakingUsers }} Students</div>
+                <div class="l5-sc-meta">Speaking score < 30 · Needs 1-on-1 coaching</div>
+              </div>
+              <div class="l5-sc-rev" style="color:#A855F7;">${{ number_format($speakingUsers * 150) }}</div>
+            </div>
+            
+            <div class="l5-sc-urg" style="color:#F59E0B;">
+              <span style="background:#F59E0B; width:6px; height:6px; border-radius:50%; display:inline-block;"></span>
+              Intervention required
+            </div>
+
+            <div class="l5-banner" style="background:#A855F710; color:#A855F7; border-left:3px solid #A855F7;">
+              {{ $speakingUsers }} students have speaking scores below 30. Personalised 1-on-1 coaching sessions can improve their scores by an average of 15 points. Early intervention prevents dropout.
+            </div>
+
+            <div class="l5-kpi-grid">
+              <div class="l5-kpi">
+                <div class="l5-kpi-val" style="color:#A855F7;">{{ $speakingUsers }}</div>
+                <div class="l5-kpi-lbl">Students Need Help</div>
+                <div class="l5-kpi-bar">
+                  <div style="width:{{ min(100, $speakingUsers * 5) }}%; background:#A855F7;"></div>
+                </div>
+              </div>
+              <div class="l5-kpi">
+                <div class="l5-kpi-val" style="color:#10B981;">+15</div>
+                <div class="l5-kpi-lbl">Avg Score Improvement</div>
+                <div class="l5-kpi-bar">
+                  <div style="width:75%; background:#10B981;"></div>
+                </div>
+              </div>
+              <div class="l5-kpi">
+                <div class="l5-kpi-val" style="color:#F59E0B;">65%</div>
+                <div class="l5-kpi-lbl">Retention with Coaching</div>
+                <div class="l5-kpi-bar">
+                  <div style="width:65%; background:#F59E0B;"></div>
+                </div>
+              </div>
+              <div class="l5-kpi">
+                <div class="l5-kpi-val" style="color:#F43F5E;">18%</div>
+                <div class="l5-kpi-lbl">Dropout without Help</div>
+                <div class="l5-kpi-bar">
+                  <div style="width:18%; background:#F43F5E;"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="l5-dec">
+              <div class="l5-dec-row good">
+                <span class="l5-dec-lbl">Assign speaking tutor + personalised plan</span>
+                <span class="l5-dec-val" style="color:#10B981;">+15 pts</span>
+                <span class="l5-dec-sub">Average improvement · 65% retention</span>
+              </div>
+              <div class="l5-dec-row bad">
+                <span class="l5-dec-lbl">No intervention — standard curriculum</span>
+                <span class="l5-dec-val" style="color:#F43F5E;">-2 pts</span>
+                <span class="l5-dec-sub">Score stagnation · 18% dropout risk</span>
+              </div>
+            </div>
+
+            <div class="l5-out">
+              <div class="l5-out-hd">Expected Outcome</div>
+              <div class="l5-out-row">
+                <span class="l5-out-lbl">Students receiving coaching</span>
+                <span class="l5-out-val">{{ $speakingUsers }}</span>
+              </div>
+              <div class="l5-out-row">
+                <span class="l5-out-lbl">Expected score improvement</span>
+                <span class="l5-out-val">+15 points average</span>
+              </div>
+              <div class="l5-out-row">
+                <span class="l5-out-lbl">Retention rate</span>
+                <span class="l5-out-val">65% (vs 82% without)</span>
+              </div>
+              <div class="l5-out-row">
+                <span class="l5-out-lbl">Revenue protected</span>
+                <span class="l5-out-val">${{ number_format($speakingUsers * 150) }}</span>
+              </div>
+            </div>
+
+            <div class="l5-cta-wrap">
+              <button class="l5-cta" style="border-color:#10B981;" onclick="loadUsers('speaking_low', 'speaking')">
+                <span class="l5-cta-ico">👨‍🏫</span>
+                <div class="l5-cta-body">
+                  <div class="l5-cta-tit">Assign speaking tutor to all {{ $speakingUsers }} students</div>
+                  <div class="l5-cta-desc">Personal tutor + simplified study plan + practice quizzes. Within 24 hours.</div>
+                </div>
+                <span class="l5-cta-badge" style="background:#10B98110; color:#10B981;">{{ round($speakingUsers * 0.65) }} recoveries</span>
+              </button>
+              <button class="l5-cta" style="border-color:#0EA5E9;" onclick="loadUsers('speaking_low', 'speaking')">
+                <span class="l5-cta-ico">📋</span>
+                <div class="l5-cta-body">
+                  <div class="l5-cta-tit">View detailed speaking score breakdown</div>
+                  <div class="l5-cta-desc">See each student's score, history, and recommended intervention.</div>
+                </div>
+                <span class="l5-cta-badge" style="background:#0EA5E910; color:#0EA5E9;">{{ $speakingUsers }} students</span>
+              </button>
+            </div>
+          </div>
+        @endif
+
       </div>
 
       {{-- RIGHT: User Details Panel --}}
@@ -384,6 +493,11 @@ function loadUsers(viewKey, scenarioId) {
   const userGroups = @json($userGroups ?? []);
   const users = userGroups[viewKey] || [];
 
+  // Highlight active scenario
+  document.querySelectorAll('.l5-scenario').forEach(el => el.classList.remove('active'));
+  const activeScenario = document.querySelector('[data-scenario="' + scenarioId + '"]');
+  if (activeScenario) activeScenario.classList.add('active');
+
   if (users.length === 0) {
     panel.innerHTML = `
       <svg style="width:48px; height:48px; margin-bottom:10px; opacity:.4;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -408,17 +522,21 @@ function loadUsers(viewKey, scenarioId) {
           <div class="l5-user-amt" style="color:${u.tierColor || '#0EA5E9'};">${u.amountLabel || ''}</div>
         </div>
         ${(u.tags || []).map(t => `<span class="l5-user-tag" style="background:${u.tierColor || '#0EA5E9'}10; color:${u.tierColor || '#0EA5E9'};">${t}</span>`).join('')}
+        ${(u.fields || []).map(f => `
+          <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:11px; border-top:1px solid #f3f4f6; margin-top:6px;">
+            <span style="color:#6b7280;">${f[0]}</span>
+            <span style="font-weight:600; color:#111827;">${f[1]}</span>
+          </div>
+        `).join('')}
       </div>
     `).join('');
 }
 
 // Auto-select first scenario
-@if(isset($layerScenarios[0]))
 document.addEventListener('DOMContentLoaded', function() {
   const firstScenario = document.querySelector('[data-scenario]');
   if (firstScenario) firstScenario.classList.add('active');
 });
-@endif
 </script>
 
 @endsection
