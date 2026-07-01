@@ -7,6 +7,7 @@ use App\Models\UserEvent;
 use App\Services\DecisionEngine;
 use App\Services\EdTechBehavioralEngine;
 use Illuminate\Http\Request;
+use App\Models\EmailTemplate;
 
 class DecisionCentreController extends Controller
 {
@@ -1599,6 +1600,7 @@ class DecisionCentreController extends Controller
             'activeLayer'         => 'l5',
             'dataSourceConnected' => $dataSourceConnected,
             'profiles'            => $profiles,
+            'emailTemplates'      => $data['emailTemplates'] ?? [],  // <-- ADD THIS
         ]);
     }
 
@@ -2975,7 +2977,7 @@ class DecisionCentreController extends Controller
             'speaking_low'         => $spCards,
         ];
 
-        return compact('scenarios', 'userGroups');
+        return compact('scenarios', 'userGroups') + ['emailTemplates' => $this->getEmailTemplates()];
     }
 
     // ── EdTech Card Builders ─────────────────────────────────────────────────
@@ -3466,5 +3468,130 @@ class DecisionCentreController extends Controller
                 ? 'Email sent to ' . $sent . ' of ' . count($emails) . ' recipients' 
                 : 'Failed to send email to all recipients',
         ]);
+    }
+
+    /**
+     * Get email templates for the current client
+     */
+    private function getEmailTemplates(): array
+    {
+        $client = auth('client')->user();
+        if (!$client) return [];
+        
+        return EmailTemplate::where('client_id', $client->id)
+            ->where('is_active', true)
+            ->orderBy('category')
+            ->orderBy('name')
+            ->get()
+            ->map(fn($t) => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'subject' => $t->subject,
+                'body' => $t->body,
+                'category' => $t->category,
+            ])
+            ->toArray();
+    }
+
+    /**
+     * Apply template variables to content
+     */
+    private function applyTemplateVars(string $content, array $student): string
+    {
+        $vars = [
+            '{{student_name}}' => $student['name'] ?? 'Student',
+            '{{student_id}}' => $student['id'] ?? '',
+            '{{email}}' => $student['email'] ?? '',
+            '{{speaking_score}}' => $student['speaking_score'] ?? 'N/A',
+            '{{intent_score}}' => $student['intent_score'] ?? 'N/A',
+            '{{churn_score}}' => $student['churn_score'] ?? 'N/A',
+            '{{loyalty_score}}' => $student['loyalty_score'] ?? 'N/A',
+            '{{engagement_score}}' => $student['engagement_score'] ?? 'N/A',
+            '{{overall_score}}' => $student['overall_score'] ?? 'N/A',
+            '{{completed_courses}}' => $student['completed_courses'] ?? '0',
+            '{{best_score}}' => $student['best_score'] ?? 'N/A',
+            '{{days_since_login}}' => !empty($student['last_login']) ? \Carbon\Carbon::parse($student['last_login'])->diffInDays() : 'N/A',
+            '{{company_name}}' => auth('client')->user()?->company_name ?? 'Your Learning Platform',
+            '{{booking_link}}' => url('/book-session'),
+            '{{upgrade_link}}' => url('/upgrade'),
+            '{{test_link}}' => url('/mock-test'),
+            '{{referral_link}}' => url('/refer'),
+            '{{calendar_link}}' => url('/schedule-call'),
+            '{{support_phone}}' => '+1-800-LEARN',
+            '{{offer_price}}' => '$99',
+            '{{discount_amount}}' => '$50',
+            '{{referral_bonus}}' => '$20',
+        ];
+
+        return str_replace(array_keys($vars), array_values($vars), $content);
+    }
+
+    /**
+     * Show email templates management page
+     */
+    public function emailTemplates()
+    {
+        $client = auth('client')->user();
+        $templates = EmailTemplate::where('client_id', $client->id)
+            ->orderBy('category')
+            ->orderBy('name')
+            ->get();
+            
+        return view('client.email-templates', compact('templates'));
+    }
+
+    /**
+     * Store new email template
+     */
+    public function storeTemplate(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'subject' => 'required|string|max:255',
+            'body' => 'required|string',
+            'category' => 'required|in:general,intervention,winback,upsell,onboarding',
+        ]);
+
+        $client = auth('client')->user();
+        
+        EmailTemplate::create([
+            'client_id' => $client->id,
+            'name' => $request->name,
+            'subject' => $request->subject,
+            'body' => $request->body,
+            'category' => $request->category,
+        ]);
+
+        return redirect()->route('client.email.templates')->with('success', 'Template created successfully');
+    }
+
+    /**
+     * Update email template
+     */
+    public function updateTemplate(Request $request, EmailTemplate $template)
+    {
+        $this->authorize('update', $template);
+        
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'subject' => 'required|string|max:255',
+            'body' => 'required|string',
+            'category' => 'required|in:general,intervention,winback,upsell,onboarding',
+        ]);
+
+        $template->update($request->only(['name', 'subject', 'body', 'category']));
+
+        return redirect()->route('client.email.templates')->with('success', 'Template updated successfully');
+    }
+
+    /**
+     * Delete email template
+     */
+    public function deleteTemplate(EmailTemplate $template)
+    {
+        $this->authorize('delete', $template);
+        $template->delete();
+        
+        return redirect()->route('client.email.templates')->with('success', 'Template deleted');
     }
 }
