@@ -474,30 +474,56 @@
 
   <!-- Email Modal (Shared: Single & Bulk) -->
   <div id="emailModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:100; align-items:center; justify-content:center;">
-    <div style="background:#fff; border-radius:12px; width:520px; max-width:90%; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 20px 25px -5px rgba(0,0,0,.1);">
+    <div style="background:#fff; border-radius:12px; width:560px; max-width:92%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 25px -5px rgba(0,0,0,.1);">
       <div style="padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between;">
         <h3 id="emailModalTitle" style="margin:0; font-size:14px; font-weight:600; color:#111827;">Send Email</h3>
         <button onclick="closeEmailModal()" style="background:none; border:none; cursor:pointer; color:#9ca3af; padding:4px; font-size:16px;">✕</button>
       </div>
       <div style="padding:20px; overflow-y:auto;">
+        
+        <!-- Template Selection -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:6px;">Email Template</label>
+          <select id="emailTemplateSelect" onchange="applyTemplate()" style="width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:6px; font-size:12px; outline:none; background:#fff; cursor:pointer;">
+            <option value="">-- Select a template --</option>
+            @foreach($emailTemplates ?? [] as $template)
+              <option value="{{ $template['id'] }}" data-subject="{{ $template['subject'] }}" data-body="{{ $template['body'] }}" data-category="{{ $template['category'] }}">
+                {{ $template['name'] }} ({{ ucfirst($template['category']) }})
+              </option>
+            @endforeach
+          </select>
+        </div>
+        
+        <!-- Template Preview Badge -->
+        <div id="templatePreviewBadge" style="display:none; margin-bottom:14px; padding:8px 12px; background:#f0fdf4; border:1px solid #86efac; border-radius:6px; font-size:11px; color:#166534;">
+          <span style="font-weight:600;">✓ Template loaded:</span> <span id="templatePreviewName"></span>
+          <button onclick="clearTemplate()" style="margin-left:8px; background:none; border:none; color:#166534; cursor:pointer; font-size:11px; text-decoration:underline;">Clear</button>
+        </div>
+        
         <div style="margin-bottom:14px;">
           <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:4px;">To</label>
           <input type="text" id="emailTo" readonly style="width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:6px; font-size:12px; background:#f9fafb; color:#6b7280; box-sizing:border-box;">
         </div>
+        
         <div style="margin-bottom:14px;">
           <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:4px;">Subject <span style="color:#F43F5E;">*</span></label>
           <input type="text" id="emailSubject" placeholder="Enter email subject..." style="width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:6px; font-size:12px; outline:none; box-sizing:border-box;">
         </div>
+        
         <div style="margin-bottom:14px;">
           <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:4px;">Message <span style="color:#F43F5E;">*</span></label>
-          <textarea id="emailBody" rows="6" placeholder="Type your message here..." style="width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:6px; font-size:12px; outline:none; resize:vertical; box-sizing:border-box;"></textarea>
+          <textarea id="emailBody" rows="8" placeholder="Type your message here or select a template above..." style="width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:6px; font-size:12px; outline:none; resize:vertical; box-sizing:border-box; font-family:monospace;"></textarea>
+          <div style="margin-top:4px; font-size:10px; color:#9ca3af;">Available variables: [[student_name]], [[speaking_score]], [[intent_score]], [[churn_score]], [[loyalty_score]], [[overall_score]], [[completed_courses]], [[days_since_login]], [[company_name]]</div>
         </div>
       </div>
-      <div style="padding:12px 20px; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:8px;">
-        <button onclick="closeEmailModal()" style="padding:8px 16px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; color:#374151; font-size:12px; font-weight:600; cursor:pointer;">Cancel</button>
-        <button id="sendEmailBtn" style="padding:8px 16px; border:none; border-radius:6px; background:#0EA5E9; color:#fff; font-size:12px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-          📧 Send Email
-        </button>
+      <div style="padding:12px 20px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+        <span id="emailCharCount" style="font-size:10px; color:#9ca3af;">0 characters</span>
+        <div style="display:flex; gap:8px;">
+          <button onclick="closeEmailModal()" style="padding:8px 16px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; color:#374151; font-size:12px; font-weight:600; cursor:pointer;">Cancel</button>
+          <button id="sendEmailBtn" style="padding:8px 16px; border:none; border-radius:6px; background:#0EA5E9; color:#fff; font-size:12px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            📧 Send Email
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -885,6 +911,102 @@ function showToast(message, type) {
 document.addEventListener('DOMContentLoaded', function() {
   const firstScenario = document.querySelector('[data-scenario]');
   if (firstScenario) firstScenario.classList.add('active');
+});
+
+// ── Template handling ──────────────────────────────────────────────────────────
+function applyTemplate() {
+  const select = document.getElementById('emailTemplateSelect');
+  const option = select.options[select.selectedIndex];
+  if (!option.value) return;
+  
+  const subject = option.getAttribute('data-subject');
+  const body = option.getAttribute('data-body');
+  
+  // Get current student data for variable substitution
+  const modal = document.getElementById('emailModal');
+  const isBulk = modal.hasAttribute('data-bulk-emails');
+  
+  let student = {};
+  if (!isBulk) {
+    // Single email - get from cached data
+    const viewKey = _currentViewKey;
+    const users = _userGroupsCache[viewKey] || [];
+    // Find student by email matching the To field
+    const toEmail = document.getElementById('emailTo').value;
+    student = users.find(u => u.email === toEmail) || {};
+  } else {
+    // Bulk - use first selected student as sample, or empty
+    const selected = document.querySelectorAll('.l5-user-checkbox:checked');
+    if (selected.length > 0) {
+      const firstIdx = parseInt(selected[0].getAttribute('data-user-idx'));
+      student = _userGroupsCache[_currentViewKey][firstIdx] || {};
+    }
+  }
+  
+  // Apply variables
+  const processedSubject = applyTemplateVars(subject, student);
+  const processedBody = applyTemplateVars(body, student);
+  
+  document.getElementById('emailSubject').value = processedSubject;
+  document.getElementById('emailBody').value = processedBody;
+  
+  // Show preview badge
+  document.getElementById('templatePreviewBadge').style.display = 'block';
+  document.getElementById('templatePreviewName').textContent = option.text.split('(')[0].trim();
+  
+  updateCharCount();
+}
+
+function clearTemplate() {
+  document.getElementById('emailTemplateSelect').selectedIndex = 0;
+  document.getElementById('templatePreviewBadge').style.display = 'none';
+}
+
+function applyTemplateVars(content, student) {
+  if (!content) return '';
+  
+  const vars = {
+    '[[student_name]]': student.name || 'Student',
+    '[[student_id]]': student.id || '',
+    '[[email]]': student.email || '',
+    '[[speaking_score]]': student.speaking_score || 'N/A',
+    '[[intent_score]]': student.intent_score || 'N/A',
+    '[[churn_score]]': student.churn_score || 'N/A',
+    '[[loyalty_score]]': student.loyalty_score || 'N/A',
+    '[[engagement_score]]': student.engagement_score || 'N/A',
+    '[[overall_score]]': student.overall_score || 'N/A',
+    '[[completed_courses]]': student.completed_courses || '0',
+    '[[best_score]]': student.best_score || 'N/A',
+    '[[days_since_login]]': student.last_login ? Math.floor((Date.now() - new Date(student.last_login).getTime()) / (1000 * 60 * 60 * 24)) : 'N/A',
+    '[[company_name]]': '{{ $cn ?? "Your Learning Platform" }}',
+    '[[booking_link]]': window.location.origin + '/book-session',
+    '[[upgrade_link]]': window.location.origin + '/upgrade',
+    '[[test_link]]': window.location.origin + '/mock-test',
+    '[[referral_link]]': window.location.origin + '/refer',
+    '[[calendar_link]]': window.location.origin + '/schedule-call',
+    '[[support_phone]]': '+1-800-LEARN',
+    '[[offer_price]]': '$99',
+    '[[discount_amount]]': '$50',
+    '[[referral_bonus]]': '$20',
+  };
+  
+  let result = content;
+  for (const [key, val] of Object.entries(vars)) {
+    result = result.split(key).join(val);
+  }
+  return result;
+}
+
+function updateCharCount() {
+  const body = document.getElementById('emailBody').value;
+  document.getElementById('emailCharCount').textContent = body.length + ' characters';
+}
+
+// Update char count on input
+document.addEventListener('input', function(e) {
+  if (e.target.id === 'emailBody') {
+    updateCharCount();
+  }
 });
 </script>
 

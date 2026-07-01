@@ -147,6 +147,11 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('aiml-dashboard', [DecisionCentreController::class, 'aimlDashboard'])->name('aiml.dashboard');
     Route::post('/email/send', [DecisionCentreController::class, 'sendEmail'])->name('email.send');
     Route::post('/email/send-bulk', [DecisionCentreController::class, 'sendBulkEmail'])->name('email.send.bulk');
+    
+    Route::get('email-templates', [DecisionCentreController::class, 'emailTemplates'])->name('email.templates');
+    Route::post('email-templates', [DecisionCentreController::class, 'storeTemplate'])->name('email.templates.store');
+    Route::put('email-templates/{template}', [DecisionCentreController::class, 'updateTemplate'])->name('email.templates.update');
+    Route::delete('email-templates/{template}', [DecisionCentreController::class, 'deleteTemplate'])->name('email.templates.destroy');
 
     // Database data sources
     Route::get('sources',                [DataSourceController::class, 'index'])->name('sources.index');
