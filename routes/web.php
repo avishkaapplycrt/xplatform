@@ -146,6 +146,7 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('behavioral-analytics', [DecisionCentreController::class, 'analytics'])->name('analytics');
     Route::get('aiml-dashboard', [DecisionCentreController::class, 'aimlDashboard'])->name('aiml.dashboard');
     Route::post('/email/send', [DecisionCentreController::class, 'sendEmail'])->name('email.send');
+    Route::post('/email/send-bulk', [DecisionCentreController::class, 'sendBulkEmail'])->name('email.send.bulk');
 
     // Database data sources
     Route::get('sources',                [DataSourceController::class, 'index'])->name('sources.index');
