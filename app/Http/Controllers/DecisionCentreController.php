@@ -2701,6 +2701,8 @@ class DecisionCentreController extends Controller
 
         // Ensure edtech_temp connection exists
         $client = auth('client')->user();
+        $studentMeta = []; // [studentId => ['create_date' => ..., 'email' => ...]]
+
         if ($client) {
             $dataSource = $client->dataSources()->where('status', 'connected')->first();
             if ($dataSource) {
@@ -2718,6 +2720,22 @@ class DecisionCentreController extends Controller
                     'engine'    => null,
                 ];
                 config()->set('database.connections.edtech_temp', $config);
+
+                // Fetch studentuser metadata (create_date + email) in ONE query
+                try {
+                    $studentMeta = \DB::connection('edtech_temp')
+                        ->table('studentuser')
+                        ->select('studentId', 'create_date', 'email')
+                        ->whereNotNull('create_date')
+                        ->get()
+                        ->keyBy('studentId')
+                        ->map(fn($row) => ['create_date' => $row->create_date, 'email' => $row->email])
+                        ->toArray();
+                    
+                    \Log::info('Student metadata fetched: ' . count($studentMeta) . ' records');
+                } catch (\Exception $e) {
+                    \Log::warning('Could not fetch studentuser metadata: ' . $e->getMessage());
+                }
             }
         }
 
@@ -2731,15 +2749,12 @@ class DecisionCentreController extends Controller
                 ->groupBy('studentId')
                 ->pluck('lowest_speaking_score', 'studentId')
                 ->toArray();
-            
-            \Log::info('Speaking scores fetched: ' . count($speakingScores) . ' students');
         } catch (\Exception $e) {
             \Log::warning('Could not fetch speaking scores: ' . $e->getMessage());
         }
 
-        // Merge speaking scores into profiles - try multiple ID fields for matching
-        $all = $all->map(function($p) use ($speakingScores) {
-            // Try multiple possible ID fields that might match studentId
+        // Merge all external data into profiles
+        $all = $all->map(function($p) use ($speakingScores, $studentMeta) {
             $possibleIds = array_filter([
                 $p['id'] ?? null,
                 $p['studentId'] ?? null,
@@ -2749,17 +2764,23 @@ class DecisionCentreController extends Controller
             ]);
             
             $p['speaking_score'] = null;
+            $p['create_date'] = null;
+            $p['email'] = $p['email'] ?? null;
+            
             foreach ($possibleIds as $possibleId) {
                 if (isset($speakingScores[$possibleId])) {
                     $p['speaking_score'] = $speakingScores[$possibleId];
-                    break;
+                }
+                if (isset($studentMeta[$possibleId])) {
+                    $p['create_date'] = $studentMeta[$possibleId]['create_date'];
+                    $p['email'] = $studentMeta[$possibleId]['email'] ?? $p['email'];
                 }
             }
             
             return $p;
         });
 
-        // L4 Cohorts from EdTech data
+        // ── L4 Cohorts from EdTech data ─────────────────────────────────────
         // Hot Buyers: Students who have NOT purchased (total_spent <= 0 means no payment record)
         $hotBuyers  = $all->filter(fn($p) =>
             ($p['total_spent'] ?? 0) <= 0 &&
@@ -2789,28 +2810,18 @@ class DecisionCentreController extends Controller
             return $score !== null && is_numeric($score) && (float)$score < 30;
         });
 
-        // Debug log
-        $withScores = $all->filter(fn($p) => ($p['speaking_score'] ?? null) !== null)->count();
-        $lowScores = $speakingLow->count();
-        \Log::info("Speaking scores: {$withScores} students matched, {$lowScores} have score < 30");
-
-        // L1 Cohorts (derived from EdTech behavior patterns)
-        // Pricing users: Non-purchased students with browsing behavior
+        // ── L1 Cohorts (derived from EdTech behavior patterns) ───────────────
         $pricingUsers = $all->filter(fn($p) =>
             ($p['total_spent'] ?? 0) <= 0 &&
             ($p['intent_score'] ?? 0) >= 60 &&
             ($p['buying_readiness'] ?? 0) >= 40
         );
         $rageUsers    = $all->filter(fn($p) => ($p['frustration_score'] ?? 0) >= 50);
-
-        // Cart users: Non-purchased students with cart behavior
         $cartUsers    = $all->filter(fn($p) =>
             ($p['total_spent'] ?? 0) <= 0 &&
             ($p['buying_readiness'] ?? 0) >= 30 &&
             ($p['intent_score'] ?? 0) >= 40
         );
-
-        // Payment users: Students who HAVE purchased
         $paymentUsers = $all->filter(fn($p) => ($p['total_spent'] ?? 0) > 0);
 
         // Stats
@@ -2904,6 +2915,7 @@ class DecisionCentreController extends Controller
 
         $scenarios = $this->buildScenarios($stats);
 
+        // Build cards with create_date for sorting
         $hbCards = $hotBuyers->map(fn($p) => $this->edHotBuyerCard($p))->values();
         $arCards = $atRisk->map(fn($p) => $this->edAtRiskCard($p))->values();
         $loCards = $loyals->map(fn($p) => $this->edLoyalCard($p))->values();
@@ -2914,6 +2926,32 @@ class DecisionCentreController extends Controller
         $paCards = $paymentUsers->map(fn($p) => $this->edPaymentCard($p))->values();
         $dcCards = $hotBuyers->map(fn($p) => $this->edDiscCard($p))->values();
         $spCards = $speakingLow->map(fn($p) => $this->edSpeakingCard($p))->values();
+
+        // Sort ALL card collections by create_date descending
+        $sortByCreateDateDesc = function($collection) {
+            return $collection->sortByDesc(function($card) {
+                $createDate = $card['create_date_raw'] ?? null;
+                if ($createDate) {
+                    try {
+                        return \Carbon\Carbon::parse($createDate)->timestamp;
+                    } catch (\Exception $e) {
+                        return 0;
+                    }
+                }
+                return 0;
+            })->values();
+        };
+
+        $hbCards = $sortByCreateDateDesc($hbCards);
+        $arCards = $sortByCreateDateDesc($arCards);
+        $loCards = $sortByCreateDateDesc($loCards);
+        $rvCards = $sortByCreateDateDesc($rvCards);
+        $prCards = $sortByCreateDateDesc($prCards);
+        $raCards = $sortByCreateDateDesc($raCards);
+        $caCards = $sortByCreateDateDesc($caCards);
+        $paCards = $sortByCreateDateDesc($paCards);
+        $dcCards = $sortByCreateDateDesc($dcCards);
+        $spCards = $sortByCreateDateDesc($spCards);
 
         $userGroups = [
             'hb_all' => $hbCards, 'hb_ent' => $hbCards->filter(fn($c) => $c['tier'] === 'Enterprise')->values(),
@@ -2929,7 +2967,6 @@ class DecisionCentreController extends Controller
             'payment_upsell' => $paCards, 'payment_loyalty' => $paCards,
             'disc_run' => $dcCards, 'disc_ab' => $dcCards,
             'nochurn_all' => $arCards, 'nochurn_wait' => $arCards,
-            // ── AIML Dashboard filtered groups ──────────────────────────────────────
             'disc10_not_purchased' => $hbCards->filter(fn($c) => in_array('Paid learner', $c['tags']) === false)->values(),
             'nochurn_at_risk'      => $arCards,
             'reactval_ready'       => $rvCards,
@@ -2948,6 +2985,8 @@ class DecisionCentreController extends Controller
         $sens = ($p['trust_score'] ?? 0) >= 65 ? 'Price-insensitive' : 'Price-sensitive';
         $offer = $sens === 'Price-insensitive' ? "{$plan} — feature highlight, no discount" : "10% off {$plan} plan";
         $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
+        $email = $p['email'] ?? 'N/A';
+        $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         $tags = [];
         if ($sens === 'Price-insensitive') $tags[] = 'Full price (no discount)'; else $tags[] = '10% discount offer';
         if (($p['segment'] ?? '') === 'champion') $tags[] = 'Enterprise';
@@ -2958,8 +2997,10 @@ class DecisionCentreController extends Controller
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
             'amountLabel' => "Intent " . ($p['intent_score'] ?? 0), 'tags' => $tags,
+            'create_date_raw' => $p['create_date'] ?? null,
             'fields' => [
                 ['Intent score', ($p['intent_score'] ?? 0) . '/100'], ['Buying readiness', ($p['readiness_score'] ?? 0) . '/100'],
+                ['Email', $email], ['Registration date', $createDate],
                 ['Plan evaluating', $plan], ['Price sensitivity', $sens], ['Offer assigned', $offer],
                 ['Loyalty score', ($p['loyalty_score'] ?? 0) . '/100'], ['Churn risk', ($p['churn_score'] ?? 0) . '%'],
                 ['Engagement', ($p['engagement_score'] ?? 0) . '/100'], ['Last active', $last],
@@ -2987,14 +3028,18 @@ class DecisionCentreController extends Controller
         $intervention = ($p['segment'] ?? '') === 'champion' ? 'Tier 1 — CSM outreach' : (($p['churn_score'] ?? 0) >= 75 ? 'Tier 2 — 3-touch sequence' : 'Tier 3 — email only');
         $tags = []; if (($p['churn_score'] ?? 0) >= 75) $tags[] = 'Imminent churn'; if (($p['segment'] ?? '') === 'champion') $tags[] = 'Enterprise';
         $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
+        $email = $p['email'] ?? 'N/A';
+        $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
             'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
             'amountLabel' => '$' . $revRisk . ' at risk', 'tags' => $tags,
+            'create_date_raw' => $p['create_date'] ?? null,
             'fields' => [
                 ['Churn probability', ($p['churn_score'] ?? 0) . '%'], ['Revenue at risk', '$' . $revRisk],
+                ['Email', $email], ['Registration date', $createDate],
                 ['Top risk factor', $rf], ['Days since login', $days . 'd'],
                 ['Frustration score', ($p['frustration_score'] ?? 0) . '/100'], ['Engagement score', ($p['engagement_score'] ?? 0) . '/100'],
                 ['LTV', '$' . number_format(($p['overall_score'] ?? 0) * 980)], ['Intervention tier', $intervention], ['Last active', $last],
@@ -3019,6 +3064,8 @@ class DecisionCentreController extends Controller
         $isAmb = ($p['loyalty_score'] ?? 0) > 88; $gap = max(0, (100 - ($p['loyalty_score'] ?? 0)) * 12);
         $refs = max(1, (int) round(($p['loyalty_score'] ?? 0) / 15));
         $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
+        $email = $p['email'] ?? 'N/A';
+        $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         $tags = []; if ($isAmb) $tags[] = 'Ambassador ready'; if ($refs >= 6) $tags[] = 'Super referrer'; if ($gap < 200) $tags[] = 'Near tier upgrade';
         return [
             'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
@@ -3026,8 +3073,10 @@ class DecisionCentreController extends Controller
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
             'amountLabel' => "Loyalty " . ($p['loyalty_score'] ?? 0), 'tags' => $tags,
+            'create_date_raw' => $p['create_date'] ?? null,
             'fields' => [
                 ['Loyalty score', ($p['loyalty_score'] ?? 0) . '/100'], ['Referrals sent', $refs . ''],
+                ['Email', $email], ['Registration date', $createDate],
                 ['Converted', max(1, (int) round($refs * 0.65)) . ''], ['Engagement', ($p['engagement_score'] ?? 0) . '/100'],
                 ['Churn risk', ($p['churn_score'] ?? 0) . '%'], ['Next tier gap', $gap . ' pts'],
                 ['LTV', '$' . number_format(($p['overall_score'] ?? 0) * 980)], ['Last active', $last], ['Industry', 'EdTech'],
@@ -3054,14 +3103,18 @@ class DecisionCentreController extends Controller
         $reason = ($p['frustration_score'] ?? 0) > 40 ? 'Support failure' : 'Feature gap';
         $msg = $reason === 'Support failure' ? 'Personal apology from Head of CS + dedicated contact' : 'We shipped the feature you asked for — free 30-day trial';
         $tags = []; if (($p['reactivation_potential'] ?? 0) >= 80) $tags[] = 'High potential'; if (($p['engagement_score'] ?? 0) < 20) $tags[] = 'Deeply dormant';
+        $email = $p['email'] ?? 'N/A';
+        $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
             'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
             'amountLabel' => "Score " . ($p['reactivation_potential'] ?? 0), 'tags' => $tags,
+            'create_date_raw' => $p['create_date'] ?? null,
             'fields' => [
                 ['Reactivation score', ($p['reactivation_potential'] ?? 0) . '/100'], ['Churn reason', $reason],
+                ['Email', $email], ['Registration date', $createDate],
                 ['Days since churn', $daysGone . 'd'], ['Previous LTV', '$' . number_format(($p['overall_score'] ?? 0) * 720)],
                 ['Email resp.', ($p['reactivation_potential'] ?? 0) > 78 ? 'High' : 'Medium'],
                 ['Win-back message', substr($msg, 0, 40) . '…'], ['Last plan', $plan], ['Industry', 'EdTech'], ['Last active', $last],
@@ -3069,8 +3122,8 @@ class DecisionCentreController extends Controller
             'timeline' => [
                 ['e' => "Churned — primary reason: {$reason}", 't' => $daysGone . 'd ago', 'c' => '#F43F5E'],
                 ['e' => "Reactivation score reached " . ($p['reactivation_potential'] ?? 0) . " — qualified for win-back", 't' => 'Today', 'c' => '#10B981'],
-            ['e' => 'Segment assigned: "' . $reason . '"', 't' => '< 1hr ago', 'c' => '#0EA5E9'],
-            ['e' => 'Message ready: "' . substr($msg, 0, 48) . '"…"', 't' => 'now', 'c' => '#F59E0B'],
+                ['e' => 'Segment assigned: "' . $reason . '"', 't' => '< 1hr ago', 'c' => '#0EA5E9'],
+                ['e' => 'Message ready: "' . substr($msg, 0, 48) . '"…"', 't' => 'now', 'c' => '#F59E0B'],
             ],
             'actions' => [
                 ['l' => 'Send win-back message', 'c' => '#0EA5E9', 'bc' => '#0EA5E944'],
@@ -3088,14 +3141,18 @@ class DecisionCentreController extends Controller
         $visits = max(2, (int) round(($p['intent_score'] ?? 0) / 20));
         $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
         $tags = []; if ($sens === 'Price-insensitive') $tags[] = 'Price insensitive'; else $tags[] = 'Price sensitive'; if (($p['intent_score'] ?? 0) > 85) $tags[] = 'Highest intent';
+        $email = $p['email'] ?? 'N/A';
+        $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
             'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
             'amountLabel' => "Intent " . ($p['intent_score'] ?? 0), 'priceSensitivity' => $sens, 'offer' => $offer, 'tags' => $tags,
+            'create_date_raw' => $p['create_date'] ?? null,
             'fields' => [
                 ['Intent score', ($p['intent_score'] ?? 0) . '/100'], ['Pricing visits', $visits . ' this week'],
+                ['Email', $email], ['Registration date', $createDate],
                 ['Plan evaluating', $plan], ['Price sensitivity', $sens], ['Offer assigned', $offer],
                 ['Engagement', ($p['engagement_score'] ?? 0) . '/100'], ['Buying readiness', ($p['buying_readiness'] ?? 0) . '/100'],
                 ['Last session', $last], ['Industry', 'EdTech'],
@@ -3120,14 +3177,18 @@ class DecisionCentreController extends Controller
         $clicks = max(6, (int) round(($p['frustration_score'] ?? 0) / 9));
         $cv = max(79, ($p['buying_readiness'] ?? 0) * 9);
         $tags = []; if ($cv > 400) $tags[] = 'High value cart'; if (($p['segment'] ?? '') === 'champion') $tags[] = 'Enterprise'; $tags[] = 'Live session';
+        $email = $p['email'] ?? 'N/A';
+        $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
             'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
             'amountLabel' => "{$clicks} clicks", 'tags' => $tags,
+            'create_date_raw' => $p['create_date'] ?? null,
             'fields' => [
                 ['Rage clicks', $clicks . ' on same element'], ['Element', 'Submit Payment button'],
+                ['Email', $email], ['Registration date', $createDate],
                 ['Error', 'Validation error not shown'], ['Cart value', '$' . number_format($cv)],
                 ['Intent score', ($p['intent_score'] ?? 0) . '/100'], ['Frustration', ($p['frustration_score'] ?? 0) . '/100'],
                 ['Session time', max(4, (int)(($p['engagement_score'] ?? 0) / 5)) . 'm'], ['Page', '/checkout'], ['Industry', 'EdTech'],
@@ -3154,14 +3215,18 @@ class DecisionCentreController extends Controller
         $sens = ($p['trust_score'] ?? 0) >= 65 ? 'Price-insensitive' : 'Price-sensitive';
         $offer = $sens === 'Price-sensitive' ? '10% off — complete now' : 'Your cart is waiting';
         $tags = []; if ($cv > 300) $tags[] = 'High value'; if ($sens === 'Price-sensitive') $tags[] = 'Price sensitive'; if (($p['segment'] ?? '') === 'champion') $tags[] = 'Enterprise';
+        $email = $p['email'] ?? 'N/A';
+        $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
             'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
             'amountLabel' => '$' . number_format($cv), 'priceSensitivity' => $sens, 'offer' => $offer, 'tags' => $tags,
+            'create_date_raw' => $p['create_date'] ?? null,
             'fields' => [
                 ['Cart value', '$' . number_format($cv)], ['Recovery offer', $offer], ['Abandoned', $mins . 'min ago'],
+                ['Email', $email], ['Registration date', $createDate],
                 ['Price sensitivity', $sens], ['Intent score', ($p['intent_score'] ?? 0) . '/100'], ['Channel', 'Email'],
                 ['Session time', max(2, (int)(($p['engagement_score'] ?? 0) / 10)) . 'm'],
                 ['Pages viewed', max(3, (int)(($p['engagement_score'] ?? 0) / 8)) . ''], ['Industry', 'EdTech'],
@@ -3186,14 +3251,18 @@ class DecisionCentreController extends Controller
         $amount = max(150, ($p['trust_score'] ?? 0) * 18);
         $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
         $tags = []; if (($p['trust_score'] ?? 0) >= 65) $tags[] = 'Price insensitive'; if (($p['segment'] ?? '') === 'champion') $tags[] = 'Enterprise';
+        $email = $p['email'] ?? 'N/A';
+        $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
             'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
             'amountLabel' => '$' . number_format($amount), 'tags' => $tags,
+            'create_date_raw' => $p['create_date'] ?? null,
             'fields' => [
                 ['Purchase amount', '$' . number_format($amount)], ['Upsell window', '48 hours'], ['Plan', $plan],
+                ['Email', $email], ['Registration date', $createDate],
                 ['Trust score', ($p['trust_score'] ?? 0) . '/100'], ['Intent score', ($p['intent_score'] ?? 0) . '/100'],
                 ['Upsell predicted', 'Yes (34% CVR)'], ['Industry', 'EdTech'],
                 ['Loyalty score', ($p['loyalty_score'] ?? 0) . '/100'], ['Last active', $last],
@@ -3220,14 +3289,18 @@ class DecisionCentreController extends Controller
         $cvr = $sens === 'Price-insensitive' ? '34% (full price)' : (round(18 + ($p['buying_readiness'] ?? 0) / 5) . '%');
         $tags = []; if ($sens === 'Price-insensitive') $tags[] = 'Margin protected'; if (($p['intent_score'] ?? 0) >= 88) $tags[] = 'Highest intent';
         $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
+        $email = $p['email'] ?? 'N/A';
+        $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
             'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
             'amountLabel' => "Intent " . ($p['intent_score'] ?? 0), 'priceSensitivity' => $sens, 'offer' => $offer, 'tags' => $tags,
+            'create_date_raw' => $p['create_date'] ?? null,
             'fields' => [
                 ['Intent score', ($p['intent_score'] ?? 0) . '/100'], ['Sensitivity', $sens], ['Plan evaluating', $plan],
+                ['Email', $email], ['Registration date', $createDate],
                 ['Offer assigned', $offer], ['Expected CVR', $cvr], ['Buying readiness', ($p['buying_readiness'] ?? 0) . '/100'],
                 ['Hot Buyer since', $last], ['LTV', '$' . number_format(($p['overall_score'] ?? 0) * 880)], ['Industry', 'EdTech'],
             ],
@@ -3235,7 +3308,7 @@ class DecisionCentreController extends Controller
                 ['e' => "Pricing page — {$plan} tier — " . max(3, (int)(($p['intent_score'] ?? 0) / 10)) . 'min dwell', 't' => '3hr ago', 'c' => '#0EA5E9'],
                 ['e' => "Intent " . ($p['intent_score'] ?? 0) . " — Hot Buyer state triggered", 't' => '1hr ago', 'c' => '#F59E0B'],
                 ['e' => "Price sensitivity: {$sens} — offer assigned", 't' => '< 30min ago', 'c' => '#10B981'],
-            ['e' => '"' . $offer . '" — dispatch queued', 't' => 'now', 'c' => '#FF6B35'],
+                ['e' => '"' . $offer . '" — dispatch queued', 't' => 'now', 'c' => '#FF6B35'],
             ],
             'actions' => [
                 ['l' => 'Dispatch offer', 'c' => '#10B981', 'bc' => '#10B98144'],
@@ -3250,6 +3323,8 @@ class DecisionCentreController extends Controller
         [$tc, $tb] = $this->tierStyle($p['segment'] ?? 'new');
         $last = !empty($p['last_login']) ? \Carbon\Carbon::parse($p['last_login'])->diffForHumans() : 'Unknown';
         $speakingScore = $p['speaking_score'] ?? 0;
+        $email = $p['email'] ?? 'N/A';
+        $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         
         return [
             'id' => $p['id'],
@@ -3263,8 +3338,11 @@ class DecisionCentreController extends Controller
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
             'amountLabel' => "Speaking {$speakingScore}",
             'tags' => ['Low speaking score', 'Needs tutoring', '1-on-1 coaching'],
+            'create_date_raw' => $p['create_date'] ?? null,
             'fields' => [
                 ['Speaking score', "{$speakingScore}/90"],
+                ['Email', $email],
+                ['Registration date', $createDate],
                 ['Overall score', ($p['overall_score'] ?? 0) . '/90'],
                 ['Student ID', $p['id']],
                 ['Last active', $last],
