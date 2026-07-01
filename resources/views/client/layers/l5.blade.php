@@ -472,9 +472,9 @@
     </div>
   </div>
 
-  <!-- Email Modal -->
+  <!-- Email Modal (Shared: Single & Bulk) -->
   <div id="emailModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:100; align-items:center; justify-content:center;">
-    <div style="background:#fff; border-radius:12px; width:480px; max-width:90%; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 20px 25px -5px rgba(0,0,0,.1);">
+    <div style="background:#fff; border-radius:12px; width:520px; max-width:90%; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 20px 25px -5px rgba(0,0,0,.1);">
       <div style="padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between;">
         <h3 id="emailModalTitle" style="margin:0; font-size:14px; font-weight:600; color:#111827;">Send Email</h3>
         <button onclick="closeEmailModal()" style="background:none; border:none; cursor:pointer; color:#9ca3af; padding:4px; font-size:16px;">✕</button>
@@ -482,7 +482,7 @@
       <div style="padding:20px; overflow-y:auto;">
         <div style="margin-bottom:14px;">
           <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:4px;">To</label>
-          <input type="email" id="emailTo" readonly style="width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:6px; font-size:12px; background:#f9fafb; color:#6b7280; box-sizing:border-box;">
+          <input type="text" id="emailTo" readonly style="width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:6px; font-size:12px; background:#f9fafb; color:#6b7280; box-sizing:border-box;">
         </div>
         <div style="margin-bottom:14px;">
           <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:4px;">Subject <span style="color:#F43F5E;">*</span></label>
@@ -495,7 +495,7 @@
       </div>
       <div style="padding:12px 20px; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:8px;">
         <button onclick="closeEmailModal()" style="padding:8px 16px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; color:#374151; font-size:12px; font-weight:600; cursor:pointer;">Cancel</button>
-        <button id="sendEmailBtn" onclick="sendEmail()" style="padding:8px 16px; border:none; border-radius:6px; background:#0EA5E9; color:#fff; font-size:12px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+        <button id="sendEmailBtn" style="padding:8px 16px; border:none; border-radius:6px; background:#0EA5E9; color:#fff; font-size:12px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
           📧 Send Email
         </button>
       </div>
@@ -526,12 +526,14 @@ function escapeHtml(text) {
 
 // ── Global user groups cache (for event delegation) ──────────────────────────
 let _userGroupsCache = {};
+let _currentViewKey = '';
 
 // ── Load users into side panel ───────────────────────────────────────────────
 function loadUsers(viewKey, scenarioId) {
   const panel = document.getElementById('userDetailsPanel');
   const userGroups = @json($userGroups ?? []);
-  _userGroupsCache = userGroups; // Cache for event delegation
+  _userGroupsCache = userGroups;
+  _currentViewKey = viewKey;
   const users = userGroups[viewKey] || [];
 
   // Highlight active scenario
@@ -547,47 +549,126 @@ function loadUsers(viewKey, scenarioId) {
       <p style="font-size:12px;">No users found for this view.<br>Connect database to see live data.</p>
     `;
     panel.className = 'l5-user-empty';
+    updateBulkActionBar(0);
     return;
   }
 
   panel.className = '';
-  panel.innerHTML = '<div style="font-size:11px; color:#6b7280; margin-bottom:10px;">' + users.length + ' users loaded</div>' +
-    users.map((u, idx) => {
-      const hasEmail = u.email && u.email !== 'N/A' && u.email !== '';
-      return `
-      <div class="l5-user-card" data-user-idx="${idx}" data-view-key="${escapeHtml(viewKey)}">
-        <div class="l5-user-hd">
-          <div class="l5-user-avatar" style="background:${u.avatarColor || '#0EA5E9'};">${u.initials || '?'}</div>
-          <div class="l5-user-info">
-            <div class="l5-user-name">${escapeHtml(u.name || 'Unknown')}</div>
-            <div class="l5-user-co">${escapeHtml(u.company || '')} · ${escapeHtml(u.industry || '')}</div>
+  
+  // Build user cards with checkboxes
+  const cardsHtml = users.map((u, idx) => {
+    const hasEmail = u.email && u.email !== 'N/A' && u.email !== '';
+    return `
+      <div class="l5-user-card" data-user-idx="${idx}" data-view-key="${escapeHtml(viewKey)}" data-has-email="${hasEmail ? '1' : '0'}">
+        <div style="display:flex; align-items:flex-start; gap:8px;">
+          <div style="padding-top:4px;">
+            <input type="checkbox" class="l5-user-checkbox" data-user-idx="${idx}" data-email="${escapeHtml(u.email || '')}" data-name="${escapeHtml(u.name || 'Student')}" ${!hasEmail ? 'disabled' : ''} style="width:16px; height:16px; cursor:pointer; accent-color:#0EA5E9;">
           </div>
-          <div class="l5-user-amt" style="color:${u.tierColor || '#0EA5E9'};">${escapeHtml(u.amountLabel || '')}</div>
-        </div>
-        ${(u.tags || []).map(t => `<span class="l5-user-tag" style="background:${u.tierColor || '#0EA5E9'}10; color:${u.tierColor || '#0EA5E9'};">${escapeHtml(t)}</span>`).join('')}
-        ${(u.fields || []).map(f => `
-          <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:11px; border-top:1px solid #f3f4f6; margin-top:6px;">
-            <span style="color:#6b7280;">${escapeHtml(f[0])}</span>
-            <span style="font-weight:600; color:#111827;">${escapeHtml(f[1])}</span>
+          <div style="flex:1; min-width:0;">
+            <div class="l5-user-hd">
+              <div class="l5-user-avatar" style="background:${u.avatarColor || '#0EA5E9'};">${u.initials || '?'}</div>
+              <div class="l5-user-info">
+                <div class="l5-user-name">${escapeHtml(u.name || 'Unknown')}</div>
+                <div class="l5-user-co">${escapeHtml(u.company || '')} · ${escapeHtml(u.industry || '')}</div>
+              </div>
+              <div class="l5-user-amt" style="color:${u.tierColor || '#0EA5E9'};">${escapeHtml(u.amountLabel || '')}</div>
+            </div>
+            ${(u.tags || []).map(t => `<span class="l5-user-tag" style="background:${u.tierColor || '#0EA5E9'}10; color:${u.tierColor || '#0EA5E9'};">${escapeHtml(t)}</span>`).join('')}
+            ${(u.fields || []).map(f => `
+              <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:11px; border-top:1px solid #f3f4f6; margin-top:6px;">
+                <span style="color:#6b7280;">${escapeHtml(f[0])}</span>
+                <span style="font-weight:600; color:#111827;">${escapeHtml(f[1])}</span>
+              </div>
+            `).join('')}
+            
+            <!-- Individual Send Email Button -->
+            <div style="margin-top:10px; padding-top:8px; border-top:1px solid #e5e7eb;">
+              <button class="l5-send-email-btn" data-user-idx="${idx}" data-view-key="${escapeHtml(viewKey)}"
+                      style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:6px; border:none; background:#0EA5E9; color:#fff; font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;"
+                      ${!hasEmail ? 'disabled' : ''}>
+                <svg style="width:12px; height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                Send Email
+              </button>
+            </div>
           </div>
-        `).join('')}
-        
-        <!-- Send Email Button -->
-        <div style="margin-top:10px; padding-top:8px; border-top:1px solid #e5e7eb;">
-          <button class="l5-send-email-btn" data-user-idx="${idx}" data-view-key="${escapeHtml(viewKey)}"
-                  style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:6px; border:none; background:#0EA5E9; color:#fff; font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;"
-                  ${!hasEmail ? 'disabled' : ''}>
-            <svg style="width:12px; height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-            </svg>
-            Send Email
-          </button>
         </div>
       </div>
-    `}).join('');
+    `;
+  }).join('');
+
+  panel.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+      <span style="font-size:11px; color:#6b7280;">${users.length} users loaded</span>
+      <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:#374151; cursor:pointer; font-weight:500;">
+        <input type="checkbox" id="selectAllUsers" style="width:16px; height:16px; cursor:pointer; accent-color:#0EA5E9;">
+        Select All
+      </label>
+    </div>
+    ${cardsHtml}
+  `;
+  
+  // Attach select all listener
+  document.getElementById('selectAllUsers')?.addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.l5-user-checkbox:not(:disabled)');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+    updateBulkActionBar();
+  });
+  
+  updateBulkActionBar();
 }
 
-// ── Event Delegation for Send Email Buttons ──────────────────────────────────
+// ── Update bulk action bar visibility ──────────────────────────────────────────
+function updateBulkActionBar() {
+  const selected = document.querySelectorAll('.l5-user-checkbox:checked');
+  let bar = document.getElementById('bulkActionBar');
+  
+  if (selected.length === 0) {
+    if (bar) bar.style.display = 'none';
+    return;
+  }
+  
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'bulkActionBar';
+    bar.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#111827; color:#fff; padding:12px 24px; border-radius:10px; display:flex; align-items:center; gap:16px; box-shadow:0 10px 15px -3px rgba(0,0,0,.2); z-index:50; font-size:12px;';
+    document.body.appendChild(bar);
+  }
+  
+  bar.style.display = 'flex';
+  bar.innerHTML = `
+    <span style="font-weight:600;">${selected.length} selected</span>
+    <button onclick="openBulkEmailModal()" style="display:inline-flex; align-items:center; gap:6px; padding:6px 16px; border-radius:6px; border:none; background:#0EA5E9; color:#fff; font-size:11px; font-weight:600; cursor:pointer;">
+      <svg style="width:12px; height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+      </svg>
+      Send Bulk Email
+    </button>
+    <button onclick="clearAllSelections()" style="background:none; border:none; color:#9ca3af; cursor:pointer; font-size:11px; padding:4px;">Clear</button>
+  `;
+}
+
+// ── Clear all selections ───────────────────────────────────────────────────────
+function clearAllSelections() {
+  document.querySelectorAll('.l5-user-checkbox').forEach(cb => cb.checked = false);
+  const selectAll = document.getElementById('selectAllUsers');
+  if (selectAll) selectAll.checked = false;
+  updateBulkActionBar();
+}
+
+// ── Event Delegation for Checkboxes and Send Email Buttons ─────────────────────
+document.addEventListener('change', function(e) {
+  if (e.target.classList.contains('l5-user-checkbox')) {
+    updateBulkActionBar();
+    // Uncheck "Select All" if any individual is unchecked
+    if (!e.target.checked) {
+      const selectAll = document.getElementById('selectAllUsers');
+      if (selectAll) selectAll.checked = false;
+    }
+  }
+});
+
 document.addEventListener('click', function(e) {
   const btn = e.target.closest('.l5-send-email-btn');
   if (!btn) return;
@@ -613,10 +694,10 @@ document.addEventListener('click', function(e) {
   openEmailModal(user.email, user.name);
 });
 
-// ── Open email modal ─────────────────────────────────────────────────────────
+// ── Open individual email modal ────────────────────────────────────────────────
 function openEmailModal(userEmail, userName) {
   if (!userEmail) {
-    showToast('No email address available for this student', 'error');
+    showToast('No email address available', 'error');
     return;
   }
   
@@ -628,35 +709,74 @@ function openEmailModal(userEmail, userName) {
   
   document.getElementById('emailModalTitle').textContent = 'Send Email to ' + (userName || 'Student');
   document.getElementById('emailTo').value = userEmail;
+  document.getElementById('emailTo').readOnly = true;
   document.getElementById('emailSubject').value = '';
   document.getElementById('emailBody').value = '';
+  document.getElementById('sendEmailBtn').onclick = sendSingleEmail;
+  modal.style.display = 'flex';
+}
+
+// ── Open bulk email modal ────────────────────────────────────────────────────
+function openBulkEmailModal() {
+  const selected = document.querySelectorAll('.l5-user-checkbox:checked');
+  if (selected.length === 0) {
+    showToast('Please select at least one student', 'error');
+    return;
+  }
+  
+  const emails = [];
+  const names = [];
+  selected.forEach(cb => {
+    const email = cb.getAttribute('data-email');
+    const name = cb.getAttribute('data-name');
+    if (email && email !== 'N/A') {
+      emails.push(email);
+      names.push(name);
+    }
+  });
+  
+  if (emails.length === 0) {
+    showToast('No valid email addresses found in selection', 'error');
+    return;
+  }
+  
+  const modal = document.getElementById('emailModal');
+  if (!modal) {
+    console.error('Email modal not found in DOM');
+    return;
+  }
+  
+  document.getElementById('emailModalTitle').textContent = 'Send Bulk Email (' + emails.length + ' recipients)';
+  document.getElementById('emailTo').value = emails.join(', ');
+  document.getElementById('emailTo').readOnly = true;
+  document.getElementById('emailSubject').value = '';
+  document.getElementById('emailBody').value = '';
+  
+  // Store bulk data for sending
+  modal.setAttribute('data-bulk-emails', JSON.stringify(emails));
+  document.getElementById('sendEmailBtn').onclick = sendBulkEmail;
+  
   modal.style.display = 'flex';
 }
 
 // ── Close email modal ────────────────────────────────────────────────────────
 function closeEmailModal() {
   const modal = document.getElementById('emailModal');
-  if (modal) modal.style.display = 'none';
+  if (modal) {
+    modal.style.display = 'none';
+    modal.removeAttribute('data-bulk-emails');
+  }
 }
 
-// ── Send email via AJAX ──────────────────────────────────────────────────────
-function sendEmail() {
+// ── Send single email ──────────────────────────────────────────────────────────
+function sendSingleEmail() {
   const to = document.getElementById('emailTo').value;
   const subject = document.getElementById('emailSubject').value;
   const body = document.getElementById('emailBody').value;
 
-  if (!to) {
-    showToast('Recipient email is missing', 'error');
-    return;
-  }
-  if (!subject.trim()) {
-    showToast('Please enter a subject', 'error');
-    return;
-  }
-  if (!body.trim()) {
-    showToast('Please enter a message', 'error');
-    return;
-  }
+  if (!to) { showToast('Recipient email is missing', 'error'); return; }
+  if (!subject.trim()) { showToast('Please enter a subject', 'error'); return; }
+  if (!body.trim()) { showToast('Please enter a message', 'error'); return; }
 
   const btn = document.getElementById('sendEmailBtn');
   const originalText = btn.innerHTML;
@@ -691,6 +811,55 @@ function sendEmail() {
     btn.disabled = false;
     console.error('Email send error:', err);
     showToast('Error sending email: ' + (err.message || 'Unknown error'), 'error');
+  });
+}
+
+// ── Send bulk email ───────────────────────────────────────────────────────────
+function sendBulkEmail() {
+  const modal = document.getElementById('emailModal');
+  const emailsJson = modal.getAttribute('data-bulk-emails');
+  const emails = emailsJson ? JSON.parse(emailsJson) : [];
+  const subject = document.getElementById('emailSubject').value;
+  const body = document.getElementById('emailBody').value;
+
+  if (emails.length === 0) { showToast('No recipients selected', 'error'); return; }
+  if (!subject.trim()) { showToast('Please enter a subject', 'error'); return; }
+  if (!body.trim()) { showToast('Please enter a message', 'error'); return; }
+
+  const btn = document.getElementById('sendEmailBtn');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<span style="display:inline-flex; align-items:center; gap:4px;">⏳ Sending to ' + emails.length + ' recipients...</span>';
+  btn.disabled = true;
+
+  fetch('{{ route("client.email.send.bulk") }}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': '{{ csrf_token() }}',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ emails: emails, subject: subject, body: body })
+  })
+  .then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(data => {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    if (data.success) {
+      closeEmailModal();
+      clearAllSelections();
+      showToast('✓ Email sent successfully to ' + data.sent_count + ' of ' + emails.length + ' recipients', 'success');
+    } else {
+      showToast(data.message || 'Failed to send bulk email', 'error');
+    }
+  })
+  .catch(err => {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    console.error('Bulk email send error:', err);
+    showToast('Error sending bulk email: ' + (err.message || 'Unknown error'), 'error');
   });
 }
 

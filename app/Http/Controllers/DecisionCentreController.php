@@ -3411,4 +3411,60 @@ class DecisionCentreController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Send bulk email to multiple students
+     */
+    public function sendBulkEmail(Request $request)
+    {
+        $request->validate([
+            'emails' => 'required|array|min:1',
+            'emails.*' => 'required|email',
+            'subject' => 'required|string|max:255',
+            'body' => 'required|string',
+        ]);
+
+        $emails = $request->input('emails');
+        $subject = $request->input('subject');
+        $body = $request->input('body');
+        $sent = 0;
+        $failed = [];
+
+        foreach ($emails as $email) {
+            try {
+                \Mail::raw($body, function ($message) use ($email, $subject) {
+                    $message->to($email)
+                            ->subject($subject);
+                });
+                $sent++;
+
+                \Log::info('Bulk email sent to student', [
+                    'to' => $email,
+                    'subject' => $subject,
+                    'sent_by' => auth('client')->id(),
+                ]);
+            } catch (\Exception $e) {
+                $failed[] = $email;
+                \Log::error('Failed to send bulk email to ' . $email . ': ' . $e->getMessage());
+            }
+        }
+
+        if (count($failed) > 0) {
+            \Log::warning('Bulk email partial failure', [
+                'sent' => $sent,
+                'failed' => count($failed),
+                'failed_emails' => $failed,
+            ]);
+        }
+
+        return response()->json([
+            'success' => $sent > 0,
+            'sent_count' => $sent,
+            'failed_count' => count($failed),
+            'failed_emails' => $failed,
+            'message' => $sent > 0 
+                ? 'Email sent to ' . $sent . ' of ' . count($emails) . ' recipients' 
+                : 'Failed to send email to all recipients',
+        ]);
+    }
 }
