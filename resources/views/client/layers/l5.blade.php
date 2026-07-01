@@ -472,10 +472,39 @@
     </div>
   </div>
 
+  <!-- Email Modal -->
+  <div id="emailModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:100; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:12px; width:480px; max-width:90%; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 20px 25px -5px rgba(0,0,0,.1);">
+      <div style="padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between;">
+        <h3 id="emailModalTitle" style="margin:0; font-size:14px; font-weight:600; color:#111827;">Send Email</h3>
+        <button onclick="closeEmailModal()" style="background:none; border:none; cursor:pointer; color:#9ca3af; padding:4px; font-size:16px;">✕</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto;">
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:4px;">To</label>
+          <input type="email" id="emailTo" readonly style="width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:6px; font-size:12px; background:#f9fafb; color:#6b7280; box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:4px;">Subject <span style="color:#F43F5E;">*</span></label>
+          <input type="text" id="emailSubject" placeholder="Enter email subject..." style="width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:6px; font-size:12px; outline:none; box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:11px; font-weight:600; color:#374151; margin-bottom:4px;">Message <span style="color:#F43F5E;">*</span></label>
+          <textarea id="emailBody" rows="6" placeholder="Type your message here..." style="width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:6px; font-size:12px; outline:none; resize:vertical; box-sizing:border-box;"></textarea>
+        </div>
+      </div>
+      <div style="padding:12px 20px; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:8px;">
+        <button onclick="closeEmailModal()" style="padding:8px 16px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; color:#374151; font-size:12px; font-weight:600; cursor:pointer;">Cancel</button>
+        <button id="sendEmailBtn" onclick="sendEmail()" style="padding:8px 16px; border:none; border-radius:6px; background:#0EA5E9; color:#fff; font-size:12px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+          📧 Send Email
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
-// Dropdown helper
+// ── Dropdown helper ──────────────────────────────────────────────────────────
 function xpDd(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -487,10 +516,22 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// Load users into side panel
+// ── Escape HTML ──────────────────────────────────────────────────────────────
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ── Global user groups cache (for event delegation) ──────────────────────────
+let _userGroupsCache = {};
+
+// ── Load users into side panel ───────────────────────────────────────────────
 function loadUsers(viewKey, scenarioId) {
   const panel = document.getElementById('userDetailsPanel');
   const userGroups = @json($userGroups ?? []);
+  _userGroupsCache = userGroups; // Cache for event delegation
   const users = userGroups[viewKey] || [];
 
   // Highlight active scenario
@@ -511,28 +552,167 @@ function loadUsers(viewKey, scenarioId) {
 
   panel.className = '';
   panel.innerHTML = '<div style="font-size:11px; color:#6b7280; margin-bottom:10px;">' + users.length + ' users loaded</div>' +
-    users.map(u => `
-      <div class="l5-user-card">
+    users.map((u, idx) => {
+      const hasEmail = u.email && u.email !== 'N/A' && u.email !== '';
+      return `
+      <div class="l5-user-card" data-user-idx="${idx}" data-view-key="${escapeHtml(viewKey)}">
         <div class="l5-user-hd">
           <div class="l5-user-avatar" style="background:${u.avatarColor || '#0EA5E9'};">${u.initials || '?'}</div>
           <div class="l5-user-info">
-            <div class="l5-user-name">${u.name || 'Unknown'}</div>
-            <div class="l5-user-co">${u.company || ''} · ${u.industry || ''}</div>
+            <div class="l5-user-name">${escapeHtml(u.name || 'Unknown')}</div>
+            <div class="l5-user-co">${escapeHtml(u.company || '')} · ${escapeHtml(u.industry || '')}</div>
           </div>
-          <div class="l5-user-amt" style="color:${u.tierColor || '#0EA5E9'};">${u.amountLabel || ''}</div>
+          <div class="l5-user-amt" style="color:${u.tierColor || '#0EA5E9'};">${escapeHtml(u.amountLabel || '')}</div>
         </div>
-        ${(u.tags || []).map(t => `<span class="l5-user-tag" style="background:${u.tierColor || '#0EA5E9'}10; color:${u.tierColor || '#0EA5E9'};">${t}</span>`).join('')}
+        ${(u.tags || []).map(t => `<span class="l5-user-tag" style="background:${u.tierColor || '#0EA5E9'}10; color:${u.tierColor || '#0EA5E9'};">${escapeHtml(t)}</span>`).join('')}
         ${(u.fields || []).map(f => `
           <div style="display:flex; justify-content:space-between; padding:4px 0; font-size:11px; border-top:1px solid #f3f4f6; margin-top:6px;">
-            <span style="color:#6b7280;">${f[0]}</span>
-            <span style="font-weight:600; color:#111827;">${f[1]}</span>
+            <span style="color:#6b7280;">${escapeHtml(f[0])}</span>
+            <span style="font-weight:600; color:#111827;">${escapeHtml(f[1])}</span>
           </div>
         `).join('')}
+        
+        <!-- Send Email Button -->
+        <div style="margin-top:10px; padding-top:8px; border-top:1px solid #e5e7eb;">
+          <button class="l5-send-email-btn" data-user-idx="${idx}" data-view-key="${escapeHtml(viewKey)}"
+                  style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:6px; border:none; background:#0EA5E9; color:#fff; font-size:11px; font-weight:600; cursor:pointer; transition:all .15s;"
+                  ${!hasEmail ? 'disabled' : ''}>
+            <svg style="width:12px; height:12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+            Send Email
+          </button>
+        </div>
       </div>
-    `).join('');
+    `}).join('');
 }
 
-// Auto-select first scenario
+// ── Event Delegation for Send Email Buttons ──────────────────────────────────
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.l5-send-email-btn');
+  if (!btn) return;
+  
+  e.preventDefault();
+  e.stopPropagation();
+  
+  if (btn.disabled) {
+    showToast('No email address available for this student', 'error');
+    return;
+  }
+  
+  const viewKey = btn.getAttribute('data-view-key');
+  const userIdx = parseInt(btn.getAttribute('data-user-idx'));
+  const users = _userGroupsCache[viewKey] || [];
+  const user = users[userIdx];
+  
+  if (!user || !user.email) {
+    showToast('No email address available for this student', 'error');
+    return;
+  }
+  
+  openEmailModal(user.email, user.name);
+});
+
+// ── Open email modal ─────────────────────────────────────────────────────────
+function openEmailModal(userEmail, userName) {
+  if (!userEmail) {
+    showToast('No email address available for this student', 'error');
+    return;
+  }
+  
+  const modal = document.getElementById('emailModal');
+  if (!modal) {
+    console.error('Email modal not found in DOM');
+    return;
+  }
+  
+  document.getElementById('emailModalTitle').textContent = 'Send Email to ' + (userName || 'Student');
+  document.getElementById('emailTo').value = userEmail;
+  document.getElementById('emailSubject').value = '';
+  document.getElementById('emailBody').value = '';
+  modal.style.display = 'flex';
+}
+
+// ── Close email modal ────────────────────────────────────────────────────────
+function closeEmailModal() {
+  const modal = document.getElementById('emailModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// ── Send email via AJAX ──────────────────────────────────────────────────────
+function sendEmail() {
+  const to = document.getElementById('emailTo').value;
+  const subject = document.getElementById('emailSubject').value;
+  const body = document.getElementById('emailBody').value;
+
+  if (!to) {
+    showToast('Recipient email is missing', 'error');
+    return;
+  }
+  if (!subject.trim()) {
+    showToast('Please enter a subject', 'error');
+    return;
+  }
+  if (!body.trim()) {
+    showToast('Please enter a message', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('sendEmailBtn');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<span style="display:inline-flex; align-items:center; gap:4px;">⏳ Sending...</span>';
+  btn.disabled = true;
+
+  fetch('{{ route("client.email.send") }}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': '{{ csrf_token() }}',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ to: to, subject: subject, body: body })
+  })
+  .then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(data => {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    if (data.success) {
+      closeEmailModal();
+      showToast('✓ Email sent successfully to ' + to, 'success');
+    } else {
+      showToast(data.message || 'Failed to send email', 'error');
+    }
+  })
+  .catch(err => {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+    console.error('Email send error:', err);
+    showToast('Error sending email: ' + (err.message || 'Unknown error'), 'error');
+  });
+}
+
+// ── Toast notification ───────────────────────────────────────────────────────
+function showToast(message, type) {
+  document.querySelectorAll('.l5-toast').forEach(t => t.remove());
+  
+  const toast = document.createElement('div');
+  toast.className = 'l5-toast';
+  toast.style.cssText = 'position:fixed; top:20px; right:20px; padding:12px 20px; border-radius:8px; font-size:12px; font-weight:600; color:#fff; z-index:99999; box-shadow:0 4px 12px rgba(0,0,0,.15); transition:opacity .3s, transform .3s; ' + 
+    (type === 'success' ? 'background:#10B981;' : 'background:#F43F5E;');
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(100%)';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// ── Auto-select first scenario ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
   const firstScenario = document.querySelector('[data-scenario]');
   if (firstScenario) firstScenario.classList.add('active');
