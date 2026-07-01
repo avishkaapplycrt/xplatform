@@ -6,6 +6,7 @@ use App\Models\BehavioralProfile;
 use App\Models\UserEvent;
 use App\Services\DecisionEngine;
 use App\Services\EdTechBehavioralEngine;
+use Illuminate\Http\Request;
 
 class DecisionCentreController extends Controller
 {
@@ -2992,7 +2993,7 @@ class DecisionCentreController extends Controller
         if (($p['segment'] ?? '') === 'champion') $tags[] = 'Enterprise';
         if (($p['intent_score'] ?? 0) >= 88) $tags[] = 'Highest intent';
         return [
-            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'], 'email' => $email,
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
@@ -3031,7 +3032,7 @@ class DecisionCentreController extends Controller
         $email = $p['email'] ?? 'N/A';
         $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
-            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'], 'email' => $email,
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
@@ -3068,7 +3069,7 @@ class DecisionCentreController extends Controller
         $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         $tags = []; if ($isAmb) $tags[] = 'Ambassador ready'; if ($refs >= 6) $tags[] = 'Super referrer'; if ($gap < 200) $tags[] = 'Near tier upgrade';
         return [
-            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'], 'email' => $email,
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
@@ -3106,7 +3107,7 @@ class DecisionCentreController extends Controller
         $email = $p['email'] ?? 'N/A';
         $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
-            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'], 'email' => $email,
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
@@ -3144,7 +3145,7 @@ class DecisionCentreController extends Controller
         $email = $p['email'] ?? 'N/A';
         $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
-            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'], 'email' => $email,
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
@@ -3180,7 +3181,7 @@ class DecisionCentreController extends Controller
         $email = $p['email'] ?? 'N/A';
         $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
-            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'], 'email' => $email,
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
@@ -3218,7 +3219,7 @@ class DecisionCentreController extends Controller
         $email = $p['email'] ?? 'N/A';
         $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
-            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'], 'email' => $email,
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
@@ -3254,7 +3255,7 @@ class DecisionCentreController extends Controller
         $email = $p['email'] ?? 'N/A';
         $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
-            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'], 'email' => $email,
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
@@ -3292,7 +3293,7 @@ class DecisionCentreController extends Controller
         $email = $p['email'] ?? 'N/A';
         $createDate = !empty($p['create_date']) ? \Carbon\Carbon::parse($p['create_date'])->format('Y-m-d H:i') : 'N/A';
         return [
-            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'id' => $p['id'], 'name' => $p['name'] ?? 'Student #' . $p['id'], 'email' => $email,
             'initials' => $this->getInitials($p['name'] ?? ''), 'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech', 'tier' => $plan, 'tierColor' => $tc, 'tierBg' => $tb,
             'avatarColor' => $this->edSegmentColor($p['segment'] ?? 'new'),
@@ -3328,7 +3329,7 @@ class DecisionCentreController extends Controller
         
         return [
             'id' => $p['id'],
-            'name' => $p['name'] ?? 'Student #' . $p['id'],
+            'name' => $p['name'] ?? 'Student #' . $p['id'], 'email' => $email,
             'initials' => $this->getInitials($p['name'] ?? ''),
             'company' => $this->getCompany($p['email'] ?? ''),
             'industry' => 'EdTech',
@@ -3368,5 +3369,46 @@ class DecisionCentreController extends Controller
             'champion' => '#FFD700', 'loyal' => '#A855F7', 'at_risk' => '#F43F5E',
             'new' => '#0EA5E9', 'dormant' => '#10B981', default => '#0EA5E9',
         };
+    }
+
+    /**
+     * Send email to a student
+     */
+    public function sendEmail(Request $request)
+    {
+        $request->validate([
+            'to' => 'required|email',
+            'subject' => 'required|string|max:255',
+            'body' => 'required|string',
+        ]);
+
+        try {
+            $data = $request->only(['to', 'subject', 'body']);
+            
+            // Send email using Laravel Mail
+            \Mail::raw($data['body'], function ($message) use ($data) {
+                $message->to($data['to'])
+                        ->subject($data['subject']);
+            });
+
+            // Log the email sent
+            \Log::info('Email sent to student', [
+                'to' => $data['to'],
+                'subject' => $data['subject'],
+                'sent_by' => auth('client')->id(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Email sent successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to send email to student: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send email: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
