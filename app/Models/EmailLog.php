@@ -7,9 +7,26 @@ use Illuminate\Database\Eloquent\Model;
 class EmailLog extends Model
 {
     protected $fillable = [
+        'client_id',
+        'email_template_id',
         'email_address',
-        'sent_at', 'delivered_at', 'opened_at', 'clicked_at', 'converted_at', 'unsubscribed_at',
-        'device_type', 'time_to_open_minutes',
+        'recipient_name',
+        'subject',
+        'body',
+        'type',
+        'bulk_count',
+        'status',
+        'error_message',
+        'sent_at',
+        'delivered_at',
+        'opened_at',
+        'clicked_at',
+        'converted_at',
+        'unsubscribed_at',
+        'device_type',
+        'time_to_open_minutes',
+        'ip_address',
+        'user_agent',
     ];
 
     protected $casts = [
@@ -20,6 +37,79 @@ class EmailLog extends Model
         'converted_at'    => 'datetime',
         'unsubscribed_at' => 'datetime',
     ];
+
+    // ── Relationships ────────────────────────────────────────────────────────
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function template()
+    {
+        return $this->belongsTo(EmailTemplate::class, 'email_template_id');
+    }
+
+    // ── Scopes ───────────────────────────────────────────────────────────────
+
+    public function scopeForClient($query, $clientId)
+    {
+        return $query->where('client_id', $clientId);
+    }
+
+    public function scopeWithStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    public function scopeWithType($query, $type)
+    {
+        return $query->where('type', $type);
+    }
+
+    // ── Accessors ────────────────────────────────────────────────────────────
+
+    public function getStatusColorAttribute(): string
+    {
+        return match($this->status) {
+            'sent' => '#10B981',
+            'failed' => '#F43F5E',
+            'queued' => '#F59E0B',
+            'bounced' => '#A855F7',
+            default => '#6b7280',
+        };
+    }
+
+    public function getStatusBgColorAttribute(): string
+    {
+        return match($this->status) {
+            'sent' => '#dcfce7',
+            'failed' => '#fef2f2',
+            'queued' => '#fef3c7',
+            'bounced' => '#f3e8ff',
+            default => '#f3f4f6',
+        };
+    }
+
+    public function getTypeColorAttribute(): string
+    {
+        return match($this->type) {
+            'single' => '#0EA5E9',
+            'bulk' => '#A855F7',
+            default => '#6b7280',
+        };
+    }
+
+    public function getTypeBgColorAttribute(): string
+    {
+        return match($this->type) {
+            'single' => '#e0f2fe',
+            'bulk' => '#f3e8ff',
+            default => '#f3f4f6',
+        };
+    }
+
+    // ── Existing deliveryStats method (preserved) ───────────────────────────
 
     public static function deliveryStats(): array
     {
@@ -89,5 +179,29 @@ class EmailLog extends Model
             'emailFunnel', 'emailDevices', 'emailTimeToOpen', 'emailClickers', 'emailGroups',
             'unsubscribed', 'retained', 'unsubscribeRate', 'sent'
         );
+    }
+
+    // ── New: Stats for email logs page ───────────────────────────────────────
+
+    public static function statsForClient(int $clientId): array
+    {
+        $total = self::forClient($clientId)->count();
+        $sent = self::forClient($clientId)->whereNotNull('sent_at')->count();
+        $failed = self::forClient($clientId)->where('status', 'failed')->count();
+        $bulk = self::forClient($clientId)->where('type', 'bulk')->count();
+        $today = self::forClient($clientId)->whereDate('created_at', today())->count();
+
+        $totalSent = max(1, $sent);
+        $opened = self::forClient($clientId)->whereNotNull('opened_at')->count();
+
+        return [
+            'total' => $total,
+            'total_sent' => $sent,
+            'total_failed' => $failed,
+            'total_bulk' => $bulk,
+            'today_count' => $today,
+            'open_rate' => round(($opened / $totalSent) * 100, 1),
+            'last_7_days' => self::forClient($clientId)->where('created_at', '>=', now()->subDays(7))->count(),
+        ];
     }
 }

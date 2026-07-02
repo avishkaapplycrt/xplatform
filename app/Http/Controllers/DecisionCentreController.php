@@ -9,6 +9,7 @@ use App\Services\EdTechBehavioralEngine;
 use Illuminate\Http\Request;
 use App\Models\EmailTemplate;
 use App\Models\EmailTemplateCategory;
+use App\Models\EmailLog;
 
 class DecisionCentreController extends Controller
 {
@@ -3375,7 +3376,7 @@ class DecisionCentreController extends Controller
     }
 
     /**
-     * Send email to a student
+     * Send email to a student (with logging)
      */
     public function sendEmail(Request $request)
     {
@@ -3383,31 +3384,52 @@ class DecisionCentreController extends Controller
             'to' => 'required|email',
             'subject' => 'required|string|max:255',
             'body' => 'required|string',
+            'template_id' => 'nullable|integer|exists:email_templates,id',
         ]);
 
+        $client = auth('client')->user();
+        $data = $request->only(['to', 'subject', 'body', 'template_id']);
+
         try {
-            $data = $request->only(['to', 'subject', 'body']);
-            
-            // Send email using Laravel Mail
+            // Send email
             \Mail::raw($data['body'], function ($message) use ($data) {
                 $message->to($data['to'])
                         ->subject($data['subject']);
             });
 
-            // Log the email sent
-            \Log::info('Email sent to student', [
-                'to' => $data['to'],
+            // Log success
+            $log = EmailLog::create([
+                'client_id' => $client->id,
+                'email_template_id' => $data['template_id'] ?? null,
+                'email_address' => $data['to'],
                 'subject' => $data['subject'],
-                'sent_by' => auth('client')->id(),
+                'body' => $data['body'],
+                'type' => 'single',
+                'bulk_count' => 1,
+                'status' => 'sent',
+                'sent_at' => now(),
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Email sent successfully'
+                'message' => 'Email sent successfully',
+                'log_id' => $log->id,
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to send email to student: ' . $e->getMessage());
+            // Log failure
+            EmailLog::create([
+                'client_id' => $client->id,
+                'email_template_id' => $data['template_id'] ?? null,
+                'email_address' => $data['to'],
+                'subject' => $data['subject'],
+                'body' => $data['body'],
+                'type' => 'single',
+                'bulk_count' => 1,
+                'status' => 'failed',
+                'error_message' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to send email: ' . $e->getMessage()
@@ -3416,7 +3438,7 @@ class DecisionCentreController extends Controller
     }
 
     /**
-     * Send bulk email to multiple students
+     * Send bulk email to multiple students (with logging)
      */
     public function sendBulkEmail(Request $request)
     {
@@ -3425,46 +3447,71 @@ class DecisionCentreController extends Controller
             'emails.*' => 'required|email',
             'subject' => 'required|string|max:255',
             'body' => 'required|string',
+            'template_id' => 'nullable|integer|exists:email_templates,id',
         ]);
 
+        $client = auth('client')->user();
         $emails = $request->input('emails');
         $subject = $request->input('subject');
         $body = $request->input('body');
+        $templateId = $request->input('template_id');
         $sent = 0;
-        $failed = [];
+        $failedEmails = [];
 
         foreach ($emails as $email) {
             try {
                 \Mail::raw($body, function ($message) use ($email, $subject) {
-                    $message->to($email)
-                            ->subject($subject);
+                    $message->to($email)->subject($subject);
                 });
                 $sent++;
 
-                \Log::info('Bulk email sent to student', [
-                    'to' => $email,
+                // Log individual success
+                EmailLog::create([
+                    'client_id' => $client->id,
+                    'email_template_id' => $templateId,
+                    'email_address' => $email,
                     'subject' => $subject,
-                    'sent_by' => auth('client')->id(),
+                    'body' => $body,
+                    'type' => 'single',
+                    'status' => 'sent',
+                    'sent_at' => now(),
                 ]);
+
             } catch (\Exception $e) {
-                $failed[] = $email;
-                \Log::error('Failed to send bulk email to ' . $email . ': ' . $e->getMessage());
+                $failedEmails[] = $email;
+
+                // Log individual failure
+                EmailLog::create([
+                    'client_id' => $client->id,
+                    'email_template_id' => $templateId,
+                    'email_address' => $email,
+                    'subject' => $subject,
+                    'body' => $body,
+                    'type' => 'single',
+                    'status' => 'failed',
+                    'error_message' => $e->getMessage(),
+                ]);
             }
         }
 
-        if (count($failed) > 0) {
-            \Log::warning('Bulk email partial failure', [
-                'sent' => $sent,
-                'failed' => count($failed),
-                'failed_emails' => $failed,
-            ]);
-        }
+        // Log bulk summary
+        EmailLog::create([
+            'client_id' => $client->id,
+            'email_template_id' => $templateId,
+            'email_address' => implode(', ', array_slice($emails, 0, 3)) . (count($emails) > 3 ? ' + ' . (count($emails) - 3) . ' more' : ''),
+            'subject' => $subject,
+            'body' => $body,
+            'type' => 'bulk',
+            'bulk_count' => count($emails),
+            'status' => $sent > 0 ? 'sent' : 'failed',
+            'sent_at' => $sent > 0 ? now() : null,
+        ]);
 
         return response()->json([
             'success' => $sent > 0,
             'sent_count' => $sent,
-            'failed_count' => count($failed),
-            'failed_emails' => $failed,
+            'failed_count' => count($failedEmails),
+            'failed_emails' => $failedEmails,
             'message' => $sent > 0 
                 ? 'Email sent to ' . $sent . ' of ' . count($emails) . ' recipients' 
                 : 'Failed to send email to all recipients',
@@ -3777,5 +3824,146 @@ class DecisionCentreController extends Controller
         $category->delete();
 
         return redirect()->route('client.email.template.categories')->with('success', 'Category deleted. Templates moved to General.');
+    }
+
+    // ── Email Logs ─────────────────────────────────────────────────────────────
+
+    /**
+     * Show email logs/history page
+     */
+    public function emailLogs(Request $request)
+    {
+        $client = auth('client')->user();
+        
+        $query = EmailLog::forClient($client->id)
+            ->with('template')
+            ->orderByDesc('created_at');
+
+        // Filter by status
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->withStatus($request->status);
+        }
+
+        // Filter by type
+        if ($request->filled('type') && $request->type !== 'all') {
+            $query->withType($request->type);
+        }
+
+        // Filter by date range
+        if ($request->filled('from')) {
+            $query->whereDate('created_at', '>=', $request->from);
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('created_at', '<=', $request->to);
+        }
+
+        // Search by email or subject
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('email_address', 'like', "%{$search}%")
+                  ->orWhere('subject', 'like', "%{$search}%")
+                  ->orWhere('recipient_name', 'like', "%{$search}%");
+            });
+        }
+
+        $logs = $query->paginate(20)->withQueryString();
+
+        // Stats
+        $stats = EmailLog::statsForClient($client->id);
+
+        return view('client.email-logs', compact('logs', 'stats'));
+    }
+
+    /**
+     * Show email log detail (AJAX modal)
+     */
+    public function emailLogDetail(EmailLog $log)
+    {
+        if ($log->client_id !== auth('client')->id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        return view('client.email-log-detail', compact('log'));
+    }
+
+    /**
+     * Retry failed email
+     */
+    public function retryEmail(EmailLog $log)
+    {
+        if ($log->client_id !== auth('client')->id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        if ($log->status !== 'failed') {
+            return redirect()->back()->with('error', 'Only failed emails can be retried');
+        }
+
+        try {
+            \Mail::raw($log->body ?? 'No content', function ($message) use ($log) {
+                $message->to($log->email_address)
+                        ->subject($log->subject ?? 'No subject');
+            });
+
+            $log->update([
+                'status' => 'sent',
+                'sent_at' => now(),
+                'error_message' => null,
+            ]);
+
+            return redirect()->back()->with('success', 'Email resent successfully');
+
+        } catch (\Exception $e) {
+            $log->update([
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return redirect()->back()->with('error', 'Failed to resend: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete email log
+     */
+    public function deleteEmailLog(EmailLog $log)
+    {
+        if ($log->client_id !== auth('client')->id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        $log->delete();
+
+        return redirect()->route('client.email.logs')->with('success', 'Email log deleted');
+    }
+
+    /**
+     * Track email open (pixel tracking)
+     */
+    public function trackOpen(string $token)
+    {
+        try {
+            $logId = decrypt($token);
+            $log = EmailLog::find($logId);
+            
+            if ($log && !$log->opened_at) {
+                $log->update([
+                    'opened_at' => now(),
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Silently fail for tracking pixel
+        }
+
+        // Return 1x1 transparent pixel
+        $pixel = base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
+        
+        return response($pixel, 200)
+            ->header('Content-Type', 'image/gif')
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 }
