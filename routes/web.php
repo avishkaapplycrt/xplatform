@@ -153,6 +153,12 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::put('email-templates/{template}', [DecisionCentreController::class, 'updateTemplate'])->name('email.templates.update');
     Route::delete('email-templates/{template}', [DecisionCentreController::class, 'deleteTemplate'])->name('email.templates.destroy');
 
+    // Email Template Categories
+    Route::get('email-template-categories', [DecisionCentreController::class, 'emailTemplateCategories'])->name('email.template.categories');
+    Route::post('email-template-categories', [DecisionCentreController::class, 'storeCategory'])->name('email.template.categories.store');
+    Route::put('email-template-categories/{category}', [DecisionCentreController::class, 'updateCategory'])->name('email.template.categories.update');
+    Route::delete('email-template-categories/{category}', [DecisionCentreController::class, 'deleteCategory'])->name('email.template.categories.destroy');
+
     // Database data sources
     Route::get('sources',                [DataSourceController::class, 'index'])->name('sources.index');
     Route::get('sources/create',         [DataSourceController::class, 'create'])->name('sources.create');
