@@ -82,32 +82,62 @@
                     </a>
                 @endforeach
 
-                {{-- Email Templates --}}
-                <a href="{{ route('client.email.templates') }}"
-                   class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
-                          {{ request()->routeIs('client.email.templates')
-                             ? 'bg-sky-50 text-sky-700 font-medium border-l-2 border-sky-400'
-                             : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
-                    <svg class="w-3.5 h-3.5 flex-shrink-0 {{ request()->routeIs('client.email.templates') ? 'text-sky-500' : 'text-gray-400' }}"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                    </svg>
-                    <span class="truncate">Email Templates</span>
-                </a>
+                                {{-- Email Settings Group --}}
+                @php
+                $emailRoutes = ['client.email.templates', 'client.email.template.categories', 'client.email.logs'];
+                $isEmailActive = collect($emailRoutes)->contains(fn($r) => request()->routeIs($r));
+                @endphp
 
-                <a href="{{ route('client.email.template.categories') }}"
-                    class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
-                        {{ request()->routeIs('client.email.template.categories')
-                            ? 'bg-sky-50 text-sky-700 font-medium border-l-2 border-sky-400'
-                            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
-                    <svg class="w-3.5 h-3.5 flex-shrink-0 {{ request()->routeIs('client.email.template.categories') ? 'text-sky-500' : 'text-gray-400' }}"
-                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                    </svg>
-                    <span class="truncate">Email Categories</span>
-                </a>
+                <div class="space-y-1">
+                    <button onclick="toggleEmailMenu()"
+                            class="w-full flex items-center justify-between px-3 py-2 text-xs rounded-md transition
+                                   {{ $isEmailActive ? 'bg-sky-50 text-sky-700 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0 {{ $isEmailActive ? 'text-sky-500' : 'text-gray-400' }}"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
+                            <span class="truncate">Email Settings</span>
+                        </div>
+                        <svg id="emailChevron" class="w-3 h-3 transition-transform {{ $isEmailActive ? 'rotate-180' : '' }}"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+
+                    <div id="emailSubmenu" class="{{ $isEmailActive ? '' : 'hidden' }} pl-7 space-y-1">
+                        {{-- Email Templates --}}
+                        <a href="{{ route('client.email.templates') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.email.templates')
+                                     ? 'text-sky-700 font-medium'
+                                     : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.email.templates') ? 'bg-sky-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Templates</span>
+                        </a>
+
+                        {{-- Email Categories --}}
+                        <a href="{{ route('client.email.template.categories') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.email.template.categories')
+                                     ? 'text-sky-700 font-medium'
+                                     : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.email.template.categories') ? 'bg-sky-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Categories</span>
+                        </a>
+
+                        {{-- Email Logs --}}
+                        <a href="{{ route('client.email.logs') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.email.logs')
+                                     ? 'text-sky-700 font-medium'
+                                     : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.email.logs') ? 'bg-sky-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Logs</span>
+                        </a>
+                    </div>
+                </div>
 
                 {{-- RL Engine add-on --}}
                 <div class="mt-3 pt-3 border-t border-gray-100">
@@ -144,6 +174,18 @@
     <script>
     function xpDd(id){var m=document.getElementById(id);m.style.display=m.style.display==='block'?'none':'block';}
     document.addEventListener('click',function(e){if(!e.target.closest('[data-dd-wrap]'))document.querySelectorAll('[data-dd-menu]').forEach(function(m){m.style.display='none';});});
+
+    function toggleEmailMenu() {
+        var submenu = document.getElementById('emailSubmenu');
+        var chevron = document.getElementById('emailChevron');
+        if (submenu.classList.contains('hidden')) {
+            submenu.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            submenu.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
     </script>
 </body>
 </html>

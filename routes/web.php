@@ -159,6 +159,15 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::put('email-template-categories/{category}', [DecisionCentreController::class, 'updateCategory'])->name('email.template.categories.update');
     Route::delete('email-template-categories/{category}', [DecisionCentreController::class, 'deleteCategory'])->name('email.template.categories.destroy');
 
+    // Email Logs
+    Route::get('/email-logs', [DecisionCentreController::class, 'emailLogs'])->name('email.logs');
+    Route::get('/email-logs/{log}/detail', [DecisionCentreController::class, 'emailLogDetail'])->name('email.logs.detail');
+    Route::post('/email-logs/{log}/retry', [DecisionCentreController::class, 'retryEmail'])->name('email.logs.retry');
+    Route::delete('/email-logs/{log}', [DecisionCentreController::class, 'deleteEmailLog'])->name('email.logs.delete');
+
+    // Tracking pixel (outside auth group - no middleware)
+    Route::get('/track/email/{token}', [DecisionCentreController::class, 'trackOpen'])->name('email.track.open');
+
     // Database data sources
     Route::get('sources',                [DataSourceController::class, 'index'])->name('sources.index');
     Route::get('sources/create',         [DataSourceController::class, 'create'])->name('sources.create');
