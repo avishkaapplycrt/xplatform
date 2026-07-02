@@ -13,6 +13,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            TestClientSeeder::class,
+            EmailTemplateCategoriesSeeder::class,
             MasterAdminSeeder::class,
             IndustrySeeder::class,
             IndustryPredictionSeeder::class,
@@ -20,7 +22,6 @@ class DatabaseSeeder extends Seeder
             DataSourceSeeder::class,
             MicroSignalSeeder::class,
             ActionSeeder::class,
-            TestClientSeeder::class,
             EmailLogSeeder::class,
             CallLogSeeder::class,
             BehavioralProfileSeeder::class,
