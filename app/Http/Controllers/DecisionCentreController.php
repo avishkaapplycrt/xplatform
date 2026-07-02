@@ -3550,6 +3550,7 @@ class DecisionCentreController extends Controller
             'subject' => 'required|string|max:255',
             'body' => 'required|string',
             'category' => 'required|in:general,intervention,winback,upsell,onboarding',
+            'is_active' => 'boolean',
         ]);
 
         $client = auth('client')->user();
@@ -3560,6 +3561,7 @@ class DecisionCentreController extends Controller
             'subject' => $request->subject,
             'body' => $request->body,
             'category' => $request->category,
+            'is_active' => $request->boolean('is_active', true),
         ]);
 
         return redirect()->route('client.email.templates')->with('success', 'Template created successfully');
@@ -3570,16 +3572,26 @@ class DecisionCentreController extends Controller
      */
     public function updateTemplate(Request $request, EmailTemplate $template)
     {
-        $this->authorize('update', $template);
+        // Verify ownership
+        if ($template->client_id !== auth('client')->id()) {
+            abort(403, 'Unauthorized');
+        }
         
         $request->validate([
             'name' => 'required|string|max:100',
             'subject' => 'required|string|max:255',
             'body' => 'required|string',
             'category' => 'required|in:general,intervention,winback,upsell,onboarding',
+            'is_active' => 'boolean',
         ]);
 
-        $template->update($request->only(['name', 'subject', 'body', 'category']));
+        $template->update([
+            'name' => $request->name,
+            'subject' => $request->subject,
+            'body' => $request->body,
+            'category' => $request->category,
+            'is_active' => $request->boolean('is_active', true),
+        ]);
 
         return redirect()->route('client.email.templates')->with('success', 'Template updated successfully');
     }
@@ -3589,7 +3601,11 @@ class DecisionCentreController extends Controller
      */
     public function deleteTemplate(EmailTemplate $template)
     {
-        $this->authorize('delete', $template);
+        // Verify ownership
+        if ($template->client_id !== auth('client')->id()) {
+            abort(403, 'Unauthorized');
+        }
+        
         $template->delete();
         
         return redirect()->route('client.email.templates')->with('success', 'Template deleted');
