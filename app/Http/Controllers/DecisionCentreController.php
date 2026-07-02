@@ -8,6 +8,7 @@ use App\Services\DecisionEngine;
 use App\Services\EdTechBehavioralEngine;
 use Illuminate\Http\Request;
 use App\Models\EmailTemplate;
+use App\Models\EmailTemplateCategory;
 
 class DecisionCentreController extends Controller
 {
@@ -3537,7 +3538,11 @@ class DecisionCentreController extends Controller
             ->orderBy('name')
             ->get();
             
-        return view('client.email-templates', compact('templates'));
+        $categories = EmailTemplateCategory::where('client_id', $client->id)
+            ->orderBy('sort_order')
+            ->get();
+
+        return view('client.email-templates', compact('templates', 'categories'));
     }
 
     /**
@@ -3545,16 +3550,26 @@ class DecisionCentreController extends Controller
      */
     public function storeTemplate(Request $request)
     {
+        $client = auth('client')->user();
+        
+        // Get all valid category slugs for this client
+        $validCategories = EmailTemplateCategory::where('client_id', $client->id)
+            ->pluck('slug')
+            ->toArray();
+        
+        // Always include 'general' as fallback
+        if (!in_array('general', $validCategories)) {
+            $validCategories[] = 'general';
+        }
+
         $request->validate([
             'name' => 'required|string|max:100',
             'subject' => 'required|string|max:255',
             'body' => 'required|string',
-            'category' => 'required|in:general,intervention,winback,upsell,onboarding',
+            'category' => 'required|in:' . implode(',', $validCategories),
             'is_active' => 'boolean',
         ]);
 
-        $client = auth('client')->user();
-        
         EmailTemplate::create([
             'client_id' => $client->id,
             'name' => $request->name,
@@ -3577,11 +3592,23 @@ class DecisionCentreController extends Controller
             abort(403, 'Unauthorized');
         }
         
+        $client = auth('client')->user();
+        
+        // Get all valid category slugs for this client
+        $validCategories = EmailTemplateCategory::where('client_id', $client->id)
+            ->pluck('slug')
+            ->toArray();
+        
+        // Always include 'general' as fallback
+        if (!in_array('general', $validCategories)) {
+            $validCategories[] = 'general';
+        }
+
         $request->validate([
             'name' => 'required|string|max:100',
             'subject' => 'required|string|max:255',
             'body' => 'required|string',
-            'category' => 'required|in:general,intervention,winback,upsell,onboarding',
+            'category' => 'required|in:' . implode(',', $validCategories),
             'is_active' => 'boolean',
         ]);
 
@@ -3609,5 +3636,146 @@ class DecisionCentreController extends Controller
         $template->delete();
         
         return redirect()->route('client.email.templates')->with('success', 'Template deleted');
+    }
+
+    /**
+     * Get all categories for current client
+     */
+    private function getEmailTemplateCategories(): array
+    {
+        $client = auth('client')->user();
+        if (!$client) return [];
+
+        return EmailTemplateCategory::where('client_id', $client->id)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->map(fn($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'slug' => $c->slug,
+                'color' => $c->color,
+                'bg_color' => $c->bg_color,
+                'is_default' => $c->is_default,
+                'template_count' => EmailTemplate::where('client_id', $client->id)
+                    ->where('category', $c->slug)
+                    ->count(),
+            ])
+            ->toArray();
+    }
+
+    /**
+     * Show category management page
+     */
+    public function emailTemplateCategories()
+    {
+        $client = auth('client')->user();
+        $categories = EmailTemplateCategory::where('client_id', $client->id)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        return view('client.email-template-categories', compact('categories'));
+    }
+
+    /**
+     * Store new category
+     */
+    public function storeCategory(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:50|unique:email_template_categories,name,NULL,id,client_id,' . auth('client')->id(),
+            'color' => 'required|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
+            'bg_color' => 'required|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
+        ]);
+
+        $client = auth('client')->user();
+
+        $slug = \Str::slug($request->name);
+        $baseSlug = $slug;
+        $counter = 1;
+
+        // Ensure unique slug
+        while (EmailTemplateCategory::where('client_id', $client->id)->where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter++;
+        }
+
+        $maxOrder = EmailTemplateCategory::where('client_id', $client->id)->max('sort_order') ?? 0;
+
+        EmailTemplateCategory::create([
+            'client_id' => $client->id,
+            'name' => $request->name,
+            'slug' => $slug,
+            'color' => $request->color,
+            'bg_color' => $request->bg_color,
+            'sort_order' => $maxOrder + 1,
+            'is_default' => false,
+        ]);
+
+        return redirect()->route('client.email.template.categories')->with('success', 'Category created');
+    }
+
+    /**
+     * Update category
+     */
+    public function updateCategory(Request $request, EmailTemplateCategory $category)
+    {
+        if ($category->client_id !== auth('client')->id()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'name' => 'required|string|max:50|unique:email_template_categories,name,' . $category->id . ',id,client_id,' . auth('client')->id(),
+            'color' => 'required|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
+            'bg_color' => 'required|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
+            'sort_order' => 'required|integer|min:0',
+        ]);
+
+        // If name changed, update slug
+        $slug = $category->slug;
+        if ($request->name !== $category->name) {
+            $slug = \Str::slug($request->name);
+            $baseSlug = $slug;
+            $counter = 1;
+            while (EmailTemplateCategory::where('client_id', $category->client_id)
+                ->where('slug', $slug)
+                ->where('id', '!=', $category->id)
+                ->exists()) {
+                $slug = $baseSlug . '-' . $counter++;
+            }
+        }
+
+        $category->update([
+            'name' => $request->name,
+            'slug' => $slug,
+            'color' => $request->color,
+            'bg_color' => $request->bg_color,
+            'sort_order' => $request->sort_order,
+        ]);
+
+        return redirect()->route('client.email.template.categories')->with('success', 'Category updated');
+    }
+
+    /**
+     * Delete category (and move templates to General)
+     */
+    public function deleteCategory(EmailTemplateCategory $category)
+    {
+        if ($category->client_id !== auth('client')->id()) {
+            abort(403);
+        }
+
+        if ($category->is_default) {
+            return redirect()->back()->with('error', 'Cannot delete default categories');
+        }
+
+        // Move templates to 'general'
+        EmailTemplate::where('client_id', $category->client_id)
+            ->where('category', $category->slug)
+            ->update(['category' => 'general']);
+
+        $category->delete();
+
+        return redirect()->route('client.email.template.categories')->with('success', 'Category deleted. Templates moved to General.');
     }
 }

@@ -96,6 +96,19 @@
                     <span class="truncate">Email Templates</span>
                 </a>
 
+                <a href="{{ route('client.email.template.categories') }}"
+                    class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
+                        {{ request()->routeIs('client.email.template.categories')
+                            ? 'bg-sky-50 text-sky-700 font-medium border-l-2 border-sky-400'
+                            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
+                    <svg class="w-3.5 h-3.5 flex-shrink-0 {{ request()->routeIs('client.email.template.categories') ? 'text-sky-500' : 'text-gray-400' }}"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                    </svg>
+                    <span class="truncate">Email Categories</span>
+                </a>
+
                 {{-- RL Engine add-on --}}
                 <div class="mt-3 pt-3 border-t border-gray-100">
                     <p class="text-[9px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-1.5">Add-on Module</p>
