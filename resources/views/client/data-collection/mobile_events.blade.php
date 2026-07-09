@@ -164,21 +164,31 @@
   @php
   $sources = [
     ['id'=>'website',      'name'=>'Website Events',     'value'=>'840',   'unit'=>'messages'],
-    ['id'=>'mobile-app',   'name'=>'Mobile App Events',  'value'=>'4,281', 'unit'=>'today'],
-    ['id'=>'crm',          'name'=>'CRM Data',           'value'=>'3200',  'unit'=>'syncs'],
-    ['id'=>'transactions', 'name'=>'Transactions',       'value'=>'1540',  'unit'=>'payments'],
-    ['id'=>'chat',         'name'=>'Chat & Support',     'value'=>'840',   'unit'=>'messages'],
     ['id'=>'email',        'name'=>'Email Engagement',   'value'=>'1,900', 'unit'=>'opens'],
-    ['id'=>'ads',          'name'=>'Ad Campaigns',       'value'=>'2,100', 'unit'=>'clicks'],
+    ['id'=>'crm',          'name'=>'CRM Data',           'value'=>'3200',  'unit'=>'syncs'],
     ['id'=>'social',       'name'=>'Social Signals',     'value'=>'500',   'unit'=>'mentions'],
-    ['id'=>'surveys',      'name'=>'Surveys & Feedback', 'value'=>'340',   'unit'=>'responses'],
-    ['id'=>'loyalty',      'name'=>'Loyalty / Referral', 'value'=>'220',   'unit'=>'referrals'],
-    ['id'=>'callcenter',   'name'=>'Call Center',        'value'=>'840',   'unit'=>'calls'],
-    ['id'=>'pos',          'name'=>'POS / Offline',      'value'=>'840',   'unit'=>'purchase'],
+    ['id'=>'chat',         'name'=>'Chat & Support',     'value'=>'840',   'unit'=>'messages'],
+    ['id'=>'transactions', 'name'=>'Transactions',       'value'=>'1540',  'unit'=>'payments'],
   ];
   @endphp
   <div class="grid grid-cols-4 gap-3">
     @foreach($sources as $s)
+    @if($s['id'] === 'website')
+    <a href="{{ route('client.website-connections') }}" id="src-{{ $s['id'] }}" class="src {{ $s['id']==='website' ? 'active' : '' }}"
+       style="padding:10px 12px; text-decoration:none; display:block;">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-lg bg-gray-100 flex-shrink-0"></div>
+          <div class="min-w-0">
+            <p class="text-[11px] text-gray-500 truncate leading-none">{{ $s['name'] }}</p>
+          </div>
+        </div>
+        <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </div>
+    </a>
+    @else
     <div id="src-{{ $s['id'] }}" class="src {{ $s['id']==='website' ? 'active' : '' }}"
          onclick="selectSource('{{ $s['id'] }}')"
          style="padding:10px 12px;">
@@ -187,15 +197,11 @@
           <div class="w-8 h-8 rounded-lg bg-gray-100 flex-shrink-0"></div>
           <div class="min-w-0">
             <p class="text-[11px] text-gray-500 truncate leading-none">{{ $s['name'] }}</p>
-            <p class="mt-0.5 leading-none">
-              <span class="text-[14px] font-semibold text-gray-800">{{ $s['value'] }}</span>
-              <span class="text-[10px] text-gray-400"> / {{ $s['unit'] }}</span>
-            </p>
           </div>
         </div>
-        <span class="text-[10px] font-semibold text-emerald-500 flex-shrink-0">▲ 12%</span>
       </div>
     </div>
+    @endif
     @endforeach
   </div>
 

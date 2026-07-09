@@ -20,6 +20,7 @@ use App\Models\CallLog;
 use App\Models\BehavioralProfile;
 use App\Http\Controllers\Analytics\LaravelSiteManagementController;
 use App\Http\Controllers\Api\AnalyticsController;
+use App\Http\Controllers\WebsiteConnectionController;
 
 // ─── Public ───────────────────────────────────────────────────────────────────
 Route::get('/', fn() => view('welcome'))->name('home');
@@ -52,6 +53,51 @@ Route::get('/test-mail-config', function () {
         'admin_email' => config('mail.admin_email'),
     ]);
 });
+
+// Public API route for tracking script (no auth required - called from client websites)
+Route::get('/api/tracking/script', [WebsiteConnectionController::class, 'getTrackingScript'])
+    ->name('api.tracking.script');
+
+// Event collection endpoint (called from tracking script)
+Route::post('/api/events/collect', function (Illuminate\Http\Request $request) {
+    // Validate tracking code
+    $request->validate([
+        'tracking_code' => 'required|string|size:32',
+        'event_type'    => 'required|string|max:50',
+        'data'          => 'nullable|array',
+        'url'           => 'nullable|url',
+        'timestamp'     => 'nullable|date',
+    ]);
+
+    // Find the connection
+    $connection = App\Models\WebsiteConnection::where('tracking_code', $request->tracking_code)
+        ->where('status', 'active')
+        ->first();
+
+    if (!$connection) {
+        return response()->json(['success' => false, 'message' => 'Invalid tracking code'], 404);
+    }
+
+    // Store the event (you may want to use a queue for high volume)
+    App\Models\WebsiteEvent::create([
+        'connection_id' => $connection->id,
+        'client_id'     => $connection->client_id,
+        'tenant_id'     => $connection->tenant_id,
+        'event_type'    => $request->event_type,
+        'data'          => $request->data,
+        'page_url'      => $request->url,
+        'user_agent'    => $request->user_agent,
+        'ip_address'    => $request->ip(),
+        'screen_width'  => $request->input('data.screen.width'),
+        'screen_height' => $request->input('data.screen.height'),
+        'created_at'    => $request->timestamp ?? now(),
+    ]);
+
+    // Update last sync
+    $connection->update(['last_sync_at' => now()]);
+
+    return response()->json(['success' => true]);
+})->name('api.events.collect');
 
 
 // ─── Master Admin ─────────────────────────────────────────────────────────────
@@ -204,6 +250,38 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
         Route::get('/sites/{siteId}/data', [AnalyticsDashboardViewController::class, 'analyticsData'])->name('site.data');
         Route::delete('/sites/{siteId}', [AnalyticsDashboardViewController::class, 'deleteSite'])->name('site.delete');
     });
+
+    /* ═══════════════════════════════════════════════════════════
+       WEBSITE CONNECTION ROUTES
+       ═══════════════════════════════════════════════════════════ */
+
+    // Main connections page
+    Route::get('/website-connections', [WebsiteConnectionController::class, 'index'])
+        ->name('website-connections');
+
+    // Platform-specific connection pages
+    Route::get('/website-connections/wordpress', [WebsiteConnectionController::class, 'wordpress'])
+        ->name('website-connections.wordpress');
+    Route::get('/website-connections/wix', [WebsiteConnectionController::class, 'wix'])
+        ->name('website-connections.wix');
+    Route::get('/website-connections/shopify', [WebsiteConnectionController::class, 'shopify'])
+        ->name('website-connections.shopify');
+    Route::get('/website-connections/webflow', [WebsiteConnectionController::class, 'webflow'])
+        ->name('website-connections.webflow');
+    Route::get('/website-connections/squarespace', [WebsiteConnectionController::class, 'squarespace'])
+        ->name('website-connections.squarespace');
+
+    // CRUD operations
+    Route::post('/website-connections', [WebsiteConnectionController::class, 'store'])
+        ->name('website-connections.store');
+    Route::get('/website-connections/{id}', [WebsiteConnectionController::class, 'show'])
+        ->name('website-connections.show');
+    Route::put('/website-connections/{id}', [WebsiteConnectionController::class, 'update'])
+        ->name('website-connections.update');
+    Route::delete('/website-connections/{id}', [WebsiteConnectionController::class, 'destroy'])
+        ->name('website-connections.destroy');
+    Route::get('/website-connections/{id}/verify', [WebsiteConnectionController::class, 'verify'])
+        ->name('website-connections.verify');
 });
 
 Route::middleware('analytics.token')->group(function () {
