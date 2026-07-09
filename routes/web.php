@@ -20,6 +20,12 @@ use App\Models\CallLog;
 use App\Models\BehavioralProfile;
 use App\Http\Controllers\Analytics\LaravelSiteManagementController;
 use App\Http\Controllers\Api\AnalyticsController;
+use App\Http\Controllers\WebsiteConnectionController;
+use App\Http\Controllers\EmailConnectionController;
+use App\Http\Controllers\CrmConnectionController;
+use App\Http\Controllers\SocialConnectionController;
+use App\Http\Controllers\ChatSupportConnectionController;
+use App\Http\Controllers\PaymentGatewayConnectionController;
 
 // ─── Public ───────────────────────────────────────────────────────────────────
 Route::get('/', fn() => view('welcome'))->name('home');
@@ -52,6 +58,51 @@ Route::get('/test-mail-config', function () {
         'admin_email' => config('mail.admin_email'),
     ]);
 });
+
+// Public API route for tracking script (no auth required - called from client websites)
+Route::get('/api/tracking/script', [WebsiteConnectionController::class, 'getTrackingScript'])
+    ->name('api.tracking.script');
+
+// Event collection endpoint (called from tracking script)
+Route::post('/api/events/collect', function (Illuminate\Http\Request $request) {
+    // Validate tracking code
+    $request->validate([
+        'tracking_code' => 'required|string|size:32',
+        'event_type'    => 'required|string|max:50',
+        'data'          => 'nullable|array',
+        'url'           => 'nullable|url',
+        'timestamp'     => 'nullable|date',
+    ]);
+
+    // Find the connection
+    $connection = App\Models\WebsiteConnection::where('tracking_code', $request->tracking_code)
+        ->where('status', 'active')
+        ->first();
+
+    if (!$connection) {
+        return response()->json(['success' => false, 'message' => 'Invalid tracking code'], 404);
+    }
+
+    // Store the event (you may want to use a queue for high volume)
+    App\Models\WebsiteEvent::create([
+        'connection_id' => $connection->id,
+        'client_id'     => $connection->client_id,
+        'tenant_id'     => $connection->tenant_id,
+        'event_type'    => $request->event_type,
+        'data'          => $request->data,
+        'page_url'      => $request->url,
+        'user_agent'    => $request->user_agent,
+        'ip_address'    => $request->ip(),
+        'screen_width'  => $request->input('data.screen.width'),
+        'screen_height' => $request->input('data.screen.height'),
+        'created_at'    => $request->timestamp ?? now(),
+    ]);
+
+    // Update last sync
+    $connection->update(['last_sync_at' => now()]);
+
+    return response()->json(['success' => true]);
+})->name('api.events.collect');
 
 
 // ─── Master Admin ─────────────────────────────────────────────────────────────
@@ -204,6 +255,189 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
         Route::get('/sites/{siteId}/data', [AnalyticsDashboardViewController::class, 'analyticsData'])->name('site.data');
         Route::delete('/sites/{siteId}', [AnalyticsDashboardViewController::class, 'deleteSite'])->name('site.delete');
     });
+
+    /* ═══════════════════════════════════════════════════════════
+       WEBSITE CONNECTION ROUTES
+       ═══════════════════════════════════════════════════════════ */
+
+    // Main connections page
+    Route::get('/website-connections', [WebsiteConnectionController::class, 'index'])
+        ->name('website-connections');
+
+    // Platform-specific connection pages
+    Route::get('/website-connections/wordpress', [WebsiteConnectionController::class, 'wordpress'])
+        ->name('website-connections.wordpress');
+    Route::get('/website-connections/wix', [WebsiteConnectionController::class, 'wix'])
+        ->name('website-connections.wix');
+    Route::get('/website-connections/shopify', [WebsiteConnectionController::class, 'shopify'])
+        ->name('website-connections.shopify');
+    Route::get('/website-connections/webflow', [WebsiteConnectionController::class, 'webflow'])
+        ->name('website-connections.webflow');
+    Route::get('/website-connections/squarespace', [WebsiteConnectionController::class, 'squarespace'])
+        ->name('website-connections.squarespace');
+
+    // CRUD operations
+    Route::post('/website-connections', [WebsiteConnectionController::class, 'store'])
+        ->name('website-connections.store');
+    Route::get('/website-connections/{id}', [WebsiteConnectionController::class, 'show'])
+        ->name('website-connections.show');
+    Route::put('/website-connections/{id}', [WebsiteConnectionController::class, 'update'])
+        ->name('website-connections.update');
+    Route::delete('/website-connections/{id}', [WebsiteConnectionController::class, 'destroy'])
+        ->name('website-connections.destroy');
+    Route::get('/website-connections/{id}/verify', [WebsiteConnectionController::class, 'verify'])
+        ->name('website-connections.verify');
+
+    /* ═══════════════════════════════════════════════════════════
+       EMAIL ENGAGEMENT CONNECTION ROUTES
+       ═══════════════════════════════════════════════════════════ */
+
+    // Main email connections page
+    Route::get('/email-connections', [EmailConnectionController::class, 'index'])
+        ->name('email-connections');
+
+    // Provider-specific connection pages
+    Route::get('/email-connections/mailchimp', [EmailConnectionController::class, 'mailchimp'])
+        ->name('email-connections.mailchimp');
+    Route::get('/email-connections/brevo', [EmailConnectionController::class, 'brevo'])
+        ->name('email-connections.brevo');
+    Route::get('/email-connections/constantcontact', [EmailConnectionController::class, 'constantcontact'])
+        ->name('email-connections.constantcontact');
+    Route::get('/email-connections/mailerlite', [EmailConnectionController::class, 'mailerlite'])
+        ->name('email-connections.mailerlite');
+    Route::get('/email-connections/moosend', [EmailConnectionController::class, 'moosend'])
+        ->name('email-connections.moosend');
+
+    // CRUD operations
+    Route::post('/email-connections', [EmailConnectionController::class, 'store'])
+        ->name('email-connections.store');
+    Route::delete('/email-connections/{id}', [EmailConnectionController::class, 'destroy'])
+        ->name('email-connections.destroy');
+    Route::get('/email-connections/{id}/verify', [EmailConnectionController::class, 'verify'])
+        ->name('email-connections.verify');
+    Route::post('/email-connections/{id}/sync', [EmailConnectionController::class, 'sync'])
+        ->name('email-connections.sync');
+
+    // CRM Connections Routes
+    Route::get('/crm-connections', [CrmConnectionController::class, 'index'])
+        ->name('crm-connections');
+    
+    Route::get('/crm-connections/{provider}/connect', [CrmConnectionController::class, 'create'])
+        ->name('crm.connect');
+    
+    Route::post('/crm-connections/{provider}', [CrmConnectionController::class, 'store'])
+        ->name('crm.store');
+    
+    Route::post('/crm-connections/{provider}/test', [CrmConnectionController::class, 'test'])
+        ->name('crm.test');
+    
+    Route::post('/crm-connections/{provider}/sync', [CrmConnectionController::class, 'sync'])
+        ->name('crm.sync');
+    
+    Route::post('/crm-connections/{provider}/disconnect', [CrmConnectionController::class, 'disconnect'])
+        ->name('crm.disconnect');
+    
+    Route::delete('/crm-connections/{provider}', [CrmConnectionController::class, 'destroy'])
+        ->name('crm.destroy');
+    
+    Route::get('/crm-connections/status', [CrmConnectionController::class, 'status'])
+        ->name('crm.status');
+
+    // ============================================
+    // SOCIAL MEDIA CONNECTIONS ROUTES
+    // ============================================
+    Route::prefix('social')->group(function () {
+        // Listing page - shows all social platforms
+        Route::get('/', [SocialConnectionController::class, 'index'])
+            ->name('social-connections');
+
+        // Connect form for specific platform
+        Route::get('/{platform}/connect', [SocialConnectionController::class, 'create'])
+            ->name('social.connect');
+
+        // Store / update connection
+        Route::post('/{platform}', [SocialConnectionController::class, 'store'])
+            ->name('social.store');
+
+        // Test connection
+        Route::post('/{platform}/test', [SocialConnectionController::class, 'test'])
+            ->name('social.test');
+
+        // Sync data from social platform
+        Route::post('/{platform}/sync', [SocialConnectionController::class, 'sync'])
+            ->name('social.sync');
+
+        // Disconnect (soft - keeps config, removes tokens)
+        Route::post('/{platform}/disconnect', [SocialConnectionController::class, 'disconnect'])
+            ->name('social.disconnect');
+
+        // Delete connection permanently
+        Route::delete('/{platform}', [SocialConnectionController::class, 'destroy'])
+            ->name('social.destroy');
+
+        // Get status of all connections (JSON)
+        Route::get('/status', [SocialConnectionController::class, 'status'])
+            ->name('social.status');
+    });
+
+    // ============================================
+    // CHAT & SUPPORT CONNECTIONS ROUTES
+    // ============================================
+    Route::prefix('chat-support')->group(function () {
+        // Listing page - shows all Chat & Support providers
+        Route::get('/', [ChatSupportConnectionController::class, 'index'])
+            ->name('chat-support-connections');
+
+        // Connect form for specific provider
+        Route::get('/{provider}/connect', [ChatSupportConnectionController::class, 'create'])
+            ->name('chat-support.connect');
+
+        // Store / update connection
+        Route::post('/{provider}', [ChatSupportConnectionController::class, 'store'])
+            ->name('chat-support.store');
+
+        // Test connection
+        Route::post('/{provider}/test', [ChatSupportConnectionController::class, 'test'])
+            ->name('chat-support.test');
+
+        // Sync data from provider
+        Route::post('/{provider}/sync', [ChatSupportConnectionController::class, 'sync'])
+            ->name('chat-support.sync');
+
+        // Disconnect (soft - keeps config, removes tokens)
+        Route::post('/{provider}/disconnect', [ChatSupportConnectionController::class, 'disconnect'])
+            ->name('chat-support.disconnect');
+
+        // Delete connection permanently
+        Route::delete('/{provider}', [ChatSupportConnectionController::class, 'destroy'])
+            ->name('chat-support.destroy');
+
+        // Get status of all connections (JSON)
+        Route::get('/status', [ChatSupportConnectionController::class, 'status'])
+            ->name('chat-support.status');
+    });
+
+    // Payment Gateway Connections Routes
+    Route::get('/payment-gateway-connections', [PaymentGatewayConnectionController::class, 'index'])
+        ->name('payment-gateway-connections.index');
+
+    Route::get('/payment-gateway-connections/{gateway}', [PaymentGatewayConnectionController::class, 'show'])
+        ->name('payment-gateway-connections.show');
+
+    Route::post('/payment-gateway-connections/{gateway}/connect', [PaymentGatewayConnectionController::class, 'connect'])
+        ->name('payment-gateway-connections.connect');
+
+    Route::patch('/payment-gateway-connections/{gateway}/disconnect', [PaymentGatewayConnectionController::class, 'disconnect'])
+        ->name('payment-gateway-connections.disconnect');
+
+    Route::patch('/payment-gateway-connections/{gateway}/toggle-active', [PaymentGatewayConnectionController::class, 'toggleActive'])
+        ->name('payment-gateway-connections.toggle-active');
+
+    Route::post('/payment-gateway-connections/{gateway}/test', [PaymentGatewayConnectionController::class, 'testConnection'])
+        ->name('payment-gateway-connections.test');
+
+    Route::delete('/payment-gateway-connections/{gateway}', [PaymentGatewayConnectionController::class, 'destroy'])
+        ->name('payment-gateway-connections.destroy');
 });
 
 Route::middleware('analytics.token')->group(function () {

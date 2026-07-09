@@ -164,38 +164,146 @@
   @php
   $sources = [
     ['id'=>'website',      'name'=>'Website Events',     'value'=>'840',   'unit'=>'messages'],
-    ['id'=>'mobile-app',   'name'=>'Mobile App Events',  'value'=>'4,281', 'unit'=>'today'],
-    ['id'=>'crm',          'name'=>'CRM Data',           'value'=>'3200',  'unit'=>'syncs'],
-    ['id'=>'transactions', 'name'=>'Transactions',       'value'=>'1540',  'unit'=>'payments'],
-    ['id'=>'chat',         'name'=>'Chat & Support',     'value'=>'840',   'unit'=>'messages'],
     ['id'=>'email',        'name'=>'Email Engagement',   'value'=>'1,900', 'unit'=>'opens'],
-    ['id'=>'ads',          'name'=>'Ad Campaigns',       'value'=>'2,100', 'unit'=>'clicks'],
+    ['id'=>'crm',          'name'=>'CRM Data',           'value'=>'3200',  'unit'=>'syncs'],
     ['id'=>'social',       'name'=>'Social Signals',     'value'=>'500',   'unit'=>'mentions'],
-    ['id'=>'surveys',      'name'=>'Surveys & Feedback', 'value'=>'340',   'unit'=>'responses'],
-    ['id'=>'loyalty',      'name'=>'Loyalty / Referral', 'value'=>'220',   'unit'=>'referrals'],
-    ['id'=>'callcenter',   'name'=>'Call Center',        'value'=>'840',   'unit'=>'calls'],
-    ['id'=>'pos',          'name'=>'POS / Offline',      'value'=>'840',   'unit'=>'purchase'],
+    ['id'=>'chat',         'name'=>'Chat & Support',     'value'=>'840',   'unit'=>'messages'],
+    ['id'=>'transactions', 'name'=>'Transactions',       'value'=>'1540',  'unit'=>'payments'],
   ];
   @endphp
-  <div class="grid grid-cols-4 gap-3">
+  <div class="grid grid-cols-3 gap-4">
     @foreach($sources as $s)
-    <div id="src-{{ $s['id'] }}" class="src {{ $s['id']==='website' ? 'active' : '' }}"
-         onclick="selectSource('{{ $s['id'] }}')"
-         style="padding:10px 12px;">
+    @if($s['id'] === 'website')
+    <a href="{{ route('client.website-connections') }}" id="src-{{ $s['id'] }}" class="src"
+       style="padding:16px 18px; text-decoration:none; display:block;">
       <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-8 h-8 rounded-lg bg-gray-100 flex-shrink-0"></div>
+          <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+          </svg>
+        </div>
           <div class="min-w-0">
-            <p class="text-[11px] text-gray-500 truncate leading-none">{{ $s['name'] }}</p>
-            <p class="mt-0.5 leading-none">
-              <span class="text-[14px] font-semibold text-gray-800">{{ $s['value'] }}</span>
-              <span class="text-[10px] text-gray-400"> / {{ $s['unit'] }}</span>
-            </p>
+            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
           </div>
         </div>
-        <span class="text-[10px] font-semibold text-emerald-500 flex-shrink-0">▲ 12%</span>
+        <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </div>
+    </a>
+    @elseif($s['id'] === 'email')
+    <a href="{{ route('client.email-connections') }}" id="src-{{ $s['id'] }}" class="src"
+       style="padding:16px 18px; text-decoration:none; display:block;">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+        </div>
+          <div class="min-w-0">
+            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
+          </div>
+        </div>
+        <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </div>
+    </a>
+    {{-- Replace the CRM source card in mobile_events.blade.php --}}
+    @elseif($s['id'] === 'crm')
+    <a href="{{ route('client.crm-connections') }}" id="src-{{ $s['id'] }}" class="src"
+      style="padding:16px 18px; text-decoration:none; display:block;">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+        </div>
+          <div class="min-w-0">
+            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
+          </div>
+        </div>
+        <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </div>
+    </a>
+    {{-- Replace the Social Signals source card in mobile_events.blade.php --}}
+    @elseif($s['id'] === 'social')
+    <a href="{{ route('client.social-connections') }}" id="src-{{ $s['id'] }}" class="src"
+      style="padding:16px 18px; text-decoration:none; display:block;">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-pink-50 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m5.106 9.197l-2.816.94a2 2 0 01-2.53-1.158l-1.18-3.543a2 2 0 011.158-2.53l2.816-.94a2 2 0 012.53 1.158l1.18 3.543a2 2 0 01-1.158 2.53z"/>
+          </svg>
+        </div>
+          <div class="min-w-0">
+            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
+          </div>
+        </div>
+        <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </div>
+    </a>
+    {{-- Replace the Chat & Support source card in mobile_events.blade.php --}}
+    @elseif($s['id'] === 'chat')
+    <a href="{{ route('client.chat-support-connections') }}" id="src-{{ $s['id'] }}" class="src"
+      style="padding:16px 18px; text-decoration:none; display:block;">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+          </svg>
+        </div>
+          <div class="min-w-0">
+            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
+          </div>
+        </div>
+        <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </div>
+    </a>
+    @elseif($s['id'] === 'transactions')
+    <a href="{{ route('client.payment-gateway-connections.index') }}" id="src-{{ $s['id'] }}" class="src"
+      style="padding:16px 18px; text-decoration:none; display:block;">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+          </svg>
+        </div>
+          <div class="min-w-0">
+            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
+          </div>
+        </div>
+        <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </div>
+    </a>
+    @else
+    <div id="src-{{ $s['id'] }}" class="src {{ $s['id']==='website' ? 'active' : '' }}"
+         onclick="selectSource('{{ $s['id'] }}')"
+         style="padding:16px 18px;">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-gray-100 flex-shrink-0"></div>
+          <div class="min-w-0">
+            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
+          </div>
+        </div>
       </div>
     </div>
+    @endif
     @endforeach
   </div>
 
