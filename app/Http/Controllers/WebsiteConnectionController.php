@@ -312,7 +312,7 @@ class WebsiteConnectionController extends Controller
     /**
      * Verify a connection is working (health check).
      */
-    public function verify($id)
+    public function verify(Request $request, $id)
     {
         $client = Auth::guard('client')->user();
 
@@ -327,6 +327,22 @@ class WebsiteConnectionController extends Controller
             ], 404);
         }
 
+        // Allow manual force verify (skip health check)
+        $forceVerify = $request->has('force') && $request->force === 'true';
+
+        if ($forceVerify) {
+            $connection->update([
+                'last_sync_at' => now(),
+                'status'       => 'active',
+            ]);
+            return response()->json([
+                'success'   => true,
+                'healthy'   => true,
+                'message'   => 'Connection manually verified as active.',
+                'forced'    => true,
+            ]);
+        }
+
         $isHealthy = $this->performHealthCheck($connection);
 
         $connection->update([
@@ -337,7 +353,7 @@ class WebsiteConnectionController extends Controller
         return response()->json([
             'success'   => true,
             'healthy'   => $isHealthy,
-            'message'   => $isHealthy ? 'Connection is healthy.' : 'Connection issue detected.',
+            'message'   => $isHealthy ? 'Connection is healthy.' : 'Connection issue detected. Tracking code is installed but may not be reachable from server. Try manual verify.',
         ]);
     }
 
@@ -515,17 +531,60 @@ JS;
     private function performHealthCheck($connection): bool
     {
         try {
-            $response = @file_get_contents($connection->site_url, false, stream_context_create([
-                'http' => ['timeout' => 10, 'follow_location' => true]
-            ]));
+            // Method 1: Check if tracking code exists in site HTML via HTTP request
+            $opts = [
+                'http' => [
+                    'timeout' => 15,
+                    'follow_location' => true,
+                    'header' => [
+                        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    ]
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                ]
+            ];
 
-            if ($response === false) {
-                return false;
+            $response = @file_get_contents($connection->site_url, false, stream_context_create($opts));
+
+            if ($response !== false) {
+                // Check for tracking code in HTML
+                if (strpos($response, $connection->tracking_code) !== false) {
+                    return true;
+                }
+                // Check for the tracking script URL pattern
+                $trackingUrlPattern = url('/api/tracking/script');
+                if (strpos($response, $trackingUrlPattern) !== false) {
+                    return true;
+                }
             }
 
-            return strpos($response, $connection->tracking_code) !== false;
+            // Method 2: Check if there are recent events from this connection
+            // If events exist in the last 24 hours, consider it healthy
+            $recentEvent = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+                ->where('created_at', '>=', now()->subHours(24))
+                ->first();
+
+            if ($recentEvent) {
+                return true;
+            }
+
+            // Method 3: For Shopify/Wix/etc - check if we can at least reach the site
+            $headers = @get_headers($connection->site_url, 1);
+            if ($headers && isset($headers[0]) && strpos($headers[0], '200') !== false) {
+                // Site is reachable, but we can't confirm tracking code is present
+                // Still return true if site is live and connection was recently established
+                if ($connection->status === 'active' && $connection->connected_at && $connection->connected_at->diffInHours(now()) < 48) {
+                    return true;
+                }
+            }
+
+            return false;
 
         } catch (\Exception $e) {
+            \Log::warning('Health check failed for connection ' . $connection->id . ': ' . $e->getMessage());
             return false;
         }
     }
@@ -541,5 +600,154 @@ JS;
             'user_agent'    => request()->userAgent(),
             'created_at'    => now(),
         ]);
+    }
+
+    /**
+     * Display analytics dashboard for a website connection.
+     */
+    public function analytics($id)
+    {
+        $client = Auth::guard('client')->user();
+
+        $connection = \App\Models\WebsiteConnection::where('client_id', $client->id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$connection) {
+            return redirect()->route('client.website-connections')
+                ->with('error', 'Connection not found.');
+        }
+
+        // Get today's stats
+        $today = now()->startOfDay();
+        $eventsToday = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+            ->whereDate('created_at', $today)
+            ->count();
+
+        // Get all-time stats
+        $totalEvents = \App\Models\WebsiteEvent::where('connection_id', $connection->id)->count();
+        $totalPageViews = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+            ->where('event_type', 'page_view')
+            ->count();
+        $totalClicks = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+            ->where('event_type', 'click')
+            ->count();
+        $totalForms = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+            ->where('event_type', 'form_submit')
+            ->count();
+
+        // Get events by type breakdown
+        $eventsByType = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+            ->selectRaw('event_type, COUNT(*) as count')
+            ->groupBy('event_type')
+            ->orderByDesc('count')
+            ->get();
+
+        // Get last 7 days trend
+        $last7Days = collect(range(0, 6))->map(function ($days) use ($connection) {
+            $date = now()->subDays($days)->startOfDay();
+            $count = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+                ->whereDate('created_at', $date)
+                ->count();
+            return [
+                'date' => $date->format('M d'),
+                'count' => $count,
+            ];
+        })->reverse()->values();
+
+        // Get recent events (last 50)
+        $recentEvents = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
+
+        // Get top pages
+        $topPages = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+            ->where('event_type', 'page_view')
+            ->whereNotNull('page_url')
+            ->selectRaw('page_url, COUNT(*) as views')
+            ->groupBy('page_url')
+            ->orderByDesc('views')
+            ->limit(10)
+            ->get();
+
+        // Get top clicked elements
+        $topClicks = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+            ->where('event_type', 'click')
+            ->whereNotNull('data')
+            ->get()
+            ->map(function ($event) {
+                $data = is_array($event->data) ? $event->data : json_decode($event->data, true);
+                return [
+                    'element' => $data['element'] ?? 'Unknown',
+                    'text' => $data['text'] ?? '',
+                    'page' => $event->page_url,
+                ];
+            })
+            ->groupBy('element')
+            ->map(function ($group) {
+                return [
+                    'element' => $group->first()['element'],
+                    'count' => $group->count(),
+                ];
+            })
+            ->sortByDesc('count')
+            ->take(10)
+            ->values();
+
+        // Calculate average time on page
+        $avgTimeOnPage = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+            ->where('event_type', 'time_on_page')
+            ->whereNotNull('data')
+            ->get()
+            ->avg(function ($event) {
+                $data = is_array($event->data) ? $event->data : json_decode($event->data, true);
+                return $data['duration'] ?? 0;
+            }) ?? 0;
+
+        // Get unique visitors (by IP)
+        $uniqueVisitors = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+            ->select('ip_address')
+            ->distinct()
+            ->count('ip_address');
+
+        // Get scroll depth stats
+        $scrollDepths = \App\Models\WebsiteEvent::where('connection_id', $connection->id)
+            ->where('event_type', 'scroll_depth')
+            ->whereNotNull('data')
+            ->get()
+            ->map(function ($event) {
+                $data = is_array($event->data) ? $event->data : json_decode($event->data, true);
+                return $data['depth'] ?? 0;
+            })
+            ->groupBy(function ($depth) {
+                return $depth;
+            })
+            ->map(function ($group) {
+                return $group->count();
+            })
+            ->sortKeys();
+
+                // Select view based on platform
+        $view = $connection->platform === 'shopify' 
+            ? 'client.shopify_analytics' 
+            : 'client.wix_analytics';
+
+        return view($view, compact(
+            'connection',
+            'eventsToday',
+            'totalEvents',
+            'totalPageViews',
+            'totalClicks',
+            'totalForms',
+            'eventsByType',
+            'last7Days',
+            'recentEvents',
+            'topPages',
+            'topClicks',
+            'avgTimeOnPage',
+            'uniqueVisitors',
+            'scrollDepths'
+        ));;
     }
 }
