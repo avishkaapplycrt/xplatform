@@ -729,9 +729,12 @@ JS;
             ->sortKeys();
 
                 // Select view based on platform
-        $view = $connection->platform === 'shopify' 
-            ? 'client.shopify_analytics' 
-            : 'client.wix_analytics';
+        $view = match($connection->platform) {
+            'shopify' => 'client.shopify_analytics',
+            'webflow' => 'client.webflow_analytics',
+            'squarespace' => 'client.squarespace_analytics',
+            default => 'client.wix_analytics',
+        };
 
         return view($view, compact(
             'connection',

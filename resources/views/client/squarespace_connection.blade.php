@@ -264,6 +264,16 @@
     color: #374151;
     line-height: 1.5;
   }
+  .step-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    filter: grayscale(0.8);
+  }
+  .step-enabled {
+    opacity: 1;
+    pointer-events: auto;
+    filter: none;
+  }
 </style>
 @endpush
 
@@ -293,7 +303,7 @@
       <div>
         <h1 class="text-[16px] font-semibold text-gray-900">Connect Squarespace</h1>
         <p class="text-[11px] text-gray-500 mt-0.5">
-          Tenant: <span class="text-teal-600 font-medium">{ $cn }</span>
+          Tenant: <span class="text-teal-600 font-medium">{{ $cn }}</span>
           <span class="ml-2 inline-flex items-center gap-1 text-green-600 font-medium text-[10px]">
             <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>Live
           </span>
@@ -302,7 +312,7 @@
     </div>
   </div>
   <div class="flex items-center gap-4 text-[11px] text-gray-500">
-    <a href="{ route('client.dashboard') }"
+    <a href="{{ route('client.dashboard') }}"
        class="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
        title="Home">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -313,15 +323,15 @@
     <div style="position:relative" id="l1AvatarWrap">
       <button onclick="var d=document.getElementById('l1Dropdown');d.style.display=d.style.display==='block'?'none':'block'"
               style="width:32px;height:32px;border-radius:50%;background:#06b6d4;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;border:none;cursor:pointer">
-        { $av }
+        {{ $av }}
       </button>
       <div id="l1Dropdown"
            style="display:none;position:absolute;right:0;top:40px;width:192px;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);border:1px solid #e5e7eb;padding:4px 0;z-index:999">
         <div style="padding:8px 16px;border-bottom:1px solid #f3f4f6">
-          <p style="font-size:12px;font-weight:600;color:#111827;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{ $cn }</p>
+          <p style="font-size:12px;font-weight:600;color:#111827;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $cn }}</p>
           <p style="font-size:10px;color:#9ca3af;margin:2px 0 0">Client Account</p>
         </div>
-        <a href="{ route('client.dashboard') }"
+        <a href="{{ route('client.dashboard') }}"
            style="display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:12px;color:#374151;text-decoration:none"
            onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
           <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24">
@@ -330,7 +340,7 @@
           Profile Settings
         </a>
         <hr style="margin:4px 0;border:none;border-top:1px solid #f3f4f6">
-        <form method="POST" action="{ route('client.logout') }">
+        <form method="POST" action="{{ route('client.logout') }}">
           @csrf
           <button type="submit"
                   style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:12px;color:#dc2626;background:none;border:none;cursor:pointer;text-align:left"
@@ -373,13 +383,13 @@
             <div>
               <label class="form-label">Site URL <span class="text-red-500">*</span></label>
               <input type="url" name="site_url" class="form-input" placeholder="https://example.com" required
-                     value="{ $connection?->site_url ?? '' }">
+                     value="{{ $connection?->site_url ?? '' }}">
               <p class="form-hint">The full URL of your Squarespace site</p>
             </div>
             <div>
               <label class="form-label">Site Name <span class="text-gray-400 font-normal">(optional)</span></label>
               <input type="text" name="site_name" class="form-input" placeholder="My Squarespace Site"
-                     value="{ $connection?->site_name ?? '' }">
+                     value="{{ $connection?->site_name ?? '' }}">
               <p class="form-hint">A friendly name for this connection</p>
             </div>
           </div>
@@ -423,7 +433,7 @@
               <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
               </svg>
-              { $connection ? 'Update Connection' : 'Connect Website' }
+              {{ $connection ? 'Update Connection' : 'Connect Website' }}
             </button>
             <span id="formStatus" class="verify-badge pending" style="display:none">
               <span class="w-1.5 h-1.5 rounded-full bg-current inline-block"></span>
@@ -435,7 +445,7 @@
     </div>
   </div>
 
-  <div id="step-2" class="step-card mb-4" style="opacity: .5; pointer-events: none;">
+  <div id="step-2" class="step-card mb-4">
     <div class="flex items-start gap-4">
       <div id="step2-badge" class="step-number pending">2</div>
       <div class="flex-1">
@@ -454,7 +464,7 @@
               </svg>
               Copy
             </button>
-            <code id="trackingCodeApp">{ $trackingCode ?? 'Generate a connection first...' }</code>
+            <code id="trackingCodeApp">{{ $trackingCode ?? 'Generate a connection first...' }}</code>
           </div>
         </div>
 
@@ -470,16 +480,22 @@
               </svg>
               Copy
             </button>
-            <code id="embedCodeManual">{ $embedCode ?? 'Generate a connection first...' }</code>
+            <code id="embedCodeManual">{{ $embedCode ?? 'Generate a connection first...' }}</code>
           </div>
         </div>
 
         <div class="flex items-center gap-3">
-          <button id="verifyBtn" onclick="verifyConnection()" class="test-btn" disabled>
+          <button id="verifyBtn" onclick="verifyConnection()" class="test-btn">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             Verify Installation
+          </button>
+          <button id="forceVerifyBtn" onclick="forceVerifyConnection()" class="test-btn" style="display:none; border-color:#dbeafe; color:#3b82f6;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+            </svg>
+            Force Verify
           </button>
           <span id="verifyStatus" class="verify-badge pending" style="display:none">
             <span class="w-1.5 h-1.5 rounded-full bg-current inline-block"></span>
@@ -490,7 +506,7 @@
     </div>
   </div>
 
-  <div id="step-3" class="step-card mb-4" style="opacity: .5; pointer-events: none;">
+  <div id="step-3" class="step-card mb-4">
     <div class="flex items-start gap-4">
       <div id="step3-badge" class="step-number pending">3</div>
       <div class="flex-1">
@@ -513,7 +529,7 @@
         </div>
 
         <div class="flex items-center gap-3">
-          <a href="{ route('client.data-collection') }" class="connect-submit-btn" style="text-decoration:none; background:#374151;">
+          <a href="{{ $connection ? route('client.website-connections.analytics', $connection->id) : route('client.data-collection') }}" class="connect-submit-btn" style="text-decoration:none; background:#374151;">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
             </svg>
@@ -537,7 +553,7 @@
 
 @push('scripts')
 <script>
-let currentConnectionId = { $connection?->id ?? 'null' };
+let currentConnectionId = {{ $connection?->id ?? 'null' }};
 let currentMethod = 'app';
 
 function switchMethod(method) {
@@ -553,27 +569,42 @@ function switchMethod(method) {
 function updateProgress(step) {
   const fill = document.getElementById('progressFill');
   const text = document.getElementById('progressText');
+  const step2 = document.getElementById('step-2');
+  const step3 = document.getElementById('step-3');
 
   if (step === 1) {
     fill.style.width = '33%';
     text.textContent = 'Step 1 of 3';
+    if (step2) step2.classList.add('step-disabled');
+    if (step3) step3.classList.add('step-disabled');
   } else if (step === 2) {
     fill.style.width = '66%';
     text.textContent = 'Step 2 of 3';
-    document.getElementById('step-2').style.opacity = '1';
-    document.getElementById('step-2').style.pointerEvents = 'auto';
+    if (step2) {
+      step2.classList.remove('step-disabled');
+      step2.classList.add('step-enabled');
+    }
     document.getElementById('step1-badge').classList.add('completed');
     document.getElementById('step1-badge').innerHTML = '&#10003;';
     document.getElementById('step2-badge').classList.remove('pending');
-    document.getElementById('verifyBtn').disabled = false;
+    const verifyBtn = document.getElementById('verifyBtn');
+    if (verifyBtn) verifyBtn.disabled = false;
   } else if (step === 3) {
     fill.style.width = '100%';
     text.textContent = 'Step 3 of 3';
-    document.getElementById('step-3').style.opacity = '1';
-    document.getElementById('step-3').style.pointerEvents = 'auto';
+    if (step2) {
+      step2.classList.remove('step-disabled');
+      step2.classList.add('step-enabled');
+    }
+    if (step3) {
+      step3.classList.remove('step-disabled');
+      step3.classList.add('step-enabled');
+    }
     document.getElementById('step2-badge').classList.add('completed');
     document.getElementById('step2-badge').innerHTML = '&#10003;';
     document.getElementById('step3-badge').classList.remove('pending');
+    const verifyBtn = document.getElementById('verifyBtn');
+    if (verifyBtn) verifyBtn.disabled = false;
   }
 }
 
@@ -591,11 +622,11 @@ function submitConnection(e) {
   const formData = new FormData(e.target);
   const data = Object.fromEntries(formData.entries());
 
-  fetch('{ route("client.website-connections.store") }', {
+  fetch('{{ route("client.website-connections.store") }}', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-CSRF-TOKEN': '{ csrf_token() }'
+      'X-CSRF-TOKEN': '{{ csrf_token() }}'
     },
     body: JSON.stringify(data)
   })
@@ -634,7 +665,7 @@ function verifyConnection() {
   status.className = 'verify-badge pending';
   status.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-current inline-block"></span> Checking...';
 
-  fetch('{ url("/app/website-connections") }/' + currentConnectionId + '/verify')
+  fetch('{{ url("/app/website-connections") }}/' + currentConnectionId + '/verify')
     .then(r => r.json())
     .then(res => {
       if (res.healthy) {
@@ -660,10 +691,10 @@ function disconnectSite() {
   if (!currentConnectionId) return;
   if (!confirm('Are you sure you want to disconnect this Squarespace site? All tracking will stop.')) return;
 
-  fetch('{ url("/app/website-connections") }/' + currentConnectionId, {
+  fetch('{{ url("/app/website-connections") }}/' + currentConnectionId, {
     method: 'DELETE',
     headers: {
-      'X-CSRF-TOKEN': '{ csrf_token() }'
+      'X-CSRF-TOKEN': '{{ csrf_token() }}'
     }
   })
   .then(r => r.json())
@@ -698,6 +729,10 @@ function copyCode(elementId) {
 // If connection exists on page load, auto-advance
 @if($connection)
 document.addEventListener('DOMContentLoaded', function() {
+  const step2 = document.getElementById('step-2');
+  const step3 = document.getElementById('step-3');
+  if (step2) step2.classList.add('step-disabled');
+  if (step3) step3.classList.add('step-disabled');
   updateProgress(2);
   setTimeout(() => updateProgress(3), 300);
 });
@@ -708,5 +743,16 @@ document.addEventListener('click', function(e) {
   var drop = document.getElementById('l1Dropdown');
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
+
+(function() {
+  const step2 = document.getElementById('step-2');
+  const step3 = document.getElementById('step-3');
+  if (step2) step2.classList.add('step-disabled');
+  if (step3) step3.classList.add('step-disabled');
+  if (currentConnectionId && currentConnectionId !== 'null') {
+    const verifyBtn = document.getElementById('verifyBtn');
+    if (verifyBtn) verifyBtn.disabled = false;
+  }
+})();
 </script>
 @endpush
