@@ -288,6 +288,10 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('/website-connections/{id}/verify', [WebsiteConnectionController::class, 'verify'])
         ->name('website-connections.verify');
 
+    // Analytics for a specific connection
+    Route::get('/website-connections/{id}/analytics', [WebsiteConnectionController::class, 'analytics'])
+        ->name('website-connections.analytics');
+
     /* ═══════════════════════════════════════════════════════════
        EMAIL ENGAGEMENT CONNECTION ROUTES
        ═══════════════════════════════════════════════════════════ */
