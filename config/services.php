@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'mailchimp' => [
+        'client_id'     => env('MAILCHIMP_CLIENT_ID'),
+        'client_secret' => env('MAILCHIMP_CLIENT_SECRET'),
+        'redirect'      => env('APP_URL') . '/app/email-connections/mailchimp/callback',
+    ],
+
 ];

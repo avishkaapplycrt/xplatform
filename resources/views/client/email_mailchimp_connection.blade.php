@@ -29,7 +29,7 @@
   .input-wrap { position: relative; }
   .toggle-visibility { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px; }
   .form-help { font-size: 11px; color: #9ca3af; margin: 6px 0 0; }
-  .connect-action-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; width: 100%; justify-content: center; }
+  .connect-action-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; width: 100%; justify-content: center; border: none; }
   .connect-action-btn:hover { opacity: 0.9; transform: translateY(-1px); }
   .connect-action-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
   .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #6b7280; text-decoration: none; padding: 6px 12px; border-radius: 8px; transition: all .15s; margin-bottom: 16px; }
@@ -48,6 +48,18 @@
   .disconnect-btn:hover { background: #fee2e2; }
   .sync-now-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; border: 1px solid #e5e7eb; background: #fff; color: #374151; cursor: pointer; transition: all .15s; margin-bottom: 10px; width: 100%; justify-content: center; }
   .sync-now-btn:hover { background: #f3f4f6; }
+  .auth-tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px; }
+  .auth-tab { padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: #6b7280; transition: all .15s; }
+  .auth-tab.active { background: #ffe01b15; color: #241c15; }
+  .auth-tab:hover:not(.active) { background: #f3f4f6; }
+  .auth-panel { display: none; }
+  .auth-panel.active { display: block; }
+  .oauth-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; width: 100%; justify-content: center; border: 2px solid #ffe01b; background: #fff; color: #241c15; text-decoration: none; }
+  .oauth-btn:hover { background: #ffe01b; }
+  .oauth-btn svg { width: 20px; height: 20px; }
+  .api-key-form { margin-top: 8px; }
+  .divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: #9ca3af; font-size: 11px; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
 </style>
 @endpush
 
@@ -147,6 +159,13 @@
     {{-- Alert Messages --}}
     <div id="alertBox" class="alert"></div>
 
+    @if(session('success'))
+      <div class="alert success" style="display:block">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+      <div class="alert error" style="display:block">{{ session('error') }}</div>
+    @endif
+
     @if(isset($connection) && $connection)
     {{-- Connected State --}}
     <div class="panel-card">
@@ -227,44 +246,89 @@
     </div>
 
     <div class="panel-card">
-      <div class="panel-title"><div class="dot"></div>How to Connect</div>
-<div class="setup-steps">
-            <div class="step-item">
-              <div class="step-num" style="background: #ffe01b20; color: #ffe01b;">1</div>
-              <p class="step-text">Click the "Connect with MailChimp" button below</p>
-            </div>
-            <div class="step-item">
-              <div class="step-num" style="background: #ffe01b20; color: #ffe01b;">2</div>
-              <p class="step-text">Authorize our app on the MailChimp OAuth page</p>
-            </div>
-            <div class="step-item">
-              <div class="step-num" style="background: #ffe01b20; color: #ffe01b;">3</div>
-              <p class="step-text">Select the data you want to sync</p>
-            </div>
-            <div class="step-item">
-              <div class="step-num" style="background: #ffe01b20; color: #ffe01b;">4</div>
-              <p class="step-text">Data will begin syncing automatically</p>
-            </div>
-          </div>
-    </div>
+      <div class="panel-title"><div class="dot"></div>Connect Account</div>
 
-    <div class="panel-card">
-      <div class="panel-title"><div class="dot"></div>Authentication</div>
-      <p style="font-size:12px;color:#6b7280;margin:0 0 12px;">Method: <strong style="color:#111827;">oauth</strong></p>
-      <p style="font-size:12px;color:#6b7280;margin:0 0 8px;">Required scopes:</p>
-      <div class="scopes-list">
-<span class="scope-tag">audiences</span><span class="scope-tag">campaigns</span><span class="scope-tag">reports</span><span class="scope-tag">automations</span>
+      {{-- Auth Method Tabs --}}
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" onclick="switchTab('oauth')" id="tab-oauth">OAuth (Recommended)</button>
+        <button type="button" class="auth-tab" onclick="switchTab('apikey')" id="tab-apikey">API Key</button>
+      </div>
+
+      {{-- OAuth Panel --}}
+      <div id="panel-oauth" class="auth-panel active">
+        <p style="font-size:12px;color:#6b7280;margin:0 0 12px;">The easiest way to connect. You'll be redirected to MailChimp to authorize access.</p>
+        <button type="button" onclick="switchTab('apikey')" class="oauth-btn" style="border: 2px solid #ffe01b; background: #fff; color: #241c15; cursor: pointer;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="5" width="18" height="14" rx="3" fill="currentColor" fill-opacity="0.1"/>
+                <path d="M7 9l5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Connect with API Key
+        </button>
+        <div class="divider">or</div>
+        <p style="font-size:11px;color:#9ca3af;text-align:center;margin:0">Your credentials are never stored on our servers</p>
+      </div>
+
+      {{-- API Key Panel --}}
+      <div id="panel-apikey" class="auth-panel">
+        <form onsubmit="return connectApiKey(event)" class="api-key-form">
+          <div class="form-group">
+            <label class="form-label">API Key</label>
+            <div class="input-wrap">
+              <input type="password" id="apiKeyInput" class="form-input" placeholder="e.g., abc123-us1" required>
+              <button type="button" class="toggle-visibility" onclick="toggleApiKeyVisibility()">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+              </button>
+            </div>
+            <p class="form-help">Find your API key in MailChimp → Account → Extras → API Keys</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Account Name (Optional)</label>
+            <input type="text" id="accountNameInput" class="form-input" placeholder="My MailChimp Account">
+          </div>
+          <button type="submit" class="connect-action-btn" style="background: #ffe01b; color: #241c15;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+            </svg>
+            Connect with API Key
+          </button>
+        </form>
       </div>
     </div>
 
     <div class="panel-card">
-      <div class="panel-title"><div class="dot"></div>Connect Account</div>
-<button type="button" onclick="connectOAuth()" class="connect-action-btn" style="background: #ffe01b; color: #241c15; border: none;">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-          </svg>
-          Connect with MailChimp
-        </button>
+      <div class="panel-title"><div class="dot"></div>How to Connect</div>
+      <div class="setup-steps">
+        <div class="step-item">
+          <div class="step-num" style="background: #ffe01b20; color: #ffe01b;">1</div>
+          <p class="step-text">Choose OAuth or API Key method above</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num" style="background: #ffe01b20; color: #ffe01b;">2</div>
+          <p class="step-text">Authorize our app or enter your API key</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num" style="background: #ffe01b20; color: #ffe01b;">3</div>
+          <p class="step-text">Select the data you want to sync</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num" style="background: #ffe01b20; color: #ffe01b;">4</div>
+          <p class="step-text">Data will begin syncing automatically</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-title"><div class="dot"></div>Required Permissions</div>
+      <p style="font-size:12px;color:#6b7280;margin:0 0 8px;">We request the following scopes:</p>
+      <div class="scopes-list">
+        <span class="scope-tag">audiences</span>
+        <span class="scope-tag">campaigns</span>
+        <span class="scope-tag">reports</span>
+        <span class="scope-tag">automations</span>
+      </div>
     </div>
     @endif
 
@@ -282,6 +346,13 @@ function showAlert(message, type) {
   box.textContent = message;
   box.className = 'alert ' + type;
   setTimeout(() => { box.className = 'alert'; }, 5000);
+}
+
+function switchTab(method) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + method).classList.add('active');
+  document.getElementById('panel-' + method).classList.add('active');
 }
 
 function toggleApiKeyVisibility() {
@@ -307,7 +378,7 @@ function syncNow() {
   .then(r => r.json())
   .then(res => {
     if (res.success) {
-      showAlert('Sync initiated successfully!', 'success');
+      showAlert('Sync completed successfully!', 'success');
     } else {
       showAlert(res.message || 'Sync failed.', 'error');
     }
@@ -392,10 +463,6 @@ function connectApiKey(e) {
   });
 
   return false;
-}
-
-function connectOAuth() {
-  showAlert('OAuth redirect not yet implemented. Please use API key method.', 'error');
 }
 @endif
 

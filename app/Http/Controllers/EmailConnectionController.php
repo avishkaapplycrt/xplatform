@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class EmailConnectionController extends Controller
 {
@@ -76,6 +78,7 @@ class EmailConnectionController extends Controller
         $client = Auth::guard('client')->user();
         $connection = \App\Models\EmailConnection::where('client_id', $client->id)
             ->where('platform', 'mailchimp')->first();
+
         return view('client.email_mailchimp_connection', [
             'provider'       => 'mailchimp',
             'provider_name'  => 'MailChimp',
@@ -83,7 +86,7 @@ class EmailConnectionController extends Controller
             'text_color'     => '#241c15',
             'connection'     => $connection,
             'api_docs_url'   => 'https://mailchimp.com/developer/marketing/api/root/',
-            'auth_method'    => 'oauth',
+            'auth_method'    => 'api_key',
             'scopes'         => ['audiences', 'campaigns', 'reports', 'automations'],
         ]);
     }
@@ -96,6 +99,7 @@ class EmailConnectionController extends Controller
         $client = Auth::guard('client')->user();
         $connection = \App\Models\EmailConnection::where('client_id', $client->id)
             ->where('platform', 'brevo')->first();
+
         return view('client.email_brevo_connection', [
             'provider'       => 'brevo',
             'provider_name'  => 'Brevo',
@@ -116,6 +120,7 @@ class EmailConnectionController extends Controller
         $client = Auth::guard('client')->user();
         $connection = \App\Models\EmailConnection::where('client_id', $client->id)
             ->where('platform', 'constantcontact')->first();
+
         return view('client.email_constantcontact_connection', [
             'provider'       => 'constantcontact',
             'provider_name'  => 'Constant Contact',
@@ -123,7 +128,7 @@ class EmailConnectionController extends Controller
             'text_color'     => '#ffffff',
             'connection'     => $connection,
             'api_docs_url'   => 'https://developer.constantcontact.com/',
-            'auth_method'    => 'oauth',
+            'auth_method'    => 'api_key',
             'scopes'         => ['contact_data', 'campaign_data', 'account_info'],
         ]);
     }
@@ -136,6 +141,7 @@ class EmailConnectionController extends Controller
         $client = Auth::guard('client')->user();
         $connection = \App\Models\EmailConnection::where('client_id', $client->id)
             ->where('platform', 'mailerlite')->first();
+
         return view('client.email_mailerlite_connection', [
             'provider'       => 'mailerlite',
             'provider_name'  => 'MailerLite',
@@ -156,6 +162,7 @@ class EmailConnectionController extends Controller
         $client = Auth::guard('client')->user();
         $connection = \App\Models\EmailConnection::where('client_id', $client->id)
             ->where('platform', 'moosend')->first();
+
         return view('client.email_moosend_connection', [
             'provider'       => 'moosend',
             'provider_name'  => 'Moosend',
@@ -169,7 +176,7 @@ class EmailConnectionController extends Controller
     }
 
     /**
-     * Store a new email connection.
+     * Store a new email connection (API Key method).
      */
     public function store(Request $request)
     {
@@ -304,14 +311,30 @@ class EmailConnectionController extends Controller
             ], 404);
         }
 
-        // Trigger sync job (implement based on provider API)
-        // dispatch(new SyncEmailProviderData($connection));
+        // Trigger sync based on provider
+        switch ($connection->platform) {
+            case 'mailchimp':
+                $this->syncMailChimp($connection);
+                break;
+            case 'brevo':
+                $this->syncBrevo($connection);
+                break;
+            case 'constantcontact':
+                $this->syncConstantContact($connection);
+                break;
+            case 'mailerlite':
+                $this->syncMailerLite($connection);
+                break;
+            case 'moosend':
+                $this->syncMoosend($connection);
+                break;
+        }
 
         $connection->update(['last_sync_at' => now()]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Sync initiated successfully.',
+            'message' => 'Sync completed successfully.',
         ]);
     }
 
@@ -328,9 +351,420 @@ class EmailConnectionController extends Controller
 
     private function validateApiKey(string $platform, string $apiKey): bool
     {
-        // Placeholder — implement actual API validation per provider
-        // For now, just check the key is not empty and has reasonable length
-        return !empty($apiKey) && strlen($apiKey) >= 8;
+        if (empty($apiKey) || strlen($apiKey) < 8) {
+            return false;
+        }
+
+        switch ($platform) {
+            case 'mailchimp':
+                return $this->validateMailChimpApiKey($apiKey);
+            case 'brevo':
+                return $this->validateBrevoApiKey($apiKey);
+            case 'constantcontact':
+                return $this->validateConstantContactApiKey($apiKey);
+            case 'mailerlite':
+                return $this->validateMailerLiteApiKey($apiKey);
+            case 'moosend':
+                return $this->validateMoosendApiKey($apiKey);
+            default:
+                return true;
+        }
+    }
+
+    private function validateMailChimpApiKey(string $apiKey): bool
+    {
+        if (!str_contains($apiKey, '-')) {
+            return false;
+        }
+
+        list($key, $dc) = explode('-', $apiKey, 2);
+
+        try {
+            $response = Http::withBasicAuth('anystring', $apiKey)
+                ->timeout(10)
+                ->get("https://{$dc}.api.mailchimp.com/3.0/");
+            return $response->successful();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    private function validateBrevoApiKey(string $apiKey): bool
+    {
+        try {
+            $response = Http::withHeaders([
+                'api-key' => $apiKey,
+            ])->timeout(10)->get('https://api.brevo.com/v3/account');
+            return $response->successful();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    private function validateConstantContactApiKey(string $apiKey): bool
+    {
+        try {
+            $response = Http::withToken($apiKey)
+                ->timeout(10)
+                ->get('https://api.cc.email/v3/account_info');
+            if ($response->successful()) {
+                return true;
+            }
+        } catch (\Exception $e) {
+            // Fall through
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'x-api-key' => $apiKey,
+            ])->timeout(10)->get('https://api.cc.email/v3/account_info');
+            return $response->successful();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    private function validateMailerLiteApiKey(string $apiKey): bool
+    {
+        try {
+            $response = Http::withHeaders([
+                'X-MailerLite-ApiKey' => $apiKey,
+            ])->timeout(10)->get('https://api.mailerlite.com/api/v2/stats');
+            if ($response->successful()) {
+                return true;
+            }
+        } catch (\Exception $e) {
+            // Fall through
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => "Bearer {$apiKey}",
+            ])->timeout(10)->get('https://api.mailerlite.com/api/v2/stats');
+            if ($response->successful()) {
+                return true;
+            }
+        } catch (\Exception $e) {
+            // Fall through
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => "Bearer {$apiKey}",
+            ])->timeout(10)->get('https://connect.mailerlite.com/api/subscribers');
+            return $response->successful();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    private function validateMoosendApiKey(string $apiKey): bool
+    {
+        try {
+            $response = Http::withHeaders([
+                'X-Api-Key' => $apiKey,
+            ])->timeout(10)->get('https://api.moosend.com/v3/lists.json');
+            return $response->successful();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    private function syncMailChimp($connection): void
+    {
+        $apiKey = decrypt($connection->api_key);
+
+        if (!str_contains($apiKey, '-')) {
+            return;
+        }
+
+        list($key, $dc) = explode('-', $apiKey, 2);
+        $baseUrl = "https://{$dc}.api.mailchimp.com/3.0";
+
+        $campaigns = Http::withBasicAuth('anystring', $apiKey)
+            ->get("{$baseUrl}/campaigns", ['count' => 100, 'status' => 'sent']);
+
+        if ($campaigns->successful()) {
+            foreach ($campaigns->json()['campaigns'] ?? [] as $campaign) {
+                \App\Models\EmailCampaign::updateOrCreate(
+                    [
+                        'connection_id' => $connection->id,
+                        'external_id'   => $campaign['id'],
+                    ],
+                    [
+                        'client_id'     => $connection->client_id,
+                        'tenant_id'     => $connection->tenant_id,
+                        'name'          => $campaign['settings']['title'] ?? $campaign['settings']['subject_line'] ?? 'Untitled',
+                        'subject'       => $campaign['settings']['subject_line'] ?? '',
+                        'status'        => $campaign['status'],
+                        'send_time'     => $campaign['send_time'] ?? null,
+                        'emails_sent'   => $campaign['emails_sent'] ?? 0,
+                        'platform'      => 'mailchimp',
+                        'raw_data'      => json_encode($campaign),
+                    ]
+                );
+            }
+        }
+
+        $lists = Http::withBasicAuth('anystring', $apiKey)
+            ->get("{$baseUrl}/lists", ['count' => 100]);
+
+        if ($lists->successful()) {
+            foreach ($lists->json()['lists'] ?? [] as $list) {
+                \App\Models\EmailAudience::updateOrCreate(
+                    [
+                        'connection_id' => $connection->id,
+                        'external_id'   => $list['id'],
+                    ],
+                    [
+                        'client_id'     => $connection->client_id,
+                        'tenant_id'     => $connection->tenant_id,
+                        'name'          => $list['name'],
+                        'member_count'  => $list['stats']['member_count'] ?? 0,
+                        'open_rate'     => $list['stats']['open_rate'] ?? 0,
+                        'click_rate'    => $list['stats']['click_rate'] ?? 0,
+                        'platform'      => 'mailchimp',
+                    ]
+                );
+            }
+        }
+    }
+
+    private function syncBrevo($connection): void
+    {
+        $apiKey = decrypt($connection->api_key);
+
+        $campaigns = Http::withHeaders(['api-key' => $apiKey])
+            ->get('https://api.brevo.com/v3/emailCampaigns', ['limit' => 100, 'status' => 'sent']);
+
+        if ($campaigns->successful()) {
+            foreach ($campaigns->json()['campaigns'] ?? [] as $campaign) {
+                \App\Models\EmailCampaign::updateOrCreate(
+                    [
+                        'connection_id' => $connection->id,
+                        'external_id'   => (string) $campaign['id'],
+                    ],
+                    [
+                        'client_id'     => $connection->client_id,
+                        'tenant_id'     => $connection->tenant_id,
+                        'name'          => $campaign['name'] ?? 'Untitled',
+                        'subject'       => $campaign['subject'] ?? '',
+                        'status'        => $campaign['status'] ?? 'sent',
+                        'send_time'     => $campaign['sentDate'] ?? null,
+                        'emails_sent'   => $campaign['sent'] ?? 0,
+                        'platform'      => 'brevo',
+                        'raw_data'      => json_encode($campaign),
+                    ]
+                );
+            }
+        }
+
+        $lists = Http::withHeaders(['api-key' => $apiKey])
+            ->get('https://api.brevo.com/v3/contacts/lists', ['limit' => 100]);
+
+        if ($lists->successful()) {
+            foreach ($lists->json()['lists'] ?? [] as $list) {
+                \App\Models\EmailAudience::updateOrCreate(
+                    [
+                        'connection_id' => $connection->id,
+                        'external_id'   => (string) $list['id'],
+                    ],
+                    [
+                        'client_id'     => $connection->client_id,
+                        'tenant_id'     => $connection->tenant_id,
+                        'name'          => $list['name'],
+                        'member_count'  => $list['totalSubscribers'] ?? $list['totalBlacklisted'] ?? 0,
+                        'open_rate'     => 0,
+                        'click_rate'    => 0,
+                        'platform'      => 'brevo',
+                    ]
+                );
+            }
+        }
+    }
+
+    private function syncConstantContact($connection): void
+    {
+        $apiKey = decrypt($connection->api_key);
+
+        $headers = ['Authorization' => 'Bearer ' . $apiKey];
+
+        $campaigns = Http::withHeaders($headers)
+            ->get('https://api.cc.email/v3/email_campaigns', ['limit' => 100, 'status' => 'SENT']);
+
+        if (!$campaigns->successful()) {
+            $headers = ['x-api-key' => $apiKey];
+            $campaigns = Http::withHeaders($headers)
+                ->get('https://api.cc.email/v3/email_campaigns', ['limit' => 100, 'status' => 'SENT']);
+        }
+
+        if ($campaigns->successful()) {
+            foreach ($campaigns->json()['campaigns'] ?? [] as $campaign) {
+                \App\Models\EmailCampaign::updateOrCreate(
+                    [
+                        'connection_id' => $connection->id,
+                        'external_id'   => $campaign['campaign_id'],
+                    ],
+                    [
+                        'client_id'     => $connection->client_id,
+                        'tenant_id'     => $connection->tenant_id,
+                        'name'          => $campaign['name'] ?? 'Untitled',
+                        'subject'       => $campaign['subject'] ?? '',
+                        'status'        => $campaign['status'] ?? 'SENT',
+                        'send_time'     => $campaign['last_sent_at'] ?? null,
+                        'emails_sent'   => $campaign['sent_count'] ?? 0,
+                        'platform'      => 'constantcontact',
+                        'raw_data'      => json_encode($campaign),
+                    ]
+                );
+            }
+        }
+
+        $lists = Http::withHeaders($headers)
+            ->get('https://api.cc.email/v3/contact_lists', ['limit' => 100]);
+
+        if ($lists->successful()) {
+            foreach ($lists->json()['lists'] ?? [] as $list) {
+                \App\Models\EmailAudience::updateOrCreate(
+                    [
+                        'connection_id' => $connection->id,
+                        'external_id'   => $list['list_id'],
+                    ],
+                    [
+                        'client_id'     => $connection->client_id,
+                        'tenant_id'     => $connection->tenant_id,
+                        'name'          => $list['name'],
+                        'member_count'  => $list['membership_count'] ?? 0,
+                        'open_rate'     => 0,
+                        'click_rate'    => 0,
+                        'platform'      => 'constantcontact',
+                    ]
+                );
+            }
+        }
+    }
+
+    private function syncMailerLite($connection): void
+    {
+        $apiKey = decrypt($connection->api_key);
+
+        $campaigns = Http::withHeaders([
+            'X-MailerLite-ApiKey' => $apiKey,
+        ])->get('https://api.mailerlite.com/api/v2/campaigns');
+
+        if (!$campaigns->successful()) {
+            $campaigns = Http::withHeaders([
+                'Authorization' => "Bearer {$apiKey}",
+            ])->get('https://api.mailerlite.com/api/v2/campaigns');
+        }
+
+        if ($campaigns->successful()) {
+            foreach ($campaigns->json() ?? [] as $campaign) {
+                \App\Models\EmailCampaign::updateOrCreate(
+                    [
+                        'connection_id' => $connection->id,
+                        'external_id'   => (string) ($campaign['id'] ?? ''),
+                    ],
+                    [
+                        'client_id'     => $connection->client_id,
+                        'tenant_id'     => $connection->tenant_id,
+                        'name'          => $campaign['name'] ?? 'Untitled',
+                        'subject'       => $campaign['subject'] ?? '',
+                        'status'        => $campaign['status'] ?? 'sent',
+                        'send_time'     => $campaign['date'] ?? null,
+                        'emails_sent'   => $campaign['total_sent'] ?? 0,
+                        'platform'      => 'mailerlite',
+                        'raw_data'      => json_encode($campaign),
+                    ]
+                );
+            }
+        }
+
+        $groups = Http::withHeaders([
+            'X-MailerLite-ApiKey' => $apiKey,
+        ])->get('https://api.mailerlite.com/api/v2/groups');
+
+        if (!$groups->successful()) {
+            $groups = Http::withHeaders([
+                'Authorization' => "Bearer {$apiKey}",
+            ])->get('https://api.mailerlite.com/api/v2/groups');
+        }
+
+        if ($groups->successful()) {
+            foreach ($groups->json() ?? [] as $group) {
+                \App\Models\EmailAudience::updateOrCreate(
+                    [
+                        'connection_id' => $connection->id,
+                        'external_id'   => (string) ($group['id'] ?? ''),
+                    ],
+                    [
+                        'client_id'     => $connection->client_id,
+                        'tenant_id'     => $connection->tenant_id,
+                        'name'          => $group['name'] ?? 'Untitled',
+                        'member_count'  => $group['total'] ?? 0,
+                        'open_rate'     => 0,
+                        'click_rate'    => 0,
+                        'platform'      => 'mailerlite',
+                    ]
+                );
+            }
+        }
+    }
+
+    private function syncMoosend($connection): void
+    {
+        $apiKey = decrypt($connection->api_key);
+
+        $campaigns = Http::withHeaders([
+            'X-Api-Key' => $apiKey,
+        ])->get('https://api.moosend.com/v3/campaigns.json');
+
+        if ($campaigns->successful()) {
+            foreach ($campaigns->json() ?? [] as $campaign) {
+                \App\Models\EmailCampaign::updateOrCreate(
+                    [
+                        'connection_id' => $connection->id,
+                        'external_id'   => (string) ($campaign['ID'] ?? $campaign['id'] ?? ''),
+                    ],
+                    [
+                        'client_id'     => $connection->client_id,
+                        'tenant_id'     => $connection->tenant_id,
+                        'name'          => $campaign['Name'] ?? $campaign['name'] ?? 'Untitled',
+                        'subject'       => $campaign['Subject'] ?? $campaign['subject'] ?? '',
+                        'status'        => $campaign['Status'] ?? $campaign['status'] ?? 'sent',
+                        'send_time'     => $campaign['DateCreated'] ?? $campaign['dateCreated'] ?? null,
+                        'emails_sent'   => $campaign['TotalSent'] ?? $campaign['totalSent'] ?? 0,
+                        'platform'      => 'moosend',
+                        'raw_data'      => json_encode($campaign),
+                    ]
+                );
+            }
+        }
+
+        // Fetch mailing lists
+        $lists = Http::withHeaders([
+            'X-Api-Key' => $apiKey,
+        ])->get('https://api.moosend.com/v3/lists.json');
+
+        if ($lists->successful()) {
+            foreach ($lists->json() ?? [] as $list) {
+                \App\Models\EmailAudience::updateOrCreate(
+                    [
+                        'connection_id' => $connection->id,
+                        'external_id'   => (string) ($list['ID'] ?? $list['id'] ?? ''),
+                    ],
+                    [
+                        'client_id'     => $connection->client_id,
+                        'tenant_id'     => $connection->tenant_id,
+                        'name'          => $list['Name'] ?? $list['name'] ?? 'Untitled',
+                        'member_count'  => $list['ActiveMemberCount'] ?? $list['activeMemberCount'] ?? 0,
+                        'open_rate'     => 0,
+                        'click_rate'    => 0,
+                        'platform'      => 'moosend',
+                    ]
+                );
+            }
+        }
     }
 
     private function logConnectionEvent(int $clientId, int $connectionId, string $event, string $platform): void

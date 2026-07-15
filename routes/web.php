@@ -303,6 +303,10 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     // Provider-specific connection pages
     Route::get('/email-connections/mailchimp', [EmailConnectionController::class, 'mailchimp'])
         ->name('email-connections.mailchimp');
+    Route::get('/email-connections/mailchimp/oauth', [EmailConnectionController::class, 'redirectToMailChimp'])
+    ->name('email-connections.mailchimp.oauth');
+    Route::get('/email-connections/mailchimp/callback', [EmailConnectionController::class, 'handleMailChimpCallback'])
+        ->name('email-connections.mailchimp.callback');
     Route::get('/email-connections/brevo', [EmailConnectionController::class, 'brevo'])
         ->name('email-connections.brevo');
     Route::get('/email-connections/constantcontact', [EmailConnectionController::class, 'constantcontact'])
