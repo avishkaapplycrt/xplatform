@@ -29,7 +29,7 @@
   .input-wrap { position: relative; }
   .toggle-visibility { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px; }
   .form-help { font-size: 11px; color: #9ca3af; margin: 6px 0 0; }
-  .connect-action-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; width: 100%; justify-content: center; }
+  .connect-action-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; width: 100%; justify-content: center; border: none; }
   .connect-action-btn:hover { opacity: 0.9; transform: translateY(-1px); }
   .connect-action-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
   .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #6b7280; text-decoration: none; padding: 6px 12px; border-radius: 8px; transition: all .15s; margin-bottom: 16px; }
@@ -147,6 +147,13 @@
     {{-- Alert Messages --}}
     <div id="alertBox" class="alert"></div>
 
+    @if(session('success'))
+      <div class="alert success" style="display:block">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+      <div class="alert error" style="display:block">{{ session('error') }}</div>
+    @endif
+
     @if(isset($connection) && $connection)
     {{-- Connected State --}}
     <div class="panel-card">
@@ -228,62 +235,64 @@
 
     <div class="panel-card">
       <div class="panel-title"><div class="dot"></div>How to Connect</div>
-<div class="setup-steps">
-            <div class="step-item">
-              <div class="step-num" style="background: #00d4aa20; color: #00d4aa;">1</div>
-              <p class="step-text">Generate an API key from your Moosend account</p>
-            </div>
-            <div class="step-item">
-              <div class="step-num" style="background: #00d4aa20; color: #00d4aa;">2</div>
-              <p class="step-text">Paste the API key in the field below</p>
-            </div>
-            <div class="step-item">
-              <div class="step-num" style="background: #00d4aa20; color: #00d4aa;">3</div>
-              <p class="step-text">Click "Connect with Moosend"</p>
-            </div>
-            <div class="step-item">
-              <div class="step-num" style="background: #00d4aa20; color: #00d4aa;">4</div>
-              <p class="step-text">Data will begin syncing automatically</p>
-            </div>
-          </div>
+      <div class="setup-steps">
+        <div class="step-item">
+          <div class="step-num" style="background: #00d4aa20; color: #00d4aa;">1</div>
+          <p class="step-text">Generate an API key from your Moosend account</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num" style="background: #00d4aa20; color: #00d4aa;">2</div>
+          <p class="step-text">Paste the API key in the field below</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num" style="background: #00d4aa20; color: #00d4aa;">3</div>
+          <p class="step-text">Click "Connect with Moosend"</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num" style="background: #00d4aa20; color: #00d4aa;">4</div>
+          <p class="step-text">Data will begin syncing automatically</p>
+        </div>
+      </div>
     </div>
 
     <div class="panel-card">
-      <div class="panel-title"><div class="dot"></div>Authentication</div>
-      <p style="font-size:12px;color:#6b7280;margin:0 0 12px;">Method: <strong style="color:#111827;">api_key</strong></p>
-      <p style="font-size:12px;color:#6b7280;margin:0 0 8px;">Required scopes:</p>
+      <div class="panel-title"><div class="dot"></div>Required Permissions</div>
+      <p style="font-size:12px;color:#6b7280;margin:0 0 8px;">We request the following scopes:</p>
       <div class="scopes-list">
-<span class="scope-tag">mailing_lists</span><span class="scope-tag">campaigns</span><span class="scope-tag">subscribers</span><span class="scope-tag">reports</span>
+        <span class="scope-tag">mailing_lists</span>
+        <span class="scope-tag">campaigns</span>
+        <span class="scope-tag">subscribers</span>
+        <span class="scope-tag">reports</span>
       </div>
     </div>
 
     <div class="panel-card">
       <div class="panel-title"><div class="dot"></div>Connect Account</div>
-<form id="apiKeyForm" onsubmit="return connectApiKey(event)">
-          <div class="form-group">
-            <label class="form-label">API Key</label>
-            <div class="input-wrap">
-              <input type="password" id="apiKeyInput" class="form-input" placeholder="Enter your Moosend API key" required>
-              <button type="button" class="toggle-visibility" onclick="toggleApiKeyVisibility()">
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                </svg>
-              </button>
-            </div>
-            <p class="form-help">You can find your API key in your <a href="https://moosend.com/developers/" target="_blank" style="color: #00d4aa; font-weight: 600;">Moosend dashboard</a> under Settings &gt; API Keys.</p>
+      <form id="apiKeyForm" onsubmit="return connectApiKey(event)">
+        <div class="form-group">
+          <label class="form-label">API Key</label>
+          <div class="input-wrap">
+            <input type="password" id="apiKeyInput" class="form-input" placeholder="Enter your Moosend API key" required>
+            <button type="button" class="toggle-visibility" onclick="toggleApiKeyVisibility()">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+            </button>
           </div>
-          <div class="form-group">
-            <label class="form-label">Account Name (Optional)</label>
-            <input type="text" id="accountNameInput" class="form-input" placeholder="e.g. My Moosend Account">
-          </div>
-          <button type="submit" class="connect-action-btn" style="background: #00d4aa; color: #ffffff; border: none;">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-            </svg>
-            Connect with Moosend
-          </button>
-        </form>
+          <p class="form-help">Find your API key in Moosend → Account → Settings → API Keys</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Account Name (Optional)</label>
+          <input type="text" id="accountNameInput" class="form-input" placeholder="e.g. My Moosend Account">
+        </div>
+        <button type="submit" class="connect-action-btn" style="background: #00d4aa; color: #ffffff;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+          </svg>
+          Connect with Moosend
+        </button>
+      </form>
     </div>
     @endif
 
@@ -342,7 +351,7 @@ function syncNow() {
 }
 
 function disconnect() {
-  if (!confirm('Are you sure you want to disconnect {{ $provider_name ?? ucfirst($provider) }}? All synced data will be removed.')) return;
+  if (!confirm('Are you sure you want to disconnect Moosend? All synced data will be removed.')) return;
 
   fetch('{{ route("client.email-connections.destroy", $connection->id) }}', {
     method: 'DELETE',
@@ -386,10 +395,10 @@ function connectApiKey(e) {
       'Accept': 'application/json'
     },
     body: JSON.stringify({
-      platform: '{{ $provider }}',
+      platform: 'moosend',
       api_key: apiKey,
       account_name: accountName,
-      settings: JSON.stringify({ color: '{{ $brand_color }}', text_color: '{{ $text_color }}' })
+      settings: JSON.stringify({ color: '#00d4aa', text_color: '#ffffff' })
     })
   })
   .then(r => r.json())
@@ -411,10 +420,6 @@ function connectApiKey(e) {
   });
 
   return false;
-}
-
-function connectOAuth() {
-  showAlert('OAuth redirect not yet implemented. Please use API key method.', 'error');
 }
 @endif
 
