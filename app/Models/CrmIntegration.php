@@ -92,7 +92,7 @@ class CrmIntegration extends Model
                 'color'       => '#FF3D57',
                 'description' => 'Sync boards, items, contacts and project data from Monday.com.',
                 'features'    => ['Board Sync', 'Item Sync', 'Contact Sync', 'Project Tracking', 'Time Tracking'],
-                'auth_type'   => 'oauth2',
+                'auth_type'   => 'oauth2',  // <-- Changed from 'api_key' to 'oauth2'
                 'docs_url'    => 'https://developer.monday.com/',
             ],
         ];

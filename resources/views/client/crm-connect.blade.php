@@ -369,17 +369,16 @@
 
           @case('monday')
             <div class="form-group">
-              <label class="form-label">API Key</label>
+              <label class="form-label">Client ID</label>
               <input type="password" name="api_key" class="form-input"
-                     placeholder="Enter your Monday.com API key" required>
-              <p class="form-hint">From Admin → API → Generate API Key</p>
+                     placeholder="Enter your Monday.com Client ID" required>
+              <p class="form-hint">From Monday.com Developers → My Apps → OAuth → Client ID</p>
             </div>
             <div class="form-group">
-              <label class="form-label">Organization ID (Optional)</label>
-              <input type="text" name="organization_id" class="form-input"
-                     value="{{ $existing?->organization_id ?? '' }}"
-                     placeholder="Your Monday.com Organization ID">
-              <p class="form-hint">Required for multi-tenant accounts</p>
+              <label class="form-label">Client Secret</label>
+              <input type="password" name="api_secret" class="form-input"
+                     placeholder="Enter your Monday.com Client Secret" required>
+              <p class="form-hint">Keep this secure - never share your client secret</p>
             </div>
             @break
         @endswitch
@@ -399,7 +398,7 @@
                 <p class="text-[12px] font-medium text-gray-700">Contacts Sync</p>
                 <p class="text-[11px] text-gray-500">Import and update contacts from CRM</p>
               </div>
-              <div class="toggle-switch active" onclick="this.classList.toggle('active')" data-sync="contacts">
+              <div class="toggle-switch active" onclick="toggleSync(this)" data-sync="contacts">
                 <input type="hidden" name="sync_config[entities][]" value="contacts">
               </div>
             </div>
@@ -408,7 +407,7 @@
                 <p class="text-[12px] font-medium text-gray-700">Leads / Deals Sync</p>
                 <p class="text-[11px] text-gray-500">Sync opportunities and pipeline data</p>
               </div>
-              <div class="toggle-switch active" onclick="this.classList.toggle('active')" data-sync="leads">
+              <div class="toggle-switch active" onclick="toggleSync(this)" data-sync="leads">
                 <input type="hidden" name="sync_config[entities][]" value="leads">
               </div>
             </div>
@@ -417,7 +416,7 @@
                 <p class="text-[12px] font-medium text-gray-700">Companies / Accounts</p>
                 <p class="text-[11px] text-gray-500">Import company/account records</p>
               </div>
-              <div class="toggle-switch" onclick="this.classList.toggle('active')" data-sync="companies">
+              <div class="toggle-switch" onclick="toggleSync(this)" data-sync="companies">
                 <input type="hidden" name="sync_config[entities][]" value="companies" disabled>
               </div>
             </div>
@@ -426,7 +425,7 @@
                 <p class="text-[12px] font-medium text-gray-700">Activities / Tasks</p>
                 <p class="text-[11px] text-gray-500">Sync calls, meetings, and tasks</p>
               </div>
-              <div class="toggle-switch" onclick="this.classList.toggle('active')" data-sync="activities">
+              <div class="toggle-switch" onclick="toggleSync(this)" data-sync="activities">
                 <input type="hidden" name="sync_config[entities][]" value="activities" disabled>
               </div>
             </div>
@@ -463,9 +462,12 @@
           <span id="testResultText"></span>
         </div>
 
+        {{-- Hidden status field --}}
+        <input type="hidden" name="status" value="connected">
+
         {{-- Actions --}}
         <div class="flex items-center gap-3 pt-4 border-t border-gray-100">
-          <button type="submit" name="status" value="connected" class="btn-success flex items-center gap-2">
+          <button type="submit" class="btn-success flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
             </svg>
@@ -519,64 +521,84 @@ function testConnection() {
   }, 1500);
 }
 
-function handleSubmit(e) {
-  e.preventDefault();
-  const form = e.target;
-  const formData = new FormData(form);
-  
-  // Handle toggle switches - enable/disable hidden inputs
-  document.querySelectorAll('.toggle-switch').forEach(toggle => {
-    const input = toggle.querySelector('input');
+function toggleSync(element) {
+    element.classList.toggle('active');
+    const input = element.querySelector('input');
     if (input) {
-      input.disabled = !toggle.classList.contains('active');
+        input.disabled = !element.classList.contains('active');
     }
-  });
-  
-  // Collect sync config entities properly
-  const activeEntities = [];
-  document.querySelectorAll('.toggle-switch.active').forEach(toggle => {
-    const syncType = toggle.dataset.sync;
-    if (syncType) activeEntities.push(syncType);
-  });
-  
-  // Rebuild form data with correct entities
-  const data = Object.fromEntries(new FormData(form));
-  data.sync_config = {
-    entities: activeEntities,
-    sync_frequency: data['sync_config[sync_frequency]'],
-    sync_direction: data['sync_config[sync_direction]']
-  };
-  
-  // Remove old entity fields
-  Object.keys(data).forEach(key => {
-    if (key.startsWith('sync_config[entities]')) delete data[key];
-    if (key === 'sync_config[sync_frequency]') delete data[key];
-    if (key === 'sync_config[sync_direction]') delete data[key];
-  });
-  
-  fetch('{{ route("client.crm.store", ["provider" => $provider]) }}', {
-    method: 'POST',
-    headers: {
-      'X-CSRF-TOKEN': '{{ csrf_token() }}',
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(data)
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) {
-      showToast(data.message, 'success');
-      setTimeout(() => window.location.href = '{{ route("client.crm-connections") }}', 1200);
-    } else {
-      showToast(data.message || 'Connection failed', 'error');
-    }
-  })
-  .catch(err => {
-    showToast('Error: ' + err.message, 'error');
-  });
-  
-  return false;
+}
+
+function handleSubmit(e) {
+    e.preventDefault();
+    const form = e.target;
+    const provider = '{{ $provider }}';
+    
+    // Collect active sync entities
+    const activeEntities = [];
+    document.querySelectorAll('.toggle-switch.active').forEach(toggle => {
+        const syncType = toggle.dataset.sync;
+        if (syncType) activeEntities.push(syncType);
+    });
+    
+    // Build data from form
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    // Ensure status is set
+    data.status = data.status || 'connected';
+    
+    data.sync_config = {
+        entities: activeEntities,
+        sync_frequency: data['sync_config[sync_frequency]'] || 'hourly',
+        sync_direction: data['sync_config[sync_direction]'] || 'import'
+    };
+    
+    // Clean up old keys
+    Object.keys(data).forEach(key => {
+        if (key.startsWith('sync_config[entities]')) delete data[key];
+        if (key === 'sync_config[sync_frequency]') delete data[key];
+        if (key === 'sync_config[sync_direction]') delete data[key];
+    });
+    
+    fetch('{{ route("client.crm.store", ["provider" => $provider]) }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(async r => {
+        const responseData = await r.json();
+        if (!r.ok || !responseData.success) {
+            if (responseData.errors) {
+                const messages = Object.values(responseData.errors).flat().join('\n');
+                throw new Error(messages);
+            }
+            throw new Error(responseData.message || 'Request failed');
+        }
+        return responseData;
+    })
+    .then(data => {
+        // For OAuth providers — redirect to authorization page
+        if ((provider === 'zoho' || provider === 'monday') && data.oauth_url) {
+            showToast('Redirecting to ' + provider + ' authorization...', 'success');
+            setTimeout(() => {
+                window.location.href = data.oauth_url;
+            }, 1000);
+            return;
+        }
+        
+        showToast(data.message, 'success');
+        setTimeout(() => window.location.href = '{{ route("client.crm-connections") }}', 1200);
+    })
+    .catch(err => {
+        showToast(err.message || 'Error occurred', 'error');
+    });
+    
+    return false;
 }
 
 // Toggle switch handling
