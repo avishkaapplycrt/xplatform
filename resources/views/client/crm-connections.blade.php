@@ -338,13 +338,13 @@
           $conn = $connections[$key] ?? null;
           $isConnected = $conn && $conn->is_connected;
           $hasError = $conn && $conn->status === 'error';
+          $isDisconnected = !$conn || $conn->status === 'disconnected';
           $cardClass = $isConnected ? 'connected' : ($hasError ? 'error' : '');
         @endphp
         <div class="provider-card {{ $cardClass }}" onclick="openProvider('{{ $key }}')">
           {{-- Top row: Icon + Status --}}
           <div class="flex items-start justify-between mb-4">
             <div class="provider-icon" style="background: {{ $meta['color'] }}">
-              {{-- Provider Initials --}}
               @switch($key)
                 @case('salesforce')
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -373,7 +373,7 @@
                   @break
               @endswitch
             </div>
-            <div class="status-badge {{ $conn?->status ?? 'disconnected' }}">
+            <div class="status-badge {{ $isConnected ? 'connected' : ($hasError ? 'error' : 'disconnected') }}">
               @if($isConnected)
                 <span class="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span>
                 Connected
@@ -398,7 +398,7 @@
             @endforeach
           </div>
 
-          {{-- Connection Info (if connected) --}}
+          {{-- Connection Info (if connection exists) --}}
           @if($conn)
           <div class="mb-4 p-3 rounded-lg bg-white/60 border border-gray-200/50">
             <div class="flex items-center justify-between mb-1">
@@ -411,6 +411,14 @@
               </svg>
               Last sync: {{ $conn->last_sync_at?->diffForHumans() ?? 'Never' }}
             </div>
+            @if($conn->last_error)
+            <div class="sync-meta mt-1 text-red-400">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              Error: {{ Str::limit($conn->last_error, 50) }}
+            </div>
+            @endif
           </div>
           @endif
 
@@ -500,7 +508,7 @@ function openProvider(provider) {
 }
 
 function syncProvider(provider) {
-  fetch('{{ url("client/crm-connections") }}/' + provider + '/sync', {
+  fetch('{{ route("client.crm.sync", ["provider" => "__PROVIDER__"]) }}'.replace('__PROVIDER__', provider), {
     method: 'POST',
     headers: {
       'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -523,7 +531,7 @@ function syncProvider(provider) {
 function disconnectProvider(provider) {
   if (!confirm('Are you sure you want to disconnect ' + provider + '?')) return;
 
-  fetch('{{ url("client/crm-connections") }}/' + provider + '/disconnect', {
+  fetch('{{ route("client.crm.disconnect", ["provider" => "__PROVIDER__"]) }}'.replace('__PROVIDER__', provider), {
     method: 'POST',
     headers: {
       'X-CSRF-TOKEN': '{{ csrf_token() }}',

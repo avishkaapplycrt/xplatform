@@ -14,7 +14,6 @@ use App\Http\Controllers\AdminSettingsController;
 use App\Http\Controllers\DecisionCentreController;
 use App\Http\Controllers\AdminDemoRequestController;
 use App\Http\Controllers\AnalyticsDashboardViewController;
-use App\Http\Controllers\CrmController;
 use App\Models\EmailLog;
 use App\Models\CallLog;
 use App\Models\BehavioralProfile;
@@ -226,15 +225,6 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::post('sources/{source}/test', [DataSourceController::class, 'test'])->name('sources.test');
     Route::delete('sources/{source}',    [DataSourceController::class, 'destroy'])->name('sources.destroy');
 
-    // CRM connections
-    Route::get('crm',                              [CrmController::class, 'index'])->name('crm.index');
-    Route::get('crm/hubspot/connect',              [CrmController::class, 'redirectToHubSpot'])->name('crm.hubspot.connect');
-    Route::get('crm/hubspot/callback',             [CrmController::class, 'handleHubSpotCallback'])->name('crm.hubspot.callback');
-    Route::get('crm/salesforce/connect',           [CrmController::class, 'redirectToSalesforce'])->name('crm.salesforce.connect');
-    Route::get('crm/salesforce/callback',          [CrmController::class, 'handleSalesforceCallback'])->name('crm.salesforce.callback');
-    Route::post('crm/{connection}/sync',           [CrmController::class, 'sync'])->name('crm.sync');
-    Route::delete('crm/{connection}',              [CrmController::class, 'destroy'])->name('crm.destroy');
-
     Route::post('logout', [ClientAuthController::class, 'logout'])->name('logout');
 
     Route::prefix('laravel')->name('laravel.')->group(function () {
@@ -326,30 +316,41 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::post('/email-connections/{id}/sync', [EmailConnectionController::class, 'sync'])
         ->name('email-connections.sync');
 
-    // CRM Connections Routes
+    /* ═══════════════════════════════════════════════════════════
+       CRM CONNECTION ROUTES (CrmConnectionController)
+       ═══════════════════════════════════════════════════════════ */
+
+    // Main connections page
     Route::get('/crm-connections', [CrmConnectionController::class, 'index'])
         ->name('crm-connections');
-    
+
+    // Zoho OAuth Routes (FIXED PATHS - must be before wildcard routes)
+    Route::get('/crm-connections/zoho/oauth', [CrmConnectionController::class, 'redirectToZoho'])
+        ->name('crm.zoho.oauth');
+    Route::get('/crm-connections/zoho/callback', [CrmConnectionController::class, 'handleZohoCallback'])
+        ->name('crm.zoho.callback');
+
+    // Wildcard routes with {provider} parameter
     Route::get('/crm-connections/{provider}/connect', [CrmConnectionController::class, 'create'])
         ->name('crm.connect');
-    
     Route::post('/crm-connections/{provider}', [CrmConnectionController::class, 'store'])
         ->name('crm.store');
-    
     Route::post('/crm-connections/{provider}/test', [CrmConnectionController::class, 'test'])
         ->name('crm.test');
-    
     Route::post('/crm-connections/{provider}/sync', [CrmConnectionController::class, 'sync'])
         ->name('crm.sync');
-    
     Route::post('/crm-connections/{provider}/disconnect', [CrmConnectionController::class, 'disconnect'])
         ->name('crm.disconnect');
-    
     Route::delete('/crm-connections/{provider}', [CrmConnectionController::class, 'destroy'])
         ->name('crm.destroy');
-    
     Route::get('/crm-connections/status', [CrmConnectionController::class, 'status'])
         ->name('crm.status');
+
+    // Monday.com OAuth Routes (FIXED PATHS - must be before wildcard routes)
+    Route::get('/crm-connections/monday/oauth', [CrmConnectionController::class, 'redirectToMonday'])
+    ->name('crm.monday.oauth');
+    Route::get('/crm-connections/monday/callback', [CrmConnectionController::class, 'handleMondayCallback'])
+    ->name('crm.monday.callback');
 
     // ============================================
     // SOCIAL MEDIA CONNECTIONS ROUTES
