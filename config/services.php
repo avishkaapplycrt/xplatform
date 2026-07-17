@@ -41,4 +41,22 @@ return [
         'redirect'      => env('APP_URL') . '/app/email-connections/mailchimp/callback',
     ],
 
+    'facebook' => [
+        'client_id'     => env('FACEBOOK_APP_ID'),
+        'client_secret' => env('FACEBOOK_APP_SECRET'),
+        'redirect'      => env('FACEBOOK_REDIRECT_URI'),
+    ],
+
+    'instagram' => [
+        'client_id'     => env('INSTAGRAM_APP_ID'),
+        'client_secret' => env('INSTAGRAM_APP_SECRET'),
+        'redirect'      => env('INSTAGRAM_REDIRECT_URI'),
+    ],
+
+    'linkedin' => [
+        'client_id'     => env('LINKEDIN_CLIENT_ID'),
+        'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
+        'redirect'      => env('LINKEDIN_REDIRECT_URI'),
+    ],
+
 ];
