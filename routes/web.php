@@ -360,6 +360,23 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
         Route::get('/', [SocialConnectionController::class, 'index'])
             ->name('social-connections');
 
+        // ── Facebook OAuth (fixed paths — must be BEFORE {platform} wildcards)
+        Route::get('/facebook/oauth', [SocialConnectionController::class, 'redirectToFacebook'])
+            ->name('social.facebook.oauth');
+        Route::get('/facebook/callback', [SocialConnectionController::class, 'handleFacebookCallback'])
+            ->name('social.facebook.callback');
+
+        Route::get('/instagram/oauth', [SocialConnectionController::class, 'redirectToInstagram'])
+            ->name('social.instagram.oauth');
+        Route::get('/instagram/callback', [SocialConnectionController::class, 'handleInstagramCallback'])
+            ->name('social.instagram.callback');
+
+        // ── LinkedIn OAuth
+        Route::get('/linkedin/oauth', [SocialConnectionController::class, 'redirectToLinkedin'])
+            ->name('social.linkedin.oauth');
+        Route::get('/linkedin/callback', [SocialConnectionController::class, 'handleLinkedinCallback'])
+            ->name('social.linkedin.callback');
+
         // Connect form for specific platform
         Route::get('/{platform}/connect', [SocialConnectionController::class, 'create'])
             ->name('social.connect');
@@ -461,3 +478,8 @@ Route::middleware(['auth'])->get('/admin/analytics-tokens', function () {
     $tokens = \App\Models\ApiToken::latest()->get();
     return view('admin.tokens', compact('tokens'));
 })->name('admin.tokens');
+
+Route::get('/debug-env-file', fn() => [
+    'loaded_file' => app()->environmentFile(),
+    'fb_app_id'   => config('services.facebook.client_id'),
+]);

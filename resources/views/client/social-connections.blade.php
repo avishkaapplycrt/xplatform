@@ -541,7 +541,7 @@ function openPlatform(platform) {
 }
 
 function syncPlatform(platform) {
-  fetch('{{ url("client/social-connections") }}/' + platform + '/sync', {
+  fetch('{{ route("client.social.sync", ["platform" => "__PLATFORM__"]) }}'.replace('__PLATFORM__', platform), {
     method: 'POST',
     headers: {
       'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -564,7 +564,7 @@ function syncPlatform(platform) {
 function disconnectPlatform(platform) {
   if (!confirm('Are you sure you want to disconnect ' + platform + '?')) return;
 
-  fetch('{{ url("client/social-connections") }}/' + platform + '/disconnect', {
+  fetch('{{ route("client.social.disconnect", ["platform" => "__PLATFORM__"]) }}'.replace('__PLATFORM__', platform), {
     method: 'POST',
     headers: {
       'X-CSRF-TOKEN': '{{ csrf_token() }}',

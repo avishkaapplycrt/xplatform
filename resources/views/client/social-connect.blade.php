@@ -269,6 +269,24 @@
 
     <div class="connect-form-card">
 
+      {{-- Flash Messages (OAuth callback errors/success) --}}
+      @if(session('error'))
+        <div class="test-result error show mb-4">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          <span>{{ session('error') }}</span>
+        </div>
+      @endif
+      @if(session('success'))
+        <div class="test-result success show mb-4">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+          <span>{{ session('success') }}</span>
+        </div>
+      @endif
+
       {{-- Platform Header --}}
       <div class="platform-header">
         <div class="platform-icon-lg" style="background: {{ $meta['color'] }}">
@@ -378,10 +396,21 @@
               <p class="form-hint">Your Facebook Page ID (found in Page Settings → Page Info)</p>
             </div>
             <div class="form-group">
-              <label class="form-label">Access Token</label>
+              <label class="form-label">Access Token
+                @if($existing?->access_token)
+                  <span style="color:#10b981;font-weight:500;">(saved via OAuth)</span>
+                @endif
+              </label>
               <input type="password" name="access_token" class="form-input"
-                     placeholder="Enter your Facebook access token" required>
-              <p class="form-hint">Generate from Facebook Developers → Tools → Access Token Debugger</p>
+                     placeholder="{{ $existing?->access_token ? 'Token already saved — leave blank to keep it' : 'Enter your Facebook access token' }}"
+                     {{ $existing?->access_token ? '' : 'required' }}>
+              <p class="form-hint">
+                @if($existing?->access_token)
+                  Stored encrypted. Leave blank to keep the existing token, or paste a new one to replace it.
+                @else
+                  Generate from Facebook Developers → Tools → Access Token Debugger — or click "Connect with Facebook" above.
+                @endif
+              </p>
             </div>
             @break
 
@@ -391,13 +420,24 @@
               <input type="text" name="account_id" class="form-input"
                      value="{{ $existing?->account_id ?? '' }}"
                      placeholder="e.g., 17841405309211844" required>
-              <p class="form-hint">Your Instagram Business Account ID (found in Facebook Business Manager)</p>
+              <p class="form-hint">Your Instagram Business Account ID (auto-filled when connecting via OAuth above)</p>
             </div>
             <div class="form-group">
-              <label class="form-label">Access Token</label>
+              <label class="form-label">Access Token
+                @if($existing?->access_token)
+                  <span style="color:#10b981;font-weight:500;">(saved via OAuth)</span>
+                @endif
+              </label>
               <input type="password" name="access_token" class="form-input"
-                     placeholder="Enter your Instagram access token" required>
-              <p class="form-hint">Generate from Facebook Graph API Explorer with instagram_basic permission</p>
+                     placeholder="{{ $existing?->access_token ? 'Token already saved — leave blank to keep it' : 'Enter your Instagram access token' }}"
+                     {{ $existing?->access_token ? '' : 'required' }}>
+              <p class="form-hint">
+                @if($existing?->access_token)
+                  Stored encrypted. Leave blank to keep the existing token, or paste a new one to replace it.
+                @else
+                  Generate from your Meta App → Instagram → API setup → Generate token — or click "Connect with Instagram" above.
+                @endif
+              </p>
             </div>
             @break
 
@@ -595,28 +635,59 @@ function showToast(message, type = 'success') {
 }
 
 function initiateOAuth(platform) {
+  const oauthRoutes = {
+    facebook: '{{ route("client.social.facebook.oauth") }}',
+    instagram: '{{ route("client.social.instagram.oauth") }}'
+  };
+  if (oauthRoutes[platform]) {
+    window.location.href = oauthRoutes[platform];
+    return;
+  }
   showToast('Redirecting to ' + platform + ' OAuth...', 'info');
-  // In production, redirect to OAuth authorization URL
-  // window.location.href = '/oauth/' + platform + '/redirect';
 }
 
 function testConnection() {
   const result = document.getElementById('testResult');
   const text = document.getElementById('testResultText');
-  
+
   result.className = 'test-result loading show';
   text.textContent = 'Testing connection to {{ $meta['name'] }}...';
-  
-  setTimeout(() => {
-    result.className = 'test-result success show';
-    text.textContent = 'Connection successful! {{ $meta['name'] }} API is accessible.';
-  }, 1500);
+
+  fetch('{{ route("client.social.test", ["platform" => $platform]) }}', {
+    method: 'POST',
+    headers: {
+      'X-CSRF-TOKEN': '{{ csrf_token() }}',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      result.className = 'test-result success show';
+      let msg = data.message || 'Connection successful! {{ $meta['name'] }} API is accessible.';
+      if (data.details) {
+        const extras = Object.entries(data.details)
+          .map(([k, v]) => k.replace(/_/g, ' ') + ': ' + v)
+          .join(' · ');
+        if (extras) msg += ' (' + extras + ')';
+      }
+      text.textContent = msg;
+    } else {
+      result.className = 'test-result error show';
+      text.textContent = data.message || 'Connection test failed.';
+    }
+  })
+  .catch(err => {
+    result.className = 'test-result error show';
+    text.textContent = 'Test failed: ' + err.message;
+  });
 }
 
 function handleSubmit(e) {
   e.preventDefault();
   const form = e.target;
-  
+
   // Handle toggle switches
   document.querySelectorAll('.toggle-switch').forEach(toggle => {
     const input = toggle.querySelector('input');
@@ -624,26 +695,26 @@ function handleSubmit(e) {
       input.disabled = !toggle.classList.contains('active');
     }
   });
-  
+
   // Collect sync config content types
   const activeTypes = [];
   document.querySelectorAll('.toggle-switch.active').forEach(toggle => {
     const syncType = toggle.dataset.sync;
     if (syncType) activeTypes.push(syncType);
   });
-  
+
   const data = Object.fromEntries(new FormData(form));
   data.sync_config = {
     content_types: activeTypes,
     sync_frequency: data['sync_config[sync_frequency]'],
     auto_publish: data['sync_config[auto_publish]'] === '1'
   };
-  
+
   // Clean up old fields
   Object.keys(data).forEach(key => {
     if (key.startsWith('sync_config[')) delete data[key];
   });
-  
+
   fetch('{{ route("client.social.store", ["platform" => $platform]) }}', {
     method: 'POST',
     headers: {
@@ -665,7 +736,7 @@ function handleSubmit(e) {
   .catch(err => {
     showToast('Error: ' + err.message, 'error');
   });
-  
+
   return false;
 }
 
