@@ -193,10 +193,94 @@
     text-align: center;
     background: #fafafa;
     transition: all 0.15s;
+    display: block;
+    text-decoration: none;
   }
   .oauth-box:hover {
     border-color: #3b82f6;
     background: #eff6ff;
+  }
+  .add-to-slack-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    background: #4A154B;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+  .add-to-slack-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+  .workspace-info {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .workspace-info h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #166534;
+    margin: 0 0 4px 0;
+  }
+  .workspace-info p {
+    font-size: 12px;
+    color: #15803d;
+    margin: 0;
+  }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 14px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    z-index: 9999;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  }
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  .twilio-guide {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .twilio-guide h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0369a1;
+    margin: 0 0 8px 0;
+  }
+  .twilio-guide ol {
+    margin: 0;
+    padding-left: 16px;
+  }
+  .twilio-guide li {
+    font-size: 12px;
+    color: #0c4a6e;
+    margin-bottom: 4px;
+  }
+  .twilio-guide a {
+    color: #0284c7;
+    text-decoration: underline;
   }
 </style>
 @endpush
@@ -325,38 +409,62 @@
         </div>
       </div>
 
-      {{-- OAuth Connect Box (for OAuth platforms) --}}
+      {{-- OAuth Connect Box (for OAuth platforms only) --}}
       @if($meta['auth_type'] === 'oauth2')
       <div class="mb-6">
-        <div class="oauth-box" onclick="initiateOAuth('{{ $provider }}')" style="cursor: pointer;">
-          <div class="provider-icon-lg mx-auto mb-3" style="background: {{ $meta['color'] }}; width: 48px; height: 48px;">
-            @switch($provider)
-              @case('slack')
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z"/></svg>
-                @break
-              @case('zendesk')
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M11.08 0H0v17.293h4.797V4.79h6.283V0zm1.839 24h11.08V6.707H19.2v12.503h-6.283V24zM4.797 24h6.283V11.08H0v4.797h4.797V24zm14.406-17.293H12.92V0h11.08v4.797h-4.797v1.91z"/></svg>
-                @break
-              @case('intercom')
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 22c-5.523 0-10-4.477-10-10S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-6h2v-8h-2v8zm0-10h2V4h-2v2z"/></svg>
-                @break
-            @endswitch
+        @php
+          $oauthRoute = match($provider) {
+            'slack'    => route('client.chat-support.slack.redirect'),
+            'whatsapp' => route('client.chat-support.whatsapp.redirect'),
+            default    => null,
+          };
+        @endphp
+
+        {{-- If already connected via OAuth, show workspace info --}}
+        @if($existing && $existing->is_connected && ($existing->settings['connected_via'] ?? null) === 'oauth')
+          <div class="workspace-info">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <h4>Connected Workspace</h4>
+            </div>
+            <p><strong>{{ $existing->workspace_name ?? 'Unknown Workspace' }}</strong></p>
+            <p class="text-[11px] mt-1">Workspace ID: {{ $existing->workspace_id ?? 'N/A' }}</p>
+            <p class="text-[11px] mt-1">Connected {{ $existing->last_sync_at?->diffForHumans() ?? 'recently' }}</p>
           </div>
-          <p class="text-[14px] font-semibold text-gray-700 mb-1">Connect with {{ $meta['name'] }}</p>
-          <p class="text-[12px] text-gray-500">Click to authorize via OAuth 2.0</p>
-        </div>
-        <div class="mt-3">
+
+          <a href="{{ $oauthRoute }}" class="add-to-slack-btn" style="background: #4A154B;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z"/>
+            </svg>
+            Reconnect {{ $meta['name'] }}
+          </a>
+        @else
+          <a href="{{ $oauthRoute }}" class="add-to-slack-btn" style="background: {{ $meta['color'] }};">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z"/>
+            </svg>
+            Add to {{ $meta['name'] }}
+          </a>
+          <p class="text-[11px] text-gray-500 mt-2 text-center">Click to authorize your {{ $meta['name'] }} workspace. You'll be redirected to approve permissions.</p>
+        @endif
+
+        @if(!empty($meta['scopes']))
+        <div class="mt-4">
           <p class="text-[11px] text-gray-500 mb-2">Required permissions:</p>
           <div class="flex flex-wrap">
-            @foreach($meta['scopes'] ?? [] as $scope)
+            @foreach($meta['scopes'] as $scope)
               <span class="scope-tag">{{ $scope }}</span>
             @endforeach
           </div>
         </div>
+        @endif
       </div>
       @endif
 
-      {{-- Connection Form --}}
+      {{-- Connection Form (for API key / manual entry providers) --}}
+      @if($meta['auth_type'] === 'api_key')
       <form id="chatSupportConnectForm" onsubmit="return handleSubmit(event)">
         @csrf
 
@@ -368,6 +476,19 @@
                  placeholder="e.g., Main {{ $meta['name'] }} Account" required>
           <p class="form-hint">Give this connection a recognizable name for easy identification.</p>
         </div>
+
+        {{-- Twilio Guide --}}
+        @if($provider === 'twilio')
+        <div class="twilio-guide">
+          <h4>How to get your Twilio credentials</h4>
+          <ol>
+            <li>Log in to your <a href="https://console.twilio.com" target="_blank">Twilio Console</a></li>
+            <li>Your <strong>Account SID</strong> and <strong>Auth Token</strong> are on the dashboard</li>
+            <li>Go to <strong>Phone Numbers → Manage → Active Numbers</strong> to get your phone number</li>
+            <li>Copy and paste all three values below</li>
+          </ol>
+        </div>
+        @endif
 
         {{-- Provider-Specific Fields --}}
         @switch($provider)
@@ -394,71 +515,28 @@
             </div>
             @break
 
-          @case('slack')
-            <div class="form-group">
-              <label class="form-label">Workspace ID</label>
-              <input type="text" name="workspace_id" class="form-input"
-                     value="{{ $existing?->workspace_id ?? '' }}"
-                     placeholder="e.g., T12345678" required>
-              <p class="form-hint">Your Slack Workspace ID (found in API settings)</p>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Channel ID (Optional)</label>
-              <input type="text" name="channel_id" class="form-input"
-                     value="{{ $existing?->channel_id ?? '' }}"
-                     placeholder="e.g., C1234567890">
-              <p class="form-hint">Specific channel to monitor (leave empty for all)</p>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Bot User OAuth Token</label>
-              <input type="password" name="access_token" class="form-input"
-                     placeholder="xoxb-..." required>
-              <p class="form-hint">From Slack API → OAuth & Permissions → Bot User OAuth Token</p>
-            </div>
-            @break
-
           @case('twilio')
             <div class="form-group">
               <label class="form-label">Account SID</label>
               <input type="text" name="account_sid" class="form-input"
                      value="{{ $existing?->account_sid ?? '' }}"
-                     placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" required>
-              <p class="form-hint">Found in Twilio Console → Account Info</p>
+                     placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" required
+                     pattern="^AC[0-9a-fA-F]{32}$">
+              <p class="form-hint">Found in Twilio Console → Account Info. Starts with "AC"</p>
             </div>
             <div class="form-group">
               <label class="form-label">Auth Token</label>
               <input type="password" name="auth_token" class="form-input"
-                     placeholder="Enter your Twilio Auth Token" required>
-              <p class="form-hint">Keep this secure - never share your auth token</p>
+                     placeholder="Enter your Twilio Auth Token" required minlength="32">
+              <p class="form-hint">Keep this secure — never share your auth token</p>
             </div>
             <div class="form-group">
-              <label class="form-label">Phone Number</label>
+              <label class="form-label">Twilio Phone Number</label>
               <input type="text" name="phone_number" class="form-input"
                      value="{{ $existing?->phone_number ?? '' }}"
-                     placeholder="+1234567890" required>
-              <p class="form-hint">Your Twilio phone number for SMS/WhatsApp</p>
-            </div>
-            @break
-
-          @case('zendesk')
-            <div class="form-group">
-              <label class="form-label">Subdomain</label>
-              <input type="text" name="subdomain" class="form-input"
-                     value="{{ $existing?->subdomain ?? '' }}"
-                     placeholder="e.g., yourcompany" required>
-              <p class="form-hint">Your Zendesk subdomain (yourcompany.zendesk.com)</p>
-            </div>
-            <div class="form-group">
-              <label class="form-label">API Token</label>
-              <input type="password" name="api_key" class="form-input"
-                     placeholder="Enter your Zendesk API token" required>
-              <p class="form-hint">Generate from Admin Center → Apps and integrations → APIs → Zendesk API</p>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Access Token (Optional)</label>
-              <input type="password" name="access_token" class="form-input"
-                     placeholder="For OAuth authentication">
-              <p class="form-hint">Required if using OAuth instead of API token</p>
+                     placeholder="+1234567890" required
+                     pattern="^\+[1-9]\d{1,14}$">
+              <p class="form-hint">Your Twilio phone number in E.164 format (e.g., +14155551234)</p>
             </div>
             @break
 
@@ -481,29 +559,6 @@
               <input type="text" name="channel_id" class="form-input"
                      value="{{ $existing?->channel_id ?? '' }}"
                      placeholder="Specific widget/channel ID">
-            </div>
-            @break
-
-          @case('intercom')
-            <div class="form-group">
-              <label class="form-label">App ID</label>
-              <input type="text" name="app_id" class="form-input"
-                     value="{{ $existing?->app_id ?? '' }}"
-                     placeholder="e.g., abc123de" required>
-              <p class="form-hint">Found in Intercom → Settings → Developers → Developer Hub</p>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Access Token</label>
-              <input type="password" name="access_token" class="form-input"
-                     placeholder="Enter your Intercom access token" required>
-              <p class="form-hint">Generate from Developer Hub → Your App → Configure → Access Tokens</p>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Webhook URL (Optional)</label>
-              <input type="url" name="webhook_url" class="form-input"
-                     value="{{ $existing?->webhook_url ?? '' }}"
-                     placeholder="https://your-domain.com/webhook/intercom">
-              <p class="form-hint">URL to receive conversation webhooks</p>
             </div>
             @break
 
@@ -643,13 +698,14 @@
           <a href="{{ route('client.chat-support-connections') }}" class="btn-secondary">Cancel</a>
         </div>
       </form>
+      @endif
 
     </div>
 
   </div>
 </div>
 
-<div id="toast" class="toast" style="position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:10px;font-size:13px;font-weight:500;color:#fff;z-index:9999;transform:translateY(100px);opacity:0;transition:all 0.3s ease;box-shadow:0 10px 40px rgba(0,0,0,0.15);"></div>
+<div id="toast" class="toast"></div>
 
 @endsection
 
@@ -659,36 +715,58 @@ function showToast(message, type = 'success') {
   const toast = document.getElementById('toast');
   toast.textContent = message;
   toast.style.background = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6';
-  toast.style.transform = 'translateY(0)';
-  toast.style.opacity = '1';
-  setTimeout(() => {
-    toast.style.transform = 'translateY(100px)';
-    toast.style.opacity = '0';
-  }, 3000);
-}
-
-function initiateOAuth(provider) {
-  showToast('Redirecting to ' + provider + ' OAuth...', 'info');
-  // In production: window.location.href = '/oauth/' + provider + '/redirect';
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
 function testConnection() {
   const result = document.getElementById('testResult');
   const text = document.getElementById('testResultText');
-  
+
   result.className = 'test-result loading show';
   text.textContent = 'Testing connection to {{ $meta['name'] }}...';
-  
-  setTimeout(() => {
-    result.className = 'test-result success show';
-    text.textContent = 'Connection successful! {{ $meta['name'] }} API is accessible.';
-  }, 1500);
+
+  // For Twilio, do a real test via API
+  @if($provider === 'twilio')
+    const form = document.getElementById('chatSupportConnectForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+
+    fetch('{{ route("client.chat-support.test", ["provider" => $provider]) }}', {
+      method: 'POST',
+      headers: {
+        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        result.className = 'test-result success show';
+        text.textContent = data.message;
+      } else {
+        result.className = 'test-result error show';
+        text.textContent = data.message;
+      }
+    })
+    .catch(err => {
+      result.className = 'test-result error show';
+      text.textContent = 'Test failed: ' + err.message;
+    });
+  @else
+    setTimeout(() => {
+      result.className = 'test-result success show';
+      text.textContent = 'Connection successful! {{ $meta['name'] }} API is accessible.';
+    }, 1500);
+  @endif
 }
 
 function handleSubmit(e) {
   e.preventDefault();
   const form = e.target;
-  
+
   // Handle toggle switches
   document.querySelectorAll('.toggle-switch').forEach(toggle => {
     const input = toggle.querySelector('input');
@@ -696,14 +774,14 @@ function handleSubmit(e) {
       input.disabled = !toggle.classList.contains('active');
     }
   });
-  
+
   // Collect active message types
   const activeTypes = [];
   document.querySelectorAll('.toggle-switch.active').forEach(toggle => {
     const syncType = toggle.dataset.sync;
     if (syncType) activeTypes.push(syncType);
   });
-  
+
   const data = Object.fromEntries(new FormData(form));
   data.sync_config = {
     message_types: activeTypes,
@@ -711,12 +789,12 @@ function handleSubmit(e) {
     auto_reply: data['sync_config[auto_reply]'] === '1',
     store_media: data['sync_config[store_media]'] === '1'
   };
-  
+
   // Clean up old fields
   Object.keys(data).forEach(key => {
     if (key.startsWith('sync_config[')) delete data[key];
   });
-  
+
   fetch('{{ route("client.chat-support.store", ["provider" => $provider]) }}', {
     method: 'POST',
     headers: {
@@ -738,7 +816,7 @@ function handleSubmit(e) {
   .catch(err => {
     showToast('Error: ' + err.message, 'error');
   });
-  
+
   return false;
 }
 

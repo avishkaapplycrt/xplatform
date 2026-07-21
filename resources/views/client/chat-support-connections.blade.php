@@ -551,7 +551,7 @@ function openProvider(provider) {
 }
 
 function syncProvider(provider) {
-  fetch('{{ url("client/chat-support-connections") }}/' + provider + '/sync', {
+  fetch('{{ route("client.chat-support.sync", ["provider" => "__PROVIDER__"]) }}'.replace('__PROVIDER__', provider), {
     method: 'POST',
     headers: {
       'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -574,7 +574,7 @@ function syncProvider(provider) {
 function disconnectProvider(provider) {
   if (!confirm('Are you sure you want to disconnect ' + provider + '?')) return;
 
-  fetch('{{ url("client/chat-support-connections") }}/' + provider + '/disconnect', {
+  fetch('{{ route("client.chat-support.disconnect", ["provider" => "__PROVIDER__"]) }}'.replace('__PROVIDER__', provider), {
     method: 'POST',
     headers: {
       'X-CSRF-TOKEN': '{{ csrf_token() }}',
