@@ -13,6 +13,7 @@ class ChatSupportIntegration extends Model
     protected $table = 'chat_support_integrations';
 
     protected $fillable = [
+        'client_id',
         'provider',
         'connection_name',
         'status',
@@ -24,6 +25,7 @@ class ChatSupportIntegration extends Model
         'phone_number',
         'webhook_url',
         'workspace_id',
+        'workspace_name',
         'channel_id',
         'subdomain',
         'app_id',
@@ -65,17 +67,19 @@ class ChatSupportIntegration extends Model
                 'auth_type'   => 'api_key',
                 'docs_url'    => 'https://developers.facebook.com/docs/whatsapp',
                 'fields'      => ['phone_number', 'api_key', 'webhook_url'],
+                'scopes'      => [],
             ],
             'slack' => [
                 'name'        => 'Slack',
                 'icon'        => 'slack',
                 'color'       => '#4A154B',
                 'bg_color'    => '#F3E5F5',
-                'description' => 'Connect Slack workspace to sync channels, messages, and team communications.',
+                'description' => 'Connect your Slack workspace to sync channels, messages, and team communications.',
                 'features'    => ['Channel Sync', 'Message History', 'Thread Tracking', 'File Sharing', 'Bot Integration', 'Slash Commands'],
                 'auth_type'   => 'oauth2',
                 'docs_url'    => 'https://api.slack.com/',
                 'fields'      => ['workspace_id', 'channel_id', 'access_token'],
+                'scopes'      => ['channels:read', 'channels:history', 'chat:write', 'users:read', 'files:read', 'groups:read', 'im:read', 'mpim:read'],
             ],
             'twilio' => [
                 'name'        => 'Twilio',
@@ -87,6 +91,7 @@ class ChatSupportIntegration extends Model
                 'auth_type'   => 'api_key',
                 'docs_url'    => 'https://www.twilio.com/docs',
                 'fields'      => ['account_sid', 'auth_token', 'phone_number'],
+                'scopes'      => [],
             ],
             'zendesk' => [
                 'name'        => 'Zendesk',
@@ -98,6 +103,7 @@ class ChatSupportIntegration extends Model
                 'auth_type'   => 'oauth2',
                 'docs_url'    => 'https://developer.zendesk.com/',
                 'fields'      => ['subdomain', 'api_key', 'access_token'],
+                'scopes'      => ['read', 'write', 'tickets', 'users'],
             ],
             'tawk' => [
                 'name'        => 'Tawk.to',
@@ -109,6 +115,7 @@ class ChatSupportIntegration extends Model
                 'auth_type'   => 'api_key',
                 'docs_url'    => 'https://developer.tawk.to/',
                 'fields'      => ['app_id', 'api_key', 'channel_id'],
+                'scopes'      => [],
             ],
             'intercom' => [
                 'name'        => 'Intercom',
@@ -120,6 +127,7 @@ class ChatSupportIntegration extends Model
                 'auth_type'   => 'oauth2',
                 'docs_url'    => 'https://developers.intercom.com/',
                 'fields'      => ['app_id', 'access_token', 'webhook_url'],
+                'scopes'      => ['read_conversations', 'read_users', 'read_contacts', 'read_admins', 'write_conversations'],
             ],
             'livechat' => [
                 'name'        => 'LiveChat',
@@ -131,6 +139,7 @@ class ChatSupportIntegration extends Model
                 'auth_type'   => 'api_key',
                 'docs_url'    => 'https://developers.livechat.com/',
                 'fields'      => ['license_id', 'api_key', 'webhook_url'],
+                'scopes'      => [],
             ],
         ];
     }
@@ -178,5 +187,10 @@ class ChatSupportIntegration extends Model
             return $seconds . 's';
         }
         return floor($seconds / 60) . 'm ' . ($seconds % 60) . 's';
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(\App\Models\Client::class);
     }
 }

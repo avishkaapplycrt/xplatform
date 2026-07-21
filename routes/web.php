@@ -192,12 +192,12 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('layers/rl',      fn() => view('client.layers.rl'))->name('layer.rl');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('data-collection');
-    
+
     Route::get('behavioral-analytics', [DecisionCentreController::class, 'analytics'])->name('analytics');
     Route::get('aiml-dashboard', [DecisionCentreController::class, 'aimlDashboard'])->name('aiml.dashboard');
     Route::post('/email/send', [DecisionCentreController::class, 'sendEmail'])->name('email.send');
     Route::post('/email/send-bulk', [DecisionCentreController::class, 'sendBulkEmail'])->name('email.send.bulk');
-    
+
     Route::get('email-templates', [DecisionCentreController::class, 'emailTemplates'])->name('email.templates');
     Route::post('email-templates', [DecisionCentreController::class, 'storeTemplate'])->name('email.templates.store');
     Route::put('email-templates/{template}', [DecisionCentreController::class, 'updateTemplate'])->name('email.templates.update');
@@ -330,6 +330,12 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('/crm-connections/zoho/callback', [CrmConnectionController::class, 'handleZohoCallback'])
         ->name('crm.zoho.callback');
 
+    // Monday.com OAuth Routes (FIXED PATHS - must be before wildcard routes)
+    Route::get('/crm-connections/monday/oauth', [CrmConnectionController::class, 'redirectToMonday'])
+    ->name('crm.monday.oauth');
+    Route::get('/crm-connections/monday/callback', [CrmConnectionController::class, 'handleMondayCallback'])
+    ->name('crm.monday.callback');
+
     // Wildcard routes with {provider} parameter
     Route::get('/crm-connections/{provider}/connect', [CrmConnectionController::class, 'create'])
         ->name('crm.connect');
@@ -345,12 +351,6 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
         ->name('crm.destroy');
     Route::get('/crm-connections/status', [CrmConnectionController::class, 'status'])
         ->name('crm.status');
-
-    // Monday.com OAuth Routes (FIXED PATHS - must be before wildcard routes)
-    Route::get('/crm-connections/monday/oauth', [CrmConnectionController::class, 'redirectToMonday'])
-    ->name('crm.monday.oauth');
-    Route::get('/crm-connections/monday/callback', [CrmConnectionController::class, 'handleMondayCallback'])
-    ->name('crm.monday.callback');
 
     // ============================================
     // SOCIAL MEDIA CONNECTIONS ROUTES
@@ -413,6 +413,18 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
         // Listing page - shows all Chat & Support providers
         Route::get('/', [ChatSupportConnectionController::class, 'index'])
             ->name('chat-support-connections');
+
+        // ── Slack OAuth (fixed paths — must be BEFORE {provider} wildcards)
+        Route::get('/slack/redirect', [ChatSupportConnectionController::class, 'redirectToSlack'])
+            ->name('chat-support.slack.redirect');
+        Route::get('/slack/callback', [ChatSupportConnectionController::class, 'handleSlackCallback'])
+            ->name('chat-support.slack.callback');
+
+        // ── WhatsApp OAuth (fixed paths — must be BEFORE {provider} wildcards)
+        Route::get('/whatsapp/redirect', [ChatSupportConnectionController::class, 'redirectToWhatsApp'])
+            ->name('chat-support.whatsapp.redirect');
+        Route::get('/whatsapp/callback', [ChatSupportConnectionController::class, 'handleWhatsAppCallback'])
+            ->name('chat-support.whatsapp.callback');
 
         // Connect form for specific provider
         Route::get('/{provider}/connect', [ChatSupportConnectionController::class, 'create'])
