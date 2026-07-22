@@ -26,6 +26,19 @@ use App\Http\Controllers\SocialConnectionController;
 use App\Http\Controllers\ChatSupportConnectionController;
 use App\Http\Controllers\PaymentGatewayConnectionController;
 
+/* ═══════════════════════════════════════════════════════════════
+   ANALYTICS REPORT CONTROLLERS (NEW)
+   ═══════════════════════════════════════════════════════════════ */
+use App\Http\Controllers\Analytics\AnalyticsReportController;
+use App\Http\Controllers\Analytics\WebsiteAnalyticsController;
+use App\Http\Controllers\Analytics\EmailAnalyticsController;
+use App\Http\Controllers\Analytics\CrmAnalyticsController;
+use App\Http\Controllers\Analytics\SocialAnalyticsController;
+use App\Http\Controllers\Analytics\ChatSupportAnalyticsController;
+use App\Http\Controllers\Analytics\TransactionAnalyticsController;
+use App\Http\Controllers\Analytics\GrowthReportController;
+use App\Http\Controllers\Analytics\ExecutiveDashboardController;
+
 // ─── Public ───────────────────────────────────────────────────────────────────
 Route::get('/', fn() => view('welcome'))->name('home');
 Route::get('simulator', fn() => view('simulator'))->name('simulator');
@@ -334,7 +347,7 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('/crm-connections/monday/oauth', [CrmConnectionController::class, 'redirectToMonday'])
     ->name('crm.monday.oauth');
     Route::get('/crm-connections/monday/callback', [CrmConnectionController::class, 'handleMondayCallback'])
-    ->name('crm.monday.callback');
+        ->name('crm.monday.callback');
 
     // Wildcard routes with {provider} parameter
     Route::get('/crm-connections/{provider}/connect', [CrmConnectionController::class, 'create'])
@@ -476,6 +489,198 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
 
     Route::delete('/payment-gateway-connections/{gateway}', [PaymentGatewayConnectionController::class, 'destroy'])
         ->name('payment-gateway-connections.destroy');
+
+    /* ═══════════════════════════════════════════════════════════
+       ╔═══════════════════════════════════════════════════════╗
+       ║   ANALYTICS REPORTING SYSTEM (NEW - COMPLETE)         ║
+       ╚═══════════════════════════════════════════════════════╝
+       ═══════════════════════════════════════════════════════════ */
+
+    // ── Executive Dashboard (Unified Overview) ─────────────────
+    Route::prefix('reports')->name('reports.')->group(function () {
+
+        // Main Executive Dashboard
+        Route::get('/executive-dashboard', [ExecutiveDashboardController::class, 'index'])
+            ->name('executive-dashboard');
+        Route::get('/executive-dashboard/data', [ExecutiveDashboardController::class, 'getData'])
+            ->name('executive-dashboard.data');
+        Route::get('/executive-dashboard/export/{format}', [ExecutiveDashboardController::class, 'export'])
+            ->name('executive-dashboard.export');
+
+        // ── Website Analytics Reports ──────────────────────────
+        Route::prefix('website')->name('website.')->group(function () {
+            Route::get('/', [WebsiteAnalyticsController::class, 'index'])
+                ->name('index');
+            Route::get('/overview', [WebsiteAnalyticsController::class, 'overview'])
+                ->name('overview');
+            Route::get('/traffic-sources', [WebsiteAnalyticsController::class, 'trafficSources'])
+                ->name('traffic-sources');
+            Route::get('/pages', [WebsiteAnalyticsController::class, 'pages'])
+                ->name('pages');
+            Route::get('/user-behavior', [WebsiteAnalyticsController::class, 'userBehavior'])
+                ->name('user-behavior');
+            Route::get('/conversions', [WebsiteAnalyticsController::class, 'conversions'])
+                ->name('conversions');
+            Route::get('/realtime', [WebsiteAnalyticsController::class, 'realtime'])
+                ->name('realtime');
+            Route::get('/export/{format}', [WebsiteAnalyticsController::class, 'export'])
+                ->name('export');
+            Route::get('/data/{metric}', [WebsiteAnalyticsController::class, 'getData'])
+                ->name('data');
+        });
+
+        // ── Email Engagement Reports ───────────────────────────
+        Route::prefix('email')->name('email.')->group(function () {
+            Route::get('/', [EmailAnalyticsController::class, 'index'])
+                ->name('index');
+            Route::get('/overview', [EmailAnalyticsController::class, 'overview'])
+                ->name('overview');
+            Route::get('/campaigns', [EmailAnalyticsController::class, 'campaigns'])
+                ->name('campaigns');
+            Route::get('/campaigns/{campaignId}', [EmailAnalyticsController::class, 'campaignDetail'])
+                ->name('campaigns.detail');
+            Route::get('/audience', [EmailAnalyticsController::class, 'audience'])
+                ->name('audience');
+            Route::get('/engagement', [EmailAnalyticsController::class, 'engagement'])
+                ->name('engagement');
+            Route::get('/deliverability', [EmailAnalyticsController::class, 'deliverability'])
+                ->name('deliverability');
+            Route::get('/export/{format}', [EmailAnalyticsController::class, 'export'])
+                ->name('export');
+            Route::get('/data/{metric}', [EmailAnalyticsController::class, 'getData'])
+                ->name('data');
+        });
+
+        // ── CRM Analytics Reports ──────────────────────────────
+        Route::prefix('crm')->name('crm.')->group(function () {
+            Route::get('/', [CrmAnalyticsController::class, 'index'])
+                ->name('index');
+            Route::get('/overview', [CrmAnalyticsController::class, 'overview'])
+                ->name('overview');
+            Route::get('/pipeline', [CrmAnalyticsController::class, 'pipeline'])
+                ->name('pipeline');
+            Route::get('/deals', [CrmAnalyticsController::class, 'deals'])
+                ->name('deals');
+            Route::get('/contacts', [CrmAnalyticsController::class, 'contacts'])
+                ->name('contacts');
+            Route::get('/activities', [CrmAnalyticsController::class, 'activities'])
+                ->name('activities');
+            Route::get('/forecast', [CrmAnalyticsController::class, 'forecast'])
+                ->name('forecast');
+            Route::get('/export/{format}', [CrmAnalyticsController::class, 'export'])
+                ->name('export');
+            Route::get('/data/{metric}', [CrmAnalyticsController::class, 'getData'])
+                ->name('data');
+        });
+
+        // ── Social Media Analytics Reports ─────────────────────
+        Route::prefix('social')->name('social.')->group(function () {
+            Route::get('/', [SocialAnalyticsController::class, 'index'])
+                ->name('index');
+            Route::get('/overview', [SocialAnalyticsController::class, 'overview'])
+                ->name('overview');
+            Route::get('/followers', [SocialAnalyticsController::class, 'followers'])
+                ->name('followers');
+            Route::get('/engagement', [SocialAnalyticsController::class, 'engagement'])
+                ->name('engagement');
+            Route::get('/content-performance', [SocialAnalyticsController::class, 'contentPerformance'])
+                ->name('content-performance');
+            Route::get('/sentiment', [SocialAnalyticsController::class, 'sentiment'])
+                ->name('sentiment');
+            Route::get('/competitor-analysis', [SocialAnalyticsController::class, 'competitorAnalysis'])
+                ->name('competitor-analysis');
+            Route::get('/export/{format}', [SocialAnalyticsController::class, 'export'])
+                ->name('export');
+            Route::get('/data/{metric}', [SocialAnalyticsController::class, 'getData'])
+                ->name('data');
+        });
+
+        // ── Chat & Support Analytics Reports ───────────────────
+        Route::prefix('chat-support')->name('chat-support.')->group(function () {
+            Route::get('/', [ChatSupportAnalyticsController::class, 'index'])
+                ->name('index');
+            Route::get('/overview', [ChatSupportAnalyticsController::class, 'overview'])
+                ->name('overview');
+            Route::get('/conversations', [ChatSupportAnalyticsController::class, 'conversations'])
+                ->name('conversations');
+            Route::get('/response-time', [ChatSupportAnalyticsController::class, 'responseTime'])
+                ->name('response-time');
+            Route::get('/satisfaction', [ChatSupportAnalyticsController::class, 'satisfaction'])
+                ->name('satisfaction');
+            Route::get('/team-performance', [ChatSupportAnalyticsController::class, 'teamPerformance'])
+                ->name('team-performance');
+            Route::get('/export/{format}', [ChatSupportAnalyticsController::class, 'export'])
+                ->name('export');
+            Route::get('/data/{metric}', [ChatSupportAnalyticsController::class, 'getData'])
+                ->name('data');
+        });
+
+        // ── Transaction Analytics Reports ──────────────────────
+        Route::prefix('transactions')->name('transactions.')->group(function () {
+            Route::get('/', [TransactionAnalyticsController::class, 'index'])
+                ->name('index');
+            Route::get('/overview', [TransactionAnalyticsController::class, 'overview'])
+                ->name('overview');
+            Route::get('/revenue', [TransactionAnalyticsController::class, 'revenue'])
+                ->name('revenue');
+            Route::get('/sales-funnel', [TransactionAnalyticsController::class, 'salesFunnel'])
+                ->name('sales-funnel');
+            Route::get('/payment-methods', [TransactionAnalyticsController::class, 'paymentMethods'])
+                ->name('payment-methods');
+            Route::get('/refunds', [TransactionAnalyticsController::class, 'refunds'])
+                ->name('refunds');
+            Route::get('/customer-ltv', [TransactionAnalyticsController::class, 'customerLtv'])
+                ->name('customer-ltv');
+            Route::get('/export/{format}', [TransactionAnalyticsController::class, 'export'])
+                ->name('export');
+            Route::get('/data/{metric}', [TransactionAnalyticsController::class, 'getData'])
+                ->name('data');
+        });
+
+        // ── Growth & Business Intelligence Reports ─────────────
+        Route::prefix('growth')->name('growth.')->group(function () {
+            Route::get('/', [GrowthReportController::class, 'index'])
+                ->name('index');
+            Route::get('/business-health', [GrowthReportController::class, 'businessHealth'])
+                ->name('business-health');
+            Route::get('/cross-channel', [GrowthReportController::class, 'crossChannel'])
+                ->name('cross-channel');
+            Route::get('/recommendations', [GrowthReportController::class, 'recommendations'])
+                ->name('recommendations');
+            Route::get('/benchmarks', [GrowthReportController::class, 'benchmarks'])
+                ->name('benchmarks');
+            Route::get('/trends', [GrowthReportController::class, 'trends'])
+                ->name('trends');
+            Route::get('/export/{format}', [GrowthReportController::class, 'export'])
+                ->name('export');
+            Route::get('/data/{metric}', [GrowthReportController::class, 'getData'])
+                ->name('data');
+        });
+
+        // ── Custom Report Builder ──────────────────────────────
+        Route::prefix('custom')->name('custom.')->group(function () {
+            Route::get('/', [AnalyticsReportController::class, 'index'])
+                ->name('index');
+            Route::get('/create', [AnalyticsReportController::class, 'create'])
+                ->name('create');
+            Route::post('/', [AnalyticsReportController::class, 'store'])
+                ->name('store');
+            Route::get('/{report}', [AnalyticsReportController::class, 'show'])
+                ->name('show');
+            Route::get('/{report}/edit', [AnalyticsReportController::class, 'edit'])
+                ->name('edit');
+            Route::put('/{report}', [AnalyticsReportController::class, 'update'])
+                ->name('update');
+            Route::delete('/{report}', [AnalyticsReportController::class, 'destroy'])
+                ->name('destroy');
+            Route::get('/{report}/export/{format}', [AnalyticsReportController::class, 'export'])
+                ->name('export');
+            Route::post('/{report}/schedule', [AnalyticsReportController::class, 'schedule'])
+                ->name('schedule');
+            Route::post('/{report}/share', [AnalyticsReportController::class, 'share'])
+                ->name('share');
+        });
+    });
 });
 
 Route::middleware('analytics.token')->group(function () {
