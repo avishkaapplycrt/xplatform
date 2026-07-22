@@ -82,7 +82,134 @@
                     </a>
                 @endforeach
 
-                                {{-- Email Settings Group --}}
+                {{-- Analytics Reports --}}
+                @php
+                $reportRoutes = [
+                    'client.reports.executive-dashboard',
+                    'client.reports.website.overview',
+                    'client.reports.email.overview',
+                    'client.reports.crm.overview',
+                    'client.reports.social.overview',
+                    'client.reports.chat-support.overview',
+                    'client.reports.transactions.overview',
+                    'client.reports.growth.business-health',
+                    'client.reports.custom.index',
+                ];
+                $isReportsActive = collect($reportRoutes)->contains(fn($r) => request()->routeIs($r));
+                @endphp
+
+                <div class="space-y-1 mt-2">
+                    <button onclick="toggleReportsMenu()"
+                            class="w-full flex items-center justify-between px-3 py-2 text-xs rounded-md transition
+                                   {{ $isReportsActive ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0 {{ $isReportsActive ? 'text-purple-500' : 'text-gray-400' }}"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                            <span class="truncate">Analytics Reports</span>
+                        </div>
+                        <svg id="reportsChevron" class="w-3 h-3 transition-transform {{ $isReportsActive ? 'rotate-180' : '' }}"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+
+                    <div id="reportsSubmenu" class="{{ $isReportsActive ? '' : 'hidden' }} pl-7 space-y-1">
+                        {{-- Executive Dashboard --}}
+                        <a href="{{ route('client.reports.executive-dashboard') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.reports.executive-dashboard')
+                                     ? 'text-purple-700 font-medium'
+                                     : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.reports.executive-dashboard') ? 'bg-purple-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Executive Dashboard</span>
+                        </a>
+
+                        {{-- Website --}}
+                        <a href="{{ route('client.reports.website.overview') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.reports.website.*')
+                                     ? 'text-purple-700 font-medium'
+                                     : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.reports.website.*') ? 'bg-purple-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Website</span>
+                        </a>
+
+                        {{-- Email --}}
+                        <a href="{{ route('client.reports.email.overview') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.reports.email.*')
+                                     ? 'text-purple-700 font-medium'
+                                     : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.reports.email.*') ? 'bg-purple-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Email</span>
+                        </a>
+
+                        {{-- CRM --}}
+                        <a href="{{ route('client.reports.crm.overview') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.reports.crm.*')
+                                     ? 'text-purple-700 font-medium'
+                                     : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.reports.crm.*') ? 'bg-purple-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">CRM</span>
+                        </a>
+
+                        {{-- Social Media --}}
+                        <a href="{{ route('client.reports.social.overview') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.reports.social.*')
+                                     ? 'text-purple-700 font-medium'
+                                     : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.reports.social.*') ? 'bg-purple-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Social Media</span>
+                        </a>
+
+                        {{-- Chat & Support --}}
+                        <a href="{{ route('client.reports.chat-support.overview') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.reports.chat-support.*')
+                                     ? 'text-purple-700 font-medium'
+                                     : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.reports.chat-support.*') ? 'bg-purple-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Chat & Support</span>
+                        </a>
+
+                        {{-- Transactions --}}
+                        <a href="{{ route('client.reports.transactions.overview') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.reports.transactions.*')
+                                     ? 'text-purple-700 font-medium'
+                                     : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.reports.transactions.*') ? 'bg-purple-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Transactions</span>
+                        </a>
+
+                        {{-- Growth Intelligence --}}
+                        <a href="{{ route('client.reports.growth.business-health') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.reports.growth.*')
+                                     ? 'text-purple-700 font-medium'
+                                     : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.reports.growth.*') ? 'bg-purple-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Growth Intelligence</span>
+                        </a>
+
+                        {{-- Custom Reports --}}
+                        <a href="{{ route('client.reports.custom.index') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.reports.custom.*')
+                                     ? 'text-purple-700 font-medium'
+                                     : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.reports.custom.*') ? 'bg-purple-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Custom Reports</span>
+                        </a>
+                    </div>
+                </div>
+
+                {{-- Email Settings Group --}}
                 @php
                 $emailRoutes = ['client.email.templates', 'client.email.template.categories', 'client.email.logs'];
                 $isEmailActive = collect($emailRoutes)->contains(fn($r) => request()->routeIs($r));
@@ -178,6 +305,18 @@
     function toggleEmailMenu() {
         var submenu = document.getElementById('emailSubmenu');
         var chevron = document.getElementById('emailChevron');
+        if (submenu.classList.contains('hidden')) {
+            submenu.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            submenu.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+
+    function toggleReportsMenu() {
+        var submenu = document.getElementById('reportsSubmenu');
+        var chevron = document.getElementById('reportsChevron');
         if (submenu.classList.contains('hidden')) {
             submenu.classList.remove('hidden');
             chevron.classList.add('rotate-180');
