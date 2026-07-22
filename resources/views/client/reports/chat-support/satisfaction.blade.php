@@ -41,12 +41,12 @@
       <div style="position:relative" id="l1AvatarWrap">
         <button onclick="var d=document.getElementById('l1Dropdown');d.style.display=d.style.display==='block'?'none':'block'"
                 style="width:32px;height:32px;border-radius:50%;background:#06b6d4;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;border:none;cursor:pointer">
-          { $av }
+          {{ $av }}
         </button>
         <div id="l1Dropdown"
              style="display:none;position:absolute;right:0;top:40px;width:192px;background:#fff;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);border:1px solid #e5e7eb;padding:4px 0;z-index:999">
           <div style="padding:8px 16px;border-bottom:1px solid #f3f4f6">
-            <p style="font-size:12px;font-weight:600;color:#111827;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{ $cn }</p>
+            <p style="font-size:12px;font-weight:600;color:#111827;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $cn }}</p>
             <p style="font-size:10px;color:#9ca3af;margin:2px 0 0">Client Account</p>
           </div>
           <a href="{{ route('client.dashboard') }}"
