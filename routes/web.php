@@ -5,6 +5,7 @@ use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\ClientDashboardController;
 use App\Http\Controllers\ClientOverviewController;
 use App\Http\Controllers\ClientPasswordController;
+use App\Http\Controllers\ClientSetupController;
 use App\Http\Controllers\DataSourceController;
 use App\Http\Controllers\MasterAdminAuthController;
 use App\Http\Controllers\MasterAdminDashboardController;
@@ -160,35 +161,41 @@ Route::middleware('guest:client')->prefix('app')->name('client.')->group(functio
     Route::post('reset-password',        [ClientPasswordController::class, 'resetPassword'])->name('password.update');
 });
 
-// ─── Client Registration (Steps 1–7) ──────────────────────────────────────────
-Route::prefix('app')->name('client.')->group(function () {
+// ─── Client Registration — Step 1: create account ─────────────────────────────
+Route::middleware('guest:client')->prefix('app')->name('client.')->group(function () {
     Route::get('register',  [ClientAuthController::class, 'showRegister'])->name('register');
     Route::post('register', [ClientAuthController::class, 'register']);
-
-    Route::get('industry',  [ClientAuthController::class, 'showIndustry'])->name('industry');
-    Route::post('industry', [ClientAuthController::class, 'storeIndustry'])->name('industry.store');
-
-    Route::get('register/analysis-layers',  [ClientAuthController::class, 'showAnalysisLayers'])->name('register.analysis.layers');
-    Route::post('register/analysis-layers', [ClientAuthController::class, 'storeAnalysisLayers'])->name('register.analysis.layers.store');
-
-    Route::get('register/connect-data-source',  [ClientAuthController::class, 'showConnectDataSource'])->name('register.connect.data.source');
-    Route::post('register/connect-data-source', [ClientAuthController::class, 'storeConnectDataSource'])->name('register.connect.data.source.store');
-
-    Route::get('register/micro-signals',  [ClientAuthController::class, 'showMicroSignals'])->name('register.micro.signals');
-    Route::post('register/micro-signals', [ClientAuthController::class, 'storeMicroSignals'])->name('register.micro.signals.store');
-
-    Route::get('register/select-predictions',  [ClientAuthController::class, 'showSelectPredictions'])->name('register.select.predictions');
-    Route::post('register/select-predictions', [ClientAuthController::class, 'storeSelectPredictions'])->name('register.select.predictions.store');
-
-    Route::get('register/configure-actions',  [ClientAuthController::class, 'showConfigureActions'])->name('register.configure.actions');
-    Route::post('register/configure-actions', [ClientAuthController::class, 'storeConfigureActions'])->name('register.configure.actions.store');
-
-    Route::get('register/credentials',  [ClientAuthController::class, 'showCredentials'])->name('register.credentials');
-    Route::post('register/credentials', [ClientAuthController::class, 'storeCredentials'])->name('credentials.store');
 });
 
 // ─── Client Protected ─────────────────────────────────────────────────────────
 Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client.')->group(function () {
+
+    /* Step 2 — industry. Sits outside `client.onboarded` so a client who has
+       not picked one yet can actually reach it without a redirect loop. */
+    Route::get('industry',  [ClientAuthController::class, 'showIndustry'])->name('industry');
+    Route::post('industry', [ClientAuthController::class, 'storeIndustry'])->name('industry.store');
+
+    Route::post('logout', [ClientAuthController::class, 'logout'])->name('logout');
+    Route::post('onboarding/dismiss', [ClientAuthController::class, 'dismissChecklist'])->name('onboarding.dismiss');
+
+    /* Optional post-registration configuration, linked from the dashboard
+       checklist. Each page saves and returns to the dashboard. */
+    Route::prefix('setup')->name('setup.')->group(function () {
+        Route::get('layers',         [ClientSetupController::class, 'layers'])->name('layers');
+        Route::put('layers',         [ClientSetupController::class, 'updateLayers'])->name('layers.update');
+        Route::get('data-sources',   [ClientSetupController::class, 'dataSources'])->name('data-sources');
+        Route::put('data-sources',   [ClientSetupController::class, 'updateDataSources'])->name('data-sources.update');
+        Route::get('micro-signals',  [ClientSetupController::class, 'microSignals'])->name('micro-signals');
+        Route::put('micro-signals',  [ClientSetupController::class, 'updateMicroSignals'])->name('micro-signals.update');
+        Route::get('predictions',    [ClientSetupController::class, 'predictions'])->name('predictions');
+        Route::put('predictions',    [ClientSetupController::class, 'updatePredictions'])->name('predictions.update');
+        Route::get('actions',        [ClientSetupController::class, 'actions'])->name('actions');
+        Route::put('actions',        [ClientSetupController::class, 'updateActions'])->name('actions.update');
+    });
+});
+
+// ─── Client Protected (requires a completed industry selection) ───────────────
+Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix('app')->name('client.')->group(function () {
     Route::get('/',          fn() => redirect()->route('client.dashboard'));
     Route::get('dashboard',  [ClientDashboardController::class, 'index'])->name('dashboard');
     Route::get('company/overview', [ClientOverviewController::class, 'show'])->name('company.overview');
@@ -237,8 +244,6 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::post('sources',               [DataSourceController::class, 'store'])->name('sources.store');
     Route::post('sources/{source}/test', [DataSourceController::class, 'test'])->name('sources.test');
     Route::delete('sources/{source}',    [DataSourceController::class, 'destroy'])->name('sources.destroy');
-
-    Route::post('logout', [ClientAuthController::class, 'logout'])->name('logout');
 
     Route::prefix('laravel')->name('laravel.')->group(function () {
         Route::get('sites', [LaravelSiteManagementController::class, 'index'])->name('sites.index');
@@ -502,6 +507,8 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
         // Main Executive Dashboard
         Route::get('/executive-dashboard', [ExecutiveDashboardController::class, 'index'])
             ->name('executive-dashboard');
+        Route::post('/growth/generate', [GrowthReportController::class, 'generate'])
+            ->name('growth.generate');
         Route::get('/executive-dashboard/data', [ExecutiveDashboardController::class, 'getData'])
             ->name('executive-dashboard.data');
         Route::get('/executive-dashboard/export/{format}', [ExecutiveDashboardController::class, 'export'])

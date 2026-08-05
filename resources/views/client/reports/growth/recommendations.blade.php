@@ -26,13 +26,13 @@
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{ request()->url() }?period='+this.value">
-        <option value="7d" { $period == '7d' ? 'selected' : '' }>Last 7 Days</option>
-        <option value="30d" { $period == '30d' ? 'selected' : '' }>Last 30 Days</option>
-        <option value="90d" { $period == '90d' ? 'selected' : '' }>Last 90 Days</option>
-        <option value="1y" { $period == '1y' ? 'selected' : '' }>Last Year</option>
+      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{{ request()->url() }}?period='+this.value">
+        <option value="7d" {{ $period == '7d' ? 'selected' : '' }}>Last 7 Days</option>
+        <option value="30d" {{ $period == '30d' ? 'selected' : '' }}>Last 30 Days</option>
+        <option value="90d" {{ $period == '90d' ? 'selected' : '' }}>Last 90 Days</option>
+        <option value="1y" {{ $period == '1y' ? 'selected' : '' }}>Last Year</option>
       </select>
-      <a href="{ request()->url() }/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+      <a href="{{ request()->url() }}/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
@@ -94,23 +94,35 @@
       </a>
     </div>
 
+    @if(session('success'))
+      <div class="mb-4 bg-green-50 border border-green-200 text-green-800 text-[12px] px-4 py-3 rounded-lg">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+      <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-[12px] px-4 py-3 rounded-lg">{{ session('error') }}</div>
+    @endif
+
     <div class="space-y-4">
-      @forelse($data['recommendations'] ?? [] as $rec)
+      @forelse($data['recommendations'] as $rec)
       <div class="bg-white border border-gray-200 rounded-xl p-4 flex items-start gap-3">
         <span class="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase
           @if($rec['priority'] === 'high') bg-red-100 text-red-700
           @elseif($rec['priority'] === 'medium') bg-amber-100 text-amber-700
           @else bg-blue-100 text-blue-700 @endif">
-          { $rec['priority'] }
+          {{ $rec['priority'] }}
         </span>
         <div>
-          <h4 class="text-[13px] font-semibold text-gray-800">{ $rec['title'] }</h4>
-          <p class="text-[12px] text-gray-500 mt-1">{ $rec['message'] }</p>
+          <h4 class="text-[13px] font-semibold text-gray-800">{{ $rec['title'] }}</h4>
+          <p class="text-[12px] text-gray-500 mt-1">{{ $rec['message'] }}</p>
         </div>
       </div>
       @empty
       <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-        <p class="text-[14px] text-gray-600">No recommendations available yet.</p>
+        @if($data['has_data'])
+          <p class="text-[14px] text-gray-600 mb-3">No recommendations yet — generate your health report first.</p>
+          <a href="{{ route('client.reports.growth.business-health') }}" class="btn-primary" style="text-decoration:none;">Go to Health Score</a>
+        @else
+          <p class="text-[14px] text-gray-600">Connect a data source to start receiving recommendations.</p>
+        @endif
       </div>
       @endforelse
     </div>

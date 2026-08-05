@@ -2,6 +2,7 @@
     'backUrl' => '/',
     'previousUrl' => null,
     'currentStep' => 1,
+    'totalSteps' => 2,
     'title' => null,
 ])
 
@@ -49,7 +50,7 @@
                 {{-- Step Dots + Label --}}
                 <div class="flex flex-col items-center gap-1">
                     <div class="flex items-center gap-1.5">
-                        @for ($i = 1; $i <= 8; $i++)
+                        @for ($i = 1; $i <= ($totalSteps ?? 2); $i++)
                             <div class="rounded-full transition-all duration-300
                                 {{ $i === ($currentStep ?? 1)
                                     ? 'w-5 h-2.5 bg-blue-600'
@@ -59,7 +60,9 @@
                             </div>
                         @endfor
                     </div>
-                    <span class="text-xs text-gray-500 font-medium">Step {{ $currentStep ?? 1 }}</span>
+                    <span class="text-xs text-gray-500 font-medium">
+                        Step {{ $currentStep ?? 1 }} of {{ $totalSteps ?? 2 }}
+                    </span>
                 </div>
 
             </div>

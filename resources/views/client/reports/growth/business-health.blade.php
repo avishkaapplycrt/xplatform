@@ -26,13 +26,24 @@
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{ request()->url() }?period='+this.value">
-        <option value="7d" { $period == '7d' ? 'selected' : '' }>Last 7 Days</option>
-        <option value="30d" { $period == '30d' ? 'selected' : '' }>Last 30 Days</option>
-        <option value="90d" { $period == '90d' ? 'selected' : '' }>Last 90 Days</option>
-        <option value="1y" { $period == '1y' ? 'selected' : '' }>Last Year</option>
+      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{{ request()->url() }}?period='+this.value">
+        <option value="7d" {{ $period == '7d' ? 'selected' : '' }}>Last 7 Days</option>
+        <option value="30d" {{ $period == '30d' ? 'selected' : '' }}>Last 30 Days</option>
+        <option value="90d" {{ $period == '90d' ? 'selected' : '' }}>Last 90 Days</option>
+        <option value="1y" {{ $period == '1y' ? 'selected' : '' }}>Last Year</option>
       </select>
-      <a href="{ request()->url() }/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+      @if($data['has_snapshot'])
+      <form method="POST" action="{{ route('client.reports.growth.generate') }}">
+        @csrf
+        <button type="submit" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Regenerate
+        </button>
+      </form>
+      @endif
+      <a href="{{ request()->url() }}/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
@@ -94,45 +105,96 @@
       </a>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-      <div class="bg-white border border-gray-200 rounded-xl p-6 text-center">
-        <div class="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-3">
-          <span class="text-[24px] font-bold text-green-600">{ $data['health_score'] ?? 78 }</span>
+    @if(session('success'))
+      <div class="mb-4 bg-green-50 border border-green-200 text-green-800 text-[12px] px-4 py-3 rounded-lg">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+      <div class="mb-4 bg-red-50 border border-red-200 text-red-700 text-[12px] px-4 py-3 rounded-lg">{{ session('error') }}</div>
+    @endif
+
+    @if(!$data['has_snapshot'])
+      <div class="bg-white border border-dashed border-gray-300 rounded-xl p-10 text-center">
+        <h3 class="text-[14px] font-semibold text-gray-700 mb-1">No health report yet</h3>
+        <p class="text-[12px] text-gray-500 mb-4 max-w-md mx-auto">
+          @if($data['has_data'])
+            You have data to work with — generate your first AI-powered health report below.
+          @else
+            Connect a data source (website tracking, email, or CRM) to generate a report from real activity.
+          @endif
+        </p>
+        @if($data['has_data'])
+          <form method="POST" action="{{ route('client.reports.growth.generate') }}">
+            @csrf
+            <button type="submit" class="btn-primary">Generate report</button>
+          </form>
+        @else
+          <a href="{{ route('client.website-connections') }}" class="btn-primary" style="text-decoration:none;">Connect a data source</a>
+        @endif
+      </div>
+    @else
+
+      @if($data['summary'])
+        <div class="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+          <p class="text-[12px] text-gray-600">{{ $data['summary'] }}</p>
+          <p class="text-[10px] text-gray-400 mt-2">Generated {{ $data['generated_at']->diffForHumans() }}</p>
         </div>
-        <h3 class="text-[14px] font-semibold text-gray-800 mb-1">Health Score</h3>
-        <p class="text-[11px] text-gray-500">Out of 100</p>
+      @endif
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+        <div class="bg-white border border-gray-200 rounded-xl p-6 text-center">
+          <div class="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-3">
+            <span class="text-[24px] font-bold text-green-600">{{ $data['health_score'] }}</span>
+          </div>
+          <h3 class="text-[14px] font-semibold text-gray-800 mb-1">Health Score</h3>
+          <p class="text-[11px] text-gray-500">Out of 100</p>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl p-6">
+          <h3 class="text-[13px] font-semibold text-gray-800 mb-3">Strengths</h3>
+          <ul class="space-y-2">
+            @forelse($data['strengths'] as $s)
+            <li class="flex items-center gap-2 text-[12px] text-gray-600">
+              <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+              {{ $s }}
+            </li>
+            @empty
+            <li class="text-[12px] text-gray-400">No strengths identified yet</li>
+            @endforelse
+          </ul>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl p-6">
+          <h3 class="text-[13px] font-semibold text-gray-800 mb-3">Weaknesses</h3>
+          <ul class="space-y-2">
+            @forelse($data['weaknesses'] as $w)
+            <li class="flex items-center gap-2 text-[12px] text-gray-600">
+              <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+              {{ $w }}
+            </li>
+            @empty
+            <li class="text-[12px] text-gray-400">No weaknesses identified</li>
+            @endforelse
+          </ul>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl p-6">
+          <h3 class="text-[13px] font-semibold text-gray-800 mb-3">Opportunities</h3>
+          <ul class="space-y-2">
+            @forelse($data['opportunities'] as $o)
+            <li class="flex items-center gap-2 text-[12px] text-gray-600">
+              <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+              {{ $o }}
+            </li>
+            @empty
+            <li class="text-[12px] text-gray-400">No opportunities identified yet</li>
+            @endforelse
+          </ul>
+        </div>
       </div>
-      <div class="bg-white border border-gray-200 rounded-xl p-6">
-        <h3 class="text-[13px] font-semibold text-gray-800 mb-3">Strengths</h3>
-        <ul class="space-y-2">
-          @forelse($data['strengths'] ?? [] as $s)
-          <li class="flex items-center gap-2 text-[12px] text-gray-600">
-            <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-            </svg>
-            { $s }
-          </li>
-          @empty
-          <li class="text-[12px] text-gray-400">No strengths identified yet</li>
-          @endforelse
-        </ul>
-      </div>
-      <div class="bg-white border border-gray-200 rounded-xl p-6">
-        <h3 class="text-[13px] font-semibold text-gray-800 mb-3">Opportunities</h3>
-        <ul class="space-y-2">
-          @forelse($data['opportunities'] ?? [] as $o)
-          <li class="flex items-center gap-2 text-[12px] text-gray-600">
-            <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-            </svg>
-            { $o }
-          </li>
-          @empty
-          <li class="text-[12px] text-gray-400">No opportunities identified yet</li>
-          @endforelse
-        </ul>
-      </div>
-    </div>
+    @endif
 
   </div>
 </div>

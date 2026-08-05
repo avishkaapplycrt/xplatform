@@ -64,4 +64,9 @@ return [
         'client_secret' => env('SLACK_CLIENT_SECRET'),
     ],
 
+    'anthropic' => [
+        'api_key' => env('ANTHROPIC_API_KEY'),
+        'model'   => env('ANTHROPIC_MODEL', 'claude-opus-5'),
+    ],
+
 ];

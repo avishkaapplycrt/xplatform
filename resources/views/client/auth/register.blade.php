@@ -1,4 +1,4 @@
-<x-guest-layout title="Create Account" backUrl="/app/login" previousUrl="/app/login" :currentStep="1">
+<x-guest-layout title="Create Account" backUrl="/app/login" previousUrl="/app/login" :currentStep="1" :totalSteps="2">
 
     {{-- Top Banner --}}
     <div class="w-full h-40 bg-gray-100 flex items-center justify-center">
@@ -9,8 +9,8 @@
     <div class="px-10 py-8">
 
         <div class="text-center mb-6">
-            <h2 class="text-2xl font-bold text-gray-900">Create your organization</h2>
-            <p class="text-sm text-gray-400 mt-1">This sets up your dedicated tenant</p>
+            <h2 class="text-2xl font-bold text-gray-900">Create your account</h2>
+            <p class="text-sm text-gray-400 mt-1">One more step after this and you're in</p>
         </div>
 
         @if($errors->any())
@@ -65,9 +65,38 @@
                 <x-input-error :messages="$errors->get('country')" class="mt-2" />
             </div>
 
+            <hr class="border-gray-100 mb-6">
+
+            {{-- Credentials --}}
+            <div class="mb-4">
+                <x-input-label for="email" :value="__('Work email')" />
+                <x-text-input id="email" class="block mt-1 w-full" type="email"
+                    name="email" :value="old('email')"
+                    placeholder="you@companyname.com"
+                    required autocomplete="username" />
+                <x-input-error :messages="$errors->get('email')" class="mt-2" />
+            </div>
+
+            <div class="mb-4">
+                <x-input-label for="password" :value="__('Password')" />
+                <x-text-input id="password" class="block mt-1 w-full" type="password"
+                    name="password"
+                    placeholder="At least 8 characters"
+                    required autocomplete="new-password" />
+                <x-input-error :messages="$errors->get('password')" class="mt-2" />
+            </div>
+
+            <div class="mb-6">
+                <x-input-label for="password_confirmation" :value="__('Confirm password')" />
+                <x-text-input id="password_confirmation" class="block mt-1 w-full" type="password"
+                    name="password_confirmation"
+                    placeholder="Repeat your password"
+                    required autocomplete="new-password" />
+            </div>
+
             <button type="submit"
                 class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2.5 rounded-lg transition">
-                Continue
+                Create account
             </button>
 
         </form>

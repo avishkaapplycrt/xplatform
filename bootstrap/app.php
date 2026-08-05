@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'client.active' => \App\Http\Middleware\EnsureClientIsActive::class,
+            'client.onboarded' => \App\Http\Middleware\EnsureClientOnboarded::class,
             'analytics.token' => \App\Http\Middleware\AnalyticsApiToken::class,
         ]);
 
@@ -22,6 +23,18 @@ return Application::configure(basePath: dirname(__DIR__))
                 return route('admin.login');
             }
             return route('client.login');
+        });
+
+        // Where the "guest" middleware sends someone who is already signed in —
+        // without this it falls back to the public landing page.
+        $middleware->redirectUsersTo(function ($request) {
+            if (auth('master_admin')->check()) {
+                return route('admin.dashboard');
+            }
+            if (auth('client')->check()) {
+                return route('client.dashboard');
+            }
+            return route('home');
         });
     })
     ->withExceptions(function (Exceptions $exceptions): void {

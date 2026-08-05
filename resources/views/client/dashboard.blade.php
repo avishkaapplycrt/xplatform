@@ -169,18 +169,10 @@
                 </div>
             @endif
 
-            {{-- Add Company button --}}
-            <div class="mb-5">
-                <a href="{{ route('client.register') }}"
-                   class="inline-flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600
-                          text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                         stroke-width="2.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    Add Company
-                </a>
-            </div>
+            {{-- Setup checklist — replaces the old multi-step registration wizard --}}
+            @if(!$checklist['dismissed'] && !$checklist['complete'])
+                @include('client.partials.onboarding-checklist', ['checklist' => $checklist])
+            @endif
 
             {{-- Company cards grid --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
