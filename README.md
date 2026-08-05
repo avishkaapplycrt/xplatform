@@ -69,9 +69,11 @@ php artisan migrate:fresh --seed
 | URL | Page |
 |-----|------|
 | `/` | Landing page |
-| `/app/register` | Client registration (7 steps) |
+| `/app/register` | Client registration (step 1 of 2) |
+| `/app/industry` | Client registration (step 2 of 2) |
 | `/app/login` | Client login |
 | `/app/dashboard` | Client dashboard |
+| `/app/setup/*` | Optional configuration (layers, sources, signals, predictions, actions) |
 | `/app/layers/l4` | Decision Centre (user scores) |
 | `/app/layers/l5` | Decision Scenarios (recommendations) |
 | `/admin/login` | Master admin login |
@@ -80,17 +82,31 @@ php artisan migrate:fresh --seed
 
 ## Registration flow
 
-7-step wizard at `/app/register`:
+Two steps:
 
-1. Company details
-2. Industry
-3. Intelligence layers to enable
-4. Data sources (CRM, mobile SDK, email)
-5. Behavioral micro-signals
-6. Predictive models
-7. Automated actions
+1. **Create account** (`/app/register`) — company details and credentials. The account exists and is signed in from here on; nothing is held in the session.
+2. **Industry** (`/app/industry`) — picking an industry switches on the matching intelligence layers, micro-signals, predictive models and automated actions.
 
-After step 7 the account is `pending` until a Master Admin approves it.
+Then straight to the dashboard. The account is `pending` until a Master Admin approves it.
+
+Everything that isn't one of those two steps is optional. It's seeded from the
+industry template (`App\Services\IndustryDefaults`) and surfaced as a "Finish
+setting up" checklist on the dashboard, with each item linking to a standalone
+page under `/app/setup/*`. Connecting a real data source is the only checklist
+item defaults can't satisfy.
+
+A client who abandons after step 1 is redirected back to `/app/industry` on
+their next request (`client.onboarded` middleware) — progress lives in the
+database, so a closed tab costs nothing.
+
+**Legacy cleanup:** the previous 8-step flow created a client row at step 1 with
+a `pending_<uniqid>@pending.com` placeholder and only set real credentials at
+step 8, so abandoned registrations left orphan rows behind. To clear them:
+
+```bash
+php artisan clients:prune-abandoned --dry-run
+php artisan clients:prune-abandoned --days=7
+```
 
 ---
 

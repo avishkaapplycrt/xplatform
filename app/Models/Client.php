@@ -29,6 +29,7 @@ class Client extends Authenticatable
         'phone',
         'address',
         'status',
+        'onboarding_dismissed_at',
         'timezone',
         'currency',
         'settings',
@@ -49,7 +50,8 @@ class Client extends Authenticatable
     ];
 
     protected $casts = [
-        'email_verified_at'    => 'datetime',
+        'email_verified_at'       => 'datetime',
+        'onboarding_dismissed_at' => 'datetime',
         'settings'             => 'json',
         'limits'               => 'json',
         'trial_ends_at'        => 'datetime',

@@ -11,6 +11,7 @@ class GuestLayout extends Component
         public string $backUrl = '/',
         public ?string $previousUrl = null,
         public int $currentStep = 1,
+        public int $totalSteps = 2,
     ) {}
 
     public function render(): View
