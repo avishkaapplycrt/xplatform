@@ -88,6 +88,11 @@ class Client extends Authenticatable
         return $this->hasOne(AnalyticsConfig::class);
     }
 
+    public function businessHealthSnapshot(): HasOne
+    {
+        return $this->hasOne(BusinessHealthSnapshot::class);
+    }
+
     public function metrics(): HasMany
     {
         return $this->hasMany(AnalyticsMetric::class)->latest();

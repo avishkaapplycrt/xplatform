@@ -507,6 +507,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         // Main Executive Dashboard
         Route::get('/executive-dashboard', [ExecutiveDashboardController::class, 'index'])
             ->name('executive-dashboard');
+        Route::post('/growth/generate', [GrowthReportController::class, 'generate'])
+            ->name('growth.generate');
         Route::get('/executive-dashboard/data', [ExecutiveDashboardController::class, 'getData'])
             ->name('executive-dashboard.data');
         Route::get('/executive-dashboard/export/{format}', [ExecutiveDashboardController::class, 'export'])
