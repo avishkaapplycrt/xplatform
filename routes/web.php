@@ -28,6 +28,15 @@ use App\Http\Controllers\ChatSupportConnectionController;
 use App\Http\Controllers\PaymentGatewayConnectionController;
 
 /* ═══════════════════════════════════════════════════════════════
+   NEW FEATURE CONTROLLERS
+   ═══════════════════════════════════════════════════════════════ */
+use App\Http\Controllers\RevenueController;
+use App\Http\Controllers\CustomerSuccessController;
+use App\Http\Controllers\AlertController;
+use App\Http\Controllers\RetentionController;
+use App\Http\Controllers\SegmentationController;
+
+/* ═══════════════════════════════════════════════════════════════
    ANALYTICS REPORT CONTROLLERS (NEW)
    ═══════════════════════════════════════════════════════════════ */
 use App\Http\Controllers\Analytics\AnalyticsReportController;
@@ -688,6 +697,51 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
                 ->name('share');
         });
     });
+
+    /* ═══════════════════════════════════════════════════════════
+       ╔═══════════════════════════════════════════════════════╗
+       ║   NEW AI FEATURES (Features 1-5)                      ║
+       ╚═══════════════════════════════════════════════════════╝
+       ═══════════════════════════════════════════════════════════ */
+
+    // ── Revenue Optimization (Feature 4) ─────────────────────
+    Route::get('revenue/dashboard', [RevenueController::class, 'dashboard'])->name('revenue.dashboard');
+    Route::get('revenue/pricing', [RevenueController::class, 'pricingIntelligence'])->name('revenue.pricing');
+    Route::get('revenue/upsell', [RevenueController::class, 'upsellRecommendations'])->name('revenue.upsell');
+    Route::get('revenue/forecast', [RevenueController::class, 'revenueForecast'])->name('revenue.forecast');
+    Route::post('revenue/forecast', [RevenueController::class, 'createManualForecast'])->name('revenue.forecast.create');
+    Route::post('revenue/upsell/{customer}', [RevenueController::class, 'generateUpsell'])->name('revenue.upsell.generate');
+    Route::post('revenue/upsell/{recommendation}/execute', [RevenueController::class, 'executeUpsell'])->name('revenue.upsell.execute');
+
+    // ── Customer Success (Feature 5) ─────────────────────────
+    Route::get('success/onboarding', [CustomerSuccessController::class, 'onboardingDashboard'])->name('success.onboarding');
+    Route::post('success/onboarding/workflow', [CustomerSuccessController::class, 'createWorkflow'])->name('success.onboarding.workflow.create');
+    Route::post('success/onboarding/assign/{customer}', [CustomerSuccessController::class, 'assignWorkflow'])->name('success.onboarding.assign');
+    Route::get('success/health', [CustomerSuccessController::class, 'healthDashboard'])->name('success.health');
+    Route::post('success/health/calculate/{customer}', [CustomerSuccessController::class, 'calculateHealthScore'])->name('success.health.calculate');
+    Route::post('success/health/recalculate', [CustomerSuccessController::class, 'recalculateAllScores'])->name('success.health.recalculate');
+    Route::get('success/checkins', [CustomerSuccessController::class, 'checkinsDashboard'])->name('success.checkins');
+    Route::post('success/checkins/schedule', [CustomerSuccessController::class, 'scheduleCheckin'])->name('success.checkins.schedule');
+    Route::post('success/checkins/{checkin}/send', [CustomerSuccessController::class, 'sendCheckinNow'])->name('success.checkins.send');
+    Route::get('success/nps', [CustomerSuccessController::class, 'npsDashboard'])->name('success.nps');
+    Route::post('success/nps/survey', [CustomerSuccessController::class, 'createNpsSurvey'])->name('success.nps.create');
+    Route::get('success/nps/{survey}/report', [CustomerSuccessController::class, 'npsReport'])->name('success.nps.report');
+    Route::post('success/nps/{survey}/respond', [CustomerSuccessController::class, 'submitNpsResponse'])->name('success.nps.respond');
+
+    // ── Segmentation (Feature 2) ─────────────────────────────
+    Route::get('segments', [SegmentationController::class, 'index'])->name('segmentation.index');
+    Route::post('segments', [SegmentationController::class, 'createSegment'])->name('segmentation.create');
+    Route::get('segments/{segment}/customers', [SegmentationController::class, 'segmentCustomers'])->name('segmentation.customers');
+    Route::post('segments/{segment}/recalculate', [SegmentationController::class, 'recalculateSegment'])->name('segmentation.recalculate');
+
+    // ── Alerts & Retention (Feature 1 & 3) ───────────────────
+    Route::get('alerts', [AlertController::class, 'index'])->name('alerts.index');
+    Route::post('alerts/rules', [AlertController::class, 'createRule'])->name('alerts.rule.create');
+    Route::post('alerts/{alert}/acknowledge', [AlertController::class, 'acknowledgeAlert'])->name('alerts.acknowledge');
+    Route::put('alerts/rules/{rule}', [AlertController::class, 'toggleRule'])->name('alerts.rule.toggle');
+    Route::get('retention', [RetentionController::class, 'dashboard'])->name('retention.dashboard');
+    Route::post('retention/campaigns', [RetentionController::class, 'createCampaign'])->name('retention.campaign.create');
+    Route::post('retention/campaigns/{campaign}/execute', [RetentionController::class, 'executeCampaign'])->name('retention.campaign.execute');
 });
 
 Route::middleware('analytics.token')->group(function () {
