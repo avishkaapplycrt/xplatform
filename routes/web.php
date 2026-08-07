@@ -35,6 +35,7 @@ use App\Http\Controllers\CustomerSuccessController;
 use App\Http\Controllers\AlertController;
 use App\Http\Controllers\RetentionController;
 use App\Http\Controllers\SegmentationController;
+use App\Http\Controllers\LeadScoringController;
 
 /* ═══════════════════════════════════════════════════════════════
    ANALYTICS REPORT CONTROLLERS (NEW)
@@ -742,6 +743,21 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('retention', [RetentionController::class, 'dashboard'])->name('retention.dashboard');
     Route::post('retention/campaigns', [RetentionController::class, 'createCampaign'])->name('retention.campaign.create');
     Route::post('retention/campaigns/{campaign}/execute', [RetentionController::class, 'executeCampaign'])->name('retention.campaign.execute');
+
+    // ═══════════════════════════════════════════════════════════
+    // LEAD SCORING & QUALIFICATION (Feature 6)
+    // ═══════════════════════════════════════════════════════════
+    Route::prefix('lead-scoring')->name('leadscoring.')->group(function () {
+        Route::get('/', [LeadScoringController::class, 'dashboard'])->name('dashboard');
+        Route::get('/leads', [LeadScoringController::class, 'index'])->name('index');
+        Route::post('/leads', [LeadScoringController::class, 'store'])->name('store');
+        Route::get('/leads/{lead}', [LeadScoringController::class, 'show'])->name('show');
+        Route::post('/leads/{lead}/rescore', [LeadScoringController::class, 'rescore'])->name('rescore');
+        Route::post('/leads/bulk-score', [LeadScoringController::class, 'bulkScore'])->name('bulk-score');
+        Route::post('/leads/{lead}/status', [LeadScoringController::class, 'updateStatus'])->name('update-status');
+        Route::post('/leads/{lead}/route-to-sales', [LeadScoringController::class, 'routeToSales'])->name('route-to-sales');
+        Route::get('/settings', [LeadScoringController::class, 'settings'])->name('settings');
+    });
 });
 
 Route::middleware('analytics.token')->group(function () {
