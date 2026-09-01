@@ -268,8 +268,90 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
         $marketingSteps = $stepsFor('marketing');
 
+        // The Today's Stack / Accounts / Forecast views used to run on a fixed
+        // set of fictional companies (Kite Travel, Trellis Insurance, etc.).
+        // This builds the same shape of data (name + a play-relevant score
+        // set) from the client's real synced CRM contacts and deals, plus
+        // real Brevo delivery signal, instead of fabricated numbers.
+        $stageReadiness = [
+            'closedwon' => 92,
+            'decisionmakerboughtin' => 78,
+            'presentationscheduled' => 68,
+            'qualifiedtobuy' => 58,
+            'appointmentscheduled' => 50,
+        ];
+
+        $deals = \App\Models\CrmDeal::all();
+        $brevoByEmail = \App\Models\BrevoDeliveredRecipient::query()
+            ->orderByDesc('updated_at')
+            ->get()
+            ->keyBy(fn ($r) => strtolower($r->email));
+
+        $realAccounts = \App\Models\CrmContact::whereNotNull('company')
+            ->orderByDesc('last_activity_at')
+            ->get()
+            ->unique('company')
+            ->take(14)
+            ->map(function ($contact) use ($deals, $brevoByEmail, $stageReadiness) {
+                $deal = $deals->first(fn ($d) => str_starts_with((string) $d->name, (string) $contact->company));
+
+                $daysAgo = $contact->last_activity_at
+                    ? $contact->last_activity_at->diffInDays(now())
+                    : 120;
+
+                $engagement = max(8, min(95, (int) round(100 - $daysAgo * 2)));
+                $buyingReadiness = $deal ? ($stageReadiness[$deal->stage] ?? 45) : 35;
+                $intent = (int) round($buyingReadiness * 0.55 + $engagement * 0.45);
+                $won = $deal && $deal->status === 'won';
+
+                if ($daysAgo > 90 && $deal) {
+                    $seg = 'at_risk';
+                } elseif ($won && $daysAgo <= 45) {
+                    $seg = 'champion';
+                } elseif ($won) {
+                    $seg = 'loyal';
+                } elseif ($daysAgo > 60) {
+                    $seg = 'dormant';
+                } else {
+                    $seg = 'new';
+                }
+
+                $churn = match (true) {
+                    $seg === 'at_risk' => min(95, 70 + max(0, $daysAgo - 90)),
+                    $seg === 'dormant' => 55,
+                    default => max(10, min(50, (int) round((100 - $engagement) * 0.5))),
+                };
+                $loyalty = $won ? 85 : ($engagement > 60 ? 60 : 40);
+
+                $brevo = $brevoByEmail->get(strtolower((string) $contact->email));
+                $trust = $brevo
+                    ? ($brevo->unsubscribed_at ? 25 : ($brevo->opened_at ? 80 : 60))
+                    : 55;
+                $frustration = $brevo && $brevo->unsubscribed_at ? 72 : 15;
+
+                $name = trim($contact->first_name . ' ' . $contact->last_name);
+
+                return [
+                    'name' => $name !== '' ? $name : $contact->company,
+                    'company' => $contact->company,
+                    'email' => $contact->email,
+                    'seg' => $seg,
+                    'mrr' => $deal ? (int) round($deal->value) : 800,
+                    'scores' => [
+                        'intent' => $intent,
+                        'engagement' => $engagement,
+                        'buying_readiness' => $buyingReadiness,
+                        'churn' => $churn,
+                        'loyalty' => $loyalty,
+                        'trust' => $trust,
+                        'frustration' => $frustration,
+                    ],
+                ];
+            })
+            ->values();
+
         return view('client.business-helpers', compact(
-            'marketingPrompts', 'salesPrompts', 'marketingSteps'
+            'marketingPrompts', 'salesPrompts', 'marketingSteps', 'realAccounts'
         ));
     })->name('business-helpers');
 

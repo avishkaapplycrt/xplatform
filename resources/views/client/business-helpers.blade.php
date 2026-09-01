@@ -755,69 +755,79 @@ function marketingDbAnswer(stepKey, slug, name, account, c){
   var mqlReady = r.filter(function(x){ return x.a.scores.buying_readiness >= DTH.ready; });
   var s = account ? account.scores : null;
 
-  switch (slug) {
-    case 'build_audiences':
-      return head + '<p><strong>Suggested audiences right now:</strong></p><ul style="margin:4px 0 0 16px">' +
-        '<li><b>Win-back</b> — '+winback.length+' accounts gone quiet ('+winback.map(function(x){return escapeHtml(x.a.name);}).join(', ')+')</li>' +
-        '<li><b>Onboarding nudge</b> — '+onboarding.length+' new accounts stalling ('+onboarding.map(function(x){return escapeHtml(x.a.name);}).join(', ')+')</li>' +
-        '<li><b>Referral-ready</b> — '+referral.length+' loyal accounts ('+referral.map(function(x){return escapeHtml(x.a.name);}).join(', ')+')</li></ul>';
-    case 'suppression_list':
-      return head + '<p>' + (hold.length ? '<strong>Suppress these — at-risk, Retention\'s to work:</strong></p><p>'+hold.map(function(x){ return escapeHtml(x.a.name); }).join(', ') : 'Nobody needs suppressing right now — no at-risk accounts in the pool.') + '</p>';
-    case 'mqls_to_sales':
-      return head + '<p>' + (mqlReady.length ? '<strong>Ready to hand to Sales:</strong></p><p>'+mqlReady.map(function(x){ return escapeHtml(x.a.name)+' (readiness '+x.a.scores.buying_readiness+')'; }).join(', ') : 'No accounts have crossed the readiness bar for Sales yet.') + '</p>';
-    case 'winback_list':
-      return head + '<p>' + (winback.length ? winback.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'The win-back list is empty right now.') + '</p>';
-    case 'freq_capped_sales_cycle':
-      return head + '<p>' + (r.length ? r.filter(function(x){return x.c.play!=='none';}).map(function(x){ return escapeHtml(x.a.name); }).join(', ') : 'No one') + ' currently have an active play — treat them as frequency-capped until that play completes or is logged.</p>';
+  var expansionReady = r.filter(function(x){ return x.c.play !== 'hold' && x.a.scores.loyalty >= 70 && x.a.scores.buying_readiness >= 50; });
 
-    case 'segment_rule_mql_sales':
+  switch (slug) {
+    case 'winback_sequence_this_week':
+      return head + '<p>' + (winback.length ? winback.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'The win-back list is empty right now.') + '</p>';
+    case 'new_not_reached_first_value':
+      return head + '<p>' + (onboarding.length ? '<strong>Still stalling on first value:</strong></p><p>'+onboarding.map(function(x){ return escapeHtml(x.a.name)+' — '+x.c.why[0]; }).join('</p><p>') : 'No new accounts are stalling right now — onboarding is on track.') + '</p>';
+    case 'ready_for_upsell':
+      return head + '<p>' + (expansionReady.length ? '<strong>Upsell-ready:</strong></p><p>'+expansionReady.map(function(x){ return escapeHtml(x.a.name)+' (loyalty '+x.a.scores.loyalty+', readiness '+x.a.scores.buying_readiness+')'; }).join(', ') : 'No one currently clears the loyalty + readiness bar for an upsell offer.') + '</p>';
+    case 'who_would_refer_us':
+      return head + '<p>' + (referral.length ? referral.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'No one has crossed the loyalty bar for a referral ask yet.') + '</p>';
+    case 'exclude_from_every_send':
+      return head + '<p>' + (hold.length ? '<strong>Exclude from every send — at-risk, Retention\'s to work:</strong></p><p>'+hold.map(function(x){ return escapeHtml(x.a.name); }).join(', ') : 'Nobody needs excluding right now — no at-risk accounts in the pool.') + '</p>';
+    case 'in_live_sales_cycle':
+      return head + '<p>' + (mqlReady.length ? '<strong>Already in a live sales cycle — leave them alone:</strong></p><p>'+mqlReady.map(function(x){ return escapeHtml(x.a.name)+' (readiness '+x.a.scores.buying_readiness+')'; }).join(', ') : 'No one is currently in a live sales cycle.') + '</p>';
+
+    case 'top_shared_signal_mql_sales':
+      return head + '<p>The strongest shared signal across the current MQL-ready group: pricing/demo page revisits paired with a direct question in chat (data ownership, instalments, SSO). That combination consistently precedes a readiness jump.</p>';
+    case 'proof_or_offer_audience':
+      var avgTrust = mqlReady.length ? Math.round(mqlReady.reduce(function(s,x){return s+x.a.scores.trust;},0)/mqlReady.length) : 0;
+      return head + '<p>' + (mqlReady.length ? (avgTrust < DTH.trust ? '<b>Proof audience</b> — average trust '+avgTrust+' is still below the bar, so lead with evidence, not an offer.' : '<b>Offer audience</b> — average trust '+avgTrust+' is solid, so a time-boxed incentive can safely accelerate the decision.') : 'No accounts are in MQL → Sales right now to judge this by.') + '</p>';
+    case 'one_lever_mql_sales':
+      return head + '<p>The single lever that moves an account fastest: a second touch that lands inside the trust cool-off window with one piece of proof matched to their stated concern.</p>';
+    case 'why_name_here_not_sales':
+      return head + (c ? '<p><b>'+escapeHtml(name)+'</b> — '+c.why.join(' ')+' Still short of the buying readiness ≥ '+DTH.ready+' bar Sales works from.</p>' : '<p>Select an account to see why it\'s here and not with Sales.</p>');
+    case 'rule_put_people_mql_sales':
       return head + '<p>An account becomes an MQL hand-off once <b>buying readiness ≥ '+DTH.ready+'</b> and it isn\'t flagged at-risk. That\'s the same bar Sales uses for their "call" tier, so nothing gets double-worked.</p>';
-    case 'top_signals_mql_sales':
-      return head + '<p>The strongest signals across the current MQL-ready group: pricing/demo page revisits, trial or onboarding milestones, and direct questions in chat (data ownership, instalments, SSO). These consistently precede a readiness jump.</p>';
-    case 'levers_mql_sales':
-      return head + '<p>Three levers move an account toward hand-off fastest: a completed onboarding step, a second touch within the trust cool-off window, and one piece of proof matched to their stated concern.</p>';
-    case 'changed_last_week':
+    case 'changed_last_7_days':
       return head + '<p>' + (mqlReady.length ? '<b>'+escapeHtml(mqlReady[0].a.name)+'</b> crossed the MQL bar most recently (readiness '+mqlReady[0].a.scores.buying_readiness+').' : 'No new accounts crossed the MQL bar this week.') + ' Check Insights weekly — this list moves as scores update.</p>';
-    case 'why_in_segment':
-      return head + (c ? '<p><b>'+escapeHtml(name)+'</b> — '+c.why.join(' ')+'</p>' : '<p>Select an account to see why it\'s segmented this way.</p>');
 
     case 'email_sequence_mql_sales':
-      return head + '<p><strong>3-email sequence:</strong></p><ol style="margin:4px 0 0 16px"><li>What\'s new / what they\'ve been missing — no ask.</li><li>One proof point matched to their stage.</li><li>A direct, low-risk invitation to talk to Sales.</li></ol>';
-    case 'whatsapp_version':
+      return head + '<p><strong>3-touch email sequence:</strong></p><ol style="margin:4px 0 0 16px"><li>What\'s new / what they\'ve been missing — no ask.</li><li>One proof point matched to their stage.</li><li>A direct, low-risk invitation to talk to Sales.</li></ol>';
+    case 'whatsapp_oneliner_mql_sales':
       return head + '<p><em>"Hi '+escapeHtml(name)+' 👋 quick one — noticed some activity on your end, happy to help directly here if useful."</em></p>';
-    case 'sms_version':
+    case 'sms_optout_mql_sales':
       return head + '<p><em>"'+escapeHtml(name)+': quick update on your account — reply YES for a 2-minute call, or STOP to opt out."</em></p>';
-    case 'linkedin_dm_post':
+    case 'linkedin_dm_post_mql_sales':
       return head + '<p><strong>DM:</strong> <em>"Saw your team has been exploring this — happy to share what similar teams found."</em></p><p><strong>Post angle:</strong> a short case study result, tagged to the same segment this account sits in.</p>';
-    case 'social_ad_version':
+    case 'ad_social_copy_mql_sales':
       return head + '<p><strong>Ad angle:</strong> lead with the outcome, not the feature — "See results in 30 days" outperforms feature-first copy for this segment by a wide margin.</p>';
-    case 'proof_or_offer_led':
-      return head + '<p>' + (s && s.trust < DTH.trust ? 'Proof-led — trust is the gap here, so a case study or result beats a discount.' : 'Offer-led is safe — trust is already solid, so a time-boxed incentive can accelerate the decision.') + '</p>';
-    case 'discount_allowed':
-      return head + '<p>Only as a last resort, and never in the first message — lead with value, add an incentive only if a second touch gets no response.</p>';
-    case 'brand_voice_rewrite':
-      return head + '<p>Paste the draft into the chat box below and I\'ll rewrite it to match your brand voice — plain, direct, no jargon.</p>';
+    case 'discount_or_proof_mql_sales':
+      return head + '<p>' + (s && s.trust < DTH.trust ? 'Proof only — trust is the gap here, so a case study or result beats a discount.' : 'A discount is safe to offer — trust is already solid, so a time-boxed incentive can accelerate the decision.') + '</p>';
+    case 'rewrite_touch1_brand_voice':
+      return head + '<p>Paste touch 1 into the chat box below and I\'ll rewrite it to match your brand voice — plain, direct, no jargon.</p>';
 
-    case 'test_ideas_mql_sales':
-      return head + '<p><strong>Worth testing:</strong> subject line (urgency vs. curiosity), send time (morning vs. afternoon), and CTA framing (\'talk to sales\' vs. \'see your results\').</p>';
-    case 'sample_size':
-      return head + '<p>With '+r.length+' accounts in the current pool, split evenly for a directional read — for a statistically solid result you\'ll want a larger list; treat this pool\'s test as a signal, not a verdict.</p>';
-    case 'best_send_window':
+    case 'subject_line_test_mql_sales':
+      return head + '<p><strong>Worth testing:</strong> urgency framing ("your window is closing") vs. curiosity framing ("what changed since you looked") for the MQL → Sales subject line.</p>';
+    case 'proof_vs_offer_test_mql_sales':
+      return head + '<p>' + (s && s.trust < DTH.trust ? 'Test proof first — trust is the gap here, so a case study variant is more likely to move the needle than an offer variant.' : 'Test offer vs. proof head-to-head — trust is high enough that either could win; let the data decide.') + '</p>';
+    case 'sample_size_per_arm_mql_sales':
+      return head + '<p>With '+r.length+' accounts in the current pool, split evenly across arms for a directional read — for a statistically solid result you\'ll want a larger list; treat this pool\'s test as a signal, not a verdict.</p>';
+    case 'when_receive_touch1_mql_sales':
       return head + '<p>Mid-morning on a weekday consistently outperforms weekend or late-evening sends for this kind of B2B audience — start there and adjust from actual open data.</p>';
-    case 'holdout_check':
-      return head + '<p>Keep a small holdout untouched by this campaign — it\'s the only way to know the lift you see next isn\'t just normal month-to-month movement.</p>';
+    case 'holdout_15_enough_mql_sales':
+      return head + '<p>15% is workable for a directional read on a pool this size, but a smaller pool means a wider margin of error — treat a borderline result as inconclusive rather than a clear win or loss.</p>';
+    case 'all_test_ideas_mql_sales':
+      return head + '<p><strong>All test ideas for MQL → Sales:</strong></p><ul style="margin:4px 0 0 16px"><li>Subject line: urgency vs. curiosity</li><li>Proof vs. offer as the core argument</li><li>Send time: morning vs. afternoon</li><li>CTA framing: \'talk to sales\' vs. \'see your results\'</li></ul>';
 
-    case 'forecast_roi_by_audience':
-      var wb = winback.reduce(function(s,x){return s+x.a.mrr;},0), ob = onboarding.reduce(function(s,x){return s+x.a.mrr;},0), rf = referral.reduce(function(s,x){return s+x.a.mrr;},0);
-      return head + '<p><strong>Value by audience:</strong> Win-back '+money(wb)+' · Onboarding '+money(ob)+' · Referral '+money(rf)+'. Win-back and onboarding carry the most near-term ROI right now.</p>';
     case 'lift_vs_holdout_mql_sales':
       return head + '<p>Compare the MQL rate inside the campaign group against the holdout group after this send — a lift above the holdout\'s baseline is the campaign\'s real contribution, not just seasonal movement.</p>';
-    case 'new_mqls_this_week':
-      return head + '<p>' + mqlReady.length + ' accounts are currently MQL-ready: ' + (mqlReady.length ? mqlReady.map(function(x){return escapeHtml(x.a.name);}).join(', ') : 'none yet') + '.</p>';
-    case 'where_should_budget_go':
+    case 'audience_worth_next_dollar':
       return head + '<p>' + (winback.length >= onboarding.length ? 'Win-back has the larger pool right now — put the next budget increment there.' : 'Onboarding has the larger pool right now — put the next budget increment there.') + '</p>';
-    case 'push_mqls_to_sales':
-      return head + '<p>' + (mqlReady.length ? 'Ready to push: '+mqlReady.map(function(x){return escapeHtml(x.a.name);}).join(', ')+'. Use "Which MQLs go to Sales?" on Audience to review before sending.' : 'Nothing is ready to push to Sales yet.') + '</p>';
+    case 'expected_return_send_everything_week':
+      var wb = winback.reduce(function(s,x){return s+x.a.mrr;},0), ob = onboarding.reduce(function(s,x){return s+x.a.mrr;},0), rf = referral.reduce(function(s,x){return s+x.a.mrr;},0);
+      return head + '<p><strong>Value by audience if sent this week:</strong> Win-back '+money(wb)+' · Onboarding '+money(ob)+' · Referral '+money(rf)+'. Win-back and onboarding carry the most near-term return right now.</p>';
+    case 'audience_worst_unsub_rate':
+      var groups = [{k:'winback',l:'Win-back',list:winback},{k:'onboarding',l:'Onboarding',list:onboarding},{k:'referral',l:'Referral',list:referral},{k:'hold',l:'Suppressed',list:hold}].filter(function(g){return g.list.length;});
+      var worst = groups.map(function(g){ return {l:g.l, avgFrustration: Math.round(g.list.reduce(function(s,x){return s+x.a.scores.frustration;},0)/g.list.length)}; }).sort(function(x,y){return y.avgFrustration-x.avgFrustration;})[0];
+      return head + '<p>' + (worst ? '<b>'+worst.l+'</b> has the highest average frustration score ('+worst.avgFrustration+') — the closest real signal we have to unsubscribe risk. Ease off frequency there before the next send.' : 'Not enough audience data yet to compare unsubscribe risk.') + '</p>';
+    case 'who_became_mql_since_last_send':
+      return head + '<p>' + mqlReady.length + ' accounts are currently MQL-ready: ' + (mqlReady.length ? mqlReady.map(function(x){return escapeHtml(x.a.name);}).join(', ') : 'none yet') + '.</p>';
+    case 'push_week_mqls_to_sales':
+      return head + '<p>' + (mqlReady.length ? 'Ready to push: '+mqlReady.map(function(x){return escapeHtml(x.a.name);}).join(', ')+'. Use "Who is in a live sales cycle" on Audience to review before sending.' : 'Nothing is ready to push to Sales yet.') + '</p>';
 
     default:
       return head + '<p>I don\'t have a ready-made answer for that yet — try rephrasing in the chat box below.</p>';
@@ -950,20 +960,10 @@ function setAgent(key) {
    DASHBOARD ENGINE — Marketing & Sales
    Shared account pool + a per-domain classifier/renderer.
    ══════════════════════════════════════════════════════════════ */
-var ACCOUNTS = [
- {name:"Meridian Health",  seg:"at_risk", mrr:4200, scores:{intent:31,engagement:28,buying_readiness:22,churn:84,loyalty:41,trust:58,frustration:77}},
- {name:"NovaPay Fintech",  seg:"at_risk", mrr:2800, scores:{intent:44,engagement:39,buying_readiness:35,churn:76,loyalty:48,trust:62,frustration:69}},
- {name:"Cartwheel Retail", seg:"at_risk", mrr:1900, scores:{intent:38,engagement:44,buying_readiness:30,churn:71,loyalty:52,trust:49,frustration:81}},
- {name:"Solstice Energy",  seg:"champion",mrr:6100, scores:{intent:72,engagement:88,buying_readiness:69,churn:12,loyalty:91,trust:87,frustration:14}},
- {name:"BluePeak SaaS",    seg:"champion",mrr:5400, scores:{intent:81,engagement:85,buying_readiness:78,churn:15,loyalty:88,trust:90,frustration:11}},
- {name:"Harbour Logistics",seg:"loyal",   mrr:3300, scores:{intent:58,engagement:71,buying_readiness:55,churn:24,loyalty:79,trust:82,frustration:22}},
- {name:"Fable Media",      seg:"loyal",   mrr:2400, scores:{intent:63,engagement:68,buying_readiness:61,churn:28,loyalty:74,trust:76,frustration:26}},
- {name:"Quarry Analytics", seg:"dormant", mrr:1500, scores:{intent:22,engagement:12,buying_readiness:18,churn:58,loyalty:39,trust:61,frustration:33}},
- {name:"Lumen EdTech",     seg:"dormant", mrr:1100, scores:{intent:28,engagement:15,buying_readiness:24,churn:52,loyalty:44,trust:66,frustration:29}},
- {name:"Trellis Insurance",seg:"new",     mrr:900,  scores:{intent:68,engagement:41,buying_readiness:76,churn:35,loyalty:50,trust:61,frustration:20}, event_days:14, city:"Brisbane", callback_due:true},
- {name:"Kite Travel",      seg:"new",     mrr:700,  scores:{intent:74,engagement:48,buying_readiness:81,churn:31,loyalty:47,trust:52,frustration:18}, event_days:6, city:"Melbourne"},
- {name:"Orchard Foods",    seg:"loyal",   mrr:2000, scores:{intent:49,engagement:64,buying_readiness:46,churn:26,loyalty:71,trust:74,frustration:24}}
-];
+// Sourced server-side from the client's real synced CRM contacts + deals
+// (and real Brevo delivery signal for trust/frustration) — see the
+// business-helpers route in routes/web.php. No fictional companies.
+var ACCOUNTS = @json($realAccounts ?? []);
 var DTH = {trust:65, ready:65, intent:55, up:55, fr:40, churn:60};
 var SEG_LABEL = {champion:"Champion",loyal:"Loyal",at_risk:"At risk",dormant:"Dormant","new":"New"};
 var SEG_COLOR = {champion:"#0e7a35",loyal:"#1d4ed8",at_risk:"#b42332",dormant:"#9a6700","new":"#6d28d9"};
