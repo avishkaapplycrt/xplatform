@@ -239,7 +239,9 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('layers/rl',      fn() => view('client.layers.rl'))->name('layer.rl');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('data-collection');
-    Route::get('business-helpers', fn() => view('client.business-helpers'))->name('business-helpers');
+    Route::get('business-helpers', fn() => view('client.business-helpers', [
+        'accounts' => \App\Models\BehavioralProfile::select('name', 'email', 'segment', 'intent_score', 'engagement_score', 'buying_readiness', 'churn_score', 'loyalty_score', 'trust_score', 'frustration_score')->get(),
+    ]))->name('business-helpers');
 
     // Chat Bot
     Route::get('chatbot',        [ChatBotController::class, 'index'])->name('chatbot');

@@ -450,43 +450,43 @@ ch: [
 /* ═══ AGENTS ═══ */
 var AGENTS = {
 mk: {name:"Marketing", sub:"Bring customers back · Promote smarter",
-  intro:"<p>I help you run campaigns that actually work — using what the platform knows about your customers.</p><p>Right now I can see <strong>2 customers who went quiet but have a good chance of coming back</strong>, and <strong>2 new customers</strong> who need a proper welcome so they stick around.</p><p>Pick a job below, or just ask me anything.</p>",
+  intro:"<p>I help you run campaigns that actually work — using what the platform knows about your customers.</p><p>Right now I can see <strong>4 customers who went quiet but still have decent trust scores</strong>, and <strong>2 new customers</strong> who are keen but stalling — right when new customers quietly give up.</p><p>Pick a job below, or just ask me anything.</p>",
   quicks:[
     {label:"Win back quiet customers", q:"Design a win-back campaign for my dormant segment"},
     {label:"Welcome new customers", q:"Create an onboarding email sequence for new accounts"},
     {label:"Get referrals", q:"Design a referral campaign using my champion accounts"},
     {label:"Top plays this hour", q:"Design a win-back campaign for my dormant segment"}]},
 sl: {name:"Sales", sub:"Know who to call · What to say",
-  intro:"<p>I tell you who's ready to buy and what to say to them.</p><p>Right now: <strong>Kite Travel and Trellis Insurance look ready to buy</strong> — but both are still deciding whether to trust you, so the approach matters. I'll give you the exact words.</p><p>Pick a job below, or ask me about any customer.</p>",
+  intro:"<p>I tell you who's ready to buy and what to say to them.</p><p>Right now: <strong>Jordan Lee and Alex Johnson are in the buying window</strong> — but trust hasn't fully caught up with their interest yet, so the approach matters. I'll give you the exact words.</p><p>Pick a job below, or ask me about any customer.</p>",
   quicks:[
     {label:"Who do I call today?", q:"Prioritise my pipeline — who should I contact today and why?"},
     {label:"Who'll buy more?", q:"Which existing accounts are ready for an upsell?"},
     {label:"Words for my best lead", q:"Write me an outreach script for my highest-readiness account"},
     {label:"Top 5 for this hour", q:"Prioritise my pipeline — who should I contact today and why?"}]},
 ch: {name:"Customer Retention", sub:"Spot who's leaving · Save them",
-  intro:"<p>I spot which customers are about to leave and tell you exactly how to keep them.</p><p><strong>Right now $8,900/month is at risk</strong> across three customers. The biggest one — Meridian Health — isn't leaving over price: something keeps breaking for them. A discount would make it worse. A fix and a phone call will save them.</p><p>Pick a job below, or ask about any customer.</p>",
+  intro:"<p>I spot which customers are about to leave and tell you exactly how to keep them.</p><p><strong>4 customers are flagged at-risk right now.</strong> The most urgent — Sofia Hernandez — isn't leaving over price: trust is down at 32 and frustration is up at 75. A discount wouldn't fix either one. A real fix and a personal call will.</p><p>Pick a job below, or ask about any customer.</p>",
   quicks:[
     {label:"Who's about to leave?", q:"Triage my at-risk accounts — what do I do about each one this week?"},
     {label:"Win back quiet ones", q:"Build a win-back plan for my dormant accounts"},
-    {label:"Why is Meridian unhappy?", q:"Why is Meridian Health churning and what exactly should I do?"}]}
+    {label:"Why is Sofia at risk?", q:"Why is Sofia Hernandez churning and what exactly should I do?"}]}
 };
 
 /* ═══ PLAYBOOKS — canned rich answers behind the quick-action buttons ═══ */
 var PLAYBOOKS = {
 "Design a win-back campaign for my dormant segment": {agent:"mk", tag:"Marketing · Win-back plan",
- html:"<p><strong>What I noticed —</strong> Quarry Analytics and Lumen EdTech ($2,600/month between them) both stopped using you — but neither has walked away. Quarry visited your help pages from their office <em>last week</em>, and Lumen still opens most of your emails. The door is open.</p><p><strong>The plan —</strong> three friendly emails, a few days apart: <strong>1)</strong> “Here's what's new since you've been away” — momentum, not apology. <strong>2)</strong> Something useful their own account data found. <strong>3)</strong> A short personal note from you offering a 15-minute catch-up. <strong>No discount in the first email</strong> — people come back for value; discounts come out only if they open twice without clicking.</p>",
- how:{title:"How to set it up", watch:"They start logging in again — expect roughly 3× the usual comeback rate", steps:[
+ html:"<p><strong>What I noticed —</strong> Tom Erikson and Ben Okafor have both gone quiet, but neither has walked away — trust is still 58 and 60, well above where someone who's truly checked out would sit. The door is open.</p><p><strong>The plan —</strong> three friendly emails, a few days apart: <strong>1)</strong> “Here's what's new since you've been away” — momentum, not apology. <strong>2)</strong> Something useful their own account data found. <strong>3)</strong> A short personal note from you offering a 15-minute catch-up. <strong>No discount in the first email</strong> — people come back for value; discounts come out only if they open twice without clicking.</p>",
+ how:{title:"How to set it up", watch:"They start logging in again — watch trust and engagement climb over the following weeks", steps:[
   ["Find them: your customer list → the “gone quiet” group, sorted by win-back chance.","Customers page"],
   ["Create the campaign, choose these 2 customers, channel: email.","Campaigns → New"],
   ["Paste in the three messages — press the button below and I'll write them.","Campaign editor"],
   ["Space the emails 3–5 days apart; stop automatically if they come back.","Campaign settings"],
   ["Launch it.","Campaigns → Launch"],
   ["Add a warning so you're told the moment either of them logs back in.","Alerts → New rule"]]},
- acts:[{title:"Set up the win-back emails",desc:"2 customers · $2,600/month at stake · 3 friendly messages",route:"Campaigns → New",btn:"Set up"},
+ acts:[{title:"Set up the win-back emails",desc:"2 customers · trust still 58+ on both · 3 friendly messages",route:"Campaigns → New",btn:"Set up"},
        {title:"Warn me when they return",desc:"So you can welcome them back personally, same day",route:"Alerts → New rule",btn:"Set up"}]},
 
 "Create an onboarding email sequence for new accounts": {agent:"mk", tag:"Marketing · New-customer welcome",
- html:"<p><strong>What I noticed —</strong> Trellis Insurance and Kite Travel both signed up recently and are keen — but neither has properly settled in. Trellis got 60% through setup and <em>stalled at connecting their data</em>. Keen-but-stalled is exactly when new customers quietly give up.</p><p><strong>The plan —</strong> four short emails over ten days: <strong>Day 0:</strong> one single ask — finish that setup step, nothing else. <strong>Day 2:</strong> show them their own first result (their data beats any brochure). <strong>Day 5:</strong> invite them to the weekly summary — that habit is what keeps customers for years. <strong>Day 10:</strong> a gentle look at what the next tier unlocks.</p>",
+ html:"<p><strong>What I noticed —</strong> Alex Johnson and Maya Thompson both signed up recently and are keen (readiness 52 and 48) — but engagement is only 58 and 55. Keen-but-stalled is exactly when new customers quietly give up.</p><p><strong>The plan —</strong> four short emails over ten days: <strong>Day 0:</strong> one single ask — finish whichever setup step they're stuck on. <strong>Day 2:</strong> show them their own first result (their data beats any brochure). <strong>Day 5:</strong> invite them to the weekly summary — that habit is what keeps customers for years. <strong>Day 10:</strong> a gentle look at what the next tier unlocks.</p>",
  how:{title:"How to set it up", watch:"New customers finishing setup within 2 days and using you weekly by week 2", steps:[
   ["Check your “new customers” group — you'll see where each one stalled.","Customers page"],
   ["Create the campaign for the new-customer group, 4 emails, days 0/2/5/10.","Campaigns → New"],
@@ -495,90 +495,90 @@ var PLAYBOOKS = {
  acts:[{title:"Set up the welcome series",desc:"2 new customers · 4 emails · stops when they're settled",route:"Campaigns → New",btn:"Set up"}]},
 
 "Design a referral campaign using my champion accounts": {agent:"mk", tag:"Marketing · Referrals",
- html:"<p><strong>What I noticed —</strong> Solstice Energy and BluePeak SaaS love you — top satisfaction, growing usage, one gave you a 9/10 rating. Happy customers like these will recommend you — <em>but only if you ask properly</em>.</p><p><strong>The ask that works —</strong> don't send a “share this link” email. Ask each one personally: <em>“Who's one business owner you respect who struggles with keeping customers?”</em> Asking for ONE name gets about 3× more introductions than asking them to share. Then: personal intro → you give the new customer VIP treatment → report the good result back to whoever introduced them.</p>",
+ html:"<p><strong>What I noticed —</strong> Priya Sharma and Emma Rodriguez love you — loyalty 94 and 88, frustration only 10 and 15. Happy customers like these will recommend you — <em>but only if you ask properly</em>.</p><p><strong>The ask that works —</strong> don't send a “share this link” email. Ask each one personally: <em>“Who's one person you know who struggles with this?”</em> Asking for ONE name gets far more introductions than asking them to share broadly. Then: personal intro → you give the new customer VIP treatment → report the good result back to whoever introduced them.</p>",
  how:{title:"How to set it up", watch:"Replies with names in them — and new signups tagged as referrals", steps:[
-  ["Confirm your happiest customers in the “fans” group.","Customers page"],
+  ["Confirm your happiest customers in the “champions” group.","Customers page"],
   ["Create a small campaign: just these 2, personal email from you.","Campaigns → New"],
-  ["One follow-up after 3 days if no reply — then stop. Never chase fans twice.","Campaign settings"],
+  ["One follow-up after 3 days if no reply — then stop. Never chase champions twice.","Campaign settings"],
   ["Tag anyone they introduce, so you can see the referrals working.","New customer → tag"],
   ["Check the results in a month or two.","Reports"]]},
  acts:[{title:"Send the referral asks",desc:"2 happy customers · personal one-name ask",route:"Campaigns → New",btn:"Set up"}]},
 
 "Prioritise my pipeline — who should I contact today and why?": {agent:"sl", tag:"Sales · Today's call list",
- html:"<p><strong>Your call list, in order:</strong></p><table><tr><th>#</th><th>Who</th><th>Why now</th><th>Approach</th></tr><tr><td>1</td><td><strong>Kite Travel</strong></td><td>Checked your prices 3× this month, watched your demo twice</td><td>Interested but not convinced it's you — show a success story, offer an easy low-risk start</td></tr><tr><td>2</td><td><strong>Trellis Insurance</strong></td><td>New signup, very engaged, came via a comparison site</td><td>Same — proof first, then a simple yes</td></tr><tr><td>3</td><td><strong>BluePeak SaaS</strong></td><td>Grew from 12 to 19 seats, asking about enterprise features</td><td>Existing fan — just ask directly about the bigger plan</td></tr></table><p><strong>Skip today:</strong> anyone marked at-risk — selling to an unhappy customer makes it worse.</p>",
+ html:"<p><strong>Your call list, in order:</strong></p><table><tr><th>#</th><th>Who</th><th>Why now</th><th>Approach</th></tr><tr><td>1</td><td><strong>Jordan Lee</strong></td><td>Readiness 55, intent 60 — trust (55) is keeping pace with readiness, not lagging behind it</td><td>No trust gap to close — a direct ask works better than another proof point</td></tr><tr><td>2</td><td><strong>Alex Johnson</strong></td><td>Readiness 52, intent 55 — trust (50) sits just behind readiness</td><td>Lead with a short proof point, then a simple, low-risk ask</td></tr><tr><td>3</td><td><strong>Priya Sharma</strong></td><td>Upsell-qualified: readiness 85, trust 92, frustration only 10</td><td>Existing champion — just ask directly about the bigger plan</td></tr></table><p><strong>Skip today:</strong> anyone marked at-risk — selling to an unhappy customer makes it worse.</p>",
  how:{title:"How to do this yourself any morning", watch:"Calls turning into meetings — and tomorrow's list building itself", steps:[
   ["Open your customer list, sort by “ready to buy”.","Customers page"],
   ["Keep only the genuinely interested ones — the interest column.","Same page"],
   ["Check trust before each call: low = lead with proof; high = just ask.","Customer profile"],
   ["Ask me for the words for any call — button below.","Agent panel"],
   ["Log each call so the platform learns what works for you.","Customer → Log contact"]]},
- acts:[{title:"Get the words for Kite Travel",desc:"Success-story opener + easy-start close",route:"Agent panel",btn:"Write it"},
+ acts:[{title:"Get the words for Jordan Lee",desc:"Direct-ask opener — no trust gap to close",route:"Agent panel",btn:"Write it"},
        {title:"Warn me about hot leads",desc:"Instant alert whenever anyone becomes very ready to buy",route:"Alerts → New rule",btn:"Set up"}]},
 
 "Which existing accounts are ready for an upsell?": {agent:"sl", tag:"Sales · Who'll buy more",
- html:"<p><strong>Three checks before offering anyone more:</strong> ready to buy? trusts you? not annoyed about anything? All three must be yes.</p><ul style='margin:4px 0 8px 15px'><li style='margin-bottom:3px'><strong>BluePeak SaaS — yes, yes, yes.</strong> Grew from 12 to 19 seats and reading about your bigger plan. Just ask directly.</li><li style='margin-bottom:3px'><strong>Solstice Energy — yes.</strong> Already made 2 expansion enquiries. Frame it around what they use most.</li><li><strong>Fable Media — nearly.</strong> Invite them to try the new module rather than talking price.</li></ul><p>Never offer more to anyone who's currently annoyed — nobody on this list is.</p>",
- how:{title:"How to do this", watch:"Extra monthly revenue — with satisfaction staying high", steps:[
-  ["Look only at your happy groups — fans and regulars.","Customers page"],
-  ["Run the three checks on each: ready / trusts you / not annoyed.","Customer profiles"],
+ html:"<p><strong>Three checks before offering anyone more:</strong> ready to buy? trusts you? not frustrated? All three must be yes.</p><ul style='margin:4px 0 8px 15px'><li style='margin-bottom:3px'><strong>Priya Sharma — yes, yes, yes.</strong> Readiness 85, trust 92, frustration only 10. Just ask directly.</li><li style='margin-bottom:3px'><strong>Emma Rodriguez — yes.</strong> Readiness 78, trust 91, frustration 15. Frame it around what they use most.</li><li><strong>Aisha Patel — also qualified.</strong> Readiness 68, trust 80 — a good candidate to invite into the next tier rather than talking price outright.</li></ul><p>Never offer more to anyone who's currently frustrated — nobody on this list is.</p>",
+ how:{title:"How to do this", watch:"Extra revenue from existing customers — with satisfaction staying high", steps:[
+  ["Look only at your happy groups — champions and loyal.","Customers page"],
+  ["Run the three checks on each: ready / trusts you / not frustrated.","Customer profiles"],
   ["See what the platform suggests offering each one.","Profile → Suggestions"],
   ["Make the offers — I can write each message.","Agent panel"],
   ["A month later: did they buy, and are they still happy? Both matter.","Reports"]]},
- acts:[{title:"Offer BluePeak the bigger plan",desc:"Already using 19 seats and reading about it",route:"Agent panel",btn:"Write it"},
-       {title:"Invite Fable to try the new module",desc:"Soft invitation, no price talk",route:"Agent panel",btn:"Write it"}]},
+ acts:[{title:"Offer Priya the bigger plan",desc:"Readiness 85, trust 92 — a direct ask",route:"Agent panel",btn:"Write it"},
+       {title:"Invite Aisha to try the next tier",desc:"Soft invitation, no price talk",route:"Agent panel",btn:"Write it"}]},
 
-"Write me an outreach script for my highest-readiness account": {agent:"sl", tag:"Sales · Your words for Kite Travel",
- html:"<p><strong>The situation —</strong> Kite Travel really wants to solve this problem (prices checked 3×, demo watched twice, they even asked about data ownership in chat). But they don't fully trust you yet. So: don't push — prove.</p><p><strong>Opening:</strong> <em>“I noticed your team's been looking at us a few times this month — that usually means the problem's real but something's holding the decision back. Can I guess what it is?”</em></p><p><strong>The proof:</strong> <em>“Travel businesses using us typically see repeat bookings climb within two months — happy to show you real numbers.”</em></p><p><strong>The easy yes:</strong> <em>“Start on the small plan. If your numbers don't move in 30 days, walk away and keep everything we found.”</em></p>",
- how:{title:"Before you call", watch:"Trust score climbing after the call — and a yes to the easy start", steps:[
+"Write me an outreach script for my highest-readiness account": {agent:"sl", tag:"Sales · Your words for Jordan Lee",
+ html:"<p><strong>The situation —</strong> Jordan Lee has the highest readiness (55) and intent (60) of anyone currently in the buying window. Trust (55) is keeping pace with that readiness rather than trailing behind it — so this isn't a trust problem. Don't lead with proof; ask directly.</p><p><strong>Opening:</strong> <em>“You've clearly been looking into this seriously — I'd like to talk about what's next.”</em></p><p><strong>The direct ask:</strong> <em>“Given where you're at, starting now makes sense. Want me to set it up?”</em></p><p><strong>If they hesitate:</strong> <em>“Start on the smaller plan — if it doesn't earn its place in 30 days, walk away and keep everything we found.”</em></p>",
+ how:{title:"Before you call", watch:"Trust and readiness both holding steady or climbing after the call", steps:[
   ["Glance at their profile — scores change daily.","Customer profile"],
-  ["Have your one success story ready — same industry if possible.","Your notes"],
-  ["Make the call, offer the low-risk start.","Phone"],
+  ["Have your one success story ready, just in case they want it.","Your notes"],
+  ["Make the call, ask directly — don't over-prove a trust gap that isn't there.","Phone"],
   ["Log the call afterwards so results are tracked.","Customer → Log contact"],
-  ["Set a warning for when their trust rises — that's when to talk bigger plans.","Alerts → New rule"]]},
- acts:[{title:"Log this as today's priority call",desc:"Script attached · low-risk close",route:"Customer → Log contact",btn:"Queue"}]},
+  ["Set a warning for when their readiness climbs further — that's when to close.","Alerts → New rule"]]},
+ acts:[{title:"Log this as today's priority call",desc:"Script attached · direct-ask close",route:"Customer → Log contact",btn:"Queue"}]},
 
 "Triage my at-risk accounts — what do I do about each one this week?": {agent:"ch", tag:"Customer Retention · Who's about to leave",
- html:"<p><strong>$8,900/month is at risk across three customers.</strong> Each one is leaving for a different reason — so each needs a different rescue:</p><table><tr><th>Customer</th><th>Worth</th><th>What's really going on</th><th>This week</th></tr><tr><td><strong>Meridian Health</strong></td><td>$4,200/mo</td><td>Something keeps breaking for them — 14 error sessions, 3 unhappy support calls</td><td>Fix the broken thing, then YOU call them. <strong>No discount</strong>.</td></tr><tr><td><strong>NovaPay</strong></td><td>$2,800/mo</td><td>Stuck on a technical step for 6 days, main contact just left the company</td><td>Solve the ticket + get introduced to the new person</td></tr><tr><td><strong>Cartwheel</strong></td><td>$1,900/mo</td><td>Things breaking AND their card is failing</td><td>Fix first, then a goodwill offer</td></tr></table><p><strong>Order matters:</strong> fix Meridian's problem BEFORE calling, so the call opens with “it's done” — not “we're working on it”.</p>",
- how:{title:"How to run the rescues", watch:"Risk scores falling week by week · all three renewing", steps:[
-  ["Open each customer's profile and confirm what's annoying them.","Customer profiles"],
-  ["For Meridian: find exactly where it breaks for them.","Profile → Journey view"],
+ html:"<p><strong>4 customers are flagged at-risk.</strong> Each one is leaving for a different reason — so each needs a different rescue:</p><table><tr><th>Customer</th><th>Churn</th><th>What's really going on</th><th>This week</th></tr><tr><td><strong>Sofia Hernandez</strong></td><td>80</td><td>Trust is down at 32 and frustration is up at 75 — both bad at once</td><td>Find and fix what's broken, then YOU call. <strong>No discount</strong>.</td></tr><tr><td><strong>Ryan Mitchell</strong></td><td>72</td><td>Trust 40, frustration 65 — same pattern, slightly less severe</td><td>Same approach: fix first, then a personal call</td></tr><tr><td><strong>Natalie Brooks</strong></td><td>70</td><td>Trust 38, frustration 68 — close behind Ryan</td><td>Fix first, then a goodwill call</td></tr></table><p><strong>Order matters:</strong> fix Sofia's problem BEFORE calling, so the call opens with “it's done” — not “we're working on it”.</p>",
+ how:{title:"How to run the rescues", watch:"Churn scores falling week by week · all three renewing", steps:[
+  ["Open each customer's profile and confirm what's frustrating them.","Customer profiles"],
+  ["For Sofia: find exactly where it breaks for her.","Profile → Journey view"],
   ["Set up a rescue plan per customer: fix → personal call → 30-day check-in.","Campaigns → New"],
   ["Start each one.","Campaign → Launch"],
   ["Add daily warnings on all three so you know immediately if anyone gets worse.","Alerts → New rule"],
   ["In 30 days, see who stayed. The platform learns from every rescue.","Reports"]]},
- acts:[{title:"Rescue Meridian ($4,200/mo)",desc:"Fix the errors first, then a personal call — no discount",route:"Campaigns → New",btn:"Start"},
-       {title:"Rescue NovaPay + Cartwheel",desc:"$4,700/mo combined · different fix for each",route:"Campaigns → New",btn:"Start"},
+ acts:[{title:"Rescue Sofia Hernandez",desc:"Fix what's broken first, then a personal call — no discount",route:"Campaigns → New",btn:"Start"},
+       {title:"Rescue Ryan + Natalie",desc:"Same trust/frustration pattern · different fix for each",route:"Campaigns → New",btn:"Start"},
        {title:"Daily warnings on all three",desc:"Know same-day if anyone slips further",route:"Alerts → New rule",btn:"Set up"}]},
 
 "Build a win-back plan for my dormant accounts": {agent:"ch", tag:"Customer Retention · Bring them back",
- html:"<p><strong>Good news hiding in your quiet list —</strong> Quarry Analytics and Lumen EdTech ($2,600/month) both went quiet, but the signs say they're winnable: Quarry looked at your help pages from work last week, and Lumen opens nearly every email you send. They haven't left — they've just drifted.</p><p><strong>The 3-week plan —</strong> Week 1: “here's what's new” email + one useful thing their own account found. Week 2: if opened but not clicked, send a small offer; if clicked, invite to a 15-minute restart chat. Week 3: one short personal note from you — then stop, and let the alert watch for their return.</p>",
- how:{title:"How to set it up", watch:"Quiet customers active again — expect ~3× the normal comeback rate", steps:[
+ html:"<p><strong>Good news hiding in your quiet list —</strong> Tom Erikson and Ben Okafor have both gone quiet, but the signs say they're winnable: trust is still 58 and 60 — well above where someone who's truly checked out would sit. They haven't left — they've just drifted.</p><p><strong>The 3-week plan —</strong> Week 1: “here's what's new” email + one useful thing their own account found. Week 2: if opened but not clicked, send a small offer; if clicked, invite to a 15-minute restart chat. Week 3: one short personal note from you — then stop, and let the alert watch for their return.</p>",
+ how:{title:"How to set it up", watch:"Quiet customers active again — trust and engagement climbing", steps:[
   ["Your quiet list, sorted by win-back chance — these two are on top.","Customers page"],
   ["Create the campaign with the 3 weekly messages.","Campaigns → New"],
   ["Add the smart rule: opened-not-clicked → offer · clicked → invite to chat.","Campaign settings"],
   ["Launch.","Campaign → Launch"],
   ["Warning on: tell me the moment either logs in.","Alerts → New rule"],
   ["Count the comebacks in a month.","Reports"]]},
- acts:[{title:"Start the welcome-back series",desc:"Quarry + Lumen · $2,600/mo · 3 gentle touches",route:"Campaigns → New",btn:"Start"},
+ acts:[{title:"Start the welcome-back series",desc:"Tom + Ben · trust still 58+ on both · 3 gentle touches",route:"Campaigns → New",btn:"Start"},
        {title:"Tell me when they return",desc:"So you can say hello personally, same day",route:"Alerts → New rule",btn:"Set up"}]},
 
-"Why is Meridian Health churning and what exactly should I do?": {agent:"ch", tag:"Customer Retention · Why Meridian is leaving",
- html:"<p><strong>What's happening —</strong> Meridian Health is $4,200/month and their risk score is the highest of any customer you have.</p><p><strong>Why —</strong> not price. Their team hit an error loop in your reports module 14 times this month and session depth dropped 62% — something is genuinely broken for them. They've called support 3 times in 30 days, sounding unhappy each time. No account check-in has been logged in 90 days, and their email opens have fallen from 34% to 8% — they're pulling away quietly. Their renewal is in 41 days.</p><p><strong>What to do —</strong> fix the reports error first, then call personally — in that order. A discount here would tell them their broken product is fine, which makes it worse, not better.</p>",
- how:{title:"This week", watch:"Their risk score falling — and the renewal going through", steps:[
-  ["Open Meridian's profile and find exactly where the reports module breaks for them.","Customer profile → Journey view"],
-  ["Get that fixed — flag it as priority given what's at stake.","Support → Escalate"],
-  ["Call them yourself once it's fixed, not before.","Phone"],
+"Why is Sofia Hernandez churning and what exactly should I do?": {agent:"ch", tag:"Customer Retention · Why Sofia is leaving",
+ html:"<p><strong>What's happening —</strong> Sofia Hernandez has the highest churn score of any customer you have, at 80.</p><p><strong>Why —</strong> not price. Trust is down at 32 and frustration is up at 75 — both are bad, and together they usually mean something is genuinely broken for her, and she's stopped believing it'll get fixed. Engagement has fallen to 22 and loyalty to 22 as well — she's pulling away on every measure at once, not just one.</p><p><strong>What to do —</strong> find and fix whatever's actually broken first, then call personally — in that order. A discount here would tell her the broken thing is fine, which makes it worse, not better.</p>",
+ how:{title:"This week", watch:"Trust and frustration moving back toward normal — and the renewal going through", steps:[
+  ["Open Sofia's profile and look for exactly where things are breaking for her.","Customer profile → Journey view"],
+  ["Get that fixed — flag it as priority given how far the scores have slipped.","Support → Escalate"],
+  ["Call her yourself once it's fixed, not before.","Phone"],
   ["Log the call, then set a 30-day check-in.","Customer → Log contact"],
-  ["Add a daily warning so you hear immediately if they get worse before then.","Alerts → New rule"]]},
- acts:[{title:"Escalate the reports-module fix",desc:"14 error sessions this month — root cause of the churn risk",route:"Support → Escalate",btn:"Escalate"},
+  ["Add a daily warning so you hear immediately if she gets worse before then.","Alerts → New rule"]]},
+ acts:[{title:"Escalate the underlying issue",desc:"Trust 32, frustration 75 — root cause of the churn risk",route:"Support → Escalate",btn:"Escalate"},
        {title:"Queue the personal call",desc:"After the fix ships — opens with “it's done”, not “we're working on it”",route:"Customer → Log contact",btn:"Queue"}]},
 
-"Why is Kite Travel ready to buy right now?": {agent:"sl", tag:"Sales · Understand — Kite Travel",
- html:"<p><strong>The signal —</strong> readiness 81, intent 74 — they've checked pricing 3× this month and watched the demo replay twice. That's someone actively comparing you against the alternative of doing nothing.</p><p><strong>The gap —</strong> trust sits at 52, 29 points behind readiness. They believe the problem is real and worth solving — they're just not yet convinced you're the one to solve it. That gap is exactly why a hard close now would stall the deal: they'd say yes to the problem, not to you.</p><p><strong>What it means for the call —</strong> lead with proof (a similar customer's result), not features. The ask should be low-risk, not final.</p>",
- how:{title:"Read the gap before you dial", watch:"Trust score closing the gap with readiness after the call", steps:[
-  ["Open the account and check trust vs. readiness — a wide gap means proof-first.","Customer profile → scores"],
-  ["Pick one success story from a similar account or industry.","Your notes"],
-  ["Keep the ask small: a pilot or 30-day start, not the full commitment.","Call"]]},
- acts:[{title:"Get the script for Kite Travel",desc:"Proof-first opener, low-risk close",route:"Agent panel",btn:"Write it"}]},
+"Why is Jordan Lee ready to buy right now?": {agent:"sl", tag:"Sales · Understand — Jordan Lee",
+ html:"<p><strong>The signal —</strong> readiness 55, intent 60 — the highest combination of anyone currently in the buying window. That's someone actively weighing up whether to commit.</p><p><strong>No gap to close —</strong> trust sits at 55, keeping pace with readiness rather than trailing behind it. That's different from a typical hesitant lead: they already believe the problem is real AND that you're the one to solve it. A hard close here doesn't backfire the way it would on a low-trust account.</p><p><strong>What it means for the call —</strong> skip the extended proof section and ask directly. Keep a success story in your back pocket only in case they ask.</p>",
+ how:{title:"Read the gap before you dial", watch:"Trust and readiness both holding steady or climbing after the call", steps:[
+  ["Open the account and check trust vs. readiness — a wide gap means proof-first, a narrow one means ask directly.","Customer profile → scores"],
+  ["Have one success story ready just in case, but don't lead with it.","Your notes"],
+  ["Make the direct ask — a start date, not just a pilot.","Call"]]},
+ acts:[{title:"Get the script for Jordan Lee",desc:"Direct-ask opener, no trust gap to close",route:"Agent panel",btn:"Write it"}]},
 
 "They said the price is too high — what do I say?": {agent:"sl", tag:"Sales · Overcome — price objection",
  html:"<p><strong>What's really being said —</strong> \"too high\" almost always means \"not yet convinced it's worth it\" rather than a hard budget ceiling. Arguing the number rarely works; showing the return does.</p><p><strong>The reframe —</strong> <em>\"Compared to what you're losing by not fixing this, what would make the number feel fair?\"</em> — this moves the conversation from price to value without sounding defensive.</p><p><strong>The de-risked close —</strong> <em>\"Start on the smaller plan. If it doesn't pay for itself in 30 days, walk away — you keep everything we find.\"</em> Removes the risk instead of cutting the price.</p><p>Only discount as a last resort, and never before the value case has been made.</p>",
@@ -589,8 +589,8 @@ var PLAYBOOKS = {
   ["Log the objection so the next rep sees it too.","Customer → Log contact"]]},
  acts:[{title:"Log this objection",desc:"So the pattern is visible across the account",route:"Customer → Log contact",btn:"Log"}]},
 
-"Why did Quarry Analytics and Lumen EdTech go quiet?": {agent:"mk", tag:"Marketing · Understand — why they went quiet",
- html:"<p><strong>The pattern —</strong> both stopped logging in, but neither has actually left — Quarry visited your help pages from their office last week, and Lumen still opens most of your emails. Quiet isn't the same as gone.</p><p><strong>Why it happens —</strong> usage drops off when a customer solves the immediate problem they signed up for and nothing pulls them back in. It's rarely dissatisfaction — trust scores for both are still 60+.</p><p><strong>What it means —</strong> the win-back message shouldn't apologise or discount first; it should remind them what's changed and give them one easy reason to log back in.</p>",
+"Why did Tom Erikson and Ben Okafor go quiet?": {agent:"mk", tag:"Marketing · Understand — why they went quiet",
+ html:"<p><strong>The pattern —</strong> both stopped logging in as often, but neither looks actually gone — trust is still 58 and 60 for Tom and Ben. Quiet isn't the same as gone.</p><p><strong>Why it happens —</strong> usage drops off when a customer solves the immediate problem they signed up for and nothing pulls them back in. It's rarely dissatisfaction — trust for both is still comfortably above where a truly unhappy customer would sit.</p><p><strong>What it means —</strong> the win-back message shouldn't apologise or discount first; it should remind them what's changed and give them one easy reason to log back in.</p>",
  how:{title:"Before you send anything", watch:"Whether they open the first email — that tells you if the door is really open", steps:[
   ["Check engagement AND trust — low engagement with high trust means dormant, not lost.","Customer profile → scores"],
   ["Look for any quiet-period activity (help pages, email opens) — a sign they're still nearby.","Customer profile → activity"],
@@ -598,7 +598,7 @@ var PLAYBOOKS = {
  acts:[{title:"See the full win-back plan",desc:"Quarry + Lumen, 3-email sequence",route:"Campaigns → New",btn:"Open plan"}]},
 
 "Who should I not call this week, and why?": {agent:"sl", tag:"Sales · Prioritise — who to skip",
- html:"<p><strong>Skip these, and why —</strong> anyone flagged at-risk (churn above 60) doesn't belong on a sales call this week — a sales touch on an unhappy customer reads tone-deaf and can push them toward leaving. In the current stack that's Meridian Health, NovaPay Fintech and Cartwheel Retail — all three are Retention's, not Sales', to work right now.</p><p><strong>Also hold off on —</strong> anyone you contacted inside the last 3 days (cool-off) and anyone outside your contact hours — calling either burns trust for a marginal chance of reaching them.</p>",
+ html:"<p><strong>Skip these, and why —</strong> anyone flagged at-risk (churn above 60) doesn't belong on a sales call this week — a sales touch on an unhappy customer reads tone-deaf and can push them toward leaving. In the current stack that's Sofia Hernandez, Ryan Mitchell, Natalie Brooks and Kevin O'Brien — all four are Retention's, not Sales', to work right now.</p><p><strong>Also hold off on —</strong> anyone you contacted inside the last 3 days (cool-off) and anyone outside your contact hours — calling either burns trust for a marginal chance of reaching them.</p>",
  how:{title:"How the skip list is built", watch:"Fewer wasted calls, and no complaints about being contacted too often", steps:[
   ["Check churn first — anything above 60 routes to Retention automatically.","Today's Stack → Hold section"],
   ["Check last-contact date — inside the cool-off window, it's demoted not removed.","Customer profile"],
@@ -606,7 +606,7 @@ var PLAYBOOKS = {
  acts:[{title:"Review the Hold section",desc:"Accounts currently routed away from Sales",route:"Today's Stack → Hold",btn:"Open"}]},
 
 "What changed in my pipeline since yesterday?": {agent:"sl", tag:"Sales · Prioritise — what moved",
- html:"<p><strong>Biggest mover —</strong> Kite Travel's readiness climbed after they replayed the demo twice and their trial countdown moved to inside the window — that's why they're rank 01 today. Trellis Insurance held steady, with their callback still on the books.</p><p><strong>Also worth knowing —</strong> BluePeak SaaS is now upsell-qualified after their seat count grew — that's new since the last check.</p><p>Nothing dropped off the stack today, and no new Hold flags were added.</p>",
+ html:"<p><strong>This view doesn't track day-over-day history yet</strong> — what you're seeing is always today's scores, re-ranked live. Right now Jordan Lee leads the buying-window list on readiness and intent, with Alex Johnson close behind.</p><p><strong>What actually moves someone up the list —</strong> their readiness or intent score rising, trust closing the gap with readiness, or a contact cool-off period ending. Log outcomes as you work the list, and the ranking will reflect it the next time you check.</p>",
  how:{title:"How to check this yourself each morning", watch:"Rank changes and any new Hold flags", steps:[
   ["Open Today's Stack — the order reflects the latest scores.","Today's Stack"],
   ["Click any score to see what moved it.","Stack row → score"],
@@ -614,14 +614,14 @@ var PLAYBOOKS = {
  acts:[{title:"Open today's stack",desc:"See the current order and what's new",route:"Today's Stack",btn:"Open"}]},
 
 "Who should I not target this week, and why?": {agent:"mk", tag:"Marketing · Prioritise — who to skip",
- html:"<p><strong>Skip these, and why —</strong> anyone flagged at-risk (churn above 60) shouldn't get a marketing push — a campaign lands badly on someone already unhappy, and it's Retention's account to work, not Marketing's. In the current stack that's Meridian Health, NovaPay Fintech and Cartwheel Retail.</p><p><strong>Go carefully with —</strong> anyone contacted in the last few days — repeat touches too close together read as spam rather than care.</p>",
+ html:"<p><strong>Skip these, and why —</strong> anyone flagged at-risk (churn above 60) shouldn't get a marketing push — a campaign lands badly on someone already unhappy, and it's Retention's account to work, not Marketing's. In the current stack that's Sofia Hernandez, Ryan Mitchell, Natalie Brooks and Kevin O'Brien.</p><p><strong>Go carefully with —</strong> anyone contacted in the last few days — repeat touches too close together read as spam rather than care.</p>",
  how:{title:"How the skip list is built", watch:"Fewer opt-outs, and no overlap with Retention's outreach", steps:[
   ["Check churn first — anything above 60 routes to Retention automatically.","Today's Campaign Stack → Hold"],
   ["Check recent contact history before adding anyone to a new send.","Customer profile"]]},
  acts:[{title:"Review the Hold section",desc:"Accounts currently routed away from Marketing",route:"Today's Campaign Stack → Hold",btn:"Open"}]},
 
 "What changed in my campaigns since yesterday?": {agent:"mk", tag:"Marketing · Prioritise — what moved",
- html:"<p><strong>Biggest mover —</strong> Trellis Insurance's onboarding stall got worse (dropoff risk climbing) — that's why it's the top campaign play today. Kite Travel held steady in the same onboarding tier.</p><p><strong>Also worth knowing —</strong> Solstice Energy and BluePeak SaaS are both now referral-qualified after their loyalty scores held above 80 with low frustration.</p><p>Nothing dropped off the stack today, and no new Hold flags were added.</p>",
+ html:"<p><strong>This view doesn't track day-over-day history yet</strong> — what you're seeing is always today's scores, re-ranked live. Right now Alex Johnson and Maya Thompson lead the onboarding list on readiness, and Priya Sharma, Emma Rodriguez and Liam Park are referral-qualified on loyalty above 80 with low frustration.</p><p><strong>What actually moves someone up the list —</strong> engagement dropping further (onboarding risk rising), or loyalty and frustration shifting enough to gain or lose referral qualification. Log sends as you work the list, and the ranking will reflect it next time you check.</p>",
  how:{title:"How to check this yourself each morning", watch:"Rank changes and any new Hold flags", steps:[
   ["Open Today's Campaign Stack — the order reflects the latest scores.","Today's Campaign Stack"],
   ["Click any score to see what moved it.","Stack row → score"],
@@ -856,10 +856,10 @@ function dashPromptAnswer(agent, stepKey, promptKey, name, account, c){
     case 'launch:offer_discount':
       return head + '<p>' + (s && s.trust >= DTH.trust ? 'No — trust is already high; a discount here signals the price was inflated. Ask directly instead.' : 'Only as a last resort, and only after the value case has been made — lead with a low-risk start first.') + '</p>';
     case 'launch:weighted_pipeline':
-      var weighted = r.reduce(function(sum,x){ return sum + (x.a.mrr * x.a.scores.buying_readiness / 100); }, 0);
-      return head + '<p>Weighted pipeline across the current stack: <b>'+money(Math.round(weighted))+'</b> (each account\'s MRR weighted by its readiness score).</p>';
+      var weighted = r.length ? Math.round(r.reduce(function(sum,x){ return sum + x.c.priority; }, 0) / r.length) : 0;
+      return head + '<p>Weighted pipeline score across the current stack: <b>'+weighted+'</b> (average priority, which is itself each account\'s readiness weighted against its trust and intent).</p>';
     case 'launch:at_risk_no_touch':
-      return head + '<p>' + (hold.length ? hold.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> ('+money(x.a.mrr)+') — '+x.c.why[0]; }).join('</p><p>') : 'Nothing currently flagged as at-risk in the stack.') + '</p>';
+      return head + '<p>' + (hold.length ? hold.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'Nothing currently flagged as at-risk in the stack.') + '</p>';
 
     default:
       return head + '<p>I don\'t have a ready-made answer for that yet — try rephrasing in the chat box below.</p>';
@@ -904,27 +904,35 @@ function setAgent(key) {
    DASHBOARD ENGINE — Marketing & Sales
    Shared account pool + a per-domain classifier/renderer.
    ══════════════════════════════════════════════════════════════ */
-var ACCOUNTS = [
- {name:"Meridian Health",  seg:"at_risk", mrr:4200, scores:{intent:31,engagement:28,buying_readiness:22,churn:84,loyalty:41,trust:58,frustration:77}},
- {name:"NovaPay Fintech",  seg:"at_risk", mrr:2800, scores:{intent:44,engagement:39,buying_readiness:35,churn:76,loyalty:48,trust:62,frustration:69}},
- {name:"Cartwheel Retail", seg:"at_risk", mrr:1900, scores:{intent:38,engagement:44,buying_readiness:30,churn:71,loyalty:52,trust:49,frustration:81}},
- {name:"Solstice Energy",  seg:"champion",mrr:6100, scores:{intent:72,engagement:88,buying_readiness:69,churn:12,loyalty:91,trust:87,frustration:14}},
- {name:"BluePeak SaaS",    seg:"champion",mrr:5400, scores:{intent:81,engagement:85,buying_readiness:78,churn:15,loyalty:88,trust:90,frustration:11}},
- {name:"Harbour Logistics",seg:"loyal",   mrr:3300, scores:{intent:58,engagement:71,buying_readiness:55,churn:24,loyalty:79,trust:82,frustration:22}},
- {name:"Fable Media",      seg:"loyal",   mrr:2400, scores:{intent:63,engagement:68,buying_readiness:61,churn:28,loyalty:74,trust:76,frustration:26}},
- {name:"Quarry Analytics", seg:"dormant", mrr:1500, scores:{intent:22,engagement:12,buying_readiness:18,churn:58,loyalty:39,trust:61,frustration:33}},
- {name:"Lumen EdTech",     seg:"dormant", mrr:1100, scores:{intent:28,engagement:15,buying_readiness:24,churn:52,loyalty:44,trust:66,frustration:29}},
- {name:"Trellis Insurance",seg:"new",     mrr:900,  scores:{intent:68,engagement:41,buying_readiness:76,churn:35,loyalty:50,trust:61,frustration:20}, event_days:14, city:"Brisbane", callback_due:true},
- {name:"Kite Travel",      seg:"new",     mrr:700,  scores:{intent:74,engagement:48,buying_readiness:81,churn:31,loyalty:47,trust:52,frustration:18}, event_days:6, city:"Melbourne"},
- {name:"Orchard Foods",    seg:"loyal",   mrr:2000, scores:{intent:49,engagement:64,buying_readiness:46,churn:26,loyalty:71,trust:74,frustration:24}}
-];
-var DTH = {trust:65, ready:65, intent:55, up:55, fr:40, churn:60};
+/* Real customers, pulled from BehavioralProfile by the route — no fake
+   accounts, no MRR (there's no real revenue figure behind these profiles
+   yet, so none is shown rather than inventing one). */
+var ACCOUNTS = @json($accounts)
+  .map(function (p) {
+    return {
+      name: p.name,
+      email: p.email,
+      seg: p.segment,
+      scores: {
+        intent: p.intent_score,
+        engagement: p.engagement_score,
+        buying_readiness: p.buying_readiness,
+        churn: p.churn_score,
+        loyalty: p.loyalty_score,
+        trust: p.trust_score,
+        frustration: p.frustration_score
+      }
+    };
+  });
+/* Thresholds calibrated to this real customer base's actual score spread
+   (ready/intent were tuned for a wider demo distribution and left every
+   real account either in "hold" or "upsell", with nobody ever reaching
+   "call" — the buying-window bucket a fresh sales day starts from). */
+var DTH = {trust:65, ready:45, intent:55, up:55, fr:40, churn:60};
 var SEG_LABEL = {champion:"Champion",loyal:"Loyal",at_risk:"At risk",dormant:"Dormant","new":"New"};
 var SEG_COLOR = {champion:"#0e7a35",loyal:"#1d4ed8",at_risk:"#b42332",dormant:"#9a6700","new":"#6d28d9"};
 var dashState = { agent: 'sl', view: 'today', lead: null };
 var dashDone = {}; /* per-account logged outcomes, session only */
-
-function money(n){ return '$' + (n||0).toLocaleString(); }
 
 /* ── SALES classifier: who to call, and why ── */
 function classifySales(a){
@@ -958,7 +966,7 @@ function classifyMarketing(a){
   } else if (a.seg==='dormant'){
     play='winback'; prio = (100-s.engagement)*0.5 + s.trust*0.3 + (60-s.churn>0?60-s.churn:0)*0.2;
     why.push('Gone quiet (engagement '+s.engagement+') but trust is still '+s.trust+' — the door is open. A short win-back series, no discount up front.');
-  } else if (a.seg==='new' && s.buying_readiness>=60 && s.engagement<60){
+  } else if (a.seg==='new' && s.buying_readiness>=45 && s.engagement<60){
     play='onboarding'; prio = s.buying_readiness*0.6 + (100-s.engagement)*0.4;
     why.push('New and keen (readiness '+s.buying_readiness+') but engagement is only '+s.engagement+' — keen-but-stalled is exactly when new customers quietly give up.');
   } else if (a.seg==='champion' && s.loyalty>=80){
@@ -1020,10 +1028,9 @@ var STACK_INTRO = {
   mk: {h:'RANKED STACK — WHICH PLAY, FIRST', p:'Sorted by <b>segment fit × trust</b>, then <b>how long they\'ve been quiet or stalled</b> and <b>contact memory</b> (no back-to-back touches on the same account). Click any score to see what moved it — log the send and I\'ll re-rank tomorrow\'s list.'}
 };
 function metaLine(a, c){
-  var bits = [money(a.mrr)+' MRR', 'Priority '+c.priority];
+  var bits = ['Priority '+c.priority, SEG_LABEL[a.seg]];
   if (a.event_days!=null) bits.push('Event in '+a.event_days+'d');
   else if (a.callback_due) bits.push('Callback due');
-  else bits.push(SEG_LABEL[a.seg]);
   if (a.city) bits.push(a.city);
   return bits.join(' · ');
 }
@@ -1076,16 +1083,16 @@ function renderAccountsTable(){
     var a=x.a, s=a.scores;
     return '<tr><td class="acctn" onclick="openScriptFor(\''+nameAttr(a.name)+'\')">'+escapeHtml(a.name)+'</td>'+
       '<td><span class="segtag" style="background:'+SEG_COLOR[a.seg]+'22;color:'+SEG_COLOR[a.seg]+'">'+SEG_LABEL[a.seg]+'</span></td>'+
-      '<td>'+money(a.mrr)+'</td><td>'+s.buying_readiness+'</td><td>'+s.intent+'</td><td>'+s.trust+'</td><td>'+s.churn+'</td>'+
+      '<td>'+s.buying_readiness+'</td><td>'+s.intent+'</td><td>'+s.trust+'</td><td>'+s.churn+'</td>'+
       '<td><span class="stk-play '+x.c.play+'">'+PLAY_LABEL[x.c.play]+'</span></td></tr>';
   }).join('');
-  return '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>MRR</th><th>Ready</th><th>Intent</th><th>Trust</th><th>Churn</th><th>Play</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  return '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>Ready</th><th>Intent</th><th>Trust</th><th>Churn</th><th>Play</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 var scriptAcct = null, scriptChan = 'call';
 function renderScriptStudio(){
   var r = rankedFor(dashState.agent);
   var list = r.map(function(x){
-    return '<div class="ss-item" data-name="'+nameAttr(x.a.name)+'" onclick="selectScriptAccount(\''+nameAttr(x.a.name)+'\')"><div class="n">'+escapeHtml(x.a.name)+'</div><div class="m">'+PLAY_LABEL[x.c.play]+' · '+money(x.a.mrr)+'</div></div>';
+    return '<div class="ss-item" data-name="'+nameAttr(x.a.name)+'" onclick="selectScriptAccount(\''+nameAttr(x.a.name)+'\')"><div class="n">'+escapeHtml(x.a.name)+'</div><div class="m">'+PLAY_LABEL[x.c.play]+' · Priority '+x.c.priority+'</div></div>';
   }).join('');
   return '<div class="ss-grid"><div class="ss-list">'+list+'</div><div class="ss-out" id="ssOut"></div></div>';
 }
@@ -1138,36 +1145,31 @@ function scriptBeats(agent, a, c, chan){
   ];
   return [['TOUCH','Keep it useful and low-pressure — one relevant resource, no ask yet.']];
 }
+function avgScore(list, key){ return list.length ? Math.round(list.reduce(function(s,x){return s+x.a.scores[key];},0)/list.length) : 0; }
 function renderForecast(){
   var agent = dashState.agent;
   var r = rankedFor(agent);
   if (agent==='sl'){
     var call = r.filter(function(x){return x.c.play==='call';});
     var up = r.filter(function(x){return x.c.play==='upsell';});
-    var newBiz = call.reduce(function(s,x){return s+x.a.mrr;},0);
-    var newW = Math.round(call.reduce(function(s,x){return s+x.a.mrr*x.a.scores.buying_readiness/100;},0));
-    var upV = up.reduce(function(s,x){return s+Math.round(x.a.mrr*0.3);},0);
-    var upW = Math.round(up.reduce(function(s,x){return s+Math.round(x.a.mrr*0.3)*x.a.scores.buying_readiness/100;},0));
     return '<div class="fc-grid">'+
-      '<div class="fc-cell"><div class="fc-h">NEW BUSINESS IN PLAY</div>'+
-      call.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
-      '<div class="fc-row fc-tot"><span>Weighted total</span><span>'+money(newW)+' <small>of '+money(newBiz)+'</small></span></div></div>'+
-      '<div class="fc-cell"><div class="fc-h">UPSELL IN PLAY</div>'+
-      up.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(Math.round(x.a.mrr*0.3))+'</span></div>';}).join('')+
-      '<div class="fc-row fc-tot"><span>Weighted total</span><span>'+money(upW)+' <small>of '+money(upV)+'</small></span></div></div>'+
+      '<div class="fc-cell"><div class="fc-h">IN THE BUYING WINDOW</div>'+
+      (call.length ? call.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>Ready '+x.a.scores.buying_readiness+'</span></div>';}).join('') : '<div class="fc-row"><span>Nobody in the buying window right now</span></div>')+
+      '<div class="fc-row fc-tot"><span>Average readiness</span><span>'+avgScore(call,'buying_readiness')+' <small>across '+call.length+' account'+(call.length===1?'':'s')+'</small></span></div></div>'+
+      '<div class="fc-cell"><div class="fc-h">UPSELL-QUALIFIED</div>'+
+      (up.length ? up.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>Ready '+x.a.scores.buying_readiness+'</span></div>';}).join('') : '<div class="fc-row"><span>Nobody upsell-qualified right now</span></div>')+
+      '<div class="fc-row fc-tot"><span>Average readiness</span><span>'+avgScore(up,'buying_readiness')+' <small>across '+up.length+' account'+(up.length===1?'':'s')+'</small></span></div></div>'+
       '</div>';
   }
   var wb = r.filter(function(x){return x.c.play==='winback';});
   var ob = r.filter(function(x){return x.c.play==='onboarding';});
-  var wbV = wb.reduce(function(s,x){return s+x.a.mrr;},0);
-  var obV = ob.reduce(function(s,x){return s+x.a.mrr;},0);
   return '<div class="fc-grid">'+
-    '<div class="fc-cell"><div class="fc-h">WIN-BACK VALUE AT STAKE</div>'+
-    wb.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
-    '<div class="fc-row fc-tot"><span>Total</span><span>'+money(wbV)+'</span></div></div>'+
+    '<div class="fc-cell"><div class="fc-h">WIN-BACK CANDIDATES</div>'+
+    (wb.length ? wb.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>Trust '+x.a.scores.trust+'</span></div>';}).join('') : '<div class="fc-row"><span>Nobody dormant-and-winnable right now</span></div>')+
+    '<div class="fc-row fc-tot"><span>Accounts</span><span>'+wb.length+'</span></div></div>'+
     '<div class="fc-cell"><div class="fc-h">ONBOARDING AT RISK OF STALLING</div>'+
-    ob.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
-    '<div class="fc-row fc-tot"><span>Total</span><span>'+money(obV)+'</span></div></div>'+
+    (ob.length ? ob.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>Engagement '+x.a.scores.engagement+'</span></div>';}).join('') : '<div class="fc-row"><span>No new accounts currently stalling</span></div>')+
+    '<div class="fc-row fc-tot"><span>Accounts</span><span>'+ob.length+'</span></div></div>'+
     '</div>';
 }
 function renderManager(){
@@ -1179,9 +1181,9 @@ function renderManager(){
     '<div class="mg-cell"><div class="mg-h">STACK ADHERENCE TODAY</div>'+
     '<div class="mg-kpi">'+loggedCount+' <small>of '+active.length+' actioned</small></div>'+
     '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Every "'+(agent==='sl'?'Call now':'Launch')+'" pressed on Today\'s Stack counts here — it\'s how you tell whether the stack is actually being worked.</div></div>'+
-    '<div class="mg-cell"><div class="mg-h">VALUE IN THE STACK</div>'+
-    '<div class="mg-kpi">'+money(active.reduce(function(s,x){return s+x.a.mrr;},0))+'</div>'+
-    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Total MRR represented by accounts currently ranked as an active play.</div></div>'+
+    '<div class="mg-cell"><div class="mg-h">AVERAGE READINESS IN STACK</div>'+
+    '<div class="mg-kpi">'+avgScore(active,'buying_readiness')+' <small>of 100</small></div>'+
+    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Average buying-readiness score across accounts currently ranked as an active play.</div></div>'+
     '</div>';
 }
 function logOutcome(name){
