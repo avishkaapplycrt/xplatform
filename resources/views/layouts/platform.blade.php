@@ -13,7 +13,7 @@
 <body class="h-screen flex overflow-hidden bg-gray-100 font-sans antialiased text-[13px]">
 
     {{-- Left Sidebar --}}
-    <aside class="w-[200px] bg-white border-r border-gray-200 flex flex-col h-full flex-shrink-0">
+    <aside id="platformSidebar" class="w-[200px] bg-white border-r border-gray-200 flex flex-col h-full flex-shrink-0 transition-all duration-200">
 
         {{-- Active Tenant --}}
         <div class="px-3 pt-4 pb-3 border-b border-gray-100">
