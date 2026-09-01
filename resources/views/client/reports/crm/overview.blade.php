@@ -123,7 +123,11 @@
           <h6 class="text-[13px] font-semibold text-gray-800">Pipeline by Stage</h6>
         </div>
         <div class="p-4">
+          @if(($stages ?? collect())->isEmpty())
+          <p class="text-[12px] text-gray-400 text-center py-16">No deals synced yet.</p>
+          @else
           <canvas id="pipelineChart" height="250"></canvas>
+          @endif
         </div>
       </div>
       <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -131,7 +135,11 @@
           <h6 class="text-[13px] font-semibold text-gray-800">Deal Trend</h6>
         </div>
         <div class="p-4">
+          @if(($dealTrend ?? collect())->isEmpty())
+          <p class="text-[12px] text-gray-400 text-center py-16">No deals in this period yet.</p>
+          @else
           <canvas id="dealTrendChart" height="250"></canvas>
+          @endif
         </div>
       </div>
     </div>
@@ -157,12 +165,61 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
   var drop = document.getElementById('l1Dropdown');
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
+
+var pipelineStages = @json($stages ?? []);
+var dealTrend = @json($dealTrend ?? []);
+
+var pipelineCanvas = document.getElementById('pipelineChart');
+if (pipelineCanvas && pipelineStages.length) {
+  new Chart(pipelineCanvas, {
+    type: 'bar',
+    data: {
+      labels: pipelineStages.map(function(s) { return s.stage; }),
+      datasets: [{
+        label: 'Pipeline Value',
+        data: pipelineStages.map(function(s) { return s.total_value; }),
+        backgroundColor: '#06b6d4',
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: function(v) { return '$' + Number(v).toLocaleString(); } } }
+      }
+    }
+  });
+}
+
+var dealTrendCanvas = document.getElementById('dealTrendChart');
+if (dealTrendCanvas && dealTrend.length) {
+  new Chart(dealTrendCanvas, {
+    type: 'line',
+    data: {
+      labels: dealTrend.map(function(d) { return d.bucket; }),
+      datasets: [{
+        label: 'Deals Created',
+        data: dealTrend.map(function(d) { return d.deal_count; }),
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99,102,241,.08)',
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+    }
+  });
+}
 </script>
-@endsection
+@endpush

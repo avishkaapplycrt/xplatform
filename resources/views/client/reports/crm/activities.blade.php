@@ -106,8 +106,13 @@
 
       @if(($activities ?? collect())->isEmpty())
       <div class="p-8 text-center">
+        @if($data['synced'] ?? false)
+        <p class="text-[13px] text-gray-500">No contacts or deals found in your connected CRM.</p>
+        <p class="text-[11px] text-gray-400 mt-1">Your last sync completed successfully — there just aren't any recorded there yet.</p>
+        @else
         <p class="text-[13px] text-gray-500">Connected, but nothing has been synced yet.</p>
         <p class="text-[11px] text-gray-400 mt-1">Hit "Sync Now" on the CRM Connections page to pull contacts and deals in.</p>
+        @endif
       </div>
       @else
       <div class="divide-y divide-gray-50">
@@ -148,7 +153,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -156,4 +161,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush

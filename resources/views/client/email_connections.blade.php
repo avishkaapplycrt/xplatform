@@ -357,49 +357,6 @@
 
   </div>
 
-  @if($connections->isNotEmpty())
-  {{-- Engagement Stats --}}
-  <div class="mt-6 panel-card" style="border:1px solid #e5e7eb; border-radius:12px; background:#fff; padding:20px 24px;">
-    <div class="section-header" style="margin-bottom:16px">
-      <div class="section-dot" style="background:#3b82f6"></div>
-      <span class="section-title" style="color:#3b82f6">Email Engagement Stats</span>
-      <div class="section-line" style="background:#bfdbfe"></div>
-    </div>
-    <div class="grid grid-cols-4 gap-4" style="padding-bottom:18px; margin-bottom:18px; border-bottom:1px solid #f3f4f6;">
-      <div>
-        <p class="text-[12px] text-gray-500">Delivered</p>
-        <p class="text-[22px] font-bold text-gray-900 mt-1">{{ number_format($stats['delivered']) }}</p>
-        <p class="text-[11px] text-gray-400 mt-3">Delivery rate</p>
-        <p class="text-[14px] font-semibold text-gray-700">{{ $stats['delivery_rate'] }}%</p>
-      </div>
-      <div>
-        <p class="text-[12px] text-gray-500">Opens</p>
-        <p class="text-[22px] font-bold text-gray-900 mt-1">{{ number_format($stats['opens']) }}</p>
-        <p class="text-[11px] text-gray-400 mt-3">Open rate</p>
-        <p class="text-[14px] font-semibold text-gray-700">{{ $stats['open_rate'] }}%</p>
-      </div>
-      <div>
-        <p class="text-[12px] text-gray-500">Clicks</p>
-        <p class="text-[22px] font-bold text-gray-900 mt-1">{{ number_format($stats['clicks']) }}</p>
-        <p class="text-[11px] text-gray-400 mt-3">Click-through rate</p>
-        <p class="text-[14px] font-semibold text-gray-700">{{ $stats['click_rate'] }}%</p>
-      </div>
-      <div>
-        <p class="text-[12px] text-gray-500">Conversions</p>
-        <p class="text-[22px] font-bold text-gray-900 mt-1">{{ number_format($stats['conversions']) }}</p>
-        <p class="text-[11px] text-gray-400 mt-3">Conversion rate</p>
-        <p class="text-[14px] font-semibold text-gray-700">{{ $stats['conversion_rate'] }}%</p>
-      </div>
-    </div>
-    <div>
-      <p class="text-[12px]" style="color:#dc2626">Unsubscribes</p>
-      <p class="text-[22px] font-bold text-gray-900 mt-1">{{ number_format($stats['unsubscribes']) }}</p>
-      <p class="text-[11px] text-gray-400 mt-3">Unsubscribe rate</p>
-      <p class="text-[14px] font-semibold text-gray-700">{{ $stats['unsubscribe_rate'] }}%</p>
-    </div>
-  </div>
-  @endif
-
   {{-- How It Works --}}
   <div class="mt-6 panel-card" style="border:1px solid #e5e7eb; border-radius:12px; background:#fff; padding:20px 24px;">
     <div class="section-header" style="margin-bottom:16px">

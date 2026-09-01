@@ -92,27 +92,6 @@ class PaymentGatewayConnectionController extends Controller
 
     public function index()
     {
-        $gateways = $this->buildGateways();
-
-        return view('client.payment-gateway-connections.index', compact('gateways'));
-    }
-
-    /**
-     * Display the payment gateway connections content only (for in-place
-     * embedding, e.g. inside the Data Collection page's source-card panel).
-     */
-    public function embed()
-    {
-        $gateways = $this->buildGateways();
-
-        return view('client.partials.payment-gateway-connections-content', compact('gateways'));
-    }
-
-    /**
-     * Build the gateways array used by both index() and embed().
-     */
-    private function buildGateways(): array
-    {
         $client = Auth::guard('client')->user();
 
         $connections = PaymentGatewayConnection::where('client_id', $client->id)
@@ -134,7 +113,7 @@ class PaymentGatewayConnectionController extends Controller
             ];
         }
 
-        return $gateways;
+        return view('client.payment-gateway-connections.index', compact('gateways'));
     }
 
     public function show($gateway)

@@ -3,9 +3,15 @@
 
 @push('styles')
 <style>
-  .src { cursor:pointer; border:1px solid #e5e7eb; border-radius:10px; background:#fff; transition:all .15s; }
-  .src:hover { border-color:#5eead4; }
-  .src.active { border:2px solid #14b8a6; background:#f0fdfa; }
+  .src { border:1px solid #e5e7eb; border-radius:10px; background:#fff; }
+  .src-link { display:flex; align-items:center; gap:10px; flex:1; min-width:0; padding:16px 18px; text-decoration:none; border-radius:9px 0 0 9px; cursor:pointer; transition:background .15s, box-shadow .15s; }
+  .src-link:hover { background:#f0fdfa; }
+  .src.active .src-link { background:#f0fdfa; box-shadow: inset 0 0 0 2px #14b8a6; }
+  .src-add { position:relative; display:flex; align-items:center; justify-content:center; flex-shrink:0; width:44px; border-left:1px solid #e5e7eb; color:#9ca3af; text-decoration:none; border-radius:0 9px 9px 0; transition:color .15s, background .15s, border-color .15s; }
+  .src-add:hover { color:#0d9488; background:#f0fdfa; border-left-color:#5eead4; }
+  .src-tip { position:absolute; bottom:calc(100% + 8px); right:0; background:#111827; color:#fff; font-size:11px; font-weight:500; line-height:1; white-space:nowrap; padding:6px 10px; border-radius:6px; opacity:0; visibility:hidden; transform:translateY(4px); transition:opacity .15s, transform .15s, visibility .15s; pointer-events:none; z-index:20; }
+  .src-tip::after { content:""; position:absolute; top:100%; right:14px; border:5px solid transparent; border-top-color:#111827; }
+  .src-add:hover .src-tip { opacity:1; visibility:visible; transform:translateY(0); }
   .tab-btn { padding:10px 16px; font-size:11px; white-space:nowrap; border-bottom:2px solid transparent; color:#9ca3af; cursor:pointer; background:none; border-top:none; border-left:none; border-right:none; }
   .tab-btn.active { border-bottom-color:#111827; color:#111827; font-weight:600; }
   .panel { display:none; }
@@ -29,6 +35,44 @@
   .crm-stage  { font-size:13px;color:#111827;font-weight:500; }
   .crm-days   { font-size:14px;font-weight:700;color:#8b5cf6;text-align:right; }
   .crm-deals  { font-size:12px;color:#9ca3af;text-align:right; }
+
+  /* Email Engagement grid (live Brevo data) */
+  .be-header { display:flex; align-items:center; justify-content:space-between; padding:14px 24px; border-bottom:1px solid #e5e7eb; }
+  .be-header-title { display:flex; align-items:center; gap:10px; }
+  .be-header-icon { width:28px; height:28px; border-radius:8px; background:#e6f6f0; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .be-synced-badge { display:inline-flex; align-items:center; gap:6px; font-size:11px; color:#6b7280; background:#f9fafb; border:1px solid #eef0f2; border-radius:999px; padding:4px 10px; }
+  .be-sync-btn { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:#0b996e; background:#e6f6f0; border:1px solid #cdeee2; border-radius:999px; padding:5px 11px; cursor:pointer; transition:background .15s; }
+  .be-sync-btn:hover { background:#d7f2e7; }
+  .be-sync-btn:disabled { opacity:.6; cursor:default; }
+  .be-sync-btn svg { flex-shrink:0; }
+  .be-sync-btn.syncing svg { animation:be-spin 1s linear infinite; }
+  @keyframes be-spin { to { transform:rotate(360deg); } }
+  .be-synced-dot { width:6px; height:6px; border-radius:50%; background:#0b996e; flex-shrink:0; box-shadow:0 0 0 3px #0b996e22; }
+  .be-grid { display:grid; grid-template-columns:repeat(4,1fr); }
+  @media (max-width: 760px) { .be-grid { grid-template-columns:repeat(2,1fr); } }
+  .be-cell { padding:20px 22px; border-right:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; transition:background .15s; }
+  .be-cell:hover { background:#fafbfc; }
+  .be-cell:nth-child(4) { border-right:none; }
+  @media (max-width: 760px) { .be-cell:nth-child(2n) { border-right:none; } }
+  .be-icon-wrap { width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-bottom:12px; }
+  .be-gauge { position:relative; width:56px; height:56px; flex-shrink:0; margin-bottom:12px; }
+  .be-gauge canvas { display:block; width:56px !important; height:56px !important; }
+  .be-gauge-icon { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .be-label { display:flex; align-items:center; gap:5px; font-size:11px; color:#9ca3af; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
+  .be-label .be-hint { width:14px; height:14px; border-radius:50%; border:1px solid #d1d5db; color:#9ca3af; font-size:9px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; cursor:help; flex-shrink:0; text-transform:none; letter-spacing:0; }
+  .be-value-row { display:flex; align-items:center; gap:10px; margin-top:8px; }
+  .be-value { font-size:25px; font-weight:800; color:#111827; line-height:1; letter-spacing:-.3px; }
+  .be-view { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px; cursor:pointer; border:none; transition:filter .15s, transform .15s; }
+  .be-view:hover { filter:brightness(.94); transform:translateY(-1px); }
+  .be-sub-label { font-size:11px; color:#9ca3af; font-weight:500; margin-top:18px; }
+  .be-sub-value { display:inline-flex; font-size:12px; font-weight:800; padding:3px 10px; border-radius:999px; margin-top:6px; }
+  .be-row2 { border-top:none; padding:18px 22px; background:linear-gradient(180deg,#fff,#fef6f6); }
+  .be-modal-overlay { position:fixed; inset:0; background:rgba(17,24,39,.45); display:flex; align-items:center; justify-content:center; z-index:100; }
+  .be-modal { background:#fff; border-radius:14px; width:420px; max-width:92vw; max-height:80vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 50px rgba(0,0,0,.25); transition:width .15s; }
+  .be-modal.be-modal-wide { width:720px; }
+  .be-modal-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 20px; border-bottom:1px solid #f3f4f6; }
+  .be-modal-row:last-child { border-bottom:none; }
+  .be-empty-icon { width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 14px; }
 </style>
 @endpush
 
@@ -174,94 +218,118 @@
   <div class="grid grid-cols-3 gap-4">
     @foreach($sources as $s)
     @if($s['id'] === 'website')
-    <div id="src-website" class="src {{ $s['id']==='website' ? 'active' : '' }}" onclick="handleSourceClick('website')" style="padding:16px 18px; cursor:pointer;">
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+    <div id="src-website" class="src active" style="padding:0; display:flex; align-items:stretch;">
+      <div class="src-link" onclick="selectSource('website')">
+        <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
           </svg>
         </div>
-          <div class="min-w-0">
-            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
-          </div>
+        <div class="min-w-0">
+          <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
         </div>
       </div>
+      <a href="{{ route('client.website-connections') }}" class="src-add">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        <span class="src-tip">Add Website provider</span>
+      </a>
     </div>
     @elseif($s['id'] === 'email')
-    <div id="src-email" class="src {{ $s['id']==='website' ? 'active' : '' }}" onclick="handleSourceClick('email')" style="padding:16px 18px; cursor:pointer;">
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+    <div id="src-email" class="src" style="padding:0; display:flex; align-items:stretch;">
+      <div class="src-link" onclick="selectSource('email')">
+        <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
           </svg>
         </div>
-          <div class="min-w-0">
-            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
-          </div>
+        <div class="min-w-0">
+          <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
         </div>
       </div>
+      <a href="{{ route('client.email-connections') }}" class="src-add">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        <span class="src-tip">Add Email provider</span>
+      </a>
     </div>
     @elseif($s['id'] === 'crm')
-    <div id="src-crm" class="src {{ $s['id']==='website' ? 'active' : '' }}" onclick="handleSourceClick('crm')" style="padding:16px 18px; cursor:pointer;">
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+    <div id="src-crm" class="src" style="padding:0; display:flex; align-items:stretch;">
+      <div class="src-link" onclick="selectSource('crm')">
+        <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/>
           </svg>
         </div>
-          <div class="min-w-0">
-            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
-          </div>
+        <div class="min-w-0">
+          <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
         </div>
       </div>
+      <a href="{{ route('client.crm-connections') }}" class="src-add">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        <span class="src-tip">Add CRM provider</span>
+      </a>
     </div>
     @elseif($s['id'] === 'social')
-    <div id="src-social" class="src {{ $s['id']==='website' ? 'active' : '' }}" onclick="handleSourceClick('social')" style="padding:16px 18px; cursor:pointer;">
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-10 h-10 rounded-lg bg-pink-50 flex items-center justify-center flex-shrink-0">
+    <div id="src-social" class="src" style="padding:0; display:flex; align-items:stretch;">
+      <div class="src-link" onclick="selectSource('social')">
+        <div class="w-10 h-10 rounded-lg bg-pink-50 flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m5.106 9.197l-2.816.94a2 2 0 01-2.53-1.158l-1.18-3.543a2 2 0 011.158-2.53l2.816-.94a2 2 0 012.53 1.158l1.18 3.543a2 2 0 01-1.158 2.53z"/>
           </svg>
         </div>
-          <div class="min-w-0">
-            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
-          </div>
+        <div class="min-w-0">
+          <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
         </div>
       </div>
+      <a href="{{ route('client.social-connections') }}" class="src-add">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        <span class="src-tip">Add Social provider</span>
+      </a>
     </div>
     @elseif($s['id'] === 'chat')
-    <div id="src-chat" class="src {{ $s['id']==='website' ? 'active' : '' }}" onclick="handleSourceClick('chat')" style="padding:16px 18px; cursor:pointer;">
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+    <div id="src-chat" class="src" style="padding:0; display:flex; align-items:stretch;">
+      <div class="src-link" onclick="selectSource('chat')">
+        <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
           </svg>
         </div>
-          <div class="min-w-0">
-            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
-          </div>
+        <div class="min-w-0">
+          <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
         </div>
       </div>
+      <a href="{{ route('client.chat-support-connections') }}" class="src-add">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        <span class="src-tip">Add Chat provider</span>
+      </a>
     </div>
     @elseif($s['id'] === 'transactions')
-    <div id="src-transactions" class="src {{ $s['id']==='website' ? 'active' : '' }}" onclick="handleSourceClick('transactions')" style="padding:16px 18px; cursor:pointer;">
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
+    <div id="src-transactions" class="src" style="padding:0; display:flex; align-items:stretch;">
+      <div class="src-link" onclick="selectSource('transactions')">
+        <div class="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
           </svg>
         </div>
-          <div class="min-w-0">
-            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
-          </div>
+        <div class="min-w-0">
+          <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
         </div>
       </div>
+      <a href="{{ route('client.payment-gateway-connections.index') }}" class="src-add">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        <span class="src-tip">Add Transactions provider</span>
+      </a>
     </div>
     @else
     <div id="src-{{ $s['id'] }}" class="src {{ $s['id']==='website' ? 'active' : '' }}"
@@ -280,15 +348,154 @@
     @endforeach
   </div>
 
-  {{-- CONNECTION CONTENT (loads in place when a source card is clicked) --}}
-  <div id="connectionEmbed" class="bg-white rounded-xl border border-gray-200" style="display:none; padding:20px 24px;">
-    <div id="connectionEmbedBody">
-      <div style="text-align:center; padding:40px; color:#9ca3af; font-size:13px;">Loading…</div>
+  {{-- EMAIL ENGAGEMENT (live Brevo data) --}}
+  <div id="email-engagement-panel" class="bg-white rounded-xl border border-gray-200" style="display:none;overflow:hidden;">
+    <div class="be-header">
+      <div class="be-header-title">
+        <div class="be-header-icon">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="4" width="18" height="16" rx="3" fill="#0b996e"/>
+            <path d="M7 8l5 4 5-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7 12l5 4 5-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+          </svg>
+        </div>
+        <span style="font-size:13px; font-weight:700; color:#111827;">BREVO</span>
+        <button type="button" id="be-sync-btn" class="be-sync-btn" onclick="syncBrevoData()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-2.64-6.36M21 4v6h-6"/></svg>
+          <span id="be-sync-btn-label">Sync Data</span>
+        </button>
+      </div>
+      <span id="be-synced-wrap" class="be-synced-badge" style="display:none;">
+        <span class="be-synced-dot"></span>
+        <span id="be-synced"></span>
+      </span>
+    </div>
+
+    <div id="be-loading" style="padding:52px 24px; text-align:center;">
+      <div class="be-empty-icon" style="background:#eff6ff;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" class="animate-spin"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3a9 9 0 109 9"/></svg>
+      </div>
+      <p style="font-size:13px; color:#9ca3af;">Loading engagement data from Brevo…</p>
+    </div>
+
+    <div id="be-error" style="display:none; padding:44px 24px; text-align:center;">
+      <div class="be-empty-icon" style="background:#fef2f2;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376C1.83 17.815 2.865 19.5 4.398 19.5h15.204c1.533 0 2.568-1.685 1.7-3.374L13.7 4.126c-.766-1.5-2.633-1.5-3.399 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+      </div>
+      <p id="be-error-message" style="font-size:13px; color:#ef4444; margin-bottom:12px;">Could not load Brevo data.</p>
+      <button type="button" onclick="loadBrevoEngagementStats(true)" style="font-size:12px; font-weight:700; color:#6366f1; background:#eef2ff; border:none; cursor:pointer;padding:8px 16px;border-radius:8px;">Retry</button>
+    </div>
+
+    <div id="be-content" style="display:none;">
+      <div class="be-grid">
+        <div class="be-cell">
+          <div class="be-gauge">
+            <canvas id="be-gauge-delivered"></canvas>
+            <div class="be-gauge-icon" style="color:#14b8a6;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            </div>
+          </div>
+          <div class="be-label">Delivered</div>
+          <div class="be-value-row">
+            <span class="be-value" id="be-delivered-value">–</span>
+            <button type="button" class="be-view" style="background:#ccfbf1;color:#0f766e;" onclick="openBrevoTopModal('delivered')">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              View
+            </button>
+          </div>
+          <div class="be-sub-label">Delivery rate</div>
+          <div class="be-sub-value" id="be-delivery-rate" style="background:#ccfbf1;color:#0f766e;">–</div>
+        </div>
+        <div class="be-cell">
+          <div class="be-gauge">
+            <canvas id="be-gauge-opens"></canvas>
+            <div class="be-gauge-icon" style="color:#f97316;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+          </div>
+          <div class="be-label">Opens <span class="be-hint" title="Unique opens — recipients who opened at least once">?</span></div>
+          <div class="be-value-row">
+            <span class="be-value" id="be-opens-value">–</span>
+            <button type="button" class="be-view" style="background:#ffedd5;color:#c2410c;" onclick="openBrevoTopModal('opens')">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              View
+            </button>
+          </div>
+          <div class="be-sub-label">Open rate <span class="be-hint" title="Unique opens ÷ delivered">?</span></div>
+          <div class="be-sub-value" id="be-open-rate" style="background:#ffedd5;color:#c2410c;">–</div>
+        </div>
+        <div class="be-cell">
+          <div class="be-gauge">
+            <canvas id="be-gauge-clicks"></canvas>
+            <div class="be-gauge-icon" style="color:#2563eb;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+            </div>
+          </div>
+          <div class="be-label">Clicks <span class="be-hint" title="Unique clicks — recipients who clicked at least once">?</span></div>
+          <div class="be-value-row">
+            <span class="be-value" id="be-clicks-value">–</span>
+            <button type="button" class="be-view" style="background:#dbeafe;color:#1d4ed8;" onclick="openBrevoTopModal('clicks')">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              View
+            </button>
+          </div>
+          <div class="be-sub-label">Click-through rate</div>
+          <div class="be-sub-value" id="be-click-rate" style="background:#dbeafe;color:#1d4ed8;">–</div>
+        </div>
+        <div class="be-cell">
+          <div class="be-gauge">
+            <canvas id="be-gauge-conversions"></canvas>
+            <div class="be-gauge-icon" style="color:#6366f1;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/></svg>
+            </div>
+          </div>
+          <div class="be-label">Conversions</div>
+          <div class="be-value-row">
+            <span class="be-value" id="be-conversions-value">0</span>
+          </div>
+          <div class="be-sub-label">Conversion rate</div>
+          <div class="be-sub-value" id="be-conversion-rate" style="background:#e0e7ff;color:#4338ca;">0%</div>
+        </div>
+      </div>
+
+      <div class="be-row2">
+        <div class="be-gauge" style="margin-bottom:10px;">
+          <canvas id="be-gauge-unsub"></canvas>
+          <div class="be-gauge-icon" style="color:#ef4444;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0-4l-4 4"/></svg>
+          </div>
+        </div>
+        <div class="be-label">Unsubscribes</div>
+        <div class="be-value-row">
+          <span class="be-value" id="be-unsub-value">–</span>
+          <button type="button" class="be-view" style="background:#fee2e2;color:#b91c1c;" onclick="openBrevoTopModal('unsubscribes')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            View
+          </button>
+        </div>
+        <div class="be-sub-label">Unsubscribe rate</div>
+        <div class="be-sub-value" id="be-unsub-rate" style="background:#fee2e2;color:#b91c1c;">–</div>
+      </div>
+    </div>
+  </div>
+
+  {{-- Email Engagement "View" modal: top campaigns behind the clicked metric --}}
+  <div id="be-modal-overlay" class="be-modal-overlay" style="display:none;" onclick="if(event.target===this) closeBrevoTopModal()">
+    <div class="be-modal" id="be-modal">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid #e5e7eb; flex-shrink:0;">
+        <div id="be-modal-dot" style="width:8px;height:8px;border-radius:50%;flex-shrink:0;"></div>
+        <span id="be-modal-title" style="font-size:13px; font-weight:700; flex:1;"></span>
+        <span id="be-modal-badge" style="font-size:10px;font-weight:700;border-radius:20px;padding:3px 11px;flex-shrink:0;"></span>
+        <button type="button" onclick="closeBrevoTopModal()" style="background:none; border:none; cursor:pointer; color:#9ca3af; padding:0; display:flex; flex-shrink:0;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="be-modal-body" style="overflow-y:auto;"></div>
     </div>
   </div>
 
   {{-- TAB BAR + PANELS --}}
-  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+  <div id="tabs-panels-card" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
     {{-- Website tab bar --}}
     <div id="tabs-website" class="border-b border-gray-200 overflow-x-auto" style="display:flex;">
@@ -2427,8 +2634,21 @@ function selectSource(id) {
   document.querySelectorAll('.src').forEach(el => el.classList.remove('active'));
   document.getElementById('src-' + id).classList.add('active');
 
-  const meta = sourceMeta[id];
   currentSrc = id;
+
+  document.getElementById('tabs-panels-card').style.display = '';
+
+  if (id === 'email') {
+    // Panel stays hidden until loadBrevoEngagementStats confirms a provider
+    // is actually connected — no placeholder card when nothing is connected.
+    // Forced (not cached) so the numbers are live from Brevo on every visit,
+    // without the user having to press "Sync Data" themselves.
+    loadBrevoEngagementStats(true);
+  } else {
+    document.getElementById('email-engagement-panel').style.display = 'none';
+  }
+
+  const meta = sourceMeta[id];
 
   // switch tab bars
   ['website','mobile-app','crm','transactions','chat','social','email','ads','surveys','loyalty','callcenter','pos','generic'].forEach(t => {
@@ -2454,6 +2674,368 @@ function selectSource(id) {
   }
 }
 
+/* ── Email Engagement (live Brevo data) ─────────────────────────────────── */
+let brevoStats = null;
+let brevoStatsLoaded = false;
+
+function beShow(state) {
+  ['be-loading','be-error','be-content'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById(state).style.display = state === 'be-content' ? '' : 'block';
+}
+
+function loadBrevoEngagementStats(force) {
+  if (brevoStatsLoaded && !force) {
+    // Data's already cached from an earlier load — just make sure the card
+    // (hidden when the user switched to another source) is visible again.
+    document.getElementById('email-engagement-panel').style.display = '';
+    return Promise.resolve();
+  }
+
+  const panel = document.getElementById('email-engagement-panel');
+
+  // Only show a loading spinner when the card is already visible (a retry
+  // or refresh) — on first load we don't yet know whether a provider is
+  // connected, so the whole card stays hidden until that's confirmed.
+  if (panel.style.display !== 'none') {
+    beShow('be-loading');
+  }
+
+  document.getElementById('be-synced').textContent = '';
+  document.getElementById('be-synced-wrap').style.display = 'none';
+
+  const url = '{{ route('client.email-connections.brevo.engagement-stats') }}' + (force ? '?refresh=1' : '');
+
+  return fetch(url, {
+    headers: { 'Accept': 'application/json' },
+  })
+    .then(r => r.json())
+    .then(res => {
+      if (!res.connected) {
+        panel.style.display = 'none';
+        return;
+      }
+
+      panel.style.display = '';
+
+      if (!res.success) {
+        document.getElementById('be-error-message').textContent = res.message || 'Could not load Brevo data.';
+        beShow('be-error');
+        return;
+      }
+
+      brevoStats = res.data;
+      brevoStatsLoaded = true;
+      renderBrevoStats(res.data);
+      beShow('be-content');
+    })
+    .catch(() => {
+      // Connection status unknown on a network failure — fail closed rather
+      // than showing a card that might belong to no connected provider.
+      panel.style.display = 'none';
+    });
+}
+
+function syncBrevoData() {
+  const btn = document.getElementById('be-sync-btn');
+  const label = document.getElementById('be-sync-btn-label');
+  if (btn.disabled) return;
+
+  btn.disabled = true;
+  btn.classList.add('syncing');
+  label.textContent = 'Syncing…';
+
+  // Kick off a fresh recipient export in the background (used by the "View"
+  // email-ID lists) — fire-and-forget, since it can take a while and the
+  // KPI refresh below doesn't need to wait on it.
+  fetch('{{ route('client.email-connections.brevo.engagement-contacts', ['metric' => 'delivered']) }}?refresh=1', {
+    headers: { 'Accept': 'application/json' },
+  }).catch(() => {});
+
+  loadBrevoEngagementStats(true).finally(() => {
+    btn.disabled = false;
+    btn.classList.remove('syncing');
+    label.textContent = 'Sync Data';
+  });
+}
+
+function beFormatNumber(n) {
+  return Number(n || 0).toLocaleString('en-US');
+}
+
+function renderBrevoStats(data) {
+  document.getElementById('be-delivered-value').textContent = beFormatNumber(data.delivered);
+  document.getElementById('be-delivery-rate').textContent   = data.delivery_rate + '%';
+
+  document.getElementById('be-opens-value').textContent = beFormatNumber(data.opens);
+  document.getElementById('be-open-rate').textContent   = data.open_rate + '%';
+
+  document.getElementById('be-clicks-value').textContent = beFormatNumber(data.clicks);
+  document.getElementById('be-click-rate').textContent   = data.click_rate + '%';
+
+  document.getElementById('be-conversions-value').textContent = beFormatNumber(data.conversions);
+  document.getElementById('be-conversion-rate').textContent   = data.conversion_rate + '%';
+
+  document.getElementById('be-unsub-value').textContent = beFormatNumber(data.unsubscribes);
+  document.getElementById('be-unsub-rate').textContent  = data.unsubscribe_rate + '%';
+
+  const synced = new Date(data.synced_at);
+  document.getElementById('be-synced').textContent =
+    'Synced from Brevo · ' + data.campaign_count + ' campaigns · ' + synced.toLocaleString();
+  document.getElementById('be-synced-wrap').style.display = 'inline-flex';
+
+  beRenderGauge('be-gauge-delivered',    data.delivery_rate,    '#14b8a6');
+  beRenderGauge('be-gauge-opens',        data.open_rate,        '#f97316');
+  beRenderGauge('be-gauge-clicks',       data.click_rate,       '#2563eb');
+  beRenderGauge('be-gauge-conversions',  data.conversion_rate,  '#6366f1');
+  beRenderGauge('be-gauge-unsub',        data.unsubscribe_rate, '#ef4444');
+}
+
+let beGaugeCharts = {};
+
+function beRenderGauge(canvasId, rate, color) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const pct = Math.max(0, Math.min(100, Number(rate) || 0));
+
+  if (beGaugeCharts[canvasId]) {
+    beGaugeCharts[canvasId].data.datasets[0].data = [pct, 100 - pct];
+    beGaugeCharts[canvasId].update();
+    return;
+  }
+
+  beGaugeCharts[canvasId] = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [pct, 100 - pct],
+        backgroundColor: [color, '#f1f5f9'],
+        borderWidth: 0,
+      }],
+    },
+    options: {
+      cutout: '72%',
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      animation: { animateRotate: true, duration: 700 },
+    },
+  });
+}
+
+function openBrevoTopModal(metric) {
+  openBrevoEngagementContactsModal(metric);
+}
+
+function beEscapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+/* ── Delivered/Opens/Clicks/Unsubscribes — Email IDs (built from Brevo per-campaign exports) ── */
+const BE_CONTACTS_METRIC_LABELS = {
+  delivered:    'Delivered',
+  opens:        'Opens',
+  clicks:       'Clicks',
+  unsubscribes: 'Unsubscribes',
+};
+const BE_CONTACTS_METRIC_STYLE = {
+  delivered:    { color:'#3b82f6', bg:'#eff6ff' },
+  opens:        { color:'#7c3aed', bg:'#f5f3ff' },
+  clicks:       { color:'#db2777', bg:'#fdf2f8' },
+  unsubscribes: { color:'#ef4444', bg:'#fef2f2' },
+};
+
+let beContactsCurrentMetric = null;
+let beContactsPollTimer = null;
+let beContactsPollAttempts = 0;
+const BE_CONTACTS_MAX_POLL_ATTEMPTS = 150; // ~10 minutes at 4s intervals
+
+function openBrevoEngagementContactsModal(metric, forceRefresh) {
+  if (!BE_CONTACTS_METRIC_LABELS[metric]) return; // e.g. 'conversions' has no per-recipient data in Brevo
+
+  clearTimeout(beContactsPollTimer);
+  beContactsPollAttempts = 0;
+  beContactsCurrentMetric = metric;
+
+  const style = BE_CONTACTS_METRIC_STYLE[metric];
+  document.getElementById('be-modal').classList.add('be-modal-wide');
+  document.getElementById('be-modal-dot').style.background = style.color;
+  document.getElementById('be-modal-title').textContent = BE_CONTACTS_METRIC_LABELS[metric] + ' — Email IDs';
+  document.getElementById('be-modal-title').style.color = style.color;
+  const badge = document.getElementById('be-modal-badge');
+  badge.textContent = '';
+  badge.style.background = style.bg;
+  badge.style.color = style.color;
+
+  const body = document.getElementById('be-modal-body');
+  body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#9ca3af;font-size:12px;">Loading ' + BE_CONTACTS_METRIC_LABELS[metric].toLowerCase() + ' emails…</div>';
+  document.getElementById('be-modal-overlay').style.display = 'flex';
+
+  fetchBrevoContactsStatus(metric, !!forceRefresh);
+}
+
+function fetchBrevoContactsStatus(metric, refresh) {
+  const body = document.getElementById('be-modal-body');
+  const url = '{{ route('client.email-connections.brevo.engagement-contacts', ['metric' => '__METRIC__']) }}'
+    .replace('__METRIC__', metric) + (refresh ? '?refresh=1' : '');
+
+  fetch(url, { headers: { 'Accept': 'application/json' } })
+    .then(r => r.json())
+    .then(res => {
+      if (beContactsCurrentMetric !== metric) return; // modal moved on to a different metric meanwhile
+
+      if (!res.connected || !res.success) {
+        body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#ef4444;font-size:12px;">'
+          + beEscapeHtml(res.message || 'Could not load emails.') + '</div>';
+        return;
+      }
+
+      if (res.building) {
+        renderContactsBuildingState(res.total || 0, res.done || 0);
+
+        beContactsPollAttempts++;
+        if (beContactsPollAttempts < BE_CONTACTS_MAX_POLL_ATTEMPTS) {
+          beContactsPollTimer = setTimeout(function () { fetchBrevoContactsStatus(metric, false); }, 4000);
+        } else {
+          body.innerHTML += '<p style="text-align:center;color:#9ca3af;font-size:11px;margin-top:12px;">'
+            + 'Still building — close this and check back later.</p>';
+        }
+        return;
+      }
+
+      renderContactsList(res.data || [], res.built_at, metric);
+    })
+    .catch(() => {
+      body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#ef4444;font-size:12px;">Could not reach the server. Please try again.</div>';
+    });
+}
+
+function renderContactsBuildingState(total, done) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById('be-modal-body').innerHTML =
+    '<div style="padding:40px 24px;text-align:center;">'
+    + '<p style="font-size:12px;color:#374151;font-weight:600;margin-bottom:6px;">Building your email engagement lists from Brevo…</p>'
+    + '<p style="font-size:11px;color:#9ca3af;margin-bottom:14px;">' + done + ' / ' + total + ' campaigns processed. This can take a while — feel free to close this and check back later.</p>'
+    + '<div class="bar-wrap" style="height:6px;max-width:320px;margin:0 auto;"><div class="bar-fill" style="width:' + Math.max(3, pct) + '%;background:#3b82f6;height:6px;"></div></div>'
+    + '</div>';
+}
+
+let beContactsAllEmails      = [];
+let beContactsFilteredEmails = [];
+let beContactsCurrentPage    = 1;
+let beContactsBuiltAt        = null;
+const BE_CONTACTS_PAGE_SIZE  = 100;
+
+function renderContactsList(rows, builtAt, metric) {
+  const label = BE_CONTACTS_METRIC_LABELS[metric];
+
+  document.getElementById('be-modal-badge').textContent = beFormatNumber(rows.length) + ' emails';
+
+  beContactsCurrentMetric  = metric;
+  beContactsAllEmails      = rows;
+  beContactsFilteredEmails = rows;
+  beContactsCurrentPage    = 1;
+  beContactsBuiltAt        = builtAt;
+
+  const body = document.getElementById('be-modal-body');
+
+  if (rows.length === 0) {
+    body.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#9ca3af;font-size:12px;">No '
+      + label.toLowerCase() + ' emails found.</div>';
+    return;
+  }
+
+  body.innerHTML =
+      '<div style="padding:16px 20px 0;">'
+    +   '<div style="position:relative;">'
+    +     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>'
+    +     '<input type="text" id="be-contacts-search" placeholder="Search email…" oninput="beFilterContacts(this.value)" '
+    +       'style="width:100%;font-size:12px;padding:8px 10px 8px 32px;border:1px solid #e5e7eb;border-radius:8px;outline:none;box-sizing:border-box;">'
+    +   '</div>'
+    + '</div>'
+    + '<div id="be-contacts-rows" style="padding:12px 20px 4px;display:flex;flex-direction:column;gap:8px;"></div>'
+    + '<div id="be-contacts-pagination" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 20px;"></div>'
+    + '<div style="padding:10px 20px;border-top:1px solid #f3f4f6;">'
+    +   '<span style="font-size:10px;color:#9ca3af;">' + (builtAt ? 'Built ' + new Date(builtAt).toLocaleString() : '') + '</span>'
+    + '</div>';
+
+  beRenderContactsPage();
+}
+
+function beFilterContacts(term) {
+  const q = term.trim().toLowerCase();
+  beContactsFilteredEmails = q
+    ? beContactsAllEmails.filter(function (r) {
+        return r.email.toLowerCase().includes(q) || String(r.campaign_id).includes(q);
+      })
+    : beContactsAllEmails;
+  beContactsCurrentPage = 1;
+  beRenderContactsPage();
+}
+
+function beRenderContactsPage() {
+  const metric = beContactsCurrentMetric;
+  const style  = BE_CONTACTS_METRIC_STYLE[metric];
+  const label  = BE_CONTACTS_METRIC_LABELS[metric];
+
+  const rowsEl  = document.getElementById('be-contacts-rows');
+  const pagerEl = document.getElementById('be-contacts-pagination');
+  if (!rowsEl || !pagerEl) return;
+
+  const total      = beContactsFilteredEmails.length;
+  const totalPages = Math.max(1, Math.ceil(total / BE_CONTACTS_PAGE_SIZE));
+  if (beContactsCurrentPage > totalPages) beContactsCurrentPage = totalPages;
+
+  if (total === 0) {
+    rowsEl.innerHTML  = '<div style="text-align:center;padding:24px 0;color:#9ca3af;font-size:12px;">No emails match your search.</div>';
+    pagerEl.innerHTML = '';
+    return;
+  }
+
+  const start    = (beContactsCurrentPage - 1) * BE_CONTACTS_PAGE_SIZE;
+  const pageRows = beContactsFilteredEmails.slice(start, start + BE_CONTACTS_PAGE_SIZE);
+
+  const mailIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="' + style.color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>'
+    + '</svg>';
+
+  rowsEl.innerHTML = pageRows.map(function (row) {
+    const safeEmail    = beEscapeHtml(row.email);
+    const safeCampaign = beEscapeHtml(String(row.campaign_id));
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;">'
+      + '<div style="width:28px;height:28px;border-radius:50%;background:' + style.bg + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + mailIcon + '</div>'
+      + '<span style="font-size:12px;color:#111827;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + safeEmail + '</span>'
+      + '<span style="font-size:10px;font-weight:600;color:#6b7280;background:#f3f4f6;border-radius:4px;padding:2px 7px;flex-shrink:0;" title="Campaign ID">#' + safeCampaign + '</span>'
+      + '<span style="font-size:10px;font-weight:600;color:' + style.color + ';background:' + style.bg + ';border-radius:4px;padding:2px 7px;flex-shrink:0;">' + label + '</span>'
+      + '</div>';
+  }).join('');
+
+  const prevDisabled = beContactsCurrentPage <= 1;
+  const nextDisabled = beContactsCurrentPage >= totalPages;
+
+  pagerEl.innerHTML =
+      '<button type="button" onclick="beGoToContactsPage(' + (beContactsCurrentPage - 1) + ')" ' + (prevDisabled ? 'disabled' : '')
+    +   ' style="font-size:11px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:5px 10px;cursor:pointer;' + (prevDisabled ? 'opacity:.4;cursor:default;' : '') + '">Prev</button>'
+    + '<span style="font-size:11px;color:#6b7280;margin:0 8px;">Page ' + beContactsCurrentPage + ' of ' + totalPages + '</span>'
+    + '<button type="button" onclick="beGoToContactsPage(' + (beContactsCurrentPage + 1) + ')" ' + (nextDisabled ? 'disabled' : '')
+    +   ' style="font-size:11px;font-weight:600;color:#374151;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:5px 10px;cursor:pointer;' + (nextDisabled ? 'opacity:.4;cursor:default;' : '') + '">Next</button>';
+}
+
+function beGoToContactsPage(page) {
+  const totalPages = Math.max(1, Math.ceil(beContactsFilteredEmails.length / BE_CONTACTS_PAGE_SIZE));
+  if (page < 1 || page > totalPages) return;
+  beContactsCurrentPage = page;
+  beRenderContactsPage();
+}
+
+function closeBrevoTopModal() {
+  clearTimeout(beContactsPollTimer);
+  beContactsCurrentMetric = null;
+  document.getElementById('be-modal-overlay').style.display = 'none';
+}
+
 function selectTab(src, tabId) {
   // hide all panels for this source
   document.querySelectorAll('[id^="panel-' + src + '-"]').forEach(p => p.classList.remove('active'));
@@ -2464,53 +3046,6 @@ function selectTab(src, tabId) {
   document.querySelectorAll('#tabs-' + src + ' .tab-btn').forEach(b => b.classList.remove('active'));
   event.target.classList.add('active');
 }
-
-// ── Connection content embed (loads the real provider/platform page content
-//    in place, above the analytics tab grid, when a source card is clicked) ──
-const embedUrls = {
-  website:      '{{ route("client.website-connections.embed") }}',
-  email:        '{{ route("client.email-connections.embed") }}',
-  crm:          '{{ route("client.crm-connections.embed") }}',
-  social:       '{{ route("client.social-connections.embed") }}',
-  chat:         '{{ route("client.chat-support-connections.embed") }}',
-  transactions: '{{ route("client.payment-gateway-connections.embed") }}',
-};
-
-function handleSourceClick(id) {
-  selectSource(id);
-  loadConnectionEmbed(id);
-}
-
-function runInjectedScripts(container) {
-  container.querySelectorAll('script').forEach(oldScript => {
-    const newScript = document.createElement('script');
-    Array.from(oldScript.attributes).forEach(a => newScript.setAttribute(a.name, a.value));
-    newScript.textContent = oldScript.textContent;
-    oldScript.parentNode.replaceChild(newScript, oldScript);
-  });
-}
-
-function loadConnectionEmbed(id) {
-  const wrap = document.getElementById('connectionEmbed');
-  const body = document.getElementById('connectionEmbedBody');
-  const url = embedUrls[id];
-  if (!url) { wrap.style.display = 'none'; return; }
-  wrap.style.display = 'block';
-  body.innerHTML = '<div style="text-align:center; padding:40px; color:#9ca3af; font-size:13px;">Loading…</div>';
-  fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-    .then(r => { if (!r.ok) throw new Error('Request failed'); return r.text(); })
-    .then(html => {
-      body.innerHTML = html;
-      runInjectedScripts(body);
-    })
-    .catch(() => {
-      body.innerHTML = '<div style="text-align:center; padding:40px; color:#ef4444; font-size:13px;">Failed to load. Please try again.</div>';
-    });
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-  loadConnectionEmbed('website');
-});
 </script>
 
 <script>
@@ -2661,3 +3196,4 @@ document.addEventListener('click', function(e) {
 });
 </script>
 @endpush
+

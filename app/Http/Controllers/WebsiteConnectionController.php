@@ -17,31 +17,8 @@ class WebsiteConnectionController extends Controller
         $client = Auth::guard('client')->user();
 
         $connections = $this->getConnections($client->id);
-        $platforms = $this->buildPlatforms($connections);
 
-        return view('client.website_connections', compact('platforms', 'connections'));
-    }
-
-    /**
-     * Display the website connections content only (for in-place embedding,
-     * e.g. inside the Data Collection page's source-card panel).
-     */
-    public function embed()
-    {
-        $client = Auth::guard('client')->user();
-
-        $connections = $this->getConnections($client->id);
-        $platforms = $this->buildPlatforms($connections);
-
-        return view('client.partials.website-connections-content', compact('platforms', 'connections'));
-    }
-
-    /**
-     * Build the platform metadata array used by both index() and embed().
-     */
-    private function buildPlatforms($connections): array
-    {
-        return [
+        $platforms = [
             [
                 'id'          => 'wordpress',
                 'name'        => 'WordPress',
@@ -88,6 +65,8 @@ class WebsiteConnectionController extends Controller
                 'connection'  => $connections->where('platform', 'squarespace')->first(),
             ],
         ];
+
+        return view('client.website_connections', compact('platforms', 'connections'));
     }
 
     /**

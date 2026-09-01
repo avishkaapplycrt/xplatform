@@ -26,23 +26,6 @@ class CrmConnectionController extends Controller
      */
     public function index()
     {
-        return view('client.crm-connections', $this->buildIndexData());
-    }
-
-    /**
-     * Display the CRM connections content only (for in-place embedding,
-     * e.g. inside the Data Collection page's source-card panel).
-     */
-    public function embed()
-    {
-        return view('client.partials.crm-connections-content', $this->buildIndexData());
-    }
-
-    /**
-     * Build the data shared by index() and embed().
-     */
-    private function buildIndexData(): array
-    {
         $connections = CrmIntegration::all()->keyBy('provider');
         $providers   = CrmIntegration::providers();
 
@@ -61,10 +44,10 @@ class CrmConnectionController extends Controller
             }
         }
 
-        return compact(
+        return view('client.crm-connections', compact(
             'connections', 'providers', 'totalConnected', 'totalProviders',
             'syncToday', 'lastSync', 'syncHealth'
-        );
+        ));
     }
 
     /**
