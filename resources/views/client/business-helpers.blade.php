@@ -260,7 +260,6 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .flowst.cur .flowst-dot{background:var(--ac);border-color:var(--ac);color:#fff}
 #bhRoot .flowst.done .flowst-dot{background:var(--sig);border-color:var(--sig);color:#fff}
 #bhRoot .flowst-t{font-size:13.5px;font-weight:600;color:var(--ink)}
-#bhRoot .flowst-c{font-size:11.5px;color:var(--g3);margin-top:2px}
 @media(max-width:820px){#bhRoot .dash-left{max-height:280px}}
 
 #bhRoot .dash-main{background:#fff;display:flex;flex-direction:column;overflow:hidden;min-height:0}
@@ -364,6 +363,9 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 
 <script>
 (function () {
+var MARKETING_DB_PROMPTS = @json($marketingPrompts ?? []);
+var SALES_DB_PROMPTS = @json($salesPrompts ?? []);
+var MARKETING_STEPS_DB = @json($marketingSteps ?? []);
 
 /* ═══ TASKS — plain English, per helper ═══ */
 var TASKS = {
@@ -694,63 +696,21 @@ function toggleStep(i) {
     renderGuide();
 }
 
-var DASH_FLOW = {
-  sl: {label:"Today's call list", steps:[
-    {t:'Prioritise', c:'who, in order'},
-    {t:'Understand', c:'why this one'},
-    {t:'Pitch', c:'what to say'},
-    {t:'Overcome', c:'they said "X"'},
-    {t:'Close & grow', c:'the yes, or upgrade'}]},
-  mk: {label:"Today's campaign list", steps:[
-    {t:'Prioritise', c:'which play, first'},
-    {t:'Understand', c:'why they went quiet'},
-    {t:'Craft', c:'the message'},
-    {t:'Handle', c:'objections'},
-    {t:'Launch & grow', c:'send it, then expand'}]}
-};
-var FLOW_TABS = ['today', 'accounts', 'scripts', 'forecast', 'manager'];
+/* Marketing step keys/titles come entirely from the DB (MARKETING_STEPS_DB) — nothing hardcoded here. */
+var MARKETING_STEP_KEYS = MARKETING_STEPS_DB.map(function(s){ return s.key; });
 var PROMPT_STEP_ORDER = ['prioritise', 'understand', 'craft', 'handle', 'launch'];
-var PROMPT_SETS = {
-  prioritise: [
-    {key:'contact_today', label:'Who should I contact today?'},
-    {key:'top5_hour', label:'Give me my top 5 for this hour'},
-    {key:'buying_window', label:"Who's in the buying window right now?"},
-    {key:'not_call', label:'Who should I NOT call this week, and why?'},
-    {key:'changed_yesterday', label:'What changed since yesterday?'}
-  ],
-  understand: [
-    {key:'why_ranked', label:'Why is {name} ranked here?'},
-    {key:'been_doing', label:'What has {name} been doing?'},
-    {key:'holding_back', label:"What's holding {name} back?"},
-    {key:'ready_or_researching', label:'Is {name} ready or just researching?'},
-    {key:'cares_about', label:'What does {name} care about most?'}
-  ],
-  craft: [
-    {key:'script_for', label:'Script for {name}'},
-    {key:'opener_30s', label:'30-second opener for {name}'},
-    {key:'whatsapp_version', label:'WhatsApp / DM version'},
-    {key:'email_version', label:'Email version'},
-    {key:'proof_to_show', label:'What proof should I show {name}?'},
-    {key:'shorter_less_salesy', label:'Make it shorter / less salesy'}
-  ],
-  handle: [
-    {key:'too_expensive', label:'Too expensive'},
-    {key:'not_right_now', label:'Not right now'},
-    {key:'use_competitor', label:'We use a competitor'},
-    {key:'send_info', label:'Send me some info'},
-    {key:'no_budget', label:'No budget'},
-    {key:'need_boss', label:'Need my boss'},
-    {key:'something_else', label:'They said something else…'}
-  ],
-  launch: [
-    {key:'how_close', label:'How do I close {name}?'},
-    {key:'smallest_ask', label:'Smallest ask I can make to {name}?'},
-    {key:'ready_upgrade', label:"Who's ready for an upgrade?"},
-    {key:'offer_discount', label:'Should I offer a discount?'},
-    {key:'weighted_pipeline', label:"What's my weighted pipeline?"},
-    {key:'at_risk_no_touch', label:"What's at risk that I shouldn't touch?"}
-  ]
+var SALES_STEP_TITLES = ['Prioritise', 'Understand', 'Pitch', 'Overcome', 'Close & grow'];
+
+var DASH_FLOW = {
+  sl: {label:"Today's call list", steps: SALES_STEP_TITLES.map(function(t){ return {t: t}; })},
+  mk: {label:"Today's campaign list", steps: MARKETING_STEPS_DB.map(function(s){ return {t: s.title}; })}
 };
+var FLOW_TABS_BY_AGENT = {
+  sl: ['today', 'accounts', 'scripts', 'forecast', 'manager'],
+  mk: ['today', 'accounts', 'scripts', 'forecast', 'performance']
+};
+var DB_PROMPTS_BY_AGENT = { sl: SALES_DB_PROMPTS, mk: MARKETING_DB_PROMPTS };
+var STEP_KEYS_BY_AGENT = { sl: PROMPT_STEP_ORDER, mk: MARKETING_STEP_KEYS };
 function topPrimaryName(agent){
   var r = rankedFor(agent);
   var primaryPlays = agent==='sl' ? ['call'] : ['winback', 'onboarding'];
@@ -758,18 +718,21 @@ function topPrimaryName(agent){
   return dashState.lead || (primary[0] && primary[0].a.name) || (r[0] && r[0].a.name) || 'this account';
 }
 function renderDashQuicks(){
-  var idx = FLOW_TABS.indexOf(dashState.view);
+  var agent = dashState.agent;
+  var idx = FLOW_TABS_BY_AGENT[agent].indexOf(dashState.view);
   if (idx === -1) idx = 0;
-  var stepKey = PROMPT_STEP_ORDER[idx];
-  var stepTitle = DASH_FLOW[dashState.agent].steps[idx].t;
-  var name = topPrimaryName(dashState.agent);
+  var stepTitle = DASH_FLOW[agent].steps[idx].t;
+  var name = topPrimaryName(agent);
   var hd = document.getElementById('dashQuickHd');
   var q = document.getElementById('dashQuick');
   if (!q) return;
   if (hd) hd.textContent = 'Ask Mira · ' + stepTitle;
-  q.innerHTML = PROMPT_SETS[stepKey].map(function(p){
-    var label = p.label.replace('{name}', name);
-    return '<button type="button" class="qk" onclick="dashPromptClick(\''+stepKey+'\',\''+p.key+'\',\''+nameAttr(label)+'\')">'+escapeHtml(label)+'</button>';
+
+  var dbStepKey = STEP_KEYS_BY_AGENT[agent][idx];
+  var prompts = (DB_PROMPTS_BY_AGENT[agent][dbStepKey] || []).filter(function(p){ return p.is_active; });
+  q.innerHTML = prompts.map(function(p){
+    var label = p.label.replace('[name]', name);
+    return '<button type="button" class="qk" onclick="dashPromptClick(\''+dbStepKey+'\',\''+p.slug+'\',\''+nameAttr(label)+'\')">'+escapeHtml(label)+'</button>';
   }).join('');
 }
 function dashPromptClick(stepKey, promptKey, label){
@@ -780,7 +743,89 @@ function dashPromptClick(stepKey, promptKey, label){
   var c = account ? classifyFor(agent, account) : null;
   dashPushMsg('bot', dashPromptAnswer(agent, stepKey, promptKey, name, account, c));
 }
+function marketingDbAnswer(stepKey, slug, name, account, c){
+  var stepIdx = MARKETING_STEP_KEYS.indexOf(stepKey);
+  var stepTitle = DASH_FLOW.mk.steps[stepIdx === -1 ? 0 : stepIdx].t;
+  var head = '<div class="tag">Marketing · ' + escapeHtml(stepTitle) + '</div>';
+  var r = rankedFor('mk');
+  var winback = r.filter(function(x){ return x.c.play === 'winback'; });
+  var onboarding = r.filter(function(x){ return x.c.play === 'onboarding'; });
+  var referral = r.filter(function(x){ return x.c.play === 'referral'; });
+  var hold = r.filter(function(x){ return x.c.play === 'hold'; });
+  var mqlReady = r.filter(function(x){ return x.a.scores.buying_readiness >= DTH.ready; });
+  var s = account ? account.scores : null;
+
+  switch (slug) {
+    case 'build_audiences':
+      return head + '<p><strong>Suggested audiences right now:</strong></p><ul style="margin:4px 0 0 16px">' +
+        '<li><b>Win-back</b> — '+winback.length+' accounts gone quiet ('+winback.map(function(x){return escapeHtml(x.a.name);}).join(', ')+')</li>' +
+        '<li><b>Onboarding nudge</b> — '+onboarding.length+' new accounts stalling ('+onboarding.map(function(x){return escapeHtml(x.a.name);}).join(', ')+')</li>' +
+        '<li><b>Referral-ready</b> — '+referral.length+' loyal accounts ('+referral.map(function(x){return escapeHtml(x.a.name);}).join(', ')+')</li></ul>';
+    case 'suppression_list':
+      return head + '<p>' + (hold.length ? '<strong>Suppress these — at-risk, Retention\'s to work:</strong></p><p>'+hold.map(function(x){ return escapeHtml(x.a.name); }).join(', ') : 'Nobody needs suppressing right now — no at-risk accounts in the pool.') + '</p>';
+    case 'mqls_to_sales':
+      return head + '<p>' + (mqlReady.length ? '<strong>Ready to hand to Sales:</strong></p><p>'+mqlReady.map(function(x){ return escapeHtml(x.a.name)+' (readiness '+x.a.scores.buying_readiness+')'; }).join(', ') : 'No accounts have crossed the readiness bar for Sales yet.') + '</p>';
+    case 'winback_list':
+      return head + '<p>' + (winback.length ? winback.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'The win-back list is empty right now.') + '</p>';
+    case 'freq_capped_sales_cycle':
+      return head + '<p>' + (r.length ? r.filter(function(x){return x.c.play!=='none';}).map(function(x){ return escapeHtml(x.a.name); }).join(', ') : 'No one') + ' currently have an active play — treat them as frequency-capped until that play completes or is logged.</p>';
+
+    case 'segment_rule_mql_sales':
+      return head + '<p>An account becomes an MQL hand-off once <b>buying readiness ≥ '+DTH.ready+'</b> and it isn\'t flagged at-risk. That\'s the same bar Sales uses for their "call" tier, so nothing gets double-worked.</p>';
+    case 'top_signals_mql_sales':
+      return head + '<p>The strongest signals across the current MQL-ready group: pricing/demo page revisits, trial or onboarding milestones, and direct questions in chat (data ownership, instalments, SSO). These consistently precede a readiness jump.</p>';
+    case 'levers_mql_sales':
+      return head + '<p>Three levers move an account toward hand-off fastest: a completed onboarding step, a second touch within the trust cool-off window, and one piece of proof matched to their stated concern.</p>';
+    case 'changed_last_week':
+      return head + '<p>' + (mqlReady.length ? '<b>'+escapeHtml(mqlReady[0].a.name)+'</b> crossed the MQL bar most recently (readiness '+mqlReady[0].a.scores.buying_readiness+').' : 'No new accounts crossed the MQL bar this week.') + ' Check Insights weekly — this list moves as scores update.</p>';
+    case 'why_in_segment':
+      return head + (c ? '<p><b>'+escapeHtml(name)+'</b> — '+c.why.join(' ')+'</p>' : '<p>Select an account to see why it\'s segmented this way.</p>');
+
+    case 'email_sequence_mql_sales':
+      return head + '<p><strong>3-email sequence:</strong></p><ol style="margin:4px 0 0 16px"><li>What\'s new / what they\'ve been missing — no ask.</li><li>One proof point matched to their stage.</li><li>A direct, low-risk invitation to talk to Sales.</li></ol>';
+    case 'whatsapp_version':
+      return head + '<p><em>"Hi '+escapeHtml(name)+' 👋 quick one — noticed some activity on your end, happy to help directly here if useful."</em></p>';
+    case 'sms_version':
+      return head + '<p><em>"'+escapeHtml(name)+': quick update on your account — reply YES for a 2-minute call, or STOP to opt out."</em></p>';
+    case 'linkedin_dm_post':
+      return head + '<p><strong>DM:</strong> <em>"Saw your team has been exploring this — happy to share what similar teams found."</em></p><p><strong>Post angle:</strong> a short case study result, tagged to the same segment this account sits in.</p>';
+    case 'social_ad_version':
+      return head + '<p><strong>Ad angle:</strong> lead with the outcome, not the feature — "See results in 30 days" outperforms feature-first copy for this segment by a wide margin.</p>';
+    case 'proof_or_offer_led':
+      return head + '<p>' + (s && s.trust < DTH.trust ? 'Proof-led — trust is the gap here, so a case study or result beats a discount.' : 'Offer-led is safe — trust is already solid, so a time-boxed incentive can accelerate the decision.') + '</p>';
+    case 'discount_allowed':
+      return head + '<p>Only as a last resort, and never in the first message — lead with value, add an incentive only if a second touch gets no response.</p>';
+    case 'brand_voice_rewrite':
+      return head + '<p>Paste the draft into the chat box below and I\'ll rewrite it to match your brand voice — plain, direct, no jargon.</p>';
+
+    case 'test_ideas_mql_sales':
+      return head + '<p><strong>Worth testing:</strong> subject line (urgency vs. curiosity), send time (morning vs. afternoon), and CTA framing (\'talk to sales\' vs. \'see your results\').</p>';
+    case 'sample_size':
+      return head + '<p>With '+r.length+' accounts in the current pool, split evenly for a directional read — for a statistically solid result you\'ll want a larger list; treat this pool\'s test as a signal, not a verdict.</p>';
+    case 'best_send_window':
+      return head + '<p>Mid-morning on a weekday consistently outperforms weekend or late-evening sends for this kind of B2B audience — start there and adjust from actual open data.</p>';
+    case 'holdout_check':
+      return head + '<p>Keep a small holdout untouched by this campaign — it\'s the only way to know the lift you see next isn\'t just normal month-to-month movement.</p>';
+
+    case 'forecast_roi_by_audience':
+      var wb = winback.reduce(function(s,x){return s+x.a.mrr;},0), ob = onboarding.reduce(function(s,x){return s+x.a.mrr;},0), rf = referral.reduce(function(s,x){return s+x.a.mrr;},0);
+      return head + '<p><strong>Value by audience:</strong> Win-back '+money(wb)+' · Onboarding '+money(ob)+' · Referral '+money(rf)+'. Win-back and onboarding carry the most near-term ROI right now.</p>';
+    case 'lift_vs_holdout_mql_sales':
+      return head + '<p>Compare the MQL rate inside the campaign group against the holdout group after this send — a lift above the holdout\'s baseline is the campaign\'s real contribution, not just seasonal movement.</p>';
+    case 'new_mqls_this_week':
+      return head + '<p>' + mqlReady.length + ' accounts are currently MQL-ready: ' + (mqlReady.length ? mqlReady.map(function(x){return escapeHtml(x.a.name);}).join(', ') : 'none yet') + '.</p>';
+    case 'where_should_budget_go':
+      return head + '<p>' + (winback.length >= onboarding.length ? 'Win-back has the larger pool right now — put the next budget increment there.' : 'Onboarding has the larger pool right now — put the next budget increment there.') + '</p>';
+    case 'push_mqls_to_sales':
+      return head + '<p>' + (mqlReady.length ? 'Ready to push: '+mqlReady.map(function(x){return escapeHtml(x.a.name);}).join(', ')+'. Use "Which MQLs go to Sales?" on Audience to review before sending.' : 'Nothing is ready to push to Sales yet.') + '</p>';
+
+    default:
+      return head + '<p>I don\'t have a ready-made answer for that yet — try rephrasing in the chat box below.</p>';
+  }
+}
 function dashPromptAnswer(agent, stepKey, promptKey, name, account, c){
+  if (agent === 'mk') return marketingDbAnswer(stepKey, promptKey, name, account, c);
+
   var r = rankedFor(agent);
   var isSl = agent === 'sl';
   var tag = (isSl ? 'Sales' : 'Marketing') + ' · ' + DASH_FLOW[agent].steps[PROMPT_STEP_ORDER.indexOf(stepKey)].t;
@@ -868,15 +913,16 @@ function dashPromptAnswer(agent, stepKey, promptKey, name, account, c){
 function renderDashGuide() {
     var agent = state.agent;
     var flow = DASH_FLOW[agent];
-    var current = FLOW_TABS.indexOf(dashState.view);
+    var flowTabs = FLOW_TABS_BY_AGENT[agent];
+    var current = flowTabs.indexOf(dashState.view);
     if (current === -1) current = 0;
 
     document.getElementById('dashGBody').innerHTML = flow.steps.map(function (step, i) {
         var isCur = i === current;
         var cls = 'flowst' + (isCur ? ' cur' : '');
-        return '<div class="' + cls + '" onclick="showDashView(\'' + FLOW_TABS[i] + '\')">' +
+        return '<div class="' + cls + '" onclick="showDashView(\'' + flowTabs[i] + '\')">' +
                '<div class="flowst-dot">' + (i + 1) + '</div>' +
-               '<div><div class="flowst-t">' + escapeHtml(step.t) + '</div><div class="flowst-c">' + escapeHtml(step.c) + '</div></div></div>';
+               '<div><div class="flowst-t">' + escapeHtml(step.t) + '</div></div></div>';
     }).join('');
 }
 
@@ -978,13 +1024,18 @@ function rankedFor(agent){
     .sort(function(x,y){ return y.c.priority - x.c.priority; });
 }
 
-var DASH_VTABS = [
-  {k:'today', sl:"Today's stack", mk:"Today's stack"},
-  {k:'accounts', sl:'Accounts', mk:'Accounts'},
-  {k:'scripts', sl:'Script studio', mk:'Message studio'},
-  {k:'forecast', sl:'Forecast', mk:'Forecast'},
-  {k:'manager', sl:'Manager', mk:'Manager'}
-];
+var AGENT_TABS = {
+  sl: [
+    {k:'today', label:"Today's stack"},
+    {k:'accounts', label:'Accounts'},
+    {k:'scripts', label:'Script studio'},
+    {k:'forecast', label:'Forecast'},
+    {k:'manager', label:'Manager'}
+  ],
+  mk: FLOW_TABS_BY_AGENT.mk.map(function(viewKey, i){
+    return {k: viewKey, label: (MARKETING_STEPS_DB[i] && MARKETING_STEPS_DB[i].title) || MARKETING_STEP_KEYS[i]};
+  }).concat([{k:'manager', label:'Manager'}])
+};
 var PLAY_LABEL = {call:'Call', upsell:'Upsell', hold:'Hold', nurture:'Nurture', winback:'Win-back', onboarding:'Onboarding', referral:'Referral', none:'—'};
 var PLAY_BTN = {call:'Call now', upsell:'Call now', winback:'Launch →', onboarding:'Launch →', referral:'Launch →', nurture:'Queue touch', hold:'Hand to Retention'};
 
@@ -997,9 +1048,9 @@ function initDash(agent){
   dashResetChat();
 }
 function renderDashVtabs(){
-  document.getElementById('dashVtabs').innerHTML = DASH_VTABS.map(function(t){
+  document.getElementById('dashVtabs').innerHTML = AGENT_TABS[dashState.agent].map(function(t){
     var on = t.k===dashState.view ? ' on' : '';
-    return '<button type="button" class="dvt'+on+'" onclick="showDashView(\''+t.k+'\')">'+escapeHtml(t[dashState.agent])+'</button>';
+    return '<button type="button" class="dvt'+on+'" onclick="showDashView(\''+t.k+'\')">'+escapeHtml(t.label)+'</button>';
   }).join('');
 }
 function showDashView(v){
@@ -1012,6 +1063,7 @@ function showDashView(v){
   else if (v==='accounts') el.innerHTML = renderAccountsTable();
   else if (v==='scripts') el.innerHTML = renderScriptStudio();
   else if (v==='forecast') el.innerHTML = renderForecast();
+  else if (v==='performance') el.innerHTML = renderPerformance();
   else if (v==='manager') el.innerHTML = renderManager();
   if (v==='scripts') selectScriptAccount(rankedFor(dashState.agent)[0].a.name, 'call');
 }
@@ -1182,6 +1234,21 @@ function renderManager(){
     '<div class="mg-cell"><div class="mg-h">VALUE IN THE STACK</div>'+
     '<div class="mg-kpi">'+money(active.reduce(function(s,x){return s+x.a.mrr;},0))+'</div>'+
     '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Total MRR represented by accounts currently ranked as an active play.</div></div>'+
+    '</div>';
+}
+function renderPerformance(){
+  var agent = dashState.agent;
+  var r = rankedFor(agent);
+  var active = r.filter(function(x){ return ['winback','onboarding','referral'].indexOf(x.c.play)!==-1; });
+  var lift = active.reduce(function(s,x){ return s + Math.round(x.a.mrr * x.a.scores.buying_readiness / 100); }, 0);
+  var mqlCount = r.filter(function(x){ return x.a.scores.buying_readiness >= DTH.ready; }).length;
+  return '<div class="mg-grid">'+
+    '<div class="mg-cell"><div class="mg-h">PROJECTED LIFT</div>'+
+    '<div class="mg-kpi">'+money(lift)+' <small>from active plays</small></div>'+
+    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Value of accounts in an active campaign play, weighted by readiness — the honest estimate of what these sends are worth.</div></div>'+
+    '<div class="mg-cell"><div class="mg-h">MQL HAND-OFF</div>'+
+    '<div class="mg-kpi">'+mqlCount+' <small>ready for Sales</small></div>'+
+    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Accounts that have crossed the readiness bar — these are the hand-off candidates for the Sales stack.</div></div>'+
     '</div>';
 }
 function logOutcome(name){
