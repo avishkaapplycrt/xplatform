@@ -501,6 +501,13 @@ class EmailConnectionController extends Controller
      */
     public function brevoEngagementContacts(Request $request, string $metric)
     {
+        // A refresh now runs every campaign export inline (see
+        // startBrevoDeliveredSync), which can take a couple of minutes across
+        // several campaigns — well past the default max_execution_time.
+        if ($request->boolean('refresh')) {
+            set_time_limit(0);
+        }
+
         if (!in_array($metric, ['delivered', 'opens', 'clicks', 'unsubscribes'], true)) {
             return response()->json([
                 'success'   => false,
@@ -555,11 +562,11 @@ class EmailConnectionController extends Controller
         // Not deduped by email alone — the same recipient can show up under more
         // than one campaign for this metric, and the campaign_id is what lets the
         // UI tell those apart instead of silently collapsing them into one row.
-        $rows = $query->select('email', 'campaign_id')
+        $rows = $query->select('email', 'name', 'campaign_id')
             ->orderByRaw('CAST(campaign_id AS UNSIGNED) asc')
             ->orderBy('email')
             ->get()
-            ->map(fn ($row) => ['email' => $row->email, 'campaign_id' => $row->campaign_id]);
+            ->map(fn ($row) => ['email' => $row->email, 'name' => $row->name, 'campaign_id' => $row->campaign_id]);
 
         return response()->json([
             'success'   => true,
@@ -662,12 +669,20 @@ class EmailConnectionController extends Controller
         Cache::forever("brevo_sync_total_{$clientId}", count($campaignIds));
         Cache::forever("brevo_sync_done_{$clientId}", 0);
 
-        foreach ($campaignIds as $i => $campaignId) {
-            \App\Jobs\ExportBrevoCampaignDeliveries::dispatch($clientId, $campaignId)
-                ->delay(now()->addSeconds($i * 6));
+        // Run every campaign's export inline (dispatchSync) rather than queueing
+        // it — this app has no queue worker running in the background here, so
+        // a plain ->dispatch() would silently sit in the `jobs` table forever
+        // and the "Sync Data" click would appear to do nothing. Running
+        // synchronously means the click's own request is what does the work,
+        // so email_logs_brevo (delivered/opened/clicked/unsubscribed + name)
+        // is guaranteed to be up to date by the time the response comes back.
+        foreach ($campaignIds as $campaignId) {
+            \App\Jobs\ExportBrevoCampaignDeliveries::dispatchSync($clientId, $campaignId);
         }
 
-        return ['status' => 'running', 'total' => count($campaignIds), 'done' => 0];
+        Cache::forget("brevo_sync_status_{$clientId}");
+
+        return ['status' => 'completed', 'completed_at' => now()];
     }
 
     /* ═══════════════════════════════════════════════════════

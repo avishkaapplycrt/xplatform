@@ -12,6 +12,7 @@ class BrevoDeliveredRecipient extends Model
         'client_id',
         'campaign_id',
         'email',
+        'name',
         'delivered_at',
         'opened_at',
         'clicked',

@@ -2968,7 +2968,9 @@ function beFilterContacts(term) {
   const q = term.trim().toLowerCase();
   beContactsFilteredEmails = q
     ? beContactsAllEmails.filter(function (r) {
-        return r.email.toLowerCase().includes(q) || String(r.campaign_id).includes(q);
+        return r.email.toLowerCase().includes(q)
+          || (r.name || '').toLowerCase().includes(q)
+          || String(r.campaign_id).includes(q);
       })
     : beContactsAllEmails;
   beContactsCurrentPage = 1;
@@ -3003,10 +3005,12 @@ function beRenderContactsPage() {
 
   rowsEl.innerHTML = pageRows.map(function (row) {
     const safeEmail    = beEscapeHtml(row.email);
+    const safeName     = beEscapeHtml(row.name || '—');
     const safeCampaign = beEscapeHtml(String(row.campaign_id));
     return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;">'
+      + '<span style="font-size:12px;color:#111827;font-weight:600;width:120px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + safeName + '">' + safeName + '</span>'
       + '<div style="width:28px;height:28px;border-radius:50%;background:' + style.bg + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + mailIcon + '</div>'
-      + '<span style="font-size:12px;color:#111827;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + safeEmail + '</span>'
+      + '<span style="font-size:12px;color:#6b7280;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + safeEmail + '</span>'
       + '<span style="font-size:10px;font-weight:600;color:#6b7280;background:#f3f4f6;border-radius:4px;padding:2px 7px;flex-shrink:0;" title="Campaign ID">#' + safeCampaign + '</span>'
       + '<span style="font-size:10px;font-weight:600;color:' + style.color + ';background:' + style.bg + ';border-radius:4px;padding:2px 7px;flex-shrink:0;">' + label + '</span>'
       + '</div>';

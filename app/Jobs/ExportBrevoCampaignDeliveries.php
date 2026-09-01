@@ -163,10 +163,65 @@ class ExportBrevoCampaignDeliveries implements ShouldQueue
             throw new \RuntimeException("Could not download export CSV for campaign {$this->campaignId}.");
         }
 
-        $this->storeDeliveredFromCsv($csv->body());
+        $this->storeDeliveredFromCsv($csv->body(), $apiKey);
     }
 
-    private function storeDeliveredFromCsv(string $csv): void
+    /**
+     * Brevo's recipient export CSV carries no name column, so contact names
+     * are pulled separately from the Contacts API (paginated across the
+     * whole account) and merged in by email before the same upsert() call
+     * that already writes the delivered/opened/clicked data.
+     */
+    private function fetchContactNames(string $apiKey, array $emails): array
+    {
+        $wanted = array_fill_keys($emails, true);
+        $names = [];
+        $limit = 500;
+        $offset = 0;
+
+        while (count($names) < count($wanted)) {
+            $response = Http::withHeaders(['api-key' => $apiKey])
+                ->timeout(20)
+                ->get('https://api.brevo.com/v3/contacts', [
+                    'limit'  => $limit,
+                    'offset' => $offset,
+                ]);
+
+            if ($response->status() === 429) {
+                throw new BrevoRateLimitedException($this->rateLimitRetryAfter($response));
+            }
+
+            if (!$response->successful()) {
+                break;
+            }
+
+            $contacts = $response->json('contacts') ?? [];
+            if (empty($contacts)) {
+                break;
+            }
+
+            foreach ($contacts as $contact) {
+                $email = strtolower(trim((string) ($contact['email'] ?? '')));
+                if ($email === '' || !isset($wanted[$email])) {
+                    continue;
+                }
+
+                $attributes = $contact['attributes'] ?? [];
+                $name = trim(trim((string) ($attributes['FIRSTNAME'] ?? '')) . ' ' . trim((string) ($attributes['LASTNAME'] ?? '')));
+                $names[$email] = $name !== '' ? $name : null;
+            }
+
+            if (count($contacts) < $limit) {
+                break;
+            }
+
+            $offset += $limit;
+        }
+
+        return $names;
+    }
+
+    private function storeDeliveredFromCsv(string $csv, string $apiKey): void
     {
         $lines = preg_split('/\r\n|\r|\n/', trim($csv));
         if (empty($lines)) {
@@ -218,6 +273,7 @@ class ExportBrevoCampaignDeliveries implements ShouldQueue
                 'client_id'       => $this->clientId,
                 'campaign_id'     => $this->campaignId,
                 'email'           => $email,
+                'name'            => null,
                 'delivered_at'    => $parseDate($delivered),
                 'opened_at'       => $openedCol !== false ? $parseDate($cols[$openedCol] ?? '') : null,
                 'clicked'         => $clickedCol !== false && (float) ($cols[$clickedCol] ?? 0) > 0,
@@ -227,11 +283,24 @@ class ExportBrevoCampaignDeliveries implements ShouldQueue
             ];
         }
 
+        if (!empty($rows)) {
+            try {
+                $names = $this->fetchContactNames($apiKey, array_keys($rows));
+                foreach ($names as $email => $name) {
+                    $rows[$email]['name'] = $name;
+                }
+            } catch (BrevoRateLimitedException $e) {
+                Log::warning("Brevo contact-name lookup rate-limited for campaign {$this->campaignId}; storing without names.");
+            } catch (\Throwable $e) {
+                Log::warning("Brevo contact-name lookup failed for campaign {$this->campaignId}: " . $e->getMessage());
+            }
+        }
+
         foreach (array_chunk(array_values($rows), 500) as $chunk) {
             BrevoDeliveredRecipient::upsert(
                 $chunk,
                 ['client_id', 'campaign_id', 'email'],
-                ['delivered_at', 'opened_at', 'clicked', 'unsubscribed_at', 'updated_at']
+                ['name', 'delivered_at', 'opened_at', 'clicked', 'unsubscribed_at', 'updated_at']
             );
         }
     }

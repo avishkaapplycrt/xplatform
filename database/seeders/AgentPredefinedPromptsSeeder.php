@@ -50,42 +50,55 @@ class AgentPredefinedPromptsSeeder extends Seeder
             ['sales', 'launch', 'at_risk_no_touch', "What's at risk that I shouldn't touch?", 6],
 
             // Marketing · Audience
-            ['marketing', 'Audience', 'build_audiences', 'Build my audiences', 1],
-            ['marketing', 'Audience', 'suppression_list', 'Suppression list', 2],
-            ['marketing', 'Audience', 'mqls_to_sales', 'Which MQLs go to Sales?', 3],
-            ['marketing', 'Audience', 'winback_list', 'Show me the win-back list', 4],
-            ['marketing', 'Audience', 'freq_capped_sales_cycle', 'Frequency-capped / in sales cycle', 5],
+            ['marketing', 'Audience', 'winback_sequence_this_week', 'Who should get the win-back sequence this week?', 1],
+            ['marketing', 'Audience', 'new_not_reached_first_value', "Who is new and still hasn't reached first value?", 2],
+            ['marketing', 'Audience', 'ready_for_upsell', 'Which customers are ready for an upsell offer?', 3],
+            ['marketing', 'Audience', 'who_would_refer_us', 'Who would refer us if I asked?', 4],
+            ['marketing', 'Audience', 'exclude_from_every_send', 'Who must be excluded from every send, and why?', 5],
+            ['marketing', 'Audience', 'in_live_sales_cycle', 'Who is in a live sales cycle — leave them alone?', 6],
 
             // Marketing · Insights
-            ['marketing', 'Insights', 'segment_rule_mql_sales', 'Segment rule for MQL → Sales', 1],
-            ['marketing', 'Insights', 'top_signals_mql_sales', 'Top signals in MQL → Sales', 2],
-            ['marketing', 'Insights', 'levers_mql_sales', 'Levers for MQL → Sales', 3],
-            ['marketing', 'Insights', 'changed_last_week', 'What changed since last week?', 4],
-            ['marketing', 'Insights', 'why_in_segment', 'Why is [name] in this segment?', 5],
+            ['marketing', 'Insights', 'top_shared_signal_mql_sales', 'What is the top shared signal in MQL → Sales right now?', 1],
+            ['marketing', 'Insights', 'proof_or_offer_audience', 'Is MQL → Sales a proof audience or an offer audience?', 2],
+            ['marketing', 'Insights', 'one_lever_mql_sales', 'What is the one lever that moves MQL → Sales?', 3],
+            ['marketing', 'Insights', 'why_name_here_not_sales', 'Why is [name] here and not with Sales?', 4],
+            ['marketing', 'Insights', 'rule_put_people_mql_sales', 'What rule put people into MQL → Sales?', 5],
+            ['marketing', 'Insights', 'changed_last_7_days', 'What changed in the last 7 days?', 6],
 
             // Marketing · Campaign
-            ['marketing', 'Campaign', 'email_sequence_mql_sales', 'Email sequence for MQL → Sales', 1],
-            ['marketing', 'Campaign', 'whatsapp_version', 'WhatsApp version', 2],
-            ['marketing', 'Campaign', 'sms_version', 'SMS version', 3],
-            ['marketing', 'Campaign', 'linkedin_dm_post', 'LinkedIn DM + post', 4],
-            ['marketing', 'Campaign', 'social_ad_version', 'Social / ad version', 5],
-            ['marketing', 'Campaign', 'proof_or_offer_led', 'Proof-led or offer-led?', 6],
-            ['marketing', 'Campaign', 'discount_allowed', 'Discount allowed?', 7],
-            ['marketing', 'Campaign', 'brand_voice_rewrite', 'Brand-voice rewrite', 8],
+            ['marketing', 'Campaign', 'email_sequence_mql_sales', 'Write the 3-touch email sequence for MQL → Sales', 1],
+            ['marketing', 'Campaign', 'whatsapp_oneliner_mql_sales', 'Give me the WhatsApp one-liner for MQL → Sales', 2],
+            ['marketing', 'Campaign', 'sms_optout_mql_sales', 'SMS version with opt-out for MQL → Sales', 3],
+            ['marketing', 'Campaign', 'linkedin_dm_post_mql_sales', 'LinkedIn DM and post for MQL → Sales', 4],
+            ['marketing', 'Campaign', 'ad_social_copy_mql_sales', 'Ad / social copy for MQL → Sales', 5],
+            ['marketing', 'Campaign', 'discount_or_proof_mql_sales', 'Can MQL → Sales get a discount, or proof only?', 6],
+            ['marketing', 'Campaign', 'rewrite_touch1_brand_voice', 'Rewrite touch 1 in our brand voice', 7],
 
             // Marketing · A/B test
-            ['marketing', 'A/B test', 'test_ideas_mql_sales', 'Test ideas for MQL → Sales', 1],
-            ['marketing', 'A/B test', 'sample_size', 'Sample size', 2],
-            ['marketing', 'A/B test', 'best_send_window', 'Best send window', 3],
-            ['marketing', 'A/B test', 'holdout_check', 'Holdout check', 4],
+            ['marketing', 'A/B test', 'subject_line_test_mql_sales', 'Which subject-line test is worth running on MQL → Sales?', 1],
+            ['marketing', 'A/B test', 'proof_vs_offer_test_mql_sales', 'Should I test proof vs offer on MQL → Sales?', 2],
+            ['marketing', 'A/B test', 'sample_size_per_arm_mql_sales', 'How many per arm do I need for MQL → Sales?', 3],
+            ['marketing', 'A/B test', 'when_receive_touch1_mql_sales', 'When should MQL → Sales receive touch 1?', 4],
+            ['marketing', 'A/B test', 'holdout_15_enough_mql_sales', 'Is my 15% holdout enough for MQL → Sales?', 5],
+            ['marketing', 'A/B test', 'all_test_ideas_mql_sales', 'All test ideas for MQL → Sales', 6],
 
             // Marketing · Performance
-            ['marketing', 'Performance', 'forecast_roi_by_audience', 'Forecast ROI by audience', 1],
-            ['marketing', 'Performance', 'lift_vs_holdout_mql_sales', 'Lift vs holdout for MQL → Sales', 2],
-            ['marketing', 'Performance', 'new_mqls_this_week', 'New MQLs this week?', 3],
-            ['marketing', 'Performance', 'where_should_budget_go', 'Where should budget go?', 4],
-            ['marketing', 'Performance', 'push_mqls_to_sales', 'Push MQLs to Sales', 5],
+            ['marketing', 'Performance', 'lift_vs_holdout_mql_sales', 'What lift did MQL → Sales get vs its holdout?', 1],
+            ['marketing', 'Performance', 'audience_worth_next_dollar', 'Which audience is worth the next dollar?', 2],
+            ['marketing', 'Performance', 'expected_return_send_everything_week', 'Expected return if I send everything this week?', 3],
+            ['marketing', 'Performance', 'audience_worst_unsub_rate', 'Which audience has the worst unsubscribe rate?', 4],
+            ['marketing', 'Performance', 'who_became_mql_since_last_send', 'Who became an MQL since the last send?', 5],
+            ['marketing', 'Performance', 'push_week_mqls_to_sales', "Push this week's MQLs to Sales", 6],
         ];
+
+        $rowsBySlug = collect($rows)->keyBy(fn ($row) => $row[0] . '|' . $row[2]);
+        AgentPredefinedPrompt::where('agent', 'marketing')
+            ->get(['id', 'agent', 'slug'])
+            ->each(function ($existing) use ($rowsBySlug) {
+                if (!$rowsBySlug->has($existing->agent . '|' . $existing->slug)) {
+                    $existing->delete();
+                }
+            });
 
         foreach ($rows as [$agent, $stepTitle, $slug, $label, $sortOrder]) {
             AgentPredefinedPrompt::updateOrCreate(
