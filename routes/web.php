@@ -239,9 +239,41 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('layers/rl',      fn() => view('client.layers.rl'))->name('layer.rl');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('data-collection');
-    Route::get('business-helpers', fn() => view('client.business-helpers', [
-        'accounts' => \App\Models\BehavioralProfile::select('name', 'email', 'segment', 'intent_score', 'engagement_score', 'buying_readiness', 'churn_score', 'loyalty_score', 'trust_score', 'frustration_score')->get(),
-    ]))->name('business-helpers');
+    Route::get('business-helpers', function () {
+        $accounts = \App\Models\BehavioralProfile::select('name', 'email', 'segment', 'intent_score', 'engagement_score', 'buying_readiness', 'churn_score', 'loyalty_score', 'trust_score', 'frustration_score')->get();
+
+        $groupPrompts = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
+            ->ordered()
+            ->get()
+            ->groupBy('step_title')
+            ->map(fn ($rows) => $rows->map(fn ($r) => [
+                'slug' => $r->slug,
+                'label' => $r->label,
+                'is_active' => $r->is_active,
+            ])->values());
+
+        $marketingPrompts = $groupPrompts('marketing');
+        $salesPrompts = $groupPrompts('sales');
+
+        // One row per distinct step_title per agent, in the order the step first appears —
+        // this is what drives the step names/order shown in the UI (left step list + top
+        // tab bar for Marketing). No display text is hardcoded.
+        $stepsFor = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
+            ->orderBy('id')
+            ->get(['step_title'])
+            ->unique('step_title')
+            ->values()
+            ->map(fn ($r) => [
+                'key' => $r->step_title,
+                'title' => $r->step_title,
+            ]);
+
+        $marketingSteps = $stepsFor('marketing');
+
+        return view('client.business-helpers', compact(
+            'accounts', 'marketingPrompts', 'salesPrompts', 'marketingSteps'
+        ));
+    })->name('business-helpers');
 
     // Chat Bot
     Route::get('chatbot',        [ChatBotController::class, 'index'])->name('chatbot');

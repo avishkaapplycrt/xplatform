@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             CallLogSeeder::class,
             BehavioralProfileSeeder::class,
             UserEventSeeder::class,
+            AgentPredefinedPromptsSeeder::class,
         ]);
 
         User::factory()->create([
