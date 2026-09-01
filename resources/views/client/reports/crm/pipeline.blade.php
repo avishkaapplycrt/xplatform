@@ -105,8 +105,13 @@
 
       @if(($stages ?? collect())->isEmpty())
       <div class="p-8 text-center">
+        @if($data['synced'] ?? false)
+        <p class="text-[13px] text-gray-500">No deals found in your connected CRM.</p>
+        <p class="text-[11px] text-gray-400 mt-1">Your last sync completed successfully — there just aren't any deals recorded there yet.</p>
+        @else
         <p class="text-[13px] text-gray-500">Connected, but no deals have been synced yet.</p>
         <p class="text-[11px] text-gray-400 mt-1">Hit "Sync Now" on the CRM Connections page to pull deals in.</p>
+        @endif
       </div>
       @else
       @php $maxValue = $stages->max('total_value') ?: 1; @endphp
@@ -147,7 +152,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -155,4 +160,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush

@@ -26,13 +26,16 @@ class CrmAnalyticsController extends Controller
             'connected_count'  => $this->getConnectedCount($client),
         ];
 
-        return view('client.reports.crm.overview', compact('data', 'period'));
+        $stages = $this->getPipelineByStage();
+        $dealTrend = $this->getDealTrend($days);
+
+        return view('client.reports.crm.overview', compact('data', 'period', 'stages', 'dealTrend'));
     }
 
     public function pipeline()
     {
         $client = Auth::guard('client')->user();
-        $data = ['has_data' => $this->hasCrmData($client)];
+        $data = ['has_data' => $this->hasCrmData($client), 'synced' => $this->hasSynced()];
         $stages = $this->getPipelineByStage();
         return view('client.reports.crm.pipeline', compact('data', 'stages'));
     }
@@ -41,7 +44,7 @@ class CrmAnalyticsController extends Controller
     {
         $client = Auth::guard('client')->user();
         $period = request('period', '30d');
-        $data = ['has_data' => $this->hasCrmData($client)];
+        $data = ['has_data' => $this->hasCrmData($client), 'synced' => $this->hasSynced()];
         $deals = $this->getDeals();
         return view('client.reports.crm.deals', compact('data', 'period', 'deals'));
     }
@@ -49,7 +52,7 @@ class CrmAnalyticsController extends Controller
     public function contacts()
     {
         $client = Auth::guard('client')->user();
-        $data = ['has_data' => $this->hasCrmData($client), 'total_contacts' => $this->getTotalContacts($client)];
+        $data = ['has_data' => $this->hasCrmData($client), 'total_contacts' => $this->getTotalContacts($client), 'synced' => $this->hasSynced()];
         $contacts = $this->getContacts();
         return view('client.reports.crm.contacts', compact('data', 'contacts'));
     }
@@ -58,7 +61,7 @@ class CrmAnalyticsController extends Controller
     {
         $client = Auth::guard('client')->user();
         $period = request('period', '30d');
-        $data = ['has_data' => $this->hasCrmData($client)];
+        $data = ['has_data' => $this->hasCrmData($client), 'synced' => $this->hasSynced()];
         $activities = $this->getActivityFeed();
         return view('client.reports.crm.activities', compact('data', 'period', 'activities'));
     }
@@ -66,7 +69,7 @@ class CrmAnalyticsController extends Controller
     public function forecast()
     {
         $client = Auth::guard('client')->user();
-        $data = ['has_data' => $this->hasCrmData($client)];
+        $data = ['has_data' => $this->hasCrmData($client), 'synced' => $this->hasSynced()];
         $forecast = $this->getForecast();
         return view('client.reports.crm.forecast', compact('data', 'forecast'));
     }
@@ -106,6 +109,60 @@ class CrmAnalyticsController extends Controller
             if (!DB::getSchemaBuilder()->hasTable('crm_contacts')) return 0;
             return DB::table('crm_contacts')->count();
         } catch (\Exception $e) { return 0; }
+    }
+
+    private function getTotalDeals($client, $days)
+    {
+        try {
+            if (!DB::getSchemaBuilder()->hasTable('crm_deals')) return 0;
+            return DB::table('crm_deals')
+                ->where('created_at', '>=', now()->subDays($days))->count();
+        } catch (\Exception $e) { return 0; }
+    }
+
+    private function getPipelineValue($client)
+    {
+        try {
+            if (!DB::getSchemaBuilder()->hasTable('crm_deals')) return 0;
+            return DB::table('crm_deals')->sum('value') ?? 0;
+        } catch (\Exception $e) { return 0; }
+    }
+
+    private function getWinRate($client, $days)
+    {
+        try {
+            if (!DB::getSchemaBuilder()->hasTable('crm_deals')) return 0;
+            $total = DB::table('crm_deals')
+                ->where('created_at', '>=', now()->subDays($days))->count();
+            $won = DB::table('crm_deals')
+                ->where('status', 'won')
+                ->where('created_at', '>=', now()->subDays($days))->count();
+            return $total > 0 ? round(($won / $total) * 100, 2) : 0;
+        } catch (\Exception $e) { return 0; }
+    }
+
+    private function getConnectedCount($client)
+    {
+        try {
+            if (!DB::getSchemaBuilder()->hasTable('crm_integrations')) return 0;
+            return DB::table('crm_integrations')->where('status', 'connected')->count();
+        } catch (\Exception $e) { return 0; }
+    }
+
+    /**
+     * Distinguishes "never synced" from "synced, and genuinely has nothing"
+     * so empty-state copy doesn't tell someone to sync when a sync already
+     * ran and their CRM just has zero records of that type.
+     */
+    private function hasSynced(): bool
+    {
+        try {
+            if (!DB::getSchemaBuilder()->hasTable('crm_integrations')) return false;
+            return DB::table('crm_integrations')
+                ->where('status', 'connected')
+                ->whereNotNull('last_sync_at')
+                ->exists();
+        } catch (\Exception $e) { return false; }
     }
 
     private function getContacts()
@@ -220,41 +277,43 @@ class CrmAnalyticsController extends Controller
         }
     }
 
-    private function getTotalDeals($client, $days)
+    /**
+     * Deal volume/value over time, bucketed by each deal's real HubSpot
+     * creation date (raw_data.createdAt), not our own sync timestamp —
+     * bucketed in PHP rather than raw SQL since ISO-8601-with-milliseconds
+     * parsing is fragile across MySQL versions.
+     */
+    private function getDealTrend(int $days)
     {
         try {
-            if (!DB::getSchemaBuilder()->hasTable('crm_deals')) return 0;
-            return DB::table('crm_deals')
-                ->where('created_at', '>=', now()->subDays($days))->count();
-        } catch (\Exception $e) { return 0; }
-    }
+            if (!DB::getSchemaBuilder()->hasTable('crm_deals')) return collect();
 
-    private function getPipelineValue($client)
-    {
-        try {
-            if (!DB::getSchemaBuilder()->hasTable('crm_deals')) return 0;
-            return DB::table('crm_deals')->sum('value') ?? 0;
-        } catch (\Exception $e) { return 0; }
-    }
+            $cutoff = now()->subDays($days);
+            $groupByMonth = $days > 60;
+            $buckets = [];
 
-    private function getWinRate($client, $days)
-    {
-        try {
-            if (!DB::getSchemaBuilder()->hasTable('crm_deals')) return 0;
-            $total = DB::table('crm_deals')
-                ->where('created_at', '>=', now()->subDays($days))->count();
-            $won = DB::table('crm_deals')
-                ->where('status', 'won')
-                ->where('created_at', '>=', now()->subDays($days))->count();
-            return $total > 0 ? round(($won / $total) * 100, 2) : 0;
-        } catch (\Exception $e) { return 0; }
-    }
+            foreach (DB::table('crm_deals')->get() as $deal) {
+                $raw = json_decode($deal->raw_data ?? '{}', true);
+                $createdAt = $raw['createdAt'] ?? $deal->created_at;
 
-    private function getConnectedCount($client)
-    {
-        try {
-            if (!DB::getSchemaBuilder()->hasTable('crm_integrations')) return 0;
-            return DB::table('crm_integrations')->where('status', 'connected')->count();
-        } catch (\Exception $e) { return 0; }
+                try {
+                    $date = \Carbon\Carbon::parse($createdAt);
+                } catch (\Exception $e) {
+                    continue;
+                }
+
+                if ($date->lt($cutoff)) continue;
+
+                $key = $groupByMonth ? $date->format('Y-m') : $date->format('Y-m-d');
+                if (!isset($buckets[$key])) {
+                    $buckets[$key] = (object) ['bucket' => $key, 'deal_count' => 0, 'total_value' => 0.0];
+                }
+                $buckets[$key]->deal_count++;
+                $buckets[$key]->total_value += (float) $deal->value;
+            }
+
+            ksort($buckets);
+            return collect(array_values($buckets));
+        } catch (\Exception $e) { return collect(); }
     }
 }

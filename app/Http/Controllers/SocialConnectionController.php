@@ -17,23 +17,6 @@ class SocialConnectionController extends Controller
      */
     public function index()
     {
-        return view('client.social-connections', $this->buildIndexData());
-    }
-
-    /**
-     * Display the Social Media connections content only (for in-place
-     * embedding, e.g. inside the Data Collection page's source-card panel).
-     */
-    public function embed()
-    {
-        return view('client.partials.social-connections-content', $this->buildIndexData());
-    }
-
-    /**
-     * Build the data shared by index() and embed().
-     */
-    private function buildIndexData(): array
-    {
         $connections = SocialIntegration::all()->keyBy('platform');
         $platforms   = SocialIntegration::platforms();
 
@@ -59,7 +42,7 @@ class SocialConnectionController extends Controller
             }
         }
 
-        return compact(
+        return view('client.social-connections', compact(
             'connections',
             'platforms',
             'totalConnected',
@@ -68,7 +51,7 @@ class SocialConnectionController extends Controller
             'lastSync',
             'syncHealth',
             'totalFollowers'
-        );
+        ));
     }
 
     /**

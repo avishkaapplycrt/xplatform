@@ -120,7 +120,13 @@
 
       @if((($forecast['by_month'] ?? collect()))->isEmpty())
       <div class="p-8 text-center">
-        <p class="text-[13px] text-gray-500">No open deals with a close date synced yet.</p>
+        @if($data['synced'] ?? false)
+        <p class="text-[13px] text-gray-500">No open deals with a close date found in your connected CRM.</p>
+        <p class="text-[11px] text-gray-400 mt-1">Your last sync completed successfully — there just aren't any recorded there yet.</p>
+        @else
+        <p class="text-[13px] text-gray-500">Connected, but no deals have been synced yet.</p>
+        <p class="text-[11px] text-gray-400 mt-1">Hit "Sync Now" on the CRM Connections page to pull deals in.</p>
+        @endif
       </div>
       @else
       @php $maxMonthValue = $forecast['by_month']->max('total_value') ?: 1; @endphp
@@ -161,7 +167,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -169,4 +175,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush

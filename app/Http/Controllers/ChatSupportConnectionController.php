@@ -34,23 +34,6 @@ class ChatSupportConnectionController extends Controller
      */
     public function index()
     {
-        return view('client.chat-support-connections', $this->buildIndexData());
-    }
-
-    /**
-     * Display the Chat & Support connections content only (for in-place
-     * embedding, e.g. inside the Data Collection page's source-card panel).
-     */
-    public function embed()
-    {
-        return view('client.partials.chat-support-connections-content', $this->buildIndexData());
-    }
-
-    /**
-     * Build the data shared by index() and embed().
-     */
-    private function buildIndexData(): array
-    {
         $connections = ChatSupportIntegration::where('client_id', $this->currentClientId())
             ->get()
             ->keyBy('provider');
@@ -87,7 +70,7 @@ class ChatSupportConnectionController extends Controller
             }
         }
 
-        return compact(
+        return view('client.chat-support-connections', compact(
             'connections',
             'providers',
             'totalConnected',
@@ -97,7 +80,7 @@ class ChatSupportConnectionController extends Controller
             'syncHealth',
             'totalMessages',
             'avgSatisfaction'
-        );
+        ));
     }
 
     /**

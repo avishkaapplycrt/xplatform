@@ -305,11 +305,6 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('/website-connections', [WebsiteConnectionController::class, 'index'])
         ->name('website-connections');
 
-    // Embedded content (for in-place loading on the Data Collection page) —
-    // must come before the /{id} wildcard route below.
-    Route::get('/website-connections/embed', [WebsiteConnectionController::class, 'embed'])
-        ->name('website-connections.embed');
-
     // Platform-specific connection pages
     Route::get('/website-connections/wordpress', [WebsiteConnectionController::class, 'wordpress'])
         ->name('website-connections.wordpress');
@@ -346,10 +341,6 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('/email-connections', [EmailConnectionController::class, 'index'])
         ->name('email-connections');
 
-    // Embedded content (for in-place loading on the Data Collection page)
-    Route::get('/email-connections/embed', [EmailConnectionController::class, 'embed'])
-        ->name('email-connections.embed');
-
     // Provider-specific connection pages
     Route::get('/email-connections/mailchimp', [EmailConnectionController::class, 'mailchimp'])
         ->name('email-connections.mailchimp');
@@ -375,6 +366,10 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         ->name('email-connections.verify');
     Route::post('/email-connections/{id}/sync', [EmailConnectionController::class, 'sync'])
         ->name('email-connections.sync');
+    Route::get('/email-connections/brevo/engagement-stats', [EmailConnectionController::class, 'brevoEngagementStats'])
+        ->name('email-connections.brevo.engagement-stats');
+    Route::get('/email-connections/brevo/engagement-contacts/{metric}', [EmailConnectionController::class, 'brevoEngagementContacts'])
+        ->name('email-connections.brevo.engagement-contacts');
 
     /* ═══════════════════════════════════════════════════════════
        CRM CONNECTION ROUTES (CrmConnectionController)
@@ -383,11 +378,6 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     // Main connections page
     Route::get('/crm-connections', [CrmConnectionController::class, 'index'])
         ->name('crm-connections');
-
-    // Embedded content (for in-place loading on the Data Collection page) —
-    // must come before the /{provider} wildcard routes below.
-    Route::get('/crm-connections/embed', [CrmConnectionController::class, 'embed'])
-        ->name('crm-connections.embed');
 
     // Zoho OAuth Routes (FIXED PATHS - must be before wildcard routes)
     Route::get('/crm-connections/zoho/oauth', [CrmConnectionController::class, 'redirectToZoho'])
@@ -424,11 +414,6 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         // Listing page - shows all social platforms
         Route::get('/', [SocialConnectionController::class, 'index'])
             ->name('social-connections');
-
-        // Embedded content (for in-place loading on the Data Collection page) —
-        // must come before the /{platform} wildcards below.
-        Route::get('/embed', [SocialConnectionController::class, 'embed'])
-            ->name('social-connections.embed');
 
         // ── Facebook OAuth (fixed paths — must be BEFORE {platform} wildcards)
         Route::get('/facebook/oauth', [SocialConnectionController::class, 'redirectToFacebook'])
@@ -484,11 +469,6 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         Route::get('/', [ChatSupportConnectionController::class, 'index'])
             ->name('chat-support-connections');
 
-        // Embedded content (for in-place loading on the Data Collection page) —
-        // must come before the /{provider} wildcards below.
-        Route::get('/embed', [ChatSupportConnectionController::class, 'embed'])
-            ->name('chat-support-connections.embed');
-
         // ── Slack OAuth (fixed paths — must be BEFORE {provider} wildcards)
         Route::get('/slack/redirect', [ChatSupportConnectionController::class, 'redirectToSlack'])
             ->name('chat-support.slack.redirect');
@@ -533,11 +513,6 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     // Payment Gateway Connections Routes
     Route::get('/payment-gateway-connections', [PaymentGatewayConnectionController::class, 'index'])
         ->name('payment-gateway-connections.index');
-
-    // Embedded content (for in-place loading on the Data Collection page) —
-    // must come before the /{gateway} wildcard route below.
-    Route::get('/payment-gateway-connections/embed', [PaymentGatewayConnectionController::class, 'embed'])
-        ->name('payment-gateway-connections.embed');
 
     Route::get('/payment-gateway-connections/{gateway}', [PaymentGatewayConnectionController::class, 'show'])
         ->name('payment-gateway-connections.show');
