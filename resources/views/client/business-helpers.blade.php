@@ -1146,7 +1146,6 @@ function showDashView(v){
 }
 var STACK_INTRO = {
   sl: {h:'RANKED STACK — WHO, IN ORDER', p:'Sorted by <b>readiness × intent</b>, trust-adjusted, then <b>time</b> (deadlines, callbacks due), <b>contact memory</b> (a cool-off after a touch) and <b>contact rules</b> (hours, do-not-call). Click any score to see what moved it — log the outcome after each call and I\'ll re-rank for tomorrow.'},
-  mk: {h:'RANKED STACK — WHICH PLAY, FIRST', p:'Sorted by <b>segment fit × trust</b>, then <b>how long they\'ve been quiet or stalled</b> and <b>contact memory</b> (no back-to-back touches on the same account). Click any score to see what moved it — log the send and I\'ll re-rank tomorrow\'s list.'},
   ch: {h:'RANKED STACK — WHO TO SAVE, IN ORDER', p:'Sorted by <b>churn risk × value at stake</b>, then how long they\'ve been going quiet and how frustrated they are. Click any score to see what moved it — log the rescue after each save attempt and I\'ll re-rank for tomorrow.'}
 };
 function metaLine(a, c){
@@ -1190,7 +1189,7 @@ function renderTodayStack(){
       '</div></div>';
   }
   var intro = STACK_INTRO[agent];
-  var html = '<div class="stack-intro"><div class="si-h">'+intro.h+'</div><div class="si-p">'+intro.p+'</div></div>';
+  var html = agent==='mk' ? '' : '<div class="stack-intro"><div class="si-h">'+intro.h+'</div><div class="si-p">'+intro.p+'</div></div>';
   html += '<div class="sectionh">'+(agent==='sl'?"TODAY'S CONTACT STACK":agent==='ch'?"TODAY'S RESCUE STACK":"TODAY'S CAMPAIGN STACK")+'<span>'+shown.length+' of '+primary.length+' shown</span></div>';
   html += shown.length ? shown.map(row).join('') : '<div style="padding:20px;color:var(--g3);font-size:12.5px">Nothing urgent right now — check Accounts for the full list.</div>';
   if (secondary.length){ html += '<div class="sectionh">'+(agent==='sl'?'UPSELL — READY TO EXPAND':agent==='ch'?'WIN-BACK — GONE QUIET, STILL WINNABLE':'REFERRAL — ASK FOR ONE NAME')+'</div>' + secondary.map(row).join(''); }

@@ -219,7 +219,7 @@ class EmailConnectionController extends Controller
             ], 401);
         }
 
-        $this->ensureEmailLogsTable($request->platform);
+        $this->ensureEmailLogsTable();
 
         $connection = \App\Models\EmailConnection::create([
             'client_id'     => $client->id,
@@ -580,7 +580,7 @@ class EmailConnectionController extends Controller
     /**
      * Return the client's current sync state, starting a new export batch if
      * needed. There is no dedicated "runs" table — whether a sync has ever
-     * completed is derived straight from email_logs_brevo (keyed by
+     * completed is derived straight from email_logs_providers (keyed by
      * client_id, stable across Brevo disconnect/reconnect), and while a batch
      * is actively running its progress (total/done) lives in the cache under
      * per-client keys. Starting a batch is wrapped in a per-client lock so two
@@ -674,7 +674,7 @@ class EmailConnectionController extends Controller
         // a plain ->dispatch() would silently sit in the `jobs` table forever
         // and the "Sync Data" click would appear to do nothing. Running
         // synchronously means the click's own request is what does the work,
-        // so email_logs_brevo (delivered/opened/clicked/unsubscribed + name)
+        // so email_logs_providers (delivered/opened/clicked/unsubscribed + name)
         // is guaranteed to be up to date by the time the response comes back.
         foreach ($campaignIds as $campaignId) {
             \App\Jobs\ExportBrevoCampaignDeliveries::dispatchSync($clientId, $campaignId);
@@ -690,27 +690,25 @@ class EmailConnectionController extends Controller
        ═══════════════════════════════════════════════════════ */
 
     /**
-     * Create email_logs_{platform} the first time any client connects that
-     * provider — e.g. email_logs_brevo, email_logs_mailchimp. $platform is
-     * always one of the values already whitelisted by store()'s validator,
-     * so it's safe to use directly in the table name. Idempotent: once a
-     * provider's table exists it's shared by every client that connects to
-     * it (rows are scoped internally by client_id), so this never recreates
-     * or alters an existing table.
+     * Create email_logs_providers the first time any client connects an
+     * email provider. One shared table across every provider a client
+     * connects — provider_name (backed by email_connections.platform) says
+     * which one each row came from. Idempotent: never recreates or alters
+     * an existing table.
      */
-    private function ensureEmailLogsTable(string $platform): void
+    private function ensureEmailLogsTable(): void
     {
-        $table = "email_logs_{$platform}";
-
-        if (Schema::hasTable($table)) {
+        if (Schema::hasTable('email_logs_providers')) {
             return;
         }
 
-        Schema::create($table, function (Blueprint $t) {
+        Schema::create('email_logs_providers', function (Blueprint $t) {
             $t->id();
             $t->unsignedBigInteger('client_id');
+            $t->string('provider_name', 50)->nullable();
             $t->string('campaign_id', 50);
             $t->string('email');
+            $t->string('name')->nullable();
             $t->timestamp('delivered_at')->nullable();
             $t->timestamp('opened_at')->nullable();
             $t->boolean('clicked')->default(false);

@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 
 /**
  * Rebuilds sales_customer_intelligence from crm_contacts + crm_deals +
- * email_logs_brevo. Run manually, or automatically after a HubSpot/Brevo
+ * email_logs_providers. Run manually, or automatically after a HubSpot/Brevo
  * sync completes (see CrmConnectionController::syncHubSpot() and
  * EmailConnectionController::syncBrevo()).
  */
@@ -15,7 +15,7 @@ class SyncSalesCustomerIntelligence extends Command
 {
     protected $signature = 'sales-intelligence:sync';
 
-    protected $description = 'Rebuild sales_customer_intelligence from crm_contacts, crm_deals and email_logs_brevo';
+    protected $description = 'Rebuild sales_customer_intelligence from crm_contacts, crm_deals and email_logs_providers';
 
     public function handle(SalesCustomerIntelligenceService $service): int
     {

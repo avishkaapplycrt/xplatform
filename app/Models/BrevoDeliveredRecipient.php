@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class BrevoDeliveredRecipient extends Model
 {
-    protected $table = 'email_logs_brevo';
+    protected $table = 'email_logs_providers';
 
     protected $fillable = [
         'client_id',
+        'provider_name',
         'campaign_id',
         'email',
         'name',

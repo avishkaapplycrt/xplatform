@@ -353,7 +353,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
         // The Sales agent specifically reads from sales_customer_intelligence
         // rather than re-deriving scores live — that table already combines
-        // crm_deals + crm_contacts + email_logs_brevo and is kept current by
+        // crm_deals + crm_contacts + email_logs_providers and is kept current by
         // CrmConnectionController::syncHubSpot() and the Brevo delivered-
         // recipients job (see App\Services\SalesCustomerIntelligenceService).
         $salesAccounts = \App\Models\SalesCustomerIntelligence::orderByDesc('sales_priority_score')

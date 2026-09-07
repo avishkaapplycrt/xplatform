@@ -275,6 +275,7 @@ class ExportBrevoCampaignDeliveries implements ShouldQueue
 
             $rows[$email] = [
                 'client_id'       => $this->clientId,
+                'provider_name'   => 'brevo',
                 'campaign_id'     => $this->campaignId,
                 'email'           => $email,
                 'name'            => null,
@@ -304,7 +305,7 @@ class ExportBrevoCampaignDeliveries implements ShouldQueue
             BrevoDeliveredRecipient::upsert(
                 $chunk,
                 ['client_id', 'campaign_id', 'email'],
-                ['name', 'delivered_at', 'opened_at', 'clicked', 'unsubscribed_at', 'updated_at']
+                ['provider_name', 'name', 'delivered_at', 'opened_at', 'clicked', 'unsubscribed_at', 'updated_at']
             );
         }
     }

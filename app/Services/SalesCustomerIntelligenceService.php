@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Builds sales_customer_intelligence — the single table the Sales agent reads
- * from instead of joining crm_contacts + crm_deals + email_logs_brevo live on
+ * from instead of joining crm_contacts + crm_deals + email_logs_providers live on
  * every request. One row per CRM contact, combining:
  *   - crm_contacts   → identity (name, company, HubSpot ids)
  *   - crm_deals      → deal_count / total_deal_value / current_deal_stage etc.,
@@ -19,7 +19,7 @@ use Illuminate\Support\Collection;
  *                      name" — the same heuristic already used elsewhere in
  *                      this app, since neither table stores a real foreign key
  *                      between a deal and a contact.
- *   - email_logs_brevo → emails_delivered/opened/clicked, matched by exact
+ *   - email_logs_providers → emails_delivered/opened/clicked, matched by exact
  *                      email address. Today there is no real customer who
  *                      exists in both the connected HubSpot and Brevo test
  *                      data, so these columns legitimately compute to zero
@@ -106,7 +106,7 @@ class SalesCustomerIntelligenceService
         $emailsClicked = $emailRows->filter(fn ($r) => (bool) $r->clicked)->count();
         $lastDeliveredAt = $emailRows->max('delivered_at');
         $lastOpenedAt = $emailRows->max('opened_at');
-        // No distinct clicked_at column exists on email_logs_brevo — the
+        // No distinct clicked_at column exists on email_logs_providers — the
         // opened_at of the most recent clicked row is the closest real
         // timestamp available for "last clicked".
         $lastClickedAt = $emailRows->filter(fn ($r) => (bool) $r->clicked)->max('opened_at');
