@@ -89,10 +89,47 @@ class AgentPredefinedPromptsSeeder extends Seeder
             ['marketing', 'Performance', 'audience_worst_unsub_rate', 'Which audience has the worst unsubscribe rate?', 4],
             ['marketing', 'Performance', 'who_became_mql_since_last_send', 'Who became an MQL since the last send?', 5],
             ['marketing', 'Performance', 'push_week_mqls_to_sales', "Push this week's MQLs to Sales", 6],
+
+            // Retention · Risk radar
+            ['retention', 'Risk radar', 'who_save_first_week', 'Who do I save first this week?', 1],
+            ['retention', 'Risk radar', 'renewals_in_danger', 'Which renewals are in danger soon?', 2],
+            ['retention', 'Risk radar', 'payment_failures_today', 'Any payment failures to fix today?', 3],
+            ['retention', 'Risk radar', 'drifting_watchlist', 'Who is drifting onto the watchlist?', 4],
+            ['retention', 'Risk radar', 'value_at_risk', 'How much value is at risk right now?', 5],
+
+            // Retention · Root cause
+            ['retention', 'Root cause', 'why_leaving', 'Why is [name] leaving?', 1],
+            ['retention', 'Root cause', 'price_or_product', 'Is [name] a price problem or a product problem?', 2],
+            ['retention', 'Root cause', 'top_churn_driver', 'What is the top churn driver across the book?', 3],
+            ['retention', 'Root cause', 'lost_champion', 'Who lost their champion / main contact?', 4],
+            ['retention', 'Root cause', 'changed_recently', 'What changed for [name] recently?', 5],
+
+            // Retention · Save play
+            ['retention', 'Save play', 'save_plan_call', 'Save plan for [name]', 1],
+            ['retention', 'Save play', 'save_email', 'Save email for [name]', 2],
+            ['retention', 'Save play', 'whatsapp_checkin', 'WhatsApp check-in for [name]', 3],
+            ['retention', 'Save play', 'first_48_hours', 'What are the first 48 hours for [name]?', 4],
+            ['retention', 'Save play', 'should_escalate', 'Should this go to an executive sponsor?', 5],
+            ['retention', 'Save play', 'exec_brief', 'Exec brief for [name]', 6],
+
+            // Retention · Offers
+            ['retention', 'Offers', 'can_discount', 'Can I discount [name]?', 1],
+            ['retention', 'Offers', 'what_allowed_offer', 'What am I allowed to offer [name]?', 2],
+            ['retention', 'Offers', 'concession_worth_it', 'Is a concession worth it for [name]?', 3],
+            ['retention', 'Offers', 'downgrade_to_save', 'Downgrade-to-save option for [name]', 4],
+            ['retention', 'Offers', 'give_get_ask', 'What give-get should I ask for?', 5],
+
+            // Retention · Recover & grow
+            ['retention', 'Recover & grow', 'save_rate_revenue', 'What is our save rate and revenue saved?', 1],
+            ['retention', 'Recover & grow', 'lost_to_what', 'What are we actually losing to?', 2],
+            ['retention', 'Recover & grow', 'stabilising_hands_off', 'Who is stabilising — hands off?', 3],
+            ['retention', 'Recover & grow', 'stabilisation_plan_for', 'Stabilisation plan for [name]', 4],
+            ['retention', 'Recover & grow', 'ready_hand_back_sales', 'Who is ready to hand back to Sales?', 5],
+            ['retention', 'Recover & grow', 'send_growth_ready', 'Send growth-ready accounts to Sales', 6],
         ];
 
         $rowsBySlug = collect($rows)->keyBy(fn ($row) => $row[0] . '|' . $row[2]);
-        AgentPredefinedPrompt::where('agent', 'marketing')
+        AgentPredefinedPrompt::whereIn('agent', ['marketing', 'retention'])
             ->get(['id', 'agent', 'slug'])
             ->each(function ($existing) use ($rowsBySlug) {
                 if (!$rowsBySlug->has($existing->agent . '|' . $existing->slug)) {

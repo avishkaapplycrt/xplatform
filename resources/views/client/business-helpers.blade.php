@@ -366,6 +366,8 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 var MARKETING_DB_PROMPTS = @json($marketingPrompts ?? []);
 var SALES_DB_PROMPTS = @json($salesPrompts ?? []);
 var MARKETING_STEPS_DB = @json($marketingSteps ?? []);
+var RETENTION_DB_PROMPTS = @json($retentionPrompts ?? []);
+var RETENTION_STEPS_DB = @json($retentionSteps ?? []);
 
 /* ═══ TASKS — plain English, per helper ═══ */
 var TASKS = {
@@ -701,19 +703,23 @@ var MARKETING_STEP_KEYS = MARKETING_STEPS_DB.map(function(s){ return s.key; });
 var PROMPT_STEP_ORDER = ['prioritise', 'understand', 'craft', 'handle', 'launch'];
 var SALES_STEP_TITLES = ['Prioritise', 'Understand', 'Pitch', 'Overcome', 'Close & grow'];
 
+/* Retention step keys/titles come entirely from the DB (RETENTION_STEPS_DB), same as Marketing. */
+var RETENTION_STEP_KEYS = RETENTION_STEPS_DB.map(function(s){ return s.key; });
 var DASH_FLOW = {
   sl: {label:"Today's call list", steps: SALES_STEP_TITLES.map(function(t){ return {t: t}; })},
-  mk: {label:"Today's campaign list", steps: MARKETING_STEPS_DB.map(function(s){ return {t: s.title}; })}
+  mk: {label:"Today's campaign list", steps: MARKETING_STEPS_DB.map(function(s){ return {t: s.title}; })},
+  ch: {label:"Today's rescue list", steps: RETENTION_STEPS_DB.map(function(s){ return {t: s.title}; })}
 };
 var FLOW_TABS_BY_AGENT = {
   sl: ['today', 'accounts', 'scripts', 'forecast', 'manager'],
-  mk: ['today', 'accounts', 'scripts', 'forecast', 'performance']
+  mk: ['today', 'accounts', 'scripts', 'forecast', 'performance'],
+  ch: ['today', 'accounts', 'scripts', 'forecast', 'manager']
 };
-var DB_PROMPTS_BY_AGENT = { sl: SALES_DB_PROMPTS, mk: MARKETING_DB_PROMPTS };
-var STEP_KEYS_BY_AGENT = { sl: PROMPT_STEP_ORDER, mk: MARKETING_STEP_KEYS };
+var DB_PROMPTS_BY_AGENT = { sl: SALES_DB_PROMPTS, mk: MARKETING_DB_PROMPTS, ch: RETENTION_DB_PROMPTS };
+var STEP_KEYS_BY_AGENT = { sl: PROMPT_STEP_ORDER, mk: MARKETING_STEP_KEYS, ch: RETENTION_STEP_KEYS };
 function topPrimaryName(agent){
   var r = rankedFor(agent);
-  var primaryPlays = agent==='sl' ? ['call'] : ['winback', 'onboarding'];
+  var primaryPlays = agent==='sl' ? ['call'] : agent==='ch' ? ['rescue'] : ['winback', 'onboarding'];
   var primary = r.filter(function(x){ return primaryPlays.indexOf(x.c.play) !== -1; });
   return dashState.lead || (primary[0] && primary[0].a.name) || (r[0] && r[0].a.name) || 'this account';
 }
@@ -833,8 +839,85 @@ function marketingDbAnswer(stepKey, slug, name, account, c){
       return head + '<p>I don\'t have a ready-made answer for that yet — try rephrasing in the chat box below.</p>';
   }
 }
+function retentionDbAnswer(stepKey, slug, name, account, c){
+  var stepIdx = RETENTION_STEP_KEYS.indexOf(stepKey);
+  var stepTitle = DASH_FLOW.ch.steps[stepIdx === -1 ? 0 : stepIdx].t;
+  var head = '<div class="tag">Customer Retention · ' + escapeHtml(stepTitle) + '</div>';
+  var r = rankedFor('ch');
+  var rescue = r.filter(function(x){ return x.c.play === 'rescue'; });
+  var winback = r.filter(function(x){ return x.c.play === 'winback'; });
+  var watch = r.filter(function(x){ return x.c.play === 'nurture'; });
+  var s = account ? account.scores : null;
+
+  switch (slug) {
+    case 'who_save_first_week':
+      return head + '<p>' + (rescue.length ? rescue.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'Nobody is in the rescue tier right now.') + '</p>';
+    case 'renewals_in_danger':
+      return head + '<p>No renewal-date field is synced yet, so this ranks by churn risk instead: ' + (rescue.length ? rescue.map(function(x){ return escapeHtml(x.a.name)+' (churn '+x.a.scores.churn+')'; }).join(', ') : 'nobody at high churn right now') + '.</p>';
+    case 'payment_failures_today':
+      return head + '<p>No payment-failure signal is synced from the connected data yet — this will populate once billing/CRM failed-payment events are wired in.</p>';
+    case 'drifting_watchlist':
+      return head + '<p>' + (watch.length ? watch.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — churn '+x.a.scores.churn+', creeping up.'; }).join('</p><p>') : 'Nobody is drifting onto the watchlist right now.') + '</p>';
+    case 'value_at_risk':
+      var atRiskV = rescue.concat(winback).reduce(function(sum,x){ return sum + x.a.mrr; }, 0);
+      return head + '<p><b>'+money(atRiskV)+'/mo</b> at risk across '+(rescue.length+winback.length)+' accounts — '+rescue.length+' urgent rescues, '+winback.length+' gone-quiet win-backs.</p>';
+
+    case 'why_leaving':
+      return head + (c ? '<p><b>'+escapeHtml(name)+'</b> — '+c.why.join(' ')+'</p>' : '<p>Pick an account to see why it\'s ranked where it is.</p>');
+    case 'price_or_product':
+      return head + '<p>' + (s ? (s.frustration >= DTH.fr ? '<b>'+escapeHtml(name)+'</b> looks like a product problem — frustration '+s.frustration+' is the driver, not price. Fix first, don\'t discount.' : '<b>'+escapeHtml(name)+'</b> looks like a value problem, not a broken product — frustration is only '+s.frustration+'. Show them what they\'re getting before touching price.') : 'Select an account first.') + '</p>';
+    case 'top_churn_driver':
+      return head + '<p>Right now: <b>'+rescue.length+'</b> at urgent churn risk, <b>'+winback.length+'</b> gone quiet (dormant), <b>'+watch.length+'</b> drifting upward. '+(rescue.length >= winback.length ? 'Active churn risk is the bigger group — prioritise rescues.' : 'Gone-quiet accounts are the bigger group — prioritise win-backs.')+'</p>';
+    case 'lost_champion':
+      return head + '<p>No champion/contact-departure signal is synced from the CRM yet — this will populate once contact-change events are wired in.</p>';
+    case 'changed_recently':
+      var sig = account && account.l1 ? Object.keys(account.l1).map(function(k){ return escapeHtml(k)+': '+escapeHtml(account.l1[k]); }) : [];
+      return head + '<p><b>'+escapeHtml(name)+'</b> — ' + (sig.length ? sig.join('. ') : 'no recent activity on file.') + '</p>';
+
+    case 'save_plan_call':
+    case 'save_email':
+    case 'whatsapp_checkin':
+      var beats = scriptBeats('ch', account || {scores:{trust:60,frustration:20}, name:name}, c || {play:'rescue'}, 'call');
+      return head + '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+'</div>' + beats.map(function(b){ return '<div class="ss-beat"><div class="ss-beat-l">'+b[0]+'</div>'+b[1]+'</div>'; }).join('') + '</div>';
+    case 'first_48_hours':
+      return head + '<p>Send the written summary of what you found today, do the one thing you promised, then check back in at 48 hours with proof it happened — the save happens between the touches, not on the call itself.</p>';
+    case 'should_escalate':
+      return head + '<p>' + (s && s.churn >= 80 ? '<b>Yes</b> — churn '+s.churn+' and '+money(account.mrr)+'/mo justifies executive time now.' : 'Not yet — run the rescue play first; escalation loses its power if it\'s the opening move.') + '</p>';
+    case 'exec_brief':
+      return head + (c ? '<p><b>EXEC BRIEF — '+escapeHtml(name.toUpperCase())+'</b></p><p>Exposure: '+money(account.mrr)+'/mo. '+c.why.join(' ')+'</p>' : '<p>Select an account first.</p>');
+
+    case 'can_discount':
+    case 'what_allowed_offer':
+      return head + '<p>' + (s && s.frustration >= DTH.fr ? '<b>No</b> — this is product pain. Fix the problem first; a discount just tells them the broken thing is fine.' : '<b>Yes, carefully</b> — trust is '+(s?s.trust:'—')+'. A time-boxed concession is safe here as long as it trades for something (a testimonial, a referral, an annual commitment).') + '</p>';
+    case 'concession_worth_it':
+      var annual = account ? account.mrr * 12 : 0;
+      var expectedLoss = account ? Math.round(annual * (s.churn/100)) : 0;
+      return head + '<p>' + (account ? 'Expected loss if unsaved ≈ <b>'+money(expectedLoss)+'</b> ('+money(annual)+' annual × churn '+s.churn+'%). A modest concession is worth it if it\'s well under that number.' : 'Select an account first.') + '</p>';
+    case 'downgrade_to_save':
+      return head + '<p>' + (account ? 'Right-sizing to what '+escapeHtml(name)+' actually uses beats losing them outright — keeping roughly '+money(Math.round(account.mrr*0.6))+'/mo beats losing '+money(account.mrr)+'/mo.' : 'Select an account first.') + '</p>';
+    case 'give_get_ask':
+      return head + '<p>Give-gets that fit a save: an annual commitment, a public case study, a reference call, or a referral. No concession should leave the room without one — otherwise the account learns that asking loudly works.</p>';
+
+    case 'save_rate_revenue':
+      return head + '<p>Outcome logging isn\'t wired up yet for Retention, so save rate and revenue-saved can\'t be computed — that will populate once rescue outcomes start being recorded.</p>';
+    case 'lost_to_what':
+      return head + '<p>No lost-account reasons are logged yet — record an outcome after each rescue attempt and this will start showing the real pattern.</p>';
+    case 'stabilising_hands_off':
+      return head + '<p>Nobody is in a tracked stabilisation window yet — that starts once a save is logged.</p>';
+    case 'stabilisation_plan_for':
+      return head + '<p>' + (account ? escapeHtml(name)+' isn\'t in a stabilisation window yet — that starts after a save is logged for them.' : 'Select an account first.') + '</p>';
+    case 'ready_hand_back_sales':
+      return head + '<p>Nobody is growth-ready yet — accounts get handed back to Sales once they\'ve been saved and stabilised. None have been logged as saved so far.</p>';
+    case 'send_growth_ready':
+      return head + '<p>Nothing to export yet — growth-ready accounts appear here once rescues are saved and stabilised.</p>';
+
+    default:
+      return head + '<p>I don\'t have a ready-made answer for that yet — try rephrasing in the chat box below.</p>';
+  }
+}
 function dashPromptAnswer(agent, stepKey, promptKey, name, account, c){
   if (agent === 'mk') return marketingDbAnswer(stepKey, promptKey, name, account, c);
+  if (agent === 'ch') return retentionDbAnswer(stepKey, promptKey, name, account, c);
 
   var r = rankedFor(agent);
   var isSl = agent === 'sl';
@@ -942,7 +1025,7 @@ function setAgent(key) {
     root.setAttribute('data-agent', key);
     renderAgentTabs();
 
-    var isDash = (key === 'mk' || key === 'sl');
+    var isDash = (key === 'mk' || key === 'sl' || key === 'ch');
     document.getElementById('bhClassic').style.display = isDash ? 'none' : 'grid';
     document.getElementById('bhDash').classList.toggle('on', isDash);
 
@@ -1018,7 +1101,26 @@ function classifyMarketing(a){
   }
   return {play:play, priority:Math.round(prio), why:why};
 }
-function classifyFor(agent, a){ return agent==='sl' ? classifySales(a) : classifyMarketing(a); }
+/* ── RETENTION classifier: who's about to leave, and what to do ── */
+function classifyRetention(a){
+  var s = a.scores, why = [], play='none', prio=0;
+  if (s.churn >= 65 || a.seg==='at_risk'){
+    play='rescue'; prio = s.churn*0.7 + (a.mrr||0)/50;
+    why.push('Churn risk '+s.churn+' on '+money(a.mrr)+'/mo — frustration '+s.frustration+', trust '+s.trust+'.');
+    if (s.frustration>=DTH.fr) why.push('Frustration is high — something is broken for them. Fix that first, don\'t offer a discount.');
+    else why.push('Frustration is low but they\'re still at risk — they\'ve stopped seeing the value. Show it, don\'t discount it.');
+  } else if (a.seg==='dormant'){
+    play='winback'; prio = (100-s.engagement)*0.5 + s.trust*0.3;
+    why.push('Gone quiet (engagement '+s.engagement+') but trust is still '+s.trust+' — worth a win-back touch before they fully churn.');
+  } else if (s.churn>=40){
+    play='nurture'; prio = s.churn*0.5;
+    why.push('Churn is creeping up ('+s.churn+') — not urgent yet, but worth a check-in before it grows.');
+  } else {
+    why.push('Healthy — churn only '+s.churn+', no action needed right now.');
+  }
+  return {play:play, priority:Math.round(prio), why:why};
+}
+function classifyFor(agent, a){ return agent==='sl' ? classifySales(a) : agent==='ch' ? classifyRetention(a) : classifyMarketing(a); }
 function rankedFor(agent){
   return ACCOUNTS.map(function(a){ return {a:a, c:classifyFor(agent,a)}; })
     .sort(function(x,y){ return y.c.priority - x.c.priority; });
@@ -1034,10 +1136,13 @@ var AGENT_TABS = {
   ],
   mk: FLOW_TABS_BY_AGENT.mk.map(function(viewKey, i){
     return {k: viewKey, label: (MARKETING_STEPS_DB[i] && MARKETING_STEPS_DB[i].title) || MARKETING_STEP_KEYS[i]};
-  }).concat([{k:'manager', label:'Manager'}])
+  }).concat([{k:'manager', label:'Manager'}]),
+  ch: ['today', 'accounts', 'scripts', 'forecast', 'manager'].map(function(viewKey, i){
+    return {k: viewKey, label: (RETENTION_STEPS_DB[i] && RETENTION_STEPS_DB[i].title) || RETENTION_STEP_KEYS[i]};
+  })
 };
-var PLAY_LABEL = {call:'Call', upsell:'Upsell', hold:'Hold', nurture:'Nurture', winback:'Win-back', onboarding:'Onboarding', referral:'Referral', none:'—'};
-var PLAY_BTN = {call:'Call now', upsell:'Call now', winback:'Launch →', onboarding:'Launch →', referral:'Launch →', nurture:'Queue touch', hold:'Hand to Retention'};
+var PLAY_LABEL = {call:'Call', upsell:'Upsell', hold:'Hold', nurture:'Nurture', winback:'Win-back', onboarding:'Onboarding', referral:'Referral', rescue:'Rescue', none:'—'};
+var PLAY_BTN = {call:'Call now', upsell:'Call now', winback:'Launch →', onboarding:'Launch →', referral:'Launch →', nurture:'Queue touch', hold:'Hand to Retention', rescue:'Rescue now'};
 
 function initDash(agent){
   dashState.agent = agent;
@@ -1069,7 +1174,8 @@ function showDashView(v){
 }
 var STACK_INTRO = {
   sl: {h:'RANKED STACK — WHO, IN ORDER', p:'Sorted by <b>readiness × intent</b>, trust-adjusted, then <b>time</b> (deadlines, callbacks due), <b>contact memory</b> (a cool-off after a touch) and <b>contact rules</b> (hours, do-not-call). Click any score to see what moved it — log the outcome after each call and I\'ll re-rank for tomorrow.'},
-  mk: {h:'RANKED STACK — WHICH PLAY, FIRST', p:'Sorted by <b>segment fit × trust</b>, then <b>how long they\'ve been quiet or stalled</b> and <b>contact memory</b> (no back-to-back touches on the same account). Click any score to see what moved it — log the send and I\'ll re-rank tomorrow\'s list.'}
+  mk: {h:'RANKED STACK — WHICH PLAY, FIRST', p:'Sorted by <b>segment fit × trust</b>, then <b>how long they\'ve been quiet or stalled</b> and <b>contact memory</b> (no back-to-back touches on the same account). Click any score to see what moved it — log the send and I\'ll re-rank tomorrow\'s list.'},
+  ch: {h:'RANKED STACK — WHO TO SAVE, IN ORDER', p:'Sorted by <b>churn risk × value at stake</b>, then how long they\'ve been going quiet and how frustrated they are. Click any score to see what moved it — log the rescue after each save attempt and I\'ll re-rank for tomorrow.'}
 };
 function metaLine(a, c){
   var bits = [money(a.mrr)+' MRR', 'Priority '+c.priority];
@@ -1082,8 +1188,8 @@ function metaLine(a, c){
 function renderTodayStack(){
   var agent = dashState.agent;
   var r = rankedFor(agent);
-  var primaryPlays = agent==='sl' ? ['call'] : ['winback','onboarding'];
-  var secondaryPlays = agent==='sl' ? ['upsell'] : ['referral'];
+  var primaryPlays = agent==='sl' ? ['call'] : agent==='ch' ? ['rescue'] : ['winback','onboarding'];
+  var secondaryPlays = agent==='sl' ? ['upsell'] : agent==='ch' ? ['winback'] : ['referral'];
   var primary = r.filter(function(x){ return primaryPlays.indexOf(x.c.play)!==-1; });
   var secondary = r.filter(function(x){ return secondaryPlays.indexOf(x.c.play)!==-1; });
   var shown = primary.slice(0, 2);
@@ -1107,16 +1213,16 @@ function renderTodayStack(){
       '</div></div>'+
       '<div class="stk-why">'+c.why.join(' ')+'</div>'+
       '<div class="stk-actions">'+
-        '<button type="button" class="stkbtn" onclick="openScriptFor(\''+nameAttr(a.name)+'\')">'+(agent==='sl'?'Script →':'Copy →')+'</button>'+
+        '<button type="button" class="stkbtn" onclick="openScriptFor(\''+nameAttr(a.name)+'\')">'+((agent==='sl'||agent==='ch')?'Script →':'Copy →')+'</button>'+
         (logged?'':'<button type="button" class="stkbtn ghost" onclick="logOutcome(\''+nameAttr(a.name)+'\')">Log outcome</button>')+
       '</div></div>';
   }
   var intro = STACK_INTRO[agent];
   var html = '<div class="stack-intro"><div class="si-h">'+intro.h+'</div><div class="si-p">'+intro.p+'</div></div>';
-  html += '<div class="sectionh">'+(agent==='sl'?"TODAY'S CONTACT STACK":"TODAY'S CAMPAIGN STACK")+'<span>'+shown.length+' of '+primary.length+' shown</span></div>';
+  html += '<div class="sectionh">'+(agent==='sl'?"TODAY'S CONTACT STACK":agent==='ch'?"TODAY'S RESCUE STACK":"TODAY'S CAMPAIGN STACK")+'<span>'+shown.length+' of '+primary.length+' shown</span></div>';
   html += shown.length ? shown.map(row).join('') : '<div style="padding:20px;color:var(--g3);font-size:12.5px">Nothing urgent right now — check Accounts for the full list.</div>';
-  if (secondary.length){ html += '<div class="sectionh">'+(agent==='sl'?'UPSELL — READY TO EXPAND':'REFERRAL — ASK FOR ONE NAME')+'</div>' + secondary.map(row).join(''); }
-  if (nurture.length){ html += '<div class="sectionh warn">NURTURE — NOT READY YET</div>' + nurture.map(row).join(''); }
+  if (secondary.length){ html += '<div class="sectionh">'+(agent==='sl'?'UPSELL — READY TO EXPAND':agent==='ch'?'WIN-BACK — GONE QUIET, STILL WINNABLE':'REFERRAL — ASK FOR ONE NAME')+'</div>' + secondary.map(row).join(''); }
+  if (nurture.length){ html += '<div class="sectionh warn">'+(agent==='ch'?'WATCH — CHURN CREEPING UP':'NURTURE — NOT READY YET')+'</div>' + nurture.map(row).join(''); }
   if (hold.length){ html += '<div class="sectionh bad">HOLD — ROUTE TO RETENTION</div>' + hold.map(row).join(''); }
   return html;
 }
@@ -1145,7 +1251,7 @@ function selectScriptAccount(name, chan){
   scriptAcct = name; scriptChan = chan || 'call';
   document.querySelectorAll('.ss-item').forEach(function(el){ el.classList.toggle('on', el.getAttribute('data-name')===name); });
   var agent = dashState.agent;
-  var chans = agent==='sl' ? ['call','email','linkedin'] : ['email','sms','ad'];
+  var chans = agent==='sl' ? ['call','email','linkedin'] : agent==='ch' ? ['call','email','sms'] : ['email','sms','ad'];
   var a = ACCOUNTS.filter(function(x){ return x.name===name; })[0];
   var c = classifyFor(agent, a);
   var chanBtns = chans.map(function(ch){ return '<button type="button" class="'+(ch===scriptChan?'on':'')+'" onclick="selectScriptAccount(\''+nameAttr(name)+'\',\''+ch+'\')">'+ch+'</button>'; }).join('');
@@ -1174,6 +1280,12 @@ function scriptBeats(agent, a, c, chan){
       ['DIRECT ASK','<em>"Given where you\'re at, the bigger plan pays for itself. Want me to set it up?"</em>']
     ];
   }
+  if (c.play==='rescue') return [
+    ['DIAGNOSE FIRST', s.frustration>=DTH.fr ? '<em>Frustration is high — something is broken for them. Find and fix it before you call.</em>' : '<em>Frustration is low but they\'re still leaving — they\'ve stopped seeing the value. Show it, don\'t discount it.</em>'],
+    ['THE CALL','<em>"I wanted to check in personally — is everything working the way it should be for you?"</em>'],
+    ['NO DISCOUNT YET','Fix the problem or show the value first. Offering money off before that tells them the broken thing is fine.'],
+    ['FOLLOW-UP','A 30-day check-in to confirm it actually stuck.']
+  ];
   if (c.play==='winback') return [
     ['SUBJECT','<em>"Here\'s what\'s new since you\'ve been away"</em>'],
     ['BODY','No apology, no discount yet — lead with momentum. Show one thing their own account found while they were gone.'],
@@ -1209,6 +1321,20 @@ function renderForecast(){
       '<div class="fc-row fc-tot"><span>Weighted total</span><span>'+money(upW)+' <small>of '+money(upV)+'</small></span></div></div>'+
       '</div>';
   }
+  if (agent==='ch'){
+    var resc = r.filter(function(x){return x.c.play==='rescue';});
+    var chWb = r.filter(function(x){return x.c.play==='winback';});
+    var rescV = resc.reduce(function(s,x){return s+x.a.mrr;},0);
+    var chWbV = chWb.reduce(function(s,x){return s+x.a.mrr;},0);
+    return '<div class="fc-grid">'+
+      '<div class="fc-cell"><div class="fc-h">VALUE AT RISK THIS WEEK</div>'+
+      resc.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
+      '<div class="fc-row fc-tot"><span>Total</span><span>'+money(rescV)+'</span></div></div>'+
+      '<div class="fc-cell"><div class="fc-h">WIN-BACK VALUE IN PLAY</div>'+
+      chWb.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
+      '<div class="fc-row fc-tot"><span>Total</span><span>'+money(chWbV)+'</span></div></div>'+
+      '</div>';
+  }
   var wb = r.filter(function(x){return x.c.play==='winback';});
   var ob = r.filter(function(x){return x.c.play==='onboarding';});
   var wbV = wb.reduce(function(s,x){return s+x.a.mrr;},0);
@@ -1226,11 +1352,11 @@ function renderManager(){
   var agent = dashState.agent;
   var r = rankedFor(agent);
   var loggedCount = Object.keys(dashDone).filter(function(k){return k.indexOf(agent+':')===0;}).length;
-  var active = r.filter(function(x){ return ['call','upsell','winback','onboarding','referral'].indexOf(x.c.play)!==-1; });
+  var active = r.filter(function(x){ return ['call','upsell','winback','onboarding','referral','rescue'].indexOf(x.c.play)!==-1; });
   return '<div class="mg-grid">'+
     '<div class="mg-cell"><div class="mg-h">STACK ADHERENCE TODAY</div>'+
     '<div class="mg-kpi">'+loggedCount+' <small>of '+active.length+' actioned</small></div>'+
-    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Every "'+(agent==='sl'?'Call now':'Launch')+'" pressed on Today\'s Stack counts here — it\'s how you tell whether the stack is actually being worked.</div></div>'+
+    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Every "'+(agent==='sl'?'Call now':agent==='ch'?'Rescue now':'Launch')+'" pressed on Today\'s Stack counts here — it\'s how you tell whether the stack is actually being worked.</div></div>'+
     '<div class="mg-cell"><div class="mg-h">VALUE IN THE STACK</div>'+
     '<div class="mg-kpi">'+money(active.reduce(function(s,x){return s+x.a.mrr;},0))+'</div>'+
     '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Total MRR represented by accounts currently ranked as an active play.</div></div>'+

@@ -252,6 +252,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
         $marketingPrompts = $groupPrompts('marketing');
         $salesPrompts = $groupPrompts('sales');
+        $retentionPrompts = $groupPrompts('retention');
 
         // One row per distinct step_title per agent, in the order the step first appears —
         // this is what drives the step names/order shown in the UI (left step list + top
@@ -267,6 +268,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             ]);
 
         $marketingSteps = $stepsFor('marketing');
+        $retentionSteps = $stepsFor('retention');
 
         // The Today's Stack / Accounts / Forecast views used to run on a fixed
         // set of fictional companies (Kite Travel, Trellis Insurance, etc.).
@@ -350,7 +352,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             ->values();
 
         return view('client.business-helpers', compact(
-            'marketingPrompts', 'salesPrompts', 'marketingSteps', 'realAccounts'
+            'marketingPrompts', 'salesPrompts', 'marketingSteps', 'realAccounts',
+            'retentionPrompts', 'retentionSteps'
         ));
     })->name('business-helpers');
 
