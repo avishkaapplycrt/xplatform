@@ -714,7 +714,7 @@ function dashPromptClick(stepKey, promptKey, label){
   dashPushMsg('user', escapeHtml(label));
   var agent = dashState.agent;
   var name = topPrimaryName(agent);
-  var account = accountsFor(agent).filter(function(x){ return x.name === name; })[0];
+  var account = ACCOUNTS.filter(function(x){ return x.name === name; })[0];
   var c = account ? classifyFor(agent, account) : null;
   dashPushMsg('bot', dashPromptAnswer(agent, stepKey, promptKey, name, account, c));
 }
@@ -1016,11 +1016,6 @@ function setAgent(key) {
 // (and real Brevo delivery signal for trust/frustration) — see the
 // business-helpers route in routes/web.php. No fictional companies.
 var ACCOUNTS = @json($realAccounts ?? []);
-/* Sales reads from a different dataset than Marketing/Retention — sourced
-   from sales_customer_intelligence, not re-derived from live CRM+Brevo
-   joins. See classifySales() and accountsFor() below. */
-var SALES_ACCOUNTS = @json($salesAccounts ?? []);
-function accountsFor(agent){ return agent==='sl' ? SALES_ACCOUNTS : ACCOUNTS; }
 var DTH = {trust:65, ready:65, intent:55, up:55, fr:40, churn:60};
 var SEG_LABEL = {champion:"Champion",loyal:"Loyal",at_risk:"At risk",dormant:"Dormant","new":"New"};
 var SEG_COLOR = {champion:"#0e7a35",loyal:"#1d4ed8",at_risk:"#b42332",dormant:"#9a6700","new":"#6d28d9"};
@@ -1030,26 +1025,28 @@ var dashDone = {}; /* per-account logged outcomes, session only */
 function money(n){ return '$' + (n||0).toLocaleString(); }
 
 /* ── SALES classifier: who to call, and why ── */
-/* Sales' play/priority/why come straight from sales_customer_intelligence
-   (crm_score, buying_intent_score, sales_priority_score, priority_level,
-   recommended_action) rather than being re-derived from raw behavioral
-   scores — that table is already the single source of truth for Sales. */
 function classifySales(a){
-  var play;
-  if (a.current_deal_stage && a.current_deal_stage !== 'closedwon'){
-    play = 'call'; // an open deal in progress — who to actively work today
-  } else if (a.priority_level === 'high'){
-    play = 'upsell'; // no open deal (won or none) but still high-signal — grow the relationship
-  } else if (a.priority_level === 'medium'){
-    play = 'nurture';
+  var s = a.scores, why = [], play='none', prio=0;
+  if (a.seg==='at_risk' || s.churn > DTH.churn){
+    play='hold'; why.push('Churn '+s.churn+' — this account belongs to Retention right now, not a sales call.');
+  } else if ((a.seg==='champion'||a.seg==='loyal') && s.buying_readiness>DTH.up && s.trust>=DTH.trust && s.frustration<DTH.fr){
+    play='upsell'; prio = Math.round(s.buying_readiness*0.7 + s.trust*0.3);
+    why.push('Upsell-qualified: readiness '+s.buying_readiness+' with trust '+s.trust+' and frustration only '+s.frustration+'.');
+  } else if (s.buying_readiness>=DTH.ready && s.intent>=DTH.intent){
+    play='call'; prio = Math.round(s.buying_readiness*0.6 + s.intent*0.4);
+    why.push('In the buying window: readiness '+s.buying_readiness+' × intent '+s.intent+'.');
+    var gap = s.buying_readiness - s.trust;
+    if (gap>=25) why.push('Trust is '+gap+' points behind readiness — they believe the problem is real, not yet that you\'re the fix.');
+    else if (s.trust<DTH.trust) why.push('Trust is close behind readiness here — a direct ask lands better than another proof point. Skip the case study.');
+    else why.push('Trust '+s.trust+' is high — skip the warm-up, ask directly.');
+    if (a.event_days!=null){ prio += Math.round((30-a.event_days)/2); }
+  } else if (s.buying_readiness>=45 || s.intent>=DTH.intent){
+    play='nurture'; prio=(s.buying_readiness+s.intent)/4;
+    why.push('Warming, not ready yet: readiness '+s.buying_readiness+', intent '+s.intent+'. One useful touch, no ask.');
   } else {
-    play = 'none';
+    why.push('No buying signal yet (readiness '+s.buying_readiness+', intent '+s.intent+').');
   }
-  return {
-    play: play,
-    priority: Math.round(a.priority_score || 0),
-    why: [a.recommended_action || 'No recommendation available yet — run a sync to populate sales_customer_intelligence.']
-  };
+  return {play:play, priority:Math.round(prio), why:why};
 }
 /* ── MARKETING classifier: which campaign play fits this account ── */
 function classifyMarketing(a){
@@ -1094,7 +1091,7 @@ function classifyRetention(a){
 }
 function classifyFor(agent, a){ return agent==='sl' ? classifySales(a) : agent==='ch' ? classifyRetention(a) : classifyMarketing(a); }
 function rankedFor(agent){
-  return accountsFor(agent).map(function(a){ return {a:a, c:classifyFor(agent,a)}; })
+  return ACCOUNTS.map(function(a){ return {a:a, c:classifyFor(agent,a)}; })
     .sort(function(x,y){ return y.c.priority - x.c.priority; });
 }
 
@@ -1223,7 +1220,7 @@ function selectScriptAccount(name, chan){
   document.querySelectorAll('.ss-item').forEach(function(el){ el.classList.toggle('on', el.getAttribute('data-name')===name); });
   var agent = dashState.agent;
   var chans = agent==='sl' ? ['call','email','linkedin'] : agent==='ch' ? ['call','email','sms'] : ['email','sms','ad'];
-  var a = accountsFor(agent).filter(function(x){ return x.name===name; })[0];
+  var a = ACCOUNTS.filter(function(x){ return x.name===name; })[0];
   var c = classifyFor(agent, a);
   var chanBtns = chans.map(function(ch){ return '<button type="button" class="'+(ch===scriptChan?'on':'')+'" onclick="selectScriptAccount(\''+nameAttr(name)+'\',\''+ch+'\')">'+ch+'</button>'; }).join('');
   var beats = scriptBeats(agent, a, c, scriptChan);

@@ -289,14 +289,12 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             ->get()
             ->keyBy(fn ($r) => strtolower($r->email));
 
-        $segmentClassifier = app(\App\Services\Ml\SegmentClassifierService::class);
-
         $realAccounts = \App\Models\CrmContact::whereNotNull('company')
             ->orderByDesc('last_activity_at')
             ->get()
             ->unique('company')
             ->take(14)
-            ->map(function ($contact) use ($deals, $brevoByEmail, $stageReadiness, $segmentClassifier) {
+            ->map(function ($contact) use ($deals, $brevoByEmail, $stageReadiness) {
                 $deal = $deals->first(fn ($d) => str_starts_with((string) $d->name, (string) $contact->company));
 
                 $daysAgo = $contact->last_activity_at
@@ -308,11 +306,23 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
                 $intent = (int) round($buyingReadiness * 0.55 + $engagement * 0.45);
                 $won = $deal && $deal->status === 'won';
 
-                // Churn and loyalty have to be computed independently of segment —
-                // segment itself is now a *prediction* made from these features by
-                // the trained classifier, not a hand-picked bucket they're derived
-                // from (that would be circular).
-                $churn = max(5, min(95, (int) round((100 - $engagement) * 0.7 + min(30, $daysAgo * 0.2))));
+                if ($daysAgo > 90 && $deal) {
+                    $seg = 'at_risk';
+                } elseif ($won && $daysAgo <= 45) {
+                    $seg = 'champion';
+                } elseif ($won) {
+                    $seg = 'loyal';
+                } elseif ($daysAgo > 60) {
+                    $seg = 'dormant';
+                } else {
+                    $seg = 'new';
+                }
+
+                $churn = match (true) {
+                    $seg === 'at_risk' => min(95, 70 + max(0, $daysAgo - 90)),
+                    $seg === 'dormant' => 55,
+                    default => max(10, min(50, (int) round((100 - $engagement) * 0.5))),
+                };
                 $loyalty = $won ? 85 : ($engagement > 60 ? 60 : 40);
 
                 $brevo = $brevoByEmail->get(strtolower((string) $contact->email));
@@ -320,23 +330,6 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
                     ? ($brevo->unsubscribed_at ? 25 : ($brevo->opened_at ? 80 : 60))
                     : 55;
                 $frustration = $brevo && $brevo->unsubscribed_at ? 72 : 15;
-
-                $scores = [
-                    'intent' => $intent,
-                    'engagement' => $engagement,
-                    'buying_readiness' => $buyingReadiness,
-                    'churn' => $churn,
-                    'loyalty' => $loyalty,
-                    'trust' => $trust,
-                    'frustration' => $frustration,
-                ];
-
-                // Segment is predicted by the k-NN classifier trained on labeled
-                // behavioral_profiles data (see ml:train-segment-classifier),
-                // not a hardcoded if/else guess.
-                $seg = $segmentClassifier->isTrained()
-                    ? $segmentClassifier->predict($scores)
-                    : ($won ? 'loyal' : 'new'); // untrained fallback — should not happen once seeded
 
                 $name = trim($contact->first_name . ' ' . $contact->last_name);
 
@@ -346,58 +339,22 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
                     'email' => $contact->email,
                     'seg' => $seg,
                     'mrr' => $deal ? (int) round($deal->value) : 800,
-                    'scores' => $scores,
-                ];
-            })
-            ->values();
-
-        // The Sales agent specifically reads from sales_customer_intelligence
-        // rather than re-deriving scores live — that table already combines
-        // crm_deals + crm_contacts + email_logs_providers and is kept current by
-        // CrmConnectionController::syncHubSpot() and the Brevo delivered-
-        // recipients job (see App\Services\SalesCustomerIntelligenceService).
-        $salesAccounts = \App\Models\SalesCustomerIntelligence::orderByDesc('sales_priority_score')
-            ->get()
-            ->map(function ($r) {
-                $name = trim($r->first_name . ' ' . $r->last_name);
-
-                return [
-                    'name' => $name !== '' ? $name : $r->company,
-                    'company' => $r->company,
-                    'email' => $r->email,
-                    'mrr' => (int) round($r->total_deal_value),
-                    'seg' => match (true) {
-                        $r->current_deal_stage === 'closedwon' => 'champion',
-                        $r->deal_count > 0 => 'loyal',
-                        default => 'new',
-                    },
-                    // Kept in the same shape the shared UI (Accounts table
-                    // columns, script studio, forecast) already reads, but
-                    // every number here is sourced from the intelligence
-                    // table, not recomputed. Sales doesn't model churn or
-                    // loyalty separately — that's Retention's job — so those
-                    // two are left at 0 rather than guessed.
                     'scores' => [
-                        'buying_readiness' => (int) round($r->crm_score),
-                        'intent' => (int) round($r->buying_intent_score),
-                        'trust' => (int) round($r->email_engagement_score),
-                        'engagement' => (int) round($r->email_engagement_score),
-                        'churn' => 0,
-                        'loyalty' => 0,
-                        'frustration' => 0,
+                        'intent' => $intent,
+                        'engagement' => $engagement,
+                        'buying_readiness' => $buyingReadiness,
+                        'churn' => $churn,
+                        'loyalty' => $loyalty,
+                        'trust' => $trust,
+                        'frustration' => $frustration,
                     ],
-                    'deal_count' => (int) $r->deal_count,
-                    'current_deal_stage' => $r->current_deal_stage,
-                    'priority_score' => (float) $r->sales_priority_score,
-                    'priority_level' => $r->priority_level,
-                    'recommended_action' => $r->recommended_action,
                 ];
             })
             ->values();
 
         return view('client.business-helpers', compact(
             'marketingPrompts', 'salesPrompts', 'marketingSteps', 'realAccounts',
-            'retentionPrompts', 'retentionSteps', 'salesAccounts'
+            'retentionPrompts', 'retentionSteps'
         ));
     })->name('business-helpers');
 

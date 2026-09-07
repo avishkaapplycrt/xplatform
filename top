@@ -1,0 +1,100 @@
+[33mcommit 08a4d87bb81528066179e5850ad64ecc489f6731[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mIntern[m[33m, [m[1;31morigin/Intern[m[33m)[m
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Mon Sep 7 10:45:09 2026 +0530
+
+    Update changes 3
+
+[33mcommit 00f65e7c679397b7cd82dcb747f8aacb1c011763[m
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Mon Sep 7 15:02:17 2026 +1000
+
+    Created a common sales table
+
+[33mcommit 37d5b508fe74975c1e6e5ea640b14d027990a8a3[m
+Merge: fe2b3aa eb656fa
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Mon Sep 7 11:55:34 2026 +1000
+
+    Merge branch 'Intern' of https://github.com/avishkaapplycrt/xplatform into Intern
+
+[33mcommit eb656fab369b81633beb252b87a46ad100b578ce[m
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Mon Sep 7 07:16:56 2026 +0530
+
+    Update changes 1
+
+[33mcommit fe2b3aa9b64093797088df21b7c62b608ddb0fb9[m
+Merge: 98e235a 647e4b0
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Mon Sep 7 11:39:46 2026 +1000
+
+    Merge branch 'Intern' of https://github.com/avishkaapplycrt/xplatform into Intern
+
+[33mcommit 98e235a88f24362c6ba0d8a8df597cafc50b228d[m
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Mon Sep 7 11:39:08 2026 +1000
+
+    ML Algorithm
+
+[33mcommit 647e4b0d237f91ae9f029524f02f319f62588f86[m
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Mon Sep 7 07:01:56 2026 +0530
+
+    Update changes
+
+[33mcommit 6991aa377c07e8d33cf18180a55ede8b0cad6646[m
+Merge: f65ddb8 1cef9e9
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Tue Sep 1 17:54:28 2026 +1000
+
+    Merge Intern branch, resolve conflicts
+
+[33mcommit f65ddb801a5c4a03545ac96cb2a99309c47305ab[m
+Merge: 58e87b2 a472d4a
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Tue Sep 1 17:43:59 2026 +1000
+
+    agents with actual data
+
+[33mcommit 1cef9e9c32b63066877c3111129e644de102a3b5[m
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Tue Sep 1 13:13:00 2026 +0530
+
+    Kasun's changes 2
+
+[33mcommit 58e87b2b0e33be686e07b5f9aff05f230c59c933[m
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Tue Sep 1 17:06:59 2026 +1000
+
+    agents with actual data
+
+[33mcommit a472d4a2680404e7eb9aff67b2e81b619b5b6293[m
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Tue Sep 1 12:20:12 2026 +0530
+
+    Kasun's changes 1
+
+[33mcommit f65ae8a35838a84ef8b79ac70e0e725505b7d6cc[m
+Merge: 31050e9 763cf5b
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Tue Sep 1 13:53:22 2026 +1000
+
+    Merge remote-tracking branch 'origin/Intern' into Intern
+
+[33mcommit 31050e92b161fb60d0128b61976acd45e3ed41e6[m
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Tue Sep 1 13:52:56 2026 +1000
+
+    My changes
+
+[33mcommit 763cf5b1b2e665412ab30d7da105fe6bcc07b449[m
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Tue Sep 1 09:14:08 2026 +0530
+
+    Kasun's changes
+
+[33mcommit 8761ad7955cde6a097d436dc8a0714244e284631[m[33m ([m[1;32mmaster[m[33m)[m
+Author: avishkaapplycrt <avishkaapplycart@gmail.com>
+Date:   Tue Aug 25 17:18:36 2026 +1000
+
+    release/current_changes 20260825

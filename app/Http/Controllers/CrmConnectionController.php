@@ -1231,10 +1231,6 @@ class CrmConnectionController extends Controller
             $dealsWarning = $e->getMessage();
         }
 
-        // Keep sales_customer_intelligence current — it's what the Sales
-        // agent reads from, not crm_contacts/crm_deals directly.
-        app(\App\Services\SalesCustomerIntelligenceService::class)->rebuild();
-
         return [
             'success' => true,
             'message' => $dealsWarning
