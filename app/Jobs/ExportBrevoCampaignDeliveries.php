@@ -87,6 +87,10 @@ class ExportBrevoCampaignDeliveries implements ShouldQueue
 
         if ($total > 0 && $done >= $total) {
             Cache::forever("brevo_sync_status_{$this->clientId}", 'completed');
+
+            // The whole delivered-recipients batch just finished, not just this
+            // one campaign — rebuild once here rather than after every job.
+            app(\App\Services\SalesCustomerIntelligenceService::class)->rebuild();
         }
     }
 
