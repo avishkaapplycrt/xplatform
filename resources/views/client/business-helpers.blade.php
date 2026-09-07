@@ -420,34 +420,6 @@ sl: [
    {t:"Add a daily digest", d:"A morning summary of everyone whose interest is climbing — your warm list.", w:"Alerts → New rule"},
    {t:"Call fast, then tick it off", d:"Hot leads cool quickly — aim to call within a few hours. Mark each alert handled.", w:"Alerts list"}],
   watch:"Time between the warning and your call — keep it under 4 hours"}
-],
-ch: [
- {n:"Save a customer who's about to leave", w:"When the platform flags someone as high risk",
-  steps:[
-   {t:"Find out WHY they're unhappy", d:"Open their profile. If frustration is high, something's broken for them — fix that first, don't offer discounts. If frustration is low but they're still leaving, they don't see the value — show them what they're getting.", w:"Customer profile → scores"},
-   {t:"See what the platform suggests", d:"Based on similar customers, it recommends the approach most likely to work for this one.", w:"Customer profile → Suggested action"},
-   {t:"Set up the save plan", d:"A simple sequence: fix their problem → personal call → check in after 30 days.", w:"Campaigns → New campaign"},
-   {t:"Start it", d:"Nothing happens until you press go.", w:"Your campaign → Launch"},
-   {t:"Watch them daily", d:"Set a warning so you're told immediately if they get worse mid-rescue.", w:"Alerts → New rule"},
-   {t:"See if it worked", d:"After 30 days check: did they stay? The platform learns from every save — win or lose.", w:"Reports"}],
-  watch:"Their risk score falling week by week — and the renewal going through"},
- {n:"Bring back customers who stopped coming", w:"Old customers are easier to win than new ones",
-  steps:[
-   {t:"Find the winnable ones", d:"Your “gone quiet” list, sorted by win-back chance. Above 70 means roughly 3× the normal odds.", w:"Customers page → “Gone quiet”"},
-   {t:"Build the welcome-back series", d:"Message 1: what's new. Message 2: something their account found while they were away. Message 3: a short personal note from you.", w:"Campaigns → New campaign"},
-   {t:"Add the smart branch", d:"If they open but don't click — send a small offer. If they click — invite them to a quick restart call.", w:"Campaign settings → Rules"},
-   {t:"Switch it on", d:"Messages go out a few days apart automatically.", w:"Your campaign → Launch"},
-   {t:"Catch them coming back", d:"Get told the moment any of them logs in, so you can say hello personally that same day.", w:"Alerts → New rule"},
-   {t:"Count the wins", d:"After a month: how many came back, and what they're now worth.", w:"Reports"}],
-  watch:"How many quiet customers became active again — aim for 3× your usual rate"},
- {n:"Understand why a customer is unhappy", w:"Do this BEFORE trying to fix anything",
-  steps:[
-   {t:"Open their full picture", d:"All their scores in one place — the pattern tells the story.", w:"Customer profile"},
-   {t:"Read the pattern", d:"High frustration = something's broken for them. Low frustration but leaving anyway = they've stopped seeing the value. Both, plus low trust = serious, act today.", w:"Their score pattern"},
-   {t:"Find what's actually breaking", d:"See exactly where on your website or product they keep getting stuck.", w:"Customer profile → Journey view"},
-   {t:"Check the trust level", d:"Low trust: a goodwill gesture or discount genuinely helps. High trust: they don't want money off — they want it fixed.", w:"Customer profile → Trust"},
-   {t:"Get the full rescue plan", d:"The agent writes the whole plan for this customer — press the button below.", w:"Agent panel on the right"}],
-  watch:"Whether your fix matches their real problem — the scores will tell you within days"}
 ]
 };
 
@@ -467,12 +439,9 @@ sl: {name:"Sales", sub:"Know who to call · What to say",
     {label:"Who'll buy more?", q:"Which existing accounts are ready for an upsell?"},
     {label:"Words for my best lead", q:"Write me an outreach script for my highest-readiness account"},
     {label:"Top 5 for this hour", q:"Prioritise my pipeline — who should I contact today and why?"}]},
-ch: {name:"Customer Retention", sub:"Spot who's leaving · Save them",
-  intro:"<p>I spot which customers are about to leave and tell you exactly how to keep them.</p><p><strong>Right now $8,900/month is at risk</strong> across three customers. The biggest one — Meridian Health — isn't leaving over price: something keeps breaking for them. A discount would make it worse. A fix and a phone call will save them.</p><p>Pick a job below, or ask about any customer.</p>",
-  quicks:[
-    {label:"Who's about to leave?", q:"Triage my at-risk accounts — what do I do about each one this week?"},
-    {label:"Win back quiet ones", q:"Build a win-back plan for my dormant accounts"},
-    {label:"Why is Meridian unhappy?", q:"Why is Meridian Health churning and what exactly should I do?"}]}
+/* ch has no classic intro/quicks — Customer Retention always runs in dashboard mode,
+   and its quick prompts come entirely from the agents_pre_defined_prompts table. */
+ch: {name:"Customer Retention"}
 };
 
 /* ═══ PLAYBOOKS — canned rich answers behind the quick-action buttons ═══ */
