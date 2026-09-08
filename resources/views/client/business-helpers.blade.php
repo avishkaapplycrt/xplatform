@@ -452,6 +452,29 @@ var RETENTION_AI_ENDPOINTS = {
   what_allowed_offer: @json(route('client.business-helpers.retention.what-allowed-offer')),
   give_get_ask: @json(route('client.business-helpers.retention.give-get'))
 };
+var MARKETING_AI_ENDPOINTS = {
+  exclude_from_every_send: @json(route('client.business-helpers.marketing.exclude-from-send')),
+  in_live_sales_cycle: @json(route('client.business-helpers.marketing.live-sales-cycle')),
+  proof_or_offer_audience: @json(route('client.business-helpers.marketing.proof-or-offer')),
+  one_lever_mql_sales: @json(route('client.business-helpers.marketing.one-lever')),
+  why_name_here_not_sales: @json(route('client.business-helpers.marketing.why-not-with-sales')),
+  rule_put_people_mql_sales: @json(route('client.business-helpers.marketing.mql-rule')),
+  changed_last_7_days: @json(route('client.business-helpers.marketing.changed-last-7-days')),
+  email_sequence_mql_sales: @json(route('client.business-helpers.marketing.email-sequence')),
+  whatsapp_oneliner_mql_sales: @json(route('client.business-helpers.marketing.whatsapp-oneliner')),
+  sms_optout_mql_sales: @json(route('client.business-helpers.marketing.sms-optout')),
+  discount_or_proof_mql_sales: @json(route('client.business-helpers.marketing.discount-or-proof')),
+  proof_vs_offer_test_mql_sales: @json(route('client.business-helpers.marketing.proof-vs-offer-test')),
+  sample_size_per_arm_mql_sales: @json(route('client.business-helpers.marketing.sample-size-per-arm')),
+  holdout_15_enough_mql_sales: @json(route('client.business-helpers.marketing.holdout-enough')),
+  who_became_mql_since_last_send: @json(route('client.business-helpers.marketing.who-became-mql')),
+  push_week_mqls_to_sales: @json(route('client.business-helpers.marketing.push-mqls-to-sales')),
+  subject_line_test_mql_sales: @json(route('client.business-helpers.marketing.subject-line-test')),
+  when_receive_touch1_mql_sales: @json(route('client.business-helpers.marketing.touch1-send-time')),
+  all_test_ideas_mql_sales: @json(route('client.business-helpers.marketing.all-test-ideas')),
+  lift_vs_holdout_mql_sales: @json(route('client.business-helpers.marketing.lift-vs-holdout')),
+  audience_worst_unsub_rate: @json(route('client.business-helpers.marketing.worst-unsub-audience'))
+};
 // Retention prompts that ask about one named customer — the UI collects the
 // name in an input before calling the endpoint (?name=…).
 var RETENTION_AI_NAME_PROMPTS = {
@@ -815,6 +838,9 @@ function dashPromptClick(stepKey, promptKey, label){
     if (RETENTION_AI_NAME_PROMPTS[promptKey]) return dashRetentionNameForm(promptKey, stepKey);
     return dashRetentionAiAnswer(promptKey, stepKey, null);
   }
+  if (agent === 'mk' && MARKETING_AI_ENDPOINTS[promptKey]) {
+    return dashMarketingAiAnswer(promptKey, stepKey, topPrimaryName(agent));
+  }
 
   var name = topPrimaryName(agent);
   var account = ACCOUNTS.filter(function(x){ return x.name === name; })[0];
@@ -877,6 +903,30 @@ function dashRetentionAiAnswer(promptKey, stepKey, name){
       el.innerHTML = tagHtml + '<p>Could not reach the server to compute this — try again in a moment.</p>';
     });
 }
+/* Marketing · Audience questions answered server-side from real
+   crm_contacts/crm_deals data (see MarketingAudienceService), optionally
+   written up by OpenAI. Same expand/collapse pattern as Retention's risk
+   radar, so the marketer can see exactly which accounts back the answer. */
+function dashMarketingAiAnswer(promptKey, stepKey, name){
+  var stepIdx = MARKETING_STEP_KEYS.indexOf(stepKey);
+  var stepTitle = DASH_FLOW.mk.steps[stepIdx === -1 ? 0 : stepIdx].t;
+  var tagHtml = '<div class="tag">Marketing · ' + escapeHtml(stepTitle) + '</div>';
+  var el = dashPushMsg('bot', tagHtml + '<p style="color:var(--g3)">Thinking…</p>');
+
+  var url = MARKETING_AI_ENDPOINTS[promptKey];
+  if (promptKey === 'why_name_here_not_sales') {
+    url += '?name=' + encodeURIComponent(name || '');
+  }
+
+  fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      el.innerHTML = tagHtml + renderRiskAiAnswer(data);
+    })
+    .catch(function(){
+      el.innerHTML = tagHtml + '<p>Could not reach the server to compute this — try again in a moment.</p>';
+    });
+}
 var RISK_DATA_CACHE = {};
 function renderRiskAiAnswer(data){
   var answer = '<p>' + escapeHtml(data.answer || '') + '</p>';
@@ -898,14 +948,15 @@ function renderRiskAiAnswer(data){
   return answer
     + '<button type="button" class="qk" onclick="openRiskModal(\'' + id + '\')">View the ' + rows.length + ' account' + (rows.length === 1 ? '' : 's') + ' behind this →</button>';
 }
-/* Columns rendered in the "accounts behind this" modal, in order. Both the
-   Risk radar shape (unsubscribed / ever_opened / risk_score) and the Root
-   cause shape (deal_status / stage / churn_score) flow through here — only
-   the keys actually present on the rows are shown. */
+/* Columns rendered in the "accounts behind this" modal, in order. Risk
+   radar (unsubscribed / ever_opened / risk_score), Root cause (deal_status /
+   churn_score) and Marketing's shapes (stage / reason) all flow through
+   here — only the keys actually present on the rows are shown. */
 var RISK_COL_LABELS = {
   name: 'Name', company: 'Company', deal_value: 'Deal value', deal_status: 'Deal',
   stage: 'Stage', unsubscribed: 'Unsub?', ever_opened: 'Ever opened?',
-  days_since_activity: 'Days silent', risk_score: 'Risk', churn_score: 'Churn'
+  days_since_activity: 'Days silent', risk_score: 'Risk', churn_score: 'Churn',
+  reason: 'Why'
 };
 function openRiskModal(id){
   var rows = RISK_DATA_CACHE[id];
@@ -953,68 +1004,50 @@ function marketingDbAnswer(stepKey, slug, name, account, c){
       return head + '<p>' + (expansionReady.length ? '<strong>Upsell-ready:</strong></p><p>'+expansionReady.map(function(x){ return escapeHtml(x.a.name)+' (loyalty '+x.a.scores.loyalty+', readiness '+x.a.scores.buying_readiness+')'; }).join(', ') : 'No one currently clears the loyalty + readiness bar for an upsell offer.') + '</p>';
     case 'who_would_refer_us':
       return head + '<p>' + (referral.length ? referral.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'No one has crossed the loyalty bar for a referral ask yet.') + '</p>';
-    case 'exclude_from_every_send':
-      return head + '<p>' + (hold.length ? '<strong>Exclude from every send — at-risk, Retention\'s to work:</strong></p><p>'+hold.map(function(x){ return escapeHtml(x.a.name); }).join(', ') : 'Nobody needs excluding right now — no at-risk accounts in the pool.') + '</p>';
-    case 'in_live_sales_cycle':
-      return head + '<p>' + (mqlReady.length ? '<strong>Already in a live sales cycle — leave them alone:</strong></p><p>'+mqlReady.map(function(x){ return escapeHtml(x.a.name)+' (readiness '+x.a.scores.buying_readiness+')'; }).join(', ') : 'No one is currently in a live sales cycle.') + '</p>';
+    /* exclude_from_every_send and in_live_sales_cycle are answered before
+       this function runs — see MARKETING_AI_ENDPOINTS / dashMarketingAiAnswer,
+       backed by real crm_contacts + crm_deals data (MarketingAudienceService). */
 
     case 'top_shared_signal_mql_sales':
       return head + '<p>The strongest shared signal across the current MQL-ready group: pricing/demo page revisits paired with a direct question in chat (data ownership, instalments, SSO). That combination consistently precedes a readiness jump.</p>';
-    case 'proof_or_offer_audience':
-      var avgTrust = mqlReady.length ? Math.round(mqlReady.reduce(function(s,x){return s+x.a.scores.trust;},0)/mqlReady.length) : 0;
-      return head + '<p>' + (mqlReady.length ? (avgTrust < DTH.trust ? '<b>Proof audience</b> — average trust '+avgTrust+' is still below the bar, so lead with evidence, not an offer.' : '<b>Offer audience</b> — average trust '+avgTrust+' is solid, so a time-boxed incentive can safely accelerate the decision.') : 'No accounts are in MQL → Sales right now to judge this by.') + '</p>';
-    case 'one_lever_mql_sales':
-      return head + '<p>The single lever that moves an account fastest: a second touch that lands inside the trust cool-off window with one piece of proof matched to their stated concern.</p>';
-    case 'why_name_here_not_sales':
-      return head + (c ? '<p><b>'+escapeHtml(name)+'</b> — '+c.why.join(' ')+' Still short of the buying readiness ≥ '+DTH.ready+' bar Sales works from.</p>' : '<p>Select an account to see why it\'s here and not with Sales.</p>');
-    case 'rule_put_people_mql_sales':
-      return head + '<p>An account becomes an MQL hand-off once <b>buying readiness ≥ '+DTH.ready+'</b> and it isn\'t flagged at-risk. That\'s the same bar Sales uses for their "call" tier, so nothing gets double-worked.</p>';
-    case 'changed_last_7_days':
-      return head + '<p>' + (mqlReady.length ? '<b>'+escapeHtml(mqlReady[0].a.name)+'</b> crossed the MQL bar most recently (readiness '+mqlReady[0].a.scores.buying_readiness+').' : 'No new accounts crossed the MQL bar this week.') + ' Check Insights weekly — this list moves as scores update.</p>';
 
-    case 'email_sequence_mql_sales':
-      return head + '<p><strong>3-touch email sequence:</strong></p><ol style="margin:4px 0 0 16px"><li>What\'s new / what they\'ve been missing — no ask.</li><li>One proof point matched to their stage.</li><li>A direct, low-risk invitation to talk to Sales.</li></ol>';
-    case 'whatsapp_oneliner_mql_sales':
-      return head + '<p><em>"Hi '+escapeHtml(name)+' 👋 quick one — noticed some activity on your end, happy to help directly here if useful."</em></p>';
-    case 'sms_optout_mql_sales':
-      return head + '<p><em>"'+escapeHtml(name)+': quick update on your account — reply YES for a 2-minute call, or STOP to opt out."</em></p>';
+    /* proof_or_offer_audience, one_lever_mql_sales, why_name_here_not_sales,
+       rule_put_people_mql_sales and changed_last_7_days are answered before
+       this function runs — see MARKETING_AI_ENDPOINTS / dashMarketingAiAnswer,
+       backed by real crm_contacts + crm_deals data (MarketingInsightsService). */
+
+    /* email_sequence_mql_sales, whatsapp_oneliner_mql_sales, sms_optout_mql_sales
+       and discount_or_proof_mql_sales are answered before this function runs —
+       see MARKETING_AI_ENDPOINTS / dashMarketingAiAnswer, backed by real
+       crm_contacts + crm_deals data (MarketingCampaignService). */
     case 'linkedin_dm_post_mql_sales':
       return head + '<p><strong>DM:</strong> <em>"Saw your team has been exploring this — happy to share what similar teams found."</em></p><p><strong>Post angle:</strong> a short case study result, tagged to the same segment this account sits in.</p>';
     case 'ad_social_copy_mql_sales':
       return head + '<p><strong>Ad angle:</strong> lead with the outcome, not the feature — "See results in 30 days" outperforms feature-first copy for this segment by a wide margin.</p>';
-    case 'discount_or_proof_mql_sales':
-      return head + '<p>' + (s && s.trust < DTH.trust ? 'Proof only — trust is the gap here, so a case study or result beats a discount.' : 'A discount is safe to offer — trust is already solid, so a time-boxed incentive can accelerate the decision.') + '</p>';
     case 'rewrite_touch1_brand_voice':
       return head + '<p>Paste touch 1 into the chat box below and I\'ll rewrite it to match your brand voice — plain, direct, no jargon.</p>';
 
-    case 'subject_line_test_mql_sales':
-      return head + '<p><strong>Worth testing:</strong> urgency framing ("your window is closing") vs. curiosity framing ("what changed since you looked") for the MQL → Sales subject line.</p>';
-    case 'proof_vs_offer_test_mql_sales':
-      return head + '<p>' + (s && s.trust < DTH.trust ? 'Test proof first — trust is the gap here, so a case study variant is more likely to move the needle than an offer variant.' : 'Test offer vs. proof head-to-head — trust is high enough that either could win; let the data decide.') + '</p>';
-    case 'sample_size_per_arm_mql_sales':
-      return head + '<p>With '+r.length+' accounts in the current pool, split evenly across arms for a directional read — for a statistically solid result you\'ll want a larger list; treat this pool\'s test as a signal, not a verdict.</p>';
-    case 'when_receive_touch1_mql_sales':
-      return head + '<p>Mid-morning on a weekday consistently outperforms weekend or late-evening sends for this kind of B2B audience — start there and adjust from actual open data.</p>';
-    case 'holdout_15_enough_mql_sales':
-      return head + '<p>15% is workable for a directional read on a pool this size, but a smaller pool means a wider margin of error — treat a borderline result as inconclusive rather than a clear win or loss.</p>';
-    case 'all_test_ideas_mql_sales':
-      return head + '<p><strong>All test ideas for MQL → Sales:</strong></p><ul style="margin:4px 0 0 16px"><li>Subject line: urgency vs. curiosity</li><li>Proof vs. offer as the core argument</li><li>Send time: morning vs. afternoon</li><li>CTA framing: \'talk to sales\' vs. \'see your results\'</li></ul>';
+    /* subject_line_test_mql_sales, proof_vs_offer_test_mql_sales,
+       sample_size_per_arm_mql_sales, when_receive_touch1_mql_sales,
+       holdout_15_enough_mql_sales and all_test_ideas_mql_sales are all
+       answered before this function runs — see MARKETING_AI_ENDPOINTS /
+       dashMarketingAiAnswer, backed by real crm_contacts + crm_deals data
+       (MarketingAbTestService) or email_logs + email_logs_providers data
+       (MarketingEmailTestService). */
 
-    case 'lift_vs_holdout_mql_sales':
-      return head + '<p>Compare the MQL rate inside the campaign group against the holdout group after this send — a lift above the holdout\'s baseline is the campaign\'s real contribution, not just seasonal movement.</p>';
+    /* lift_vs_holdout_mql_sales and audience_worst_unsub_rate are answered
+       before this function runs — see MARKETING_AI_ENDPOINTS /
+       dashMarketingAiAnswer, backed by real crm_contacts + crm_deals joined
+       to email_logs + email_logs_providers (MarketingLiftService). */
     case 'audience_worth_next_dollar':
       return head + '<p>' + (winback.length >= onboarding.length ? 'Win-back has the larger pool right now — put the next budget increment there.' : 'Onboarding has the larger pool right now — put the next budget increment there.') + '</p>';
     case 'expected_return_send_everything_week':
       var wb = winback.reduce(function(s,x){return s+x.a.mrr;},0), ob = onboarding.reduce(function(s,x){return s+x.a.mrr;},0), rf = referral.reduce(function(s,x){return s+x.a.mrr;},0);
       return head + '<p><strong>Value by audience if sent this week:</strong> Win-back '+money(wb)+' · Onboarding '+money(ob)+' · Referral '+money(rf)+'. Win-back and onboarding carry the most near-term return right now.</p>';
-    case 'audience_worst_unsub_rate':
-      var groups = [{k:'winback',l:'Win-back',list:winback},{k:'onboarding',l:'Onboarding',list:onboarding},{k:'referral',l:'Referral',list:referral},{k:'hold',l:'Suppressed',list:hold}].filter(function(g){return g.list.length;});
-      var worst = groups.map(function(g){ return {l:g.l, avgFrustration: Math.round(g.list.reduce(function(s,x){return s+x.a.scores.frustration;},0)/g.list.length)}; }).sort(function(x,y){return y.avgFrustration-x.avgFrustration;})[0];
-      return head + '<p>' + (worst ? '<b>'+worst.l+'</b> has the highest average frustration score ('+worst.avgFrustration+') — the closest real signal we have to unsubscribe risk. Ease off frequency there before the next send.' : 'Not enough audience data yet to compare unsubscribe risk.') + '</p>';
-    case 'who_became_mql_since_last_send':
-      return head + '<p>' + mqlReady.length + ' accounts are currently MQL-ready: ' + (mqlReady.length ? mqlReady.map(function(x){return escapeHtml(x.a.name);}).join(', ') : 'none yet') + '.</p>';
-    case 'push_week_mqls_to_sales':
-      return head + '<p>' + (mqlReady.length ? 'Ready to push: '+mqlReady.map(function(x){return escapeHtml(x.a.name);}).join(', ')+'. Use "Who is in a live sales cycle" on Audience to review before sending.' : 'Nothing is ready to push to Sales yet.') + '</p>';
+    /* who_became_mql_since_last_send and push_week_mqls_to_sales are answered
+       before this function runs — see MARKETING_AI_ENDPOINTS /
+       dashMarketingAiAnswer, backed by real crm_contacts + crm_deals data
+       (MarketingPerformanceService). */
 
     default:
       return head + '<p>I don\'t have a ready-made answer for that yet — try rephrasing in the chat box below.</p>';
