@@ -389,6 +389,20 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return response()->json(app(\App\Services\RetentionRootCauseService::class)->topChurnDriver());
     })->name('business-helpers.retention.top-churn-driver');
 
+    // Customer Retention · Offers AI answers (crm_contacts + crm_deals only —
+    // see App\Services\RetentionOffersService). All take ?name= .
+    Route::get('business-helpers/retention/can-discount', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionOffersService::class)->canDiscount($request->query('name')));
+    })->name('business-helpers.retention.can-discount');
+
+    Route::get('business-helpers/retention/what-allowed-offer', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionOffersService::class)->whatAllowedToOffer($request->query('name')));
+    })->name('business-helpers.retention.what-allowed-offer');
+
+    Route::get('business-helpers/retention/give-get', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionOffersService::class)->giveGetToAskFor($request->query('name')));
+    })->name('business-helpers.retention.give-get');
+
     // Chat Bot
     Route::get('chatbot',        [ChatBotController::class, 'index'])->name('chatbot');
     Route::post('chatbot/send',  [ChatBotController::class, 'send'])->name('chatbot.send');

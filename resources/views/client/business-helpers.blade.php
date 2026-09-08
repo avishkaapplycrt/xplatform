@@ -447,11 +447,17 @@ var RETENTION_AI_ENDPOINTS = {
   drifting_watchlist: @json(route('client.business-helpers.retention.watchlist')),
   why_leaving: @json(route('client.business-helpers.retention.why-leaving')),
   price_or_product: @json(route('client.business-helpers.retention.price-or-product')),
-  top_churn_driver: @json(route('client.business-helpers.retention.top-churn-driver'))
+  top_churn_driver: @json(route('client.business-helpers.retention.top-churn-driver')),
+  can_discount: @json(route('client.business-helpers.retention.can-discount')),
+  what_allowed_offer: @json(route('client.business-helpers.retention.what-allowed-offer')),
+  give_get_ask: @json(route('client.business-helpers.retention.give-get'))
 };
-// Root cause prompts that ask about one named customer — the UI collects the
+// Retention prompts that ask about one named customer — the UI collects the
 // name in an input before calling the endpoint (?name=…).
-var RETENTION_AI_NAME_PROMPTS = { why_leaving: 1, price_or_product: 1 };
+var RETENTION_AI_NAME_PROMPTS = {
+  why_leaving: 1, price_or_product: 1,
+  can_discount: 1, what_allowed_offer: 1, give_get_ask: 1
+};
 var RETENTION_CONTACT_NAMES = @json($retentionContactNames ?? []);
 var RETENTION_STEPS_DB = @json($retentionSteps ?? []);
 
@@ -792,10 +798,11 @@ function renderDashQuicks(){
   var dbStepKey = STEP_KEYS_BY_AGENT[agent][idx];
   var prompts = (DB_PROMPTS_BY_AGENT[agent][dbStepKey] || []).filter(function(p){ return p.is_active; });
   q.innerHTML = prompts.map(function(p){
-    // Root-cause prompts collect the customer name in an input, so their
-    // button keeps the literal [Name] placeholder; every other prompt gets
-    // the current lead name substituted in.
-    var keepPlaceholder = (agent === 'ch' && RETENTION_AI_NAME_PROMPTS[p.slug]);
+    // Retention prompts that collect the customer name in an input keep the
+    // literal [name] placeholder in the button — as does the whole Offers
+    // step, whose questions are standard and must not be personalised.
+    // Every other prompt gets the current lead name substituted in.
+    var keepPlaceholder = (agent === 'ch' && (RETENTION_AI_NAME_PROMPTS[p.slug] || dbStepKey === 'Offers'));
     var label = keepPlaceholder ? p.label : p.label.replace(/\[name\]/i, name);
     return '<button type="button" class="qk" onclick="dashPromptClick(\''+dbStepKey+'\',\''+p.slug+'\',\''+nameAttr(label)+'\')">'+escapeHtml(label)+'</button>';
   }).join('');
