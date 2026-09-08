@@ -450,7 +450,11 @@ var RETENTION_AI_ENDPOINTS = {
   top_churn_driver: @json(route('client.business-helpers.retention.top-churn-driver')),
   can_discount: @json(route('client.business-helpers.retention.can-discount')),
   what_allowed_offer: @json(route('client.business-helpers.retention.what-allowed-offer')),
-  give_get_ask: @json(route('client.business-helpers.retention.give-get'))
+  give_get_ask: @json(route('client.business-helpers.retention.give-get')),
+  save_plan_call: @json(route('client.business-helpers.retention.save-plan')),
+  save_email: @json(route('client.business-helpers.retention.save-email')),
+  whatsapp_checkin: @json(route('client.business-helpers.retention.whatsapp-checkin')),
+  first_48_hours: @json(route('client.business-helpers.retention.first-48-hours'))
 };
 var MARKETING_AI_ENDPOINTS = {
   exclude_from_every_send: @json(route('client.business-helpers.marketing.exclude-from-send')),
@@ -479,7 +483,8 @@ var MARKETING_AI_ENDPOINTS = {
 // name in an input before calling the endpoint (?name=…).
 var RETENTION_AI_NAME_PROMPTS = {
   why_leaving: 1, price_or_product: 1,
-  can_discount: 1, what_allowed_offer: 1, give_get_ask: 1
+  can_discount: 1, what_allowed_offer: 1, give_get_ask: 1,
+  save_plan_call: 1, save_email: 1, whatsapp_checkin: 1, first_48_hours: 1
 };
 var RETENTION_CONTACT_NAMES = @json($retentionContactNames ?? []);
 var RETENTION_STEPS_DB = @json($retentionSteps ?? []);
@@ -929,7 +934,9 @@ function dashMarketingAiAnswer(promptKey, stepKey, name){
 }
 var RISK_DATA_CACHE = {};
 function renderRiskAiAnswer(data){
-  var answer = '<p>' + escapeHtml(data.answer || '') + '</p>';
+  // Keep line breaks — Save-play drafts (email, 48-hour checklist) are
+  // multi-line; every other answer is a single paragraph and unaffected.
+  var answer = '<p>' + escapeHtml(data.answer || '').replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
 
   // Name lookup found nothing — show a few valid names to try.
   if (data.matched === false){
