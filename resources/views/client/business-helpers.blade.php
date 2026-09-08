@@ -393,6 +393,13 @@ var RETENTION_AI_ENDPOINTS = {
   who_save_first_week: @json(route('client.business-helpers.retention.save-first')),
   drifting_watchlist: @json(route('client.business-helpers.retention.watchlist'))
 };
+var SALES_ASK_ENDPOINT = @json(route('client.business-helpers.sales.ask'));
+var SALES_PROMPT_AI_ENDPOINT = @json(route('client.business-helpers.sales.prompt-insight'));
+var SALES_PROMPT_AI_KEYS = [
+  'prioritise:changed_yesterday', 'understand:cares_about', 'craft:email_version',
+  'handle:too_expensive', 'handle:not_right_now', 'handle:use_competitor',
+  'handle:send_info', 'handle:no_budget', 'handle:need_boss'
+];
 var RETENTION_STEPS_DB = @json($retentionSteps ?? []);
 
 /* ═══ TASKS — plain English, per helper ═══ */
@@ -745,9 +752,42 @@ function dashPromptClick(stepKey, promptKey, label){
   }
 
   var name = topPrimaryName(agent);
+
+  if (agent === 'sl' && SALES_PROMPT_AI_KEYS.indexOf(stepKey + ':' + promptKey) !== -1) {
+    return dashSalesPromptAi(stepKey, promptKey, name, label);
+  }
+
   var account = ACCOUNTS.filter(function(x){ return x.name === name; })[0];
   var c = account ? classifyFor(agent, account) : null;
   dashPushMsg('bot', dashPromptAnswer(agent, stepKey, promptKey, name, account, c));
+}
+/* Sales predefined-prompt questions that need real crm_contacts/crm_deals/
+   crm_integrations/email_logs_providers row detail rather than the
+   precomputed scores dashPromptAnswer() uses for every other prompt — see
+   App\Services\Llm\SalesPromptInsightsService. Same idea as
+   dashRetentionAiAnswer() above, applied to Sales's weaker prompts. */
+function dashSalesPromptAi(stepKey, promptKey, name, label){
+  var stepIdx = PROMPT_STEP_ORDER.indexOf(stepKey);
+  var stepTitle = DASH_FLOW.sl.steps[stepIdx === -1 ? 0 : stepIdx].t;
+  var tagHtml = '<div class="tag">Sales · ' + escapeHtml(stepTitle) + '</div>';
+  var el = dashPushMsg('bot', tagHtml + '<p style="color:var(--g3)">Thinking…</p>');
+
+  fetch(SALES_PROMPT_AI_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+    },
+    body: JSON.stringify({ step: stepKey, prompt: promptKey, name: name, label: label })
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    el.innerHTML = tagHtml + '<p>' + escapeHtml(data.answer || "I couldn't get an answer just now.").replace(/\n/g, '<br>') + '</p>';
+  })
+  .catch(function () {
+    el.innerHTML = tagHtml + "<p>I couldn't reach the AI just now — try again in a moment.</p>";
+  });
 }
 /* Risk radar questions answered server-side from real crm_contacts/crm_deals/
    email_logs_providers data (see RetentionSaveFirstService), optionally
@@ -1464,7 +1504,33 @@ function dashSend(){
     if (score>bestScore){ bestScore=score; best=k; }
   });
   if (bestScore>=2){ var pb=PLAYBOOKS[best]; dashPushMsg('bot', '<div class="tag">'+pb.tag+'</div>'+pb.html + (pb.how?renderHow(pb.how):'') + (pb.acts?renderActs(pb.acts):'')); return; }
+  if (dashState.agent === 'sl') { return dashAskAi(dashState.agent, text); }
   dashPushMsg('bot', "I don't have a ready-made playbook for that yet — try a customer's name, or use one of the buttons above.");
+}
+
+/* Sales dashboard free-text fallback — anything the PLAYBOOKS keyword
+   matcher above doesn't recognize is handed to OpenAI, grounded in the same
+   real crm_contacts/crm_deals/email_logs_providers-derived account data the
+   page renders from (see App\Services\SalesChatService). Falls back to a
+   plain message if OPENAI_API_KEY isn't set or the call fails. */
+function dashAskAi(agent, question){
+  var el = dashPushMsg('bot', '<p style="color:var(--g3)">Thinking…</p>');
+  fetch(SALES_ASK_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+    },
+    body: JSON.stringify({ question: question })
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    el.innerHTML = '<p>' + escapeHtml(data.answer || "I couldn't get an answer just now.").replace(/\n/g, '<br>') + '</p>';
+  })
+  .catch(function () {
+    el.innerHTML = "<p>I couldn't reach the AI just now — try again in a moment.</p>";
+  });
 }
 document.getElementById('dashInput') && document.getElementById('dashInput').addEventListener('keydown', function(e){
   if (e.key === 'Enter') { e.preventDefault(); dashSend(); }
@@ -1509,6 +1575,7 @@ function pushMsg(role, html) {
     el.innerHTML = html;
     chat.appendChild(el);
     chat.scrollTop = chat.scrollHeight;
+    return el;
 }
 
 function resetChat() {
@@ -1550,7 +1617,33 @@ function sendMsg() {
     input.value = '';
     var pb = matchPlaybook(text);
     if (pb) { pushPlaybook(pb); return; }
+    if (state.agent === 'sl') { askSalesAi(text); return; }
     pushMsg('bot', "I don't have a ready-made playbook for that yet — try rephrasing with a customer's name, or use one of the buttons above.");
+}
+
+/* Sales agent free-text fallback — anything the PLAYBOOKS keyword matcher
+   above doesn't recognize is handed to OpenAI, grounded in the same real
+   crm_contacts/crm_deals/email_logs_providers-derived account data the page
+   renders from (see App\Services\SalesChatService). Falls back to a plain
+   message if OPENAI_API_KEY isn't set or the call fails. */
+function askSalesAi(question) {
+    var el = pushMsg('bot', '<p style="color:var(--g3)">Thinking…</p>');
+    fetch(SALES_ASK_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ question: question })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        el.innerHTML = '<p>' + escapeHtml(data.answer || "I couldn't get an answer just now.").replace(/\n/g, '<br>') + '</p>';
+    })
+    .catch(function () {
+        el.innerHTML = "<p>I couldn't reach the AI just now — try again in a moment.</p>";
+    });
 }
 
 document.getElementById('bhInput').addEventListener('keydown', function (e) {
