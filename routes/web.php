@@ -443,6 +443,12 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return response()->json(app(\App\Services\MarketingPerformanceService::class)->pushWeekMqlsToSales());
     })->name('business-helpers.marketing.push-mqls-to-sales');
 
+    // Marketing · Performance tab accounts table (crm_contacts + crm_deals,
+    // raw data — no AI needed. See App\Services\MarketingPerformanceService::accountsSnapshot()).
+    Route::get('business-helpers/marketing/accounts-snapshot', function () {
+        return response()->json(app(\App\Services\MarketingPerformanceService::class)->accountsSnapshot());
+    })->name('business-helpers.marketing.accounts-snapshot');
+
     // Marketing · A/B test (email format) AI answers (email_logs +
     // email_logs_providers, written up by OpenAI when OPENAI_API_KEY is set —
     // see App\Services\MarketingEmailTestService).

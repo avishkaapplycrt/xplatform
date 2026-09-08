@@ -81,6 +81,40 @@ class MarketingPerformanceService
         );
     }
 
+    /**
+     * The full accounts table for the Performance dashboard tab — every
+     * synced contact, real deal value, real Readiness/Trust scores and the
+     * real segment each one falls into. This is raw data for a table, not a
+     * written answer, so it skips OpenAI entirely.
+     *
+     * @return array{accounts: array<int, array>}
+     */
+    public function accountsSnapshot(): array
+    {
+        $accounts = $this->scoredContacts()
+            ->map(function (array $row) {
+                $segment = $row['at_risk']
+                    ? 'at_risk'
+                    : ($row['buying_readiness'] >= self::READY_THRESHOLD ? 'mql_ready' : 'other');
+
+                return [
+                    'name' => $row['name'],
+                    'company' => $row['company'],
+                    'deal_value' => $row['deal_value'],
+                    'buying_readiness' => $row['buying_readiness'],
+                    'trust' => $row['trust'],
+                    'stage_label' => $row['stage_label'],
+                    'days_since_activity' => $row['days_since_activity'],
+                    'segment' => $segment,
+                ];
+            })
+            ->sortByDesc('deal_value')
+            ->values()
+            ->all();
+
+        return ['accounts' => $accounts];
+    }
+
     private function buildAnswer(array $ranked, string $question, string $emptyMessage, callable $plainSummary, array $context = []): array
     {
         if (empty($ranked)) {
