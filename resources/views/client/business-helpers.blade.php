@@ -427,6 +427,13 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 .risk-modal-body table{width:100%;border-collapse:collapse;font-size:12px}
 .risk-modal-body th,.risk-modal-body td{padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:left;white-space:nowrap}
 .risk-modal-body th{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;background:#f9fafb}
+
+/* "Which customer?" name input in a Root cause answer bubble */
+#bhRoot .nmform{display:flex;gap:6px;margin-top:8px;align-items:stretch}
+#bhRoot .nmin{flex:1;min-width:0;border:1px solid var(--ln2);border-radius:8px;padding:8px 10px;font-family:var(--f1);font-size:12px;color:var(--ink);outline:none;background:#fff}
+#bhRoot .nmin:focus{border-color:var(--ac-m);box-shadow:0 0 0 3px var(--ac-l)}
+#bhRoot .nmin:disabled{background:var(--p2);color:var(--g3)}
+#bhRoot .nmform .qk{flex-shrink:0;align-self:center}
 </style>
 
 <script>
@@ -437,8 +444,15 @@ var MARKETING_STEPS_DB = @json($marketingSteps ?? []);
 var RETENTION_DB_PROMPTS = @json($retentionPrompts ?? []);
 var RETENTION_AI_ENDPOINTS = {
   who_save_first_week: @json(route('client.business-helpers.retention.save-first')),
-  drifting_watchlist: @json(route('client.business-helpers.retention.watchlist'))
+  drifting_watchlist: @json(route('client.business-helpers.retention.watchlist')),
+  why_leaving: @json(route('client.business-helpers.retention.why-leaving')),
+  price_or_product: @json(route('client.business-helpers.retention.price-or-product')),
+  top_churn_driver: @json(route('client.business-helpers.retention.top-churn-driver'))
 };
+// Root cause prompts that ask about one named customer — the UI collects the
+// name in an input before calling the endpoint (?name=…).
+var RETENTION_AI_NAME_PROMPTS = { why_leaving: 1, price_or_product: 1 };
+var RETENTION_CONTACT_NAMES = @json($retentionContactNames ?? []);
 var RETENTION_STEPS_DB = @json($retentionSteps ?? []);
 
 /* ═══ TASKS — plain English, per helper ═══ */
@@ -778,7 +792,11 @@ function renderDashQuicks(){
   var dbStepKey = STEP_KEYS_BY_AGENT[agent][idx];
   var prompts = (DB_PROMPTS_BY_AGENT[agent][dbStepKey] || []).filter(function(p){ return p.is_active; });
   q.innerHTML = prompts.map(function(p){
-    var label = p.label.replace('[name]', name);
+    // Root-cause prompts collect the customer name in an input, so their
+    // button keeps the literal [Name] placeholder; every other prompt gets
+    // the current lead name substituted in.
+    var keepPlaceholder = (agent === 'ch' && RETENTION_AI_NAME_PROMPTS[p.slug]);
+    var label = keepPlaceholder ? p.label : p.label.replace(/\[name\]/i, name);
     return '<button type="button" class="qk" onclick="dashPromptClick(\''+dbStepKey+'\',\''+p.slug+'\',\''+nameAttr(label)+'\')">'+escapeHtml(label)+'</button>';
   }).join('');
 }
@@ -787,7 +805,8 @@ function dashPromptClick(stepKey, promptKey, label){
   var agent = dashState.agent;
 
   if (agent === 'ch' && RETENTION_AI_ENDPOINTS[promptKey]) {
-    return dashRetentionAiAnswer(promptKey, stepKey);
+    if (RETENTION_AI_NAME_PROMPTS[promptKey]) return dashRetentionNameForm(promptKey, stepKey);
+    return dashRetentionAiAnswer(promptKey, stepKey, null);
   }
 
   var name = topPrimaryName(agent);
@@ -795,17 +814,54 @@ function dashPromptClick(stepKey, promptKey, label){
   var c = account ? classifyFor(agent, account) : null;
   dashPushMsg('bot', dashPromptAnswer(agent, stepKey, promptKey, name, account, c));
 }
-/* Risk radar questions answered server-side from real crm_contacts/crm_deals/
-   email_logs_providers data (see RetentionSaveFirstService), optionally
-   written up by OpenAI. The reply carries an expand/collapse toggle so the
-   rep can see exactly which accounts and numbers the answer is based on. */
-function dashRetentionAiAnswer(promptKey, stepKey){
+function chStepTag(stepKey){
   var stepIdx = RETENTION_STEP_KEYS.indexOf(stepKey);
   var stepTitle = DASH_FLOW.ch.steps[stepIdx === -1 ? 0 : stepIdx].t;
-  var tagHtml = '<div class="tag">Customer Retention · ' + escapeHtml(stepTitle) + '</div>';
+  return '<div class="tag">Customer Retention · ' + escapeHtml(stepTitle) + '</div>';
+}
+/* Root cause questions about one customer collect the name here first, then
+   hand off to the endpoint as ?name=… */
+function dashRetentionNameForm(promptKey, stepKey){
+  var fid = 'nm' + Math.random().toString(36).slice(2, 8);
+  var opts = (RETENTION_CONTACT_NAMES || []).map(function(n){ return '<option value="' + escapeHtml(n) + '"></option>'; }).join('');
+  var prefill = dashState.lead ? escapeHtml(dashState.lead) : '';
+  dashPushMsg('bot', chStepTag(stepKey) +
+    '<p>Which customer? Type a name or company.</p>' +
+    '<div class="nmform">' +
+      '<input class="nmin" id="' + fid + '" list="' + fid + '-l" placeholder="e.g. Kasun Madushan" value="' + prefill + '" autocomplete="off">' +
+      '<datalist id="' + fid + '-l">' + opts + '</datalist>' +
+      '<button type="button" class="qk" onclick="dashRetentionNameSubmit(\'' + promptKey + '\',\'' + stepKey + '\',\'' + fid + '\')">Ask</button>' +
+    '</div>');
+  var input = document.getElementById(fid);
+  if (input){
+    input.focus();
+    input.addEventListener('keydown', function(e){
+      if (e.key === 'Enter'){ e.preventDefault(); dashRetentionNameSubmit(promptKey, stepKey, fid); }
+    });
+  }
+}
+function dashRetentionNameSubmit(promptKey, stepKey, fid){
+  var input = document.getElementById(fid);
+  var name = input ? input.value.trim() : '';
+  if (!name){ if (input) input.focus(); return; }
+  if (input){ input.disabled = true; }
+  dashState.lead = name;
+  dashPushMsg('user', escapeHtml(name));
+  dashRetentionAiAnswer(promptKey, stepKey, name);
+}
+/* Risk radar + Root cause questions answered server-side from real
+   crm_contacts / crm_deals (+ email signal for Risk radar) — see
+   RetentionSaveFirstService / RetentionRootCauseService — optionally written
+   up by OpenAI. The reply carries an expand toggle so the rep can see exactly
+   which accounts and numbers the answer is based on. */
+function dashRetentionAiAnswer(promptKey, stepKey, name){
+  var tagHtml = chStepTag(stepKey);
   var el = dashPushMsg('bot', tagHtml + '<p style="color:var(--g3)">Thinking…</p>');
 
-  fetch(RETENTION_AI_ENDPOINTS[promptKey])
+  var url = RETENTION_AI_ENDPOINTS[promptKey];
+  if (name) url += (url.indexOf('?') > -1 ? '&' : '?') + 'name=' + encodeURIComponent(name);
+
+  fetch(url)
     .then(function(r){ return r.json(); })
     .then(function(data){
       el.innerHTML = tagHtml + renderRiskAiAnswer(data);
@@ -817,27 +873,50 @@ function dashRetentionAiAnswer(promptKey, stepKey){
 var RISK_DATA_CACHE = {};
 function renderRiskAiAnswer(data){
   var answer = '<p>' + escapeHtml(data.answer || '') + '</p>';
-  var ranked = data.ranked || [];
-  if (!ranked.length) return answer;
+
+  // Name lookup found nothing — show a few valid names to try.
+  if (data.matched === false){
+    var names = (data.suggestions || []).slice(0, 8);
+    return answer + (names.length
+      ? '<p style="color:var(--g3);font-size:11.5px">Try: ' + names.map(escapeHtml).join(' · ') + '</p>'
+      : '');
+  }
+
+  var rows = data.ranked || data.accounts || [];
+  if (!rows.length) return answer;
 
   var id = 'risk' + Math.random().toString(36).slice(2, 9);
-  RISK_DATA_CACHE[id] = ranked;
+  RISK_DATA_CACHE[id] = rows;
 
   return answer
-    + '<button type="button" class="qk" onclick="openRiskModal(\'' + id + '\')">View the ' + ranked.length + ' account' + (ranked.length === 1 ? '' : 's') + ' behind this →</button>';
+    + '<button type="button" class="qk" onclick="openRiskModal(\'' + id + '\')">View the ' + rows.length + ' account' + (rows.length === 1 ? '' : 's') + ' behind this →</button>';
 }
+/* Columns rendered in the "accounts behind this" modal, in order. Both the
+   Risk radar shape (unsubscribed / ever_opened / risk_score) and the Root
+   cause shape (deal_status / stage / churn_score) flow through here — only
+   the keys actually present on the rows are shown. */
+var RISK_COL_LABELS = {
+  name: 'Name', company: 'Company', deal_value: 'Deal value', deal_status: 'Deal',
+  stage: 'Stage', unsubscribed: 'Unsub?', ever_opened: 'Ever opened?',
+  days_since_activity: 'Days silent', risk_score: 'Risk', churn_score: 'Churn'
+};
 function openRiskModal(id){
-  var ranked = RISK_DATA_CACHE[id];
-  if (!ranked) return;
+  var rows = RISK_DATA_CACHE[id];
+  if (!rows || !rows.length) return;
 
-  var rows = ranked.map(function(r, i){
-    return '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.company) + '</td>'
-      + '<td>' + money(r.deal_value) + '</td><td>' + (r.unsubscribed ? 'Yes' : 'No') + '</td>'
-      + '<td>' + (r.ever_opened ? 'Yes' : 'No') + '</td><td>' + r.days_since_activity + '</td><td>' + r.risk_score + '</td></tr>';
+  var cols = Object.keys(RISK_COL_LABELS).filter(function(k){ return k in rows[0]; });
+  var head = '<tr><th>#</th>' + cols.map(function(k){ return '<th>' + RISK_COL_LABELS[k] + '</th>'; }).join('') + '</tr>';
+  var body = rows.map(function(r, i){
+    return '<tr><td>' + (i + 1) + '</td>' + cols.map(function(k){
+      var v = r[k];
+      if (k === 'deal_value') return '<td>' + money(v) + '</td>';
+      if (typeof v === 'boolean') return '<td>' + (v ? 'Yes' : 'No') + '</td>';
+      return '<td>' + escapeHtml(v === null || v === undefined || v === '' ? '—' : String(v)) + '</td>';
+    }).join('') + '</tr>';
   }).join('');
 
-  document.getElementById('riskModalTitle').textContent = ranked.length + ' account' + (ranked.length === 1 ? '' : 's') + ' behind this answer';
-  document.getElementById('riskModalBody').innerHTML = '<table><tr><th>#</th><th>Name</th><th>Company</th><th>Deal value</th><th>Unsub?</th><th>Ever opened?</th><th>Days silent</th><th>Risk</th></tr>' + rows + '</table>';
+  document.getElementById('riskModalTitle').textContent = rows.length + ' account' + (rows.length === 1 ? '' : 's') + ' behind this answer';
+  document.getElementById('riskModalBody').innerHTML = '<table>' + head + body + '</table>';
   document.getElementById('riskModalOverlay').classList.add('show');
 }
 function closeRiskModal(){
@@ -1522,6 +1601,7 @@ window.logOutcome = logOutcome;
 window.dashQuick = dashQuick;
 window.dashSend = dashSend;
 window.dashPromptClick = dashPromptClick;
+window.dashRetentionNameSubmit = dashRetentionNameSubmit;
 window.openRiskModal = openRiskModal;
 window.closeRiskModal = closeRiskModal;
 

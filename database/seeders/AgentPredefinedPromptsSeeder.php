@@ -98,8 +98,8 @@ class AgentPredefinedPromptsSeeder extends Seeder
             ['retention', 'Risk radar', 'value_at_risk', 'How much value is at risk right now?', 5],
 
             // Retention · Root cause
-            ['retention', 'Root cause', 'why_leaving', 'Why is [name] leaving?', 1],
-            ['retention', 'Root cause', 'price_or_product', 'Is [name] a price problem or a product problem?', 2],
+            ['retention', 'Root cause', 'why_leaving', 'Why is [Name] leaving?', 1],
+            ['retention', 'Root cause', 'price_or_product', 'Is [Name] having a price problem or a product problem?', 2],
             ['retention', 'Root cause', 'top_churn_driver', 'What is the top churn driver across the book?', 3],
             ['retention', 'Root cause', 'lost_champion', 'Who lost their champion / main contact?', 4],
             ['retention', 'Root cause', 'changed_recently', 'What changed for [name] recently?', 5],
