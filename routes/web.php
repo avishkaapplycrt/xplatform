@@ -509,6 +509,24 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return response()->json(app(\App\Services\RetentionOffersService::class)->giveGetToAskFor($request->query('name')));
     })->name('business-helpers.retention.give-get');
 
+    // Customer Retention · Save play AI answers (crm_contacts + crm_deals only —
+    // see App\Services\RetentionSavePlayService). All take ?name= .
+    Route::get('business-helpers/retention/save-plan', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionSavePlayService::class)->savePlan($request->query('name')));
+    })->name('business-helpers.retention.save-plan');
+
+    Route::get('business-helpers/retention/save-email', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionSavePlayService::class)->saveEmail($request->query('name')));
+    })->name('business-helpers.retention.save-email');
+
+    Route::get('business-helpers/retention/whatsapp-checkin', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionSavePlayService::class)->whatsappCheckin($request->query('name')));
+    })->name('business-helpers.retention.whatsapp-checkin');
+
+    Route::get('business-helpers/retention/first-48-hours', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionSavePlayService::class)->first48Hours($request->query('name')));
+    })->name('business-helpers.retention.first-48-hours');
+
     // Chat Bot
     Route::get('chatbot',        [ChatBotController::class, 'index'])->name('chatbot');
     Route::post('chatbot/send',  [ChatBotController::class, 'send'])->name('chatbot.send');
