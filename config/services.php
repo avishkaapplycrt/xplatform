@@ -69,6 +69,11 @@ return [
         'model'   => env('ANTHROPIC_MODEL', 'claude-opus-5'),
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'model'   => env('OPENAI_MODEL', 'gpt-4.1-mini'),
+    ],
+
     'pagespeed' => [
         'api_key' => env('PAGESPEED_API_KEY'),
     ],

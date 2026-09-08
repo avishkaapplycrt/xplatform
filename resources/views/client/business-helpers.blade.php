@@ -140,6 +140,17 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
             </aside>
         </div>
 
+        {{-- Popup for the Risk radar AI answers' underlying account data --}}
+        <div class="risk-modal-overlay" id="riskModalOverlay" onclick="if(event.target===this) closeRiskModal()">
+            <div class="risk-modal">
+                <div class="risk-modal-hd">
+                    <span id="riskModalTitle"></span>
+                    <button type="button" onclick="closeRiskModal()" aria-label="Close">✕</button>
+                </div>
+                <div class="risk-modal-body" id="riskModalBody"></div>
+            </div>
+        </div>
+
     </div>
     </div>
 
@@ -359,6 +370,17 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .dm-quick .qk{width:100%;text-align:left;padding:10px 12px;font-size:12px;white-space:normal;line-height:1.35;border-radius:8px;background:#fff;border:1px solid var(--ln)}
 #bhRoot .dm-quick .qk:hover{border-color:var(--ac-m);background:var(--ac-l);color:var(--ac-d)}
 #bhRoot .dm-inbar{display:flex;gap:1px;border-top:1px solid var(--ln);background:var(--ln);flex-shrink:0}
+
+.risk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:200;align-items:center;justify-content:center;padding:24px}
+.risk-modal-overlay.show{display:flex}
+.risk-modal{background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.risk-modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;color:#111827}
+.risk-modal-hd button{border:none;background:none;font-size:16px;color:#9ca3af;cursor:pointer;line-height:1;padding:4px}
+.risk-modal-hd button:hover{color:#111827}
+.risk-modal-body{overflow:auto;padding:12px 18px 18px}
+.risk-modal-body table{width:100%;border-collapse:collapse;font-size:12px}
+.risk-modal-body th,.risk-modal-body td{padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:left;white-space:nowrap}
+.risk-modal-body th{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;background:#f9fafb}
 </style>
 
 <script>
@@ -367,6 +389,10 @@ var MARKETING_DB_PROMPTS = @json($marketingPrompts ?? []);
 var SALES_DB_PROMPTS = @json($salesPrompts ?? []);
 var MARKETING_STEPS_DB = @json($marketingSteps ?? []);
 var RETENTION_DB_PROMPTS = @json($retentionPrompts ?? []);
+var RETENTION_AI_ENDPOINTS = {
+  who_save_first_week: @json(route('client.business-helpers.retention.save-first')),
+  drifting_watchlist: @json(route('client.business-helpers.retention.watchlist'))
+};
 var RETENTION_STEPS_DB = @json($retentionSteps ?? []);
 
 /* ═══ TASKS — plain English, per helper ═══ */
@@ -713,10 +739,64 @@ function renderDashQuicks(){
 function dashPromptClick(stepKey, promptKey, label){
   dashPushMsg('user', escapeHtml(label));
   var agent = dashState.agent;
+
+  if (agent === 'ch' && RETENTION_AI_ENDPOINTS[promptKey]) {
+    return dashRetentionAiAnswer(promptKey, stepKey);
+  }
+
   var name = topPrimaryName(agent);
   var account = ACCOUNTS.filter(function(x){ return x.name === name; })[0];
   var c = account ? classifyFor(agent, account) : null;
   dashPushMsg('bot', dashPromptAnswer(agent, stepKey, promptKey, name, account, c));
+}
+/* Risk radar questions answered server-side from real crm_contacts/crm_deals/
+   email_logs_providers data (see RetentionSaveFirstService), optionally
+   written up by OpenAI. The reply carries an expand/collapse toggle so the
+   rep can see exactly which accounts and numbers the answer is based on. */
+function dashRetentionAiAnswer(promptKey, stepKey){
+  var stepIdx = RETENTION_STEP_KEYS.indexOf(stepKey);
+  var stepTitle = DASH_FLOW.ch.steps[stepIdx === -1 ? 0 : stepIdx].t;
+  var tagHtml = '<div class="tag">Customer Retention · ' + escapeHtml(stepTitle) + '</div>';
+  var el = dashPushMsg('bot', tagHtml + '<p style="color:var(--g3)">Thinking…</p>');
+
+  fetch(RETENTION_AI_ENDPOINTS[promptKey])
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      el.innerHTML = tagHtml + renderRiskAiAnswer(data);
+    })
+    .catch(function(){
+      el.innerHTML = tagHtml + '<p>Could not reach the server to compute this — try again in a moment.</p>';
+    });
+}
+var RISK_DATA_CACHE = {};
+function renderRiskAiAnswer(data){
+  var answer = '<p>' + escapeHtml(data.answer || '') + '</p>';
+  var ranked = data.ranked || [];
+  if (!ranked.length) return answer;
+
+  var id = 'risk' + Math.random().toString(36).slice(2, 9);
+  RISK_DATA_CACHE[id] = ranked;
+
+  return answer
+    + '<button type="button" class="qk" onclick="openRiskModal(\'' + id + '\')">View the ' + ranked.length + ' account' + (ranked.length === 1 ? '' : 's') + ' behind this →</button>';
+}
+function openRiskModal(id){
+  var ranked = RISK_DATA_CACHE[id];
+  if (!ranked) return;
+
+  var rows = ranked.map(function(r, i){
+    return '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.company) + '</td>'
+      + '<td>' + money(r.deal_value) + '</td><td>' + (r.unsubscribed ? 'Yes' : 'No') + '</td>'
+      + '<td>' + (r.ever_opened ? 'Yes' : 'No') + '</td><td>' + r.days_since_activity + '</td><td>' + r.risk_score + '</td></tr>';
+  }).join('');
+
+  document.getElementById('riskModalTitle').textContent = ranked.length + ' account' + (ranked.length === 1 ? '' : 's') + ' behind this answer';
+  document.getElementById('riskModalBody').innerHTML = '<table><tr><th>#</th><th>Name</th><th>Company</th><th>Deal value</th><th>Unsub?</th><th>Ever opened?</th><th>Days silent</th><th>Risk</th></tr>' + rows + '</table>';
+  document.getElementById('riskModalOverlay').classList.add('show');
+}
+function closeRiskModal(){
+  var overlay = document.getElementById('riskModalOverlay');
+  if (overlay) overlay.classList.remove('show');
 }
 function marketingDbAnswer(stepKey, slug, name, account, c){
   var stepIdx = MARKETING_STEP_KEYS.indexOf(stepKey);
@@ -1363,6 +1443,7 @@ function dashPushMsg(role, html){
   el.innerHTML = html;
   chat.appendChild(el);
   chat.scrollTop = chat.scrollHeight;
+  return el;
 }
 function dashQuick(q){
   dashPushMsg('user', escapeHtml(q));
@@ -1395,6 +1476,8 @@ window.logOutcome = logOutcome;
 window.dashQuick = dashQuick;
 window.dashSend = dashSend;
 window.dashPromptClick = dashPromptClick;
+window.openRiskModal = openRiskModal;
+window.closeRiskModal = closeRiskModal;
 
 function renderHow(how) {
     var stepsHtml = how.steps.map(function (s, i) {
