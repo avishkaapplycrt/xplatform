@@ -1358,7 +1358,7 @@ var AGENT_TABS = {
   ],
   mk: FLOW_TABS_BY_AGENT.mk.map(function(viewKey, i){
     return {k: viewKey, label: (MARKETING_STEPS_DB[i] && MARKETING_STEPS_DB[i].title) || MARKETING_STEP_KEYS[i]};
-  }).concat([{k:'manager', label:'Manager'}]),
+  }),
   ch: ['today', 'accounts', 'scripts', 'forecast', 'manager'].map(function(viewKey, i){
     return {k: viewKey, label: (RETENTION_STEPS_DB[i] && RETENTION_STEPS_DB[i].title) || RETENTION_STEP_KEYS[i]};
   })
@@ -1389,11 +1389,13 @@ function showDashView(v){
   if (v==='today') el.innerHTML = renderTodayStack();
   else if (v==='accounts' && dashState.agent==='mk') renderMarketingAccountsTab();
   else if (v==='accounts') el.innerHTML = renderAccountsTable();
+  else if (v==='scripts' && dashState.agent==='mk') renderMarketingAudienceTab();
   else if (v==='scripts') el.innerHTML = renderScriptStudio();
+  else if (v==='forecast' && dashState.agent==='mk') renderMarketingInsightsTab();
   else if (v==='forecast') el.innerHTML = renderForecast();
   else if (v==='performance') el.innerHTML = renderPerformance();
   else if (v==='manager') el.innerHTML = renderManager();
-  if (v==='scripts') selectScriptAccount(rankedFor(dashState.agent)[0].a.name, 'call');
+  if (v==='scripts' && dashState.agent!=='mk') selectScriptAccount(rankedFor(dashState.agent)[0].a.name, 'call');
 }
 var STACK_INTRO = {
   sl: {h:'RANKED STACK — WHO, IN ORDER', p:'Sorted by <b>readiness × intent</b>, trust-adjusted, then <b>time</b> (deadlines, callbacks due), <b>contact memory</b> (a cool-off after a touch) and <b>contact rules</b> (hours, do-not-call). Click any score to see what moved it — log the outcome after each call and I\'ll re-rank for tomorrow.'},
@@ -1491,6 +1493,64 @@ function renderMarketingAccountsTable(accounts){
       '<td>'+escapeHtml(a.stage_label)+'</td><td>'+a.days_since_activity+'d ago</td></tr>';
   }).join('');
   return MK_ACCOUNTS_INTRO + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>Deal value</th><th>Readiness</th><th>Trust</th><th>Stage</th><th>Last active</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+/* Marketing · Audience tab — the same real crm_contacts/crm_deals accounts
+   as Performance, browsable one at a time with a real profile instead of
+   the fictional "Referral" script list. See
+   MarketingPerformanceService::accountsSnapshot(). */
+var MK_AUDIENCE_ACCOUNTS = [];
+var MK_AUDIENCE_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">Your real contacts on the left, grouped by <b>Segment</b>. Click any name to see its real profile on the right — deal value, stage, Readiness, Trust, and how long since they were last active. ' +
+    '<b>At-risk</b> means an open deal has had no activity for 3+ months. <b>MQL-ready</b> means the contact is ready for Sales based on their Readiness score. <b>Other</b> means neither — still early, no action needed yet. Nothing here is guessed or written by AI.</div>' +
+  '</div>';
+function renderMarketingAudienceTab(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = '<div style="display:flex;flex-direction:column;height:100%;min-height:0">' + MK_AUDIENCE_INTRO
+    + '<div class="ss-grid" style="flex:1;min-height:0"><div class="ss-list" id="mkAudList"><div style="padding:16px;color:var(--g3);font-size:12.5px">Loading real accounts…</div></div>'
+    + '<div class="ss-out" id="mkAudOut"><div style="padding:20px;color:var(--g3);font-size:12.5px">Select an account to see its real profile.</div></div></div></div>';
+
+  fetch(MARKETING_ACCOUNTS_ENDPOINT)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      MK_AUDIENCE_ACCOUNTS = data.accounts || [];
+      var list = document.getElementById('mkAudList');
+      if (!list) return;
+      if (!MK_AUDIENCE_ACCOUNTS.length) { list.innerHTML = '<div style="padding:16px;color:var(--g3);font-size:12.5px">No synced CRM contacts found.</div>'; return; }
+      list.innerHTML = MK_AUDIENCE_ACCOUNTS.map(function(a, i){
+        var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
+        return '<div class="ss-item" data-i="'+i+'" onclick="selectMkAudienceAccount('+i+')"><div class="n">'+escapeHtml(a.name)+'</div><div class="m">'+escapeHtml(segLabel)+' · '+money(a.deal_value)+'</div></div>';
+      }).join('');
+      selectMkAudienceAccount(0);
+    })
+    .catch(function(){
+      var list = document.getElementById('mkAudList');
+      if (list) list.innerHTML = '<div style="padding:16px;color:var(--g3);font-size:12.5px">Could not load accounts — try again in a moment.</div>';
+    });
+}
+function selectMkAudienceAccount(i){
+  var a = MK_AUDIENCE_ACCOUNTS[i];
+  var out = document.getElementById('mkAudOut');
+  if (!a || !out) return;
+
+  document.querySelectorAll('#mkAudList .ss-item').forEach(function(el, idx){ el.classList.toggle('on', idx===i); });
+
+  var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
+  var segColor = MK_SEGMENT_COLOR[a.segment] || '#6b7280';
+  var segNote = a.segment === 'at_risk'
+    ? 'Gone quiet 3+ months with a deal still open — a marketing send here reads tone-deaf; this is Retention\'s account to work.'
+    : a.segment === 'mql_ready'
+      ? 'Readiness clears the bar and this account is not going cold — ready to hand off to Sales.'
+      : 'Not at risk, not ready yet — keep nurturing, no hand-off or exclusion needed.';
+
+  out.innerHTML =
+    '<div class="ss-script"><div class="ss-shd">'+escapeHtml(a.name.toUpperCase())+' · '+escapeHtml(a.company)+'</div>'
+    + '<div class="ss-beat"><div class="ss-beat-l">SEGMENT</div><span class="segtag" style="background:'+segColor+'22;color:'+segColor+'">'+escapeHtml(segLabel)+'</span><div style="margin-top:8px">'+segNote+'</div></div>'
+    + '<div class="ss-beat"><div class="ss-beat-l">DEAL</div>'+money(a.deal_value)+' — '+escapeHtml(a.stage_label)+'</div>'
+    + '<div class="ss-beat"><div class="ss-beat-l">READINESS &amp; TRUST</div>Readiness '+a.buying_readiness+' · Trust '+a.trust+'</div>'
+    + '<div class="ss-beat"><div class="ss-beat-l">LAST ACTIVITY</div>'+a.days_since_activity+' day(s) ago</div>'
+    + '</div>';
 }
 var scriptAcct = null, scriptChan = 'call';
 function renderScriptStudio(){
@@ -1601,6 +1661,83 @@ function renderForecast(){
     '<div class="fc-row fc-tot"><span>Total</span><span>'+money(obV)+'</span></div></div>'+
     '</div>';
 }
+/* Marketing · Insights tab — real crm_contacts/crm_deals data, shown as
+   charts instead of the fictional win-back/onboarding $0 tiles. Reuses the
+   same MQL-ready pool and per-account fields (trust, stage_label) the
+   Insights quick-prompts already compute — see MarketingInsightsService. */
+var MK_INSIGHTS_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">A snapshot of your real MQL-ready pool: how much trust they\'ve built on average, where most of them sit in the buying process, and who newly qualified this week. All read straight from your CRM — nothing guessed.</div>' +
+  '</div>';
+function renderMarketingInsightsTab(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = MK_INSIGHTS_INTRO + '<div id="mkInsBody" style="padding:24px;color:var(--g3);font-size:12.5px">Loading real insights…</div>';
+
+  Promise.all([
+    fetch(MARKETING_AI_ENDPOINTS.proof_or_offer_audience).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.one_lever_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.changed_last_7_days).then(function(r){ return r.json(); })
+  ]).then(function(results){
+    var body = document.getElementById('mkInsBody');
+    if (body) body.outerHTML = '<div id="mkInsBody">' + renderMarketingInsightsBody(results[0], results[1], results[2]) + '</div>';
+  }).catch(function(){
+    var body = document.getElementById('mkInsBody');
+    if (body) body.innerHTML = 'Could not load insights — try again in a moment.';
+  });
+}
+function renderMarketingInsightsBody(proofData, leverData, recentData){
+  var pool = proofData.ranked || [];
+
+  if (!pool.length) {
+    return '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts are in the MQL-ready pool right now.</div>';
+  }
+
+  var avgTrust = Math.round(pool.reduce(function(s,a){ return s + a.trust; }, 0) / pool.length);
+  var verdict = avgTrust < 65 ? 'Proof audience — lead with evidence' : 'Offer audience — a discount is safe';
+  var gaugeColor = scoreCol(avgTrust);
+
+  var stageCounts = {};
+  pool.forEach(function(a){ stageCounts[a.stage_label] = (stageCounts[a.stage_label] || 0) + 1; });
+  var stages = Object.keys(stageCounts).map(function(k){ return {label:k, count:stageCounts[k]}; }).sort(function(x,y){ return y.count - x.count; });
+  var maxStageCount = stages[0] ? stages[0].count : 1;
+
+  var recent = recentData.ranked || [];
+
+  var html = '<div class="fc-grid">';
+
+  html += '<div class="fc-cell"><div class="fc-h">AVERAGE TRUST — PROOF OR OFFER?</div>'
+    + '<div style="margin:12px 0 6px;height:10px;background:var(--p2);border-radius:99px;position:relative;overflow:hidden">'
+    + '<div style="height:100%;width:'+avgTrust+'%;background:'+gaugeColor+';border-radius:99px"></div>'
+    + '<div style="position:absolute;left:65%;top:-3px;bottom:-3px;width:2px;background:var(--ink)"></div>'
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--g3)"><span>0</span><span>65 — hand-off bar</span><span>100</span></div>'
+    + '<div style="margin-top:12px;font-size:13px"><b>'+avgTrust+'</b> average trust across <b>'+pool.length+'</b> MQL-ready account(s) — '+verdict+'</div>'
+    + '</div>';
+
+  html += '<div class="fc-cell"><div class="fc-h">WHERE THE POOL SITS — FUNNEL STAGE</div>'
+    + stages.map(function(s, i){
+      var pct = Math.round(s.count / maxStageCount * 100);
+      return '<div style="margin-bottom:10px">'
+        + '<div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px"><span>'+escapeHtml(s.label)+(i===0?' <span style="color:var(--ac-d);font-weight:600">← most common</span>':'')+'</span><span>'+s.count+'</span></div>'
+        + '<div style="height:8px;background:var(--p2);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--ac)"></div></div>'
+        + '</div>';
+    }).join('')
+    + '</div>';
+
+  html += '<div class="fc-cell" style="grid-column:1/-1"><div class="fc-h">THE ONE LEVER TO PULL</div>'
+    + '<div style="font-size:13px;line-height:1.65;color:var(--ink)">'+escapeHtml(leverData.answer || '')+'</div>'
+    + '</div>';
+
+  html += '<div class="fc-cell" style="grid-column:1/-1"><div class="fc-h">NEWLY QUALIFIED — LAST 7 DAYS</div>'
+    + (recent.length
+        ? recent.map(function(a){ return '<div class="fc-row"><span><b>'+escapeHtml(a.name)+'</b> ('+escapeHtml(a.company)+') — '+escapeHtml(a.stage_label)+'</span><span>'+a.days_since_activity+'d ago</span></div>'; }).join('')
+        : '<div style="color:var(--g3);font-size:12.5px">Nobody newly qualified in the last 7 days.</div>')
+    + '</div>';
+
+  html += '</div>';
+  return html;
+}
 function renderManager(){
   var agent = dashState.agent;
   var r = rankedFor(agent);
@@ -1676,6 +1813,7 @@ document.getElementById('dashInput') && document.getElementById('dashInput').add
 });
 window.showDashView = showDashView;
 window.selectScriptAccount = selectScriptAccount;
+window.selectMkAudienceAccount = selectMkAudienceAccount;
 window.openScriptFor = openScriptFor;
 window.logOutcome = logOutcome;
 window.dashQuick = dashQuick;
