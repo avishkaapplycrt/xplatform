@@ -486,6 +486,9 @@ var RETENTION_AI_NAME_PROMPTS = {
   can_discount: 1, what_allowed_offer: 1, give_get_ask: 1,
   save_plan_call: 1, save_email: 1, whatsapp_checkin: 1, first_48_hours: 1
 };
+// Retention prompts that keep the literal [name] placeholder in the button
+// (standard questions) but have no dedicated name-input endpoint yet.
+var RETENTION_KEEP_PLACEHOLDER = { changed_recently: 1, stabilisation_plan_for: 1 };
 var RETENTION_CONTACT_NAMES = @json($retentionContactNames ?? []);
 var RETENTION_STEPS_DB = @json($retentionSteps ?? []);
 
@@ -830,7 +833,7 @@ function renderDashQuicks(){
     // literal [name] placeholder in the button — as does the whole Offers
     // step, whose questions are standard and must not be personalised.
     // Every other prompt gets the current lead name substituted in.
-    var keepPlaceholder = (agent === 'ch' && (RETENTION_AI_NAME_PROMPTS[p.slug] || dbStepKey === 'Offers'));
+    var keepPlaceholder = (agent === 'ch' && (RETENTION_AI_NAME_PROMPTS[p.slug] || RETENTION_KEEP_PLACEHOLDER[p.slug] || dbStepKey === 'Offers'));
     var label = keepPlaceholder ? p.label : p.label.replace(/\[name\]/i, name);
     return '<button type="button" class="qk" onclick="dashPromptClick(\''+dbStepKey+'\',\''+p.slug+'\',\''+nameAttr(label)+'\')">'+escapeHtml(label)+'</button>';
   }).join('');
