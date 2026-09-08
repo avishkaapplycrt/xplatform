@@ -122,11 +122,24 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
                 <div class="dash-vtabs" id="dashVtabs"></div>
                 <div class="dash-view" id="dashView"></div>
             </div>
-            <aside class="dash-mira">
+            <aside class="dash-mira" id="bhMira">
+                <div class="mira-resize" id="bhMiraResize" role="separator" aria-orientation="vertical" aria-label="Resize helper panel (arrow keys)" tabindex="0" title="Drag to resize">
+                    <span class="mira-grip" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                    </span>
+                </div>
                 <div class="dm-hd">
                     <span class="dm-dot"></span>
                     <div><div class="dm-t" id="dmTitle"></div><div class="dm-s">ENGINE + AI · GROUNDED IN LIVE DATA</div></div>
                     <span class="dm-ready">Ready</span>
+                    <div class="mira-tools">
+                        <button type="button" class="mira-btn" onclick="bhMira('min')" title="Minimise" aria-label="Minimise helper panel">&minus;</button>
+                        <button type="button" class="mira-btn" data-act="max" onclick="bhMira('max')" title="Maximise" aria-label="Maximise helper panel">&#9974;</button>
+                    </div>
+                </div>
+                <div class="col-rail">
+                    <button type="button" class="col-toggle" onclick="bhMira('restore')" title="Expand helper" aria-label="Expand helper panel">&laquo;</button>
+                    <span class="col-rail-label">Helper</span>
                 </div>
                 <div class="dm-chat" id="dashChat"></div>
                 <div class="dm-quick-hd" id="dashQuickHd"></div>
@@ -258,7 +271,7 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .send svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:2.5;stroke-linecap:round}
 
 /* ══ DASHBOARD (Marketing / Sales) ══ */
-#bhRoot .dash{display:none;grid-template-columns:minmax(190px,220px) 1fr minmax(300px,340px);gap:1px;background:var(--ln);flex:1;min-height:0;overflow:hidden}
+#bhRoot .dash{display:none;grid-template-columns:minmax(190px,220px) 1fr var(--bh-mira-w,320px);gap:1px;background:var(--ln);flex:1;min-height:0;overflow:hidden}
 #bhRoot .dash.on{display:grid}
 @media(max-width:1180px){#bhRoot .dash{grid-template-columns:190px 1fr}}
 @media(max-width:820px){#bhRoot .dash{grid-template-columns:1fr;overflow-y:auto}}
@@ -370,6 +383,39 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .dm-quick .qk{width:100%;text-align:left;padding:10px 12px;font-size:12px;white-space:normal;line-height:1.35;border-radius:8px;background:#fff;border:1px solid var(--ln)}
 #bhRoot .dm-quick .qk:hover{border-color:var(--ac-m);background:var(--ac-l);color:var(--ac-d)}
 #bhRoot .dm-inbar{display:flex;gap:1px;border-top:1px solid var(--ln);background:var(--ln);flex-shrink:0}
+
+/* ══ Helper panel (right) — drag-resize · minimise · maximise ══
+   Applies to the "<agent> helper" panel shared by Marketing, Sales and
+   Customer Retention. Panel width is driven by --bh-mira-w on #bhRoot. */
+#bhRoot .dash-mira{position:relative}
+
+/* draggable divider on the panel's left edge (grip like shadcn ResizableHandle) */
+#bhRoot .mira-resize{position:absolute;left:0;top:0;bottom:0;width:12px;z-index:20;cursor:col-resize;display:flex;align-items:center;justify-content:center;touch-action:none}
+#bhRoot .mira-resize::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:var(--ln2);transition:background .15s}
+#bhRoot .mira-resize:hover::before,#bhRoot .mira-resize.dragging::before{background:var(--ac)}
+#bhRoot .mira-grip{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:12px;height:22px;border:1px solid var(--ln2);border-radius:4px;background:#fff;color:var(--g3);transition:all .15s}
+#bhRoot .mira-resize:hover .mira-grip,#bhRoot .mira-resize.dragging .mira-grip{color:var(--ac-d);border-color:var(--ac-m)}
+#bhRoot .mira-resize:focus-visible{outline:2px solid var(--ac);outline-offset:-1px}
+#bhRoot .mira-grip svg{width:12px;height:12px;display:block}
+
+/* header controls */
+#bhRoot .mira-tools{display:flex;gap:4px;flex-shrink:0}
+#bhRoot .mira-btn{width:24px;height:24px;padding:0;border:1px solid var(--ln2);background:#fff;border-radius:7px;cursor:pointer;display:grid;place-items:center;font-size:12px;line-height:1;color:var(--g2);font-family:var(--fm);transition:all .15s}
+#bhRoot .mira-btn:hover{color:var(--ac-d);border-color:var(--ac-m);background:var(--ac-l)}
+
+/* minimised → thin rail with an expand button */
+#bhRoot .col-rail{display:none;flex:1;flex-direction:column;align-items:center;gap:14px;padding:12px 0;background:#fff;overflow:hidden}
+#bhRoot .col-rail .col-toggle{width:26px;height:26px;flex-shrink:0;border:1px solid var(--ln2);background:#fff;border-radius:7px;cursor:pointer;display:grid;place-items:center;font-size:13px;line-height:1;color:var(--g2);font-family:var(--fm);transition:all .15s;padding:0}
+#bhRoot .col-rail .col-toggle:hover{color:var(--ac-d);border-color:var(--ac-m);background:var(--ac-l)}
+#bhRoot .col-rail-label{writing-mode:vertical-rl;font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g3)}
+#bhRoot.bh-mira-min .dash-mira > *:not(.col-rail){display:none}
+#bhRoot.bh-mira-min .dash-mira > .col-rail{display:flex}
+@media(min-width:1181px){
+  #bhRoot.bh-mira-min .dash{grid-template-columns:minmax(190px,220px) 1fr 40px}
+}
+@media(max-width:1180px){
+  #bhRoot .mira-resize{display:none}
+}
 
 .risk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:200;align-items:center;justify-content:center;padding:24px}
 .risk-modal-overlay.show{display:flex}
@@ -1585,13 +1631,112 @@ function toggleSidebarCollapse() {
     document.getElementById('bhFullBtn').title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
 }
 
+/* ── "<agent> helper" panel: drag-resize · minimise · maximise ──
+   Shared by Marketing, Sales and Customer Retention. Width lives in the
+   --bh-mira-w custom property; size + minimised state persist per viewer. */
+var BH_MIRA_MIN = 250;      // narrowest the panel can go while open (px)
+var BH_MIRA_DEFAULT = 320;
+var bhMiraState = { w: BH_MIRA_DEFAULT, min: false, maxed: false, prev: null };
+
+function bhMiraCap(){
+    var dash = document.getElementById('bhDash');
+    var total = dash ? dash.clientWidth : 1200;
+    return Math.max(BH_MIRA_MIN + 40, total - 460); // always leave room for Steps + content
+}
+function bhMiraApply(){
+    var w = Math.min(Math.max(bhMiraState.w, BH_MIRA_MIN), bhMiraCap());
+    root.style.setProperty('--bh-mira-w', w + 'px');
+    root.classList.toggle('bh-mira-min', bhMiraState.min);
+    var btn = document.querySelector('#bhMira .mira-btn[data-act="max"]');
+    if (btn){
+        btn.innerHTML = bhMiraState.maxed ? '&#10005;' : '&#9974;';
+        btn.title = bhMiraState.maxed ? 'Restore' : 'Maximise';
+    }
+}
+function bhMiraSave(){
+    try { localStorage.setItem('bhMira', JSON.stringify({ w: bhMiraState.w, min: bhMiraState.min })); }
+    catch (e) {}
+}
+function bhMiraLoad(){
+    try {
+        var s = JSON.parse(localStorage.getItem('bhMira') || '{}') || {};
+        if (typeof s.w === 'number' && isFinite(s.w)) bhMiraState.w = s.w;
+        bhMiraState.min = !!s.min;
+    } catch (e) {}
+    bhMiraApply();
+}
+function bhMira(action){
+    if (action === 'min'){
+        bhMiraState.min = true; bhMiraState.maxed = false;
+    } else if (action === 'restore'){
+        bhMiraState.min = false;
+    } else if (action === 'max'){
+        if (bhMiraState.maxed){
+            bhMiraState.maxed = false;
+            bhMiraState.w = bhMiraState.prev || BH_MIRA_DEFAULT;
+        } else {
+            bhMiraState.prev = bhMiraState.w;
+            bhMiraState.maxed = true;
+            bhMiraState.min = false;
+            bhMiraState.w = bhMiraCap();
+        }
+    }
+    bhMiraApply(); bhMiraSave();
+}
+
+(function bhMiraDrag(){
+    var h = document.getElementById('bhMiraResize');
+    if (!h) return;
+    var dragging = false, startX = 0, startW = 0;
+
+    h.addEventListener('pointerdown', function (e){
+        if (bhMiraState.min) return;
+        dragging = true;
+        startX = e.clientX;
+        startW = parseFloat(getComputedStyle(root).getPropertyValue('--bh-mira-w')) || BH_MIRA_DEFAULT;
+        h.classList.add('dragging');
+        try { h.setPointerCapture(e.pointerId); } catch (_) {}
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+    h.addEventListener('pointermove', function (e){
+        if (!dragging) return;
+        bhMiraState.w = Math.min(Math.max(startW + (startX - e.clientX), BH_MIRA_MIN), bhMiraCap());
+        bhMiraState.maxed = false;
+        root.style.setProperty('--bh-mira-w', bhMiraState.w + 'px');
+    });
+    function stop(e){
+        if (!dragging) return;
+        dragging = false;
+        h.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        try { h.releasePointerCapture(e.pointerId); } catch (_) {}
+        bhMiraApply(); bhMiraSave();
+    }
+    h.addEventListener('pointerup', stop);
+    h.addEventListener('pointercancel', stop);
+    h.addEventListener('dblclick', function (){ bhMiraState.w = BH_MIRA_DEFAULT; bhMiraState.maxed = false; bhMiraApply(); bhMiraSave(); });
+    h.addEventListener('keydown', function (e){
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        e.preventDefault();
+        var step = (e.shiftKey ? 48 : 16) * (e.key === 'ArrowLeft' ? 1 : -1); // left = wider
+        bhMiraState.w = Math.min(Math.max(bhMiraState.w + step, BH_MIRA_MIN), bhMiraCap());
+        bhMiraState.maxed = false;
+        bhMiraApply(); bhMiraSave();
+    });
+})();
+
+window.addEventListener('resize', function (){ bhMiraApply(); });
+
 window.setAgent = setAgent;
 window.toggleStep = toggleStep;
 window.handleQuick = handleQuick;
 window.sendMsg = sendMsg;
 window.toggleSidebarCollapse = toggleSidebarCollapse;
+window.bhMira = bhMira;
 
 setAgent('mk');
+bhMiraLoad();
 
 })();
 </script>
