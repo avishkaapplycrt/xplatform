@@ -59,35 +59,41 @@ class MarketingEmailTestService
     private const UNSUB_RATE_HIGH = 10.0;
 
     /**
-     * @return array{ranked: array<int, array>, answer: string, ai_used: bool}
+     * @return array{ranked: array<int, array>, answer: string, ai_used: bool, detail: array}
      */
     public function subjectLineTest(): array
     {
         $result = $this->computeSubjectLineTest();
 
-        return $this->buildAnswer(
+        $answer = $this->buildAnswer(
             $result['ranked'],
             'Which subject-line test is worth running on MQL → Sales?',
             $result['empty_message'],
             fn () => $result['plain_summary'],
             $result['context']
         );
+
+        // The emails behind each bucket never go to OpenAI — they're only
+        // for the "view the accounts behind this" drill-down in the UI.
+        return $answer + ['detail' => $result['detail'] ?? []];
     }
 
     /**
-     * @return array{ranked: array<int, array>, answer: string, ai_used: bool}
+     * @return array{ranked: array<int, array>, answer: string, ai_used: bool, detail: array}
      */
     public function touch1SendTime(): array
     {
         $result = $this->computeSendTime();
 
-        return $this->buildAnswer(
+        $answer = $this->buildAnswer(
             $result['ranked'],
             'When should MQL → Sales receive touch 1?',
             $result['empty_message'],
             fn () => $result['plain_summary'],
             $result['context']
         );
+
+        return $answer + ['detail' => $result['detail'] ?? []];
     }
 
     /**
@@ -166,20 +172,27 @@ class MarketingEmailTestService
     private function computeSubjectLineTest(): array
     {
         $emptyMessage = 'No sent emails with a subject line are on file yet to test from.';
-        $rows = EmailLog::query()->whereNotNull('subject')->get(['subject', 'opened_at']);
+        $rows = EmailLog::query()->whereNotNull('subject')->get(['subject', 'sent_at', 'opened_at']);
 
         if ($rows->isEmpty()) {
-            return ['ranked' => [], 'plain_summary' => $emptyMessage, 'empty_message' => $emptyMessage, 'context' => []];
+            return ['ranked' => [], 'plain_summary' => $emptyMessage, 'empty_message' => $emptyMessage, 'context' => [], 'detail' => []];
         }
 
         $buckets = ['urgency' => ['sent' => 0, 'opened' => 0], 'standard' => ['sent' => 0, 'opened' => 0]];
+        $emailsByBucket = ['urgency' => [], 'standard' => []];
 
         foreach ($rows as $row) {
             $key = $this->isUrgencySubject((string) $row->subject) ? 'urgency' : 'standard';
             $buckets[$key]['sent']++;
-            if ($row->opened_at !== null) {
+            $opened = $row->opened_at !== null;
+            if ($opened) {
                 $buckets[$key]['opened']++;
             }
+            $emailsByBucket[$key][] = [
+                'subject' => $row->subject,
+                'sent_at' => $row->sent_at?->format('Y-m-d H:i'),
+                'opened' => $opened,
+            ];
         }
 
         $ranked = [];
@@ -206,6 +219,7 @@ class MarketingEmailTestService
             'plain_summary' => $plainSummary,
             'empty_message' => $emptyMessage,
             'context' => ['winner' => $winner['style'], 'gap_points' => $gap],
+            'detail' => $emailsByBucket,
         ];
     }
 
@@ -215,13 +229,15 @@ class MarketingEmailTestService
     private function computeSendTime(): array
     {
         $emptyMessage = 'No sent emails are on file yet to read a best send time from.';
-        $rows = EmailLog::query()->whereNotNull('sent_at')->get(['sent_at', 'opened_at']);
+        $rows = EmailLog::query()->whereNotNull('sent_at')->get(['subject', 'sent_at', 'opened_at']);
 
         if ($rows->isEmpty()) {
-            return ['ranked' => [], 'plain_summary' => $emptyMessage, 'empty_message' => $emptyMessage, 'context' => []];
+            return ['ranked' => [], 'plain_summary' => $emptyMessage, 'empty_message' => $emptyMessage, 'context' => [], 'detail' => []];
         }
 
-        $ranked = collect(self::HOUR_BUCKETS)->map(function (array $bucket) use ($rows) {
+        $detail = [];
+
+        $ranked = collect(self::HOUR_BUCKETS)->map(function (array $bucket) use ($rows, &$detail) {
             $inBucket = $rows->filter(function ($row) use ($bucket) {
                 $hour = (int) $row->sent_at->format('G');
                 return $hour >= $bucket['from'] && $hour < $bucket['to'];
@@ -229,6 +245,12 @@ class MarketingEmailTestService
 
             $sent = $inBucket->count();
             $opened = $inBucket->filter(fn ($row) => $row->opened_at !== null)->count();
+
+            $detail[$bucket['label']] = $inBucket->map(fn ($row) => [
+                'subject' => $row->subject,
+                'sent_at' => $row->sent_at?->format('Y-m-d H:i'),
+                'opened' => $row->opened_at !== null,
+            ])->values()->all();
 
             return [
                 'window' => $bucket['label'],
@@ -240,7 +262,7 @@ class MarketingEmailTestService
         })->filter(fn (array $row) => $row['sent'] > 0)->values();
 
         if ($ranked->isEmpty()) {
-            return ['ranked' => [], 'plain_summary' => $emptyMessage, 'empty_message' => $emptyMessage, 'context' => []];
+            return ['ranked' => [], 'plain_summary' => $emptyMessage, 'empty_message' => $emptyMessage, 'context' => [], 'detail' => []];
         }
 
         $reliableOnly = $ranked->where('reliable', true);
@@ -255,6 +277,7 @@ class MarketingEmailTestService
             'plain_summary' => $plainSummary,
             'empty_message' => $emptyMessage,
             'context' => ['best_window' => $best['window'], 'reliable_volume' => self::RELIABLE_SEND_VOLUME],
+            'detail' => $detail,
         ];
     }
 
