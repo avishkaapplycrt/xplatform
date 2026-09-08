@@ -352,9 +352,13 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             })
             ->values();
 
+        // Names offered in the "Which customer?" input for the Root cause
+        // questions (Why is [name] leaving? / price vs product).
+        $retentionContactNames = app(\App\Services\RetentionRootCauseService::class)->candidateNames(60);
+
         return view('client.business-helpers', compact(
             'marketingPrompts', 'salesPrompts', 'marketingSteps', 'realAccounts',
-            'retentionPrompts', 'retentionSteps'
+            'retentionPrompts', 'retentionSteps', 'retentionContactNames'
         ));
     })->name('business-helpers');
 
@@ -468,6 +472,22 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('business-helpers/retention/watchlist', function () {
         return response()->json(app(\App\Services\RetentionSaveFirstService::class)->watchlistAnswer());
     })->name('business-helpers.retention.watchlist');
+
+    // Customer Retention · Root cause AI answers (crm_contacts + crm_deals only,
+    // written up by OpenAI when OPENAI_API_KEY is set — see
+    // App\Services\RetentionRootCauseService). why-leaving / price-or-product
+    // take ?name= ; top-churn-driver is book-wide.
+    Route::get('business-helpers/retention/why-leaving', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionRootCauseService::class)->whyLeaving($request->query('name')));
+    })->name('business-helpers.retention.why-leaving');
+
+    Route::get('business-helpers/retention/price-or-product', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionRootCauseService::class)->priceOrProduct($request->query('name')));
+    })->name('business-helpers.retention.price-or-product');
+
+    Route::get('business-helpers/retention/top-churn-driver', function () {
+        return response()->json(app(\App\Services\RetentionRootCauseService::class)->topChurnDriver());
+    })->name('business-helpers.retention.top-churn-driver');
 
     // Chat Bot
     Route::get('chatbot',        [ChatBotController::class, 'index'])->name('chatbot');
