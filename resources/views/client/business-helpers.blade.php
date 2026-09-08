@@ -479,6 +479,7 @@ var MARKETING_AI_ENDPOINTS = {
   lift_vs_holdout_mql_sales: @json(route('client.business-helpers.marketing.lift-vs-holdout')),
   audience_worst_unsub_rate: @json(route('client.business-helpers.marketing.worst-unsub-audience'))
 };
+var MARKETING_ACCOUNTS_ENDPOINT = @json(route('client.business-helpers.marketing.accounts-snapshot'));
 // Retention prompts that ask about one named customer — the UI collects the
 // name in an input before calling the endpoint (?name=…).
 var RETENTION_AI_NAME_PROMPTS = {
@@ -1389,6 +1390,7 @@ function showDashView(v){
   renderDashQuicks();
   var el = document.getElementById('dashView');
   if (v==='today') el.innerHTML = renderTodayStack();
+  else if (v==='accounts' && dashState.agent==='mk') renderMarketingAccountsTab();
   else if (v==='accounts') el.innerHTML = renderAccountsTable();
   else if (v==='scripts') el.innerHTML = renderScriptStudio();
   else if (v==='forecast') el.innerHTML = renderForecast();
@@ -1461,6 +1463,37 @@ function renderAccountsTable(){
       '<td><span class="stk-play '+x.c.play+'">'+PLAY_LABEL[x.c.play]+'</span></td></tr>';
   }).join('');
   return '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>MRR</th><th>Ready</th><th>Intent</th><th>Trust</th><th>Churn</th><th>Play</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+/* Marketing · Performance tab — real crm_contacts/crm_deals accounts, not the
+   fictional ACCOUNTS list. See MarketingPerformanceService::accountsSnapshot(). */
+var MK_SEGMENT_LABEL = {mql_ready:'MQL-ready', at_risk:'At-risk', other:'Other'};
+var MK_SEGMENT_COLOR = {mql_ready:'#0e7a35', at_risk:'#b42332', other:'#6b7280'};
+function renderMarketingAccountsTab(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = '<div style="padding:24px;color:var(--g3);font-size:12.5px">Loading real accounts…</div>';
+  fetch(MARKETING_ACCOUNTS_ENDPOINT)
+    .then(function(r){ return r.json(); })
+    .then(function(data){ el.innerHTML = renderMarketingAccountsTable(data.accounts || []); })
+    .catch(function(){ el.innerHTML = '<div style="padding:24px;color:var(--g3);font-size:12.5px">Could not load accounts — try again in a moment.</div>'; });
+}
+var MK_ACCOUNTS_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">This is your real customer data, showing each contact, their deal, Readiness, Trust, Segment, Deal Value, and Stage. Readiness and Trust increase as customers move further through the buying process. ' +
+    '<b>At-risk</b> means an open deal has had no activity for 3+ months. <b>MQL-ready</b> means the customer is ready for Sales based on their Readiness score. <b>Other</b> means they are not currently at risk or sales-ready. ' +
+    'Deal values and stages come directly from your data, with the highest-value deals shown first.</div>' +
+  '</div>';
+function renderMarketingAccountsTable(accounts){
+  if (!accounts.length) return MK_ACCOUNTS_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">No synced CRM contacts found.</div>';
+  var rows = accounts.map(function(a){
+    var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
+    var segColor = MK_SEGMENT_COLOR[a.segment] || '#6b7280';
+    return '<tr><td class="acctn">'+escapeHtml(a.name)+' <span style="color:var(--g3);font-weight:400">('+escapeHtml(a.company)+')</span></td>'+
+      '<td><span class="segtag" style="background:'+segColor+'22;color:'+segColor+'">'+escapeHtml(segLabel)+'</span></td>'+
+      '<td>'+money(a.deal_value)+'</td><td>'+a.buying_readiness+'</td><td>'+a.trust+'</td>'+
+      '<td>'+escapeHtml(a.stage_label)+'</td><td>'+a.days_since_activity+'d ago</td></tr>';
+  }).join('');
+  return MK_ACCOUNTS_INTRO + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>Deal value</th><th>Readiness</th><th>Trust</th><th>Stage</th><th>Last active</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 var scriptAcct = null, scriptChan = 'call';
 function renderScriptStudio(){
