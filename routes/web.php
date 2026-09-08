@@ -358,6 +358,17 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         ));
     })->name('business-helpers');
 
+    // Customer Retention · Risk radar AI answers (crm_contacts + crm_deals +
+    // email_logs_providers, written up by OpenAI when OPENAI_API_KEY is set —
+    // see App\Services\RetentionSaveFirstService).
+    Route::get('business-helpers/retention/save-first', function () {
+        return response()->json(app(\App\Services\RetentionSaveFirstService::class)->answer());
+    })->name('business-helpers.retention.save-first');
+
+    Route::get('business-helpers/retention/watchlist', function () {
+        return response()->json(app(\App\Services\RetentionSaveFirstService::class)->watchlistAnswer());
+    })->name('business-helpers.retention.watchlist');
+
     // Chat Bot
     Route::get('chatbot',        [ChatBotController::class, 'index'])->name('chatbot');
     Route::post('chatbot/send',  [ChatBotController::class, 'send'])->name('chatbot.send');
