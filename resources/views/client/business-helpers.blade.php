@@ -976,11 +976,12 @@ var RISK_COL_LABELS = {
   name: 'Name', company: 'Company', situation: 'Situation', deal_value: 'Deal value', deal_status: 'Deal',
   stage: 'Stage', unsubscribed: 'Unsub?', ever_opened: 'Ever opened?',
   days_since_activity: 'Days silent', risk_score: 'Risk', churn_score: 'Churn',
-  reason: 'Why'
+  reason: 'Why', subject: 'Subject', sent_at: 'Sent', opened: 'Opened?'
 };
-function openRiskModal(id){
+function openRiskModal(id, noun){
   var rows = RISK_DATA_CACHE[id];
   if (!rows || !rows.length) return;
+  noun = noun || 'account';
 
   var cols = Object.keys(RISK_COL_LABELS).filter(function(k){ return k in rows[0]; });
   var head = '<tr><th>#</th>' + cols.map(function(k){ return '<th>' + RISK_COL_LABELS[k] + '</th>'; }).join('') + '</tr>';
@@ -993,7 +994,7 @@ function openRiskModal(id){
     }).join('') + '</tr>';
   }).join('');
 
-  document.getElementById('riskModalTitle').textContent = rows.length + ' account' + (rows.length === 1 ? '' : 's') + ' behind this answer';
+  document.getElementById('riskModalTitle').textContent = rows.length + ' ' + noun + (rows.length === 1 ? '' : 's') + ' behind this answer';
   document.getElementById('riskModalBody').innerHTML = '<table>' + head + body + '</table>';
   document.getElementById('riskModalOverlay').classList.add('show');
 }
@@ -1398,13 +1399,15 @@ function showDashView(v){
   renderDashGuide();
   renderDashQuicks();
   var el = document.getElementById('dashView');
-  if (v==='today') el.innerHTML = renderTodayStack();
+  if (v==='today' && dashState.agent==='mk') renderMarketingCampaignStack();
+  else if (v==='today') el.innerHTML = renderTodayStack();
   else if (v==='accounts' && dashState.agent==='mk') renderMarketingAccountsTab();
   else if (v==='accounts') el.innerHTML = renderAccountsTable();
   else if (v==='scripts' && dashState.agent==='mk') renderMarketingAudienceTab();
   else if (v==='scripts') el.innerHTML = renderScriptStudio();
   else if (v==='forecast' && dashState.agent==='mk') renderMarketingInsightsTab();
   else if (v==='forecast') el.innerHTML = renderForecast();
+  else if (v==='performance' && dashState.agent==='mk') renderMarketingAbTestTab();
   else if (v==='performance') el.innerHTML = renderPerformance();
   else if (v==='manager') el.innerHTML = renderManager();
   else if (v==='abtest') el.innerHTML = renderRetentionAbTest();
@@ -1462,6 +1465,49 @@ function renderTodayStack(){
   if (nurture.length){ html += '<div class="sectionh warn">'+(agent==='ch'?'WATCH — CHURN CREEPING UP':'NURTURE — NOT READY YET')+'</div>' + nurture.map(row).join(''); }
   if (hold.length){ html += '<div class="sectionh bad">HOLD — ROUTE TO RETENTION</div>' + hold.map(row).join(''); }
   return html;
+}
+/* Marketing · Campaign tab — same stack layout as renderTodayStack(), fed
+   from real crm_contacts/crm_deals accounts instead of the fictional
+   ACCOUNTS list. See MarketingPerformanceService::accountsSnapshot(). */
+var MK_CAMPAIGN_STACK_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">Your real MQL-ready accounts, each with the campaign call that matters most for them: whether to lead with <b>proof</b> or an <b>offer</b>, based on their own real trust score against the 65-point line — not the pool average. Sorted by deal value, biggest first.</div>' +
+  '</div>';
+function renderMarketingCampaignStack(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = MK_CAMPAIGN_STACK_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">Loading real campaign data…</div>';
+
+  fetch(MARKETING_ACCOUNTS_ENDPOINT)
+    .then(function(r){ return r.json(); })
+    .then(function(data){ el.innerHTML = MK_CAMPAIGN_STACK_INTRO + renderMkCampaignTableHtml(data.accounts || []); })
+    .catch(function(){ el.innerHTML = MK_CAMPAIGN_STACK_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">Could not load campaign data — try again in a moment.</div>'; });
+}
+function renderMkCampaignTableHtml(accounts){
+  var ready = accounts.filter(function(a){ return a.segment === 'mql_ready'; }).sort(function(x,y){ return y.deal_value - x.deal_value; });
+
+  if (!ready.length) {
+    return '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts are MQL-ready right now.</div>';
+  }
+
+  var rows = ready.map(function(a){
+    var proofLed = a.trust < 65;
+    var approach = proofLed
+      ? '<span style="color:var(--warn);font-weight:600">Proof-led</span>'
+      : '<span style="color:#0e7a35;font-weight:600">Offer-led</span>';
+    var lastTouch = a.days_since_activity <= 7 ? 'This week' : a.days_since_activity + 'd ago';
+    return '<tr>'
+      + '<td class="acctn">' + escapeHtml(a.name) + ' <span style="color:var(--g3);font-weight:400">(' + escapeHtml(a.company) + ')</span></td>'
+      + '<td>' + money(a.deal_value) + '</td>'
+      + '<td>' + escapeHtml(a.stage_label) + '</td>'
+      + '<td>' + a.buying_readiness + '</td>'
+      + '<td>' + a.trust + '</td>'
+      + '<td>' + approach + '</td>'
+      + '<td>' + lastTouch + '</td>'
+      + '</tr>';
+  }).join('');
+
+  return '<table class="dtbl"><thead><tr><th>Account</th><th>Deal value</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead><tbody>' + rows + '</tbody></table>';
 }
 function scoreCol(v){ return v>=70?'#0e7a35':v>=50?'#9a6700':'#b42332'; }
 function renderAccountsTable(){
@@ -1806,6 +1852,130 @@ function renderPerformance(){
     '<div class="mg-kpi">'+mqlCount+' <small>ready for Sales</small></div>'+
     '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Accounts that have crossed the readiness bar — these are the hand-off candidates for the Sales stack.</div></div>'+
     '</div>';
+}
+/* Marketing · A/B test tab — real email_logs / crm_contacts data, shown as
+   charts instead of the fictional "Projected lift" / "MQL hand-off" tiles.
+   See MarketingEmailTestService (subject line, send time, test ideas) and
+   MarketingAbTestService (proof-vs-offer, sample size, holdout). */
+var MK_ABTEST_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">Real results from emails you\'ve actually sent, plus real sizing checks against your current MQL-ready pool. Nothing here is a guess — every number is measured from what already happened.</div>' +
+  '</div>';
+function renderMarketingAbTestTab(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = MK_ABTEST_INTRO + '<div id="mkAbBody" style="padding:24px;color:var(--g3);font-size:12.5px">Loading real test data…</div>';
+
+  Promise.all([
+    fetch(MARKETING_AI_ENDPOINTS.subject_line_test_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.when_receive_touch1_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.sample_size_per_arm_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.holdout_15_enough_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.proof_vs_offer_test_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.all_test_ideas_mql_sales).then(function(r){ return r.json(); })
+  ]).then(function(results){
+    var body = document.getElementById('mkAbBody');
+    if (body) body.outerHTML = '<div id="mkAbBody">' + renderMarketingAbTestBody(results[0], results[1], results[2], results[3], results[4], results[5]) + '</div>';
+  }).catch(function(){
+    var body = document.getElementById('mkAbBody');
+    if (body) body.innerHTML = 'Could not load test data — try again in a moment.';
+  });
+}
+function renderMarketingAbTestBody(subjectData, sendTimeData, sampleData, holdoutData, proofData, ideasData){
+  var html = '<div class="fc-grid">';
+
+  // Subject line: standard vs urgency — each bar opens the real emails behind it
+  var subj = subjectData.ranked || [];
+  var subjDetail = subjectData.detail || {};
+  if (subj.length) {
+    var subjMax = Math.max.apply(null, subj.map(function(s){ return s.open_rate; }));
+    html += '<div class="fc-cell"><div class="fc-h">SUBJECT LINE — STANDARD VS URGENCY <span style="text-transform:none;font-weight:400;color:var(--g3)">(click a bar for the real emails)</span></div>'
+      + subj.map(function(s, i){
+        var pct = subjMax > 0 ? Math.round(s.open_rate / subjMax * 100) : 0;
+        var color = i===0 ? '#0e7a35' : 'var(--ac)';
+        var emails = subjDetail[s.style] || [];
+        var cacheId = 'subj' + Math.random().toString(36).slice(2, 9);
+        RISK_DATA_CACHE[cacheId] = emails;
+        return '<div style="margin-bottom:10px;cursor:pointer" onclick="openRiskModal(\''+cacheId+'\',\'email\')" title="View the '+emails.length+' real emails behind this">'
+          + '<div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px"><span style="text-transform:capitalize">'+escapeHtml(s.style)+(i===0?' <span style="color:#0e7a35;font-weight:600">← better</span>':'')+'</span><span>'+s.open_rate+'% <small style="color:var(--g3)">('+s.opened+'/'+s.sent+')</small></span></div>'
+          + '<div style="height:8px;background:var(--p2);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+'"></div></div>'
+          + '</div>';
+      }).join('')
+      + '</div>';
+  } else {
+    html += '<div class="fc-cell"><div class="fc-h">SUBJECT LINE — STANDARD VS URGENCY</div><div style="color:var(--g3);font-size:12.5px">No sent emails with a subject line yet.</div></div>';
+  }
+
+  // Send time window — each bar opens the real emails sent in that window
+  var win = sendTimeData.ranked || [];
+  var winDetail = sendTimeData.detail || {};
+  if (win.length) {
+    var winMax = Math.max.apply(null, win.map(function(w){ return w.open_rate; }));
+    html += '<div class="fc-cell"><div class="fc-h">BEST SEND-TIME WINDOW <span style="text-transform:none;font-weight:400;color:var(--g3)">(click a bar for the real emails)</span></div>'
+      + win.map(function(w, i){
+        var pct = winMax > 0 ? Math.round(w.open_rate / winMax * 100) : 0;
+        var color = i===0 ? '#0e7a35' : 'var(--ac)';
+        var emails = winDetail[w.window] || [];
+        var cacheId = 'send' + Math.random().toString(36).slice(2, 9);
+        RISK_DATA_CACHE[cacheId] = emails;
+        return '<div style="margin-bottom:8px;cursor:pointer" onclick="openRiskModal(\''+cacheId+'\',\'email\')" title="View the '+emails.length+' real emails behind this">'
+          + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span>'+escapeHtml(w.window)+(i===0?' <span style="color:#0e7a35;font-weight:600">← best</span>':'')+(!w.reliable?' <span style="color:var(--g3)">(low volume)</span>':'')+'</span><span>'+w.open_rate+'%</span></div>'
+          + '<div style="height:6px;background:var(--p2);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+(w.reliable?'':';opacity:.5')+'"></div></div>'
+          + '</div>';
+      }).join('')
+      + '</div>';
+  } else {
+    html += '<div class="fc-cell"><div class="fc-h">BEST SEND-TIME WINDOW</div><div style="color:var(--g3);font-size:12.5px">No sent emails yet.</div></div>';
+  }
+
+  // Sample size per arm + holdout
+  var poolSize = (sampleData.ranked || []).length;
+  var perArm = Math.floor(poolSize / 2);
+  var reliablePool = poolSize >= 30;
+  var holdoutCount = Math.round(poolSize * 15 / 100);
+  var holdoutEnough = holdoutCount >= 5;
+  html += '<div class="fc-cell"><div class="fc-h">SAMPLE SIZE &amp; HOLDOUT CHECK</div>'
+    + '<div style="display:flex;gap:1px;height:26px;border-radius:6px;overflow:hidden;margin-bottom:6px">'
+      + '<div style="flex:1;background:var(--ac);color:#fff;font-size:10.5px;display:flex;align-items:center;justify-content:center">Arm A · '+perArm+'</div>'
+      + '<div style="flex:1;background:var(--ac-d);color:#fff;font-size:10.5px;display:flex;align-items:center;justify-content:center">Arm B · '+(poolSize-perArm)+'</div>'
+    + '</div>'
+    + '<div style="font-size:11.5px;color:var(--g2);margin-bottom:14px">'+poolSize+' MQL-ready account(s) total — '+(reliablePool?'<span style="color:#0e7a35;font-weight:600">enough to trust a clear result</span>':'<span style="color:var(--warn)">below 30, treat as directional</span>')+'.</div>'
+    + '<div style="font-size:11px;color:var(--g3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">15% Holdout</div>'
+    + '<div style="height:8px;background:var(--p2);border-radius:99px;overflow:hidden;margin-bottom:6px"><div style="height:100%;width:15%;background:'+(holdoutEnough?'#0e7a35':'var(--crit)')+'"></div></div>'
+    + '<div style="font-size:11.5px;color:var(--g2)">'+holdoutCount+' account(s) held out — '+(holdoutEnough?'<span style="color:#0e7a35;font-weight:600">workable, wide margin of error</span>':'<span style="color:var(--crit);font-weight:600">too small to mean anything</span>')+'.</div>'
+    + '</div>';
+
+  // Proof vs offer — same gauge style as Insights tab
+  var proofPool = proofData.ranked || [];
+  var avgTrust = proofPool.length ? Math.round(proofPool.reduce(function(s,a){ return s+a.trust; }, 0) / proofPool.length) : 0;
+  var gap = Math.abs(avgTrust - 65);
+  var tooClose = gap <= 10;
+  html += '<div class="fc-cell"><div class="fc-h">SHOULD I TEST PROOF VS OFFER?</div>'
+    + '<div style="margin:12px 0 6px;height:10px;background:var(--p2);border-radius:99px;position:relative;overflow:hidden">'
+    + '<div style="height:100%;width:'+avgTrust+'%;background:'+scoreCol(avgTrust)+';border-radius:99px"></div>'
+    + '<div style="position:absolute;left:65%;top:-3px;bottom:-3px;width:2px;background:var(--ink)"></div>'
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--g3)"><span>0</span><span>65 — the line</span><span>100</span></div>'
+    + '<div style="margin-top:12px;font-size:13px"><b>'+avgTrust+'</b> average trust, '+gap+' point(s) from the line — '
+    + (tooClose ? '<b style="color:var(--warn)">worth testing</b>, it\'s too close to call' : '<b style="color:#0e7a35">no test needed</b>, the number is already decisive')
+    + '.</div>'
+    + '</div>';
+
+  // All test ideas
+  var ideas = ideasData.ranked || [];
+  html += '<div class="fc-cell" style="grid-column:1/-1"><div class="fc-h">ALL TEST IDEAS — ONLY WHAT\'S JUSTIFIED RIGHT NOW</div>'
+    + (ideas.length
+        ? ideas.map(function(idea, i){
+            return '<div style="padding:10px 0;'+(i>0?'border-top:1px solid var(--p2);':'')+'">'
+              + '<div style="font-size:12.5px;font-weight:600;color:var(--ink)">'+escapeHtml(idea.idea)+' <span style="font-weight:400;color:var(--g3);text-transform:none">— '+escapeHtml(idea.metric)+'</span></div>'
+              + '<div style="font-size:12px;color:var(--g2);margin-top:3px;line-height:1.55">'+escapeHtml(idea.why)+'</div>'
+              + '</div>';
+          }).join('')
+        : '<div style="color:var(--g3);font-size:12.5px">No sent emails on file yet to base test ideas on.</div>')
+    + '</div>';
+
+  html += '</div>';
+  return html;
 }
 function logOutcome(name){
   dashDone[dashState.agent+':'+name] = true;
