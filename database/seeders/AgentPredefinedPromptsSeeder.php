@@ -123,9 +123,17 @@ class AgentPredefinedPromptsSeeder extends Seeder
             ['retention', 'Recover & grow', 'save_rate_revenue', 'What is our save rate and revenue saved?', 1],
             ['retention', 'Recover & grow', 'lost_to_what', 'What are we actually losing to?', 2],
             ['retention', 'Recover & grow', 'stabilising_hands_off', 'Who is stabilising — hands off?', 3],
-            ['retention', 'Recover & grow', 'stabilisation_plan_for', 'Stabilisation plan for [name]', 4],
+            ['retention', 'Recover & grow', 'stabilisation_plan_for', 'Stabilisation plan for [name]?', 4],
             ['retention', 'Recover & grow', 'ready_hand_back_sales', 'Who is ready to hand back to Sales?', 5],
             ['retention', 'Recover & grow', 'send_growth_ready', 'Send growth-ready accounts to Sales', 6],
+
+            // Retention · A/B test (testing save plays on the at-risk book)
+            ['retention', 'A/B test', 'ab_which_test_worth_running', 'Which save-play test is worth running?', 1],
+            ['retention', 'A/B test', 'ab_discount_vs_no_discount', 'Should I test discount vs no-discount?', 2],
+            ['retention', 'A/B test', 'ab_accounts_per_arm', 'How many at-risk accounts per arm do I need?', 3],
+            ['retention', 'A/B test', 'ab_call_first_or_email_first', 'Call-first or email-first?', 4],
+            ['retention', 'A/B test', 'ab_holdout_big_enough', 'Is my holdout big enough?', 5],
+            ['retention', 'A/B test', 'ab_all_test_ideas', 'All save-play test ideas', 6],
         ];
 
         $rowsBySlug = collect($rows)->keyBy(fn ($row) => $row[0] . '|' . $row[2]);

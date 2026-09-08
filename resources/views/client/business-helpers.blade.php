@@ -454,7 +454,13 @@ var RETENTION_AI_ENDPOINTS = {
   save_plan_call: @json(route('client.business-helpers.retention.save-plan')),
   save_email: @json(route('client.business-helpers.retention.save-email')),
   whatsapp_checkin: @json(route('client.business-helpers.retention.whatsapp-checkin')),
-  first_48_hours: @json(route('client.business-helpers.retention.first-48-hours'))
+  first_48_hours: @json(route('client.business-helpers.retention.first-48-hours')),
+  ab_which_test_worth_running: @json(route('client.business-helpers.retention.ab.which-test')),
+  ab_discount_vs_no_discount: @json(route('client.business-helpers.retention.ab.discount-vs-no-discount')),
+  ab_accounts_per_arm: @json(route('client.business-helpers.retention.ab.accounts-per-arm')),
+  ab_call_first_or_email_first: @json(route('client.business-helpers.retention.ab.call-first-or-email-first')),
+  ab_holdout_big_enough: @json(route('client.business-helpers.retention.ab.holdout-big-enough')),
+  ab_all_test_ideas: @json(route('client.business-helpers.retention.ab.all-test-ideas'))
 };
 var MARKETING_AI_ENDPOINTS = {
   exclude_from_every_send: @json(route('client.business-helpers.marketing.exclude-from-send')),
@@ -491,6 +497,9 @@ var RETENTION_AI_NAME_PROMPTS = {
 // (standard questions) but have no dedicated name-input endpoint yet.
 var RETENTION_KEEP_PLACEHOLDER = { changed_recently: 1, stabilisation_plan_for: 1 };
 var RETENTION_CONTACT_NAMES = @json($retentionContactNames ?? []);
+// At-risk pool for the A/B test pane — computed server-side from
+// crm_contacts + crm_deals, the same way the A/B test prompts do.
+var RETENTION_AB_POOL = @json($retentionAbPool ?? ['count' => 0, 'value' => 0, 'breakdown' => []]);
 var RETENTION_STEPS_DB = @json($retentionSteps ?? []);
 
 /* ═══ TASKS — plain English, per helper ═══ */
@@ -806,7 +815,7 @@ var DASH_FLOW = {
 var FLOW_TABS_BY_AGENT = {
   sl: ['today', 'accounts', 'scripts', 'forecast', 'manager'],
   mk: ['today', 'accounts', 'scripts', 'forecast', 'performance'],
-  ch: ['today', 'accounts', 'scripts', 'forecast', 'manager']
+  ch: ['today', 'accounts', 'scripts', 'forecast', 'manager', 'abtest']
 };
 var DB_PROMPTS_BY_AGENT = { sl: SALES_DB_PROMPTS, mk: MARKETING_DB_PROMPTS, ch: RETENTION_DB_PROMPTS };
 var STEP_KEYS_BY_AGENT = { sl: PROMPT_STEP_ORDER, mk: MARKETING_STEP_KEYS, ch: RETENTION_STEP_KEYS };
@@ -964,7 +973,7 @@ function renderRiskAiAnswer(data){
    churn_score) and Marketing's shapes (stage / reason) all flow through
    here — only the keys actually present on the rows are shown. */
 var RISK_COL_LABELS = {
-  name: 'Name', company: 'Company', deal_value: 'Deal value', deal_status: 'Deal',
+  name: 'Name', company: 'Company', situation: 'Situation', deal_value: 'Deal value', deal_status: 'Deal',
   stage: 'Stage', unsubscribed: 'Unsub?', ever_opened: 'Ever opened?',
   days_since_activity: 'Days silent', risk_score: 'Risk', churn_score: 'Churn',
   reason: 'Why'
@@ -1362,8 +1371,8 @@ var AGENT_TABS = {
   mk: FLOW_TABS_BY_AGENT.mk.map(function(viewKey, i){
     return {k: viewKey, label: (MARKETING_STEPS_DB[i] && MARKETING_STEPS_DB[i].title) || MARKETING_STEP_KEYS[i]};
   }),
-  ch: ['today', 'accounts', 'scripts', 'forecast', 'manager'].map(function(viewKey, i){
-    return {k: viewKey, label: (RETENTION_STEPS_DB[i] && RETENTION_STEPS_DB[i].title) || RETENTION_STEP_KEYS[i]};
+  ch: FLOW_TABS_BY_AGENT.ch.map(function(viewKey, i){
+    return {k: viewKey, label: (RETENTION_STEPS_DB[i] && RETENTION_STEPS_DB[i].title) || RETENTION_STEP_KEYS[i] || viewKey};
   })
 };
 var PLAY_LABEL = {call:'Call', upsell:'Upsell', hold:'Hold', nurture:'Nurture', winback:'Win-back', onboarding:'Onboarding', referral:'Referral', rescue:'Rescue', none:'—'};
@@ -1398,6 +1407,7 @@ function showDashView(v){
   else if (v==='forecast') el.innerHTML = renderForecast();
   else if (v==='performance') el.innerHTML = renderPerformance();
   else if (v==='manager') el.innerHTML = renderManager();
+  else if (v==='abtest') el.innerHTML = renderRetentionAbTest();
   if (v==='scripts' && dashState.agent!=='mk') selectScriptAccount(rankedFor(dashState.agent)[0].a.name, 'call');
 }
 var STACK_INTRO = {
@@ -1753,6 +1763,33 @@ function renderManager(){
     '<div class="mg-cell"><div class="mg-h">VALUE IN THE STACK</div>'+
     '<div class="mg-kpi">'+money(active.reduce(function(s,x){return s+x.a.mrr;},0))+'</div>'+
     '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Total MRR represented by accounts currently ranked as an active play.</div></div>'+
+    '</div>';
+}
+function renderRetentionAbTest(){
+  var pool = RETENTION_AB_POOL || {count:0, value:0, breakdown:{}};
+  var n = pool.count || 0;
+  var value = pool.value || 0;
+  var ready = n >= 4;
+  var bd = pool.breakdown || {};
+  var bdRows = Object.keys(bd).map(function(k){
+    var b = bd[k];
+    return '<div class="fc-row"><span>' + escapeHtml(b.label || k) + '</span><span>' + b.accounts + ' &middot; ' + money(b.value) + '</span></div>';
+  }).join('');
+
+  return '<div class="stack-intro">' +
+      '<div class="si-h">A/B TESTING SAVE PLAYS</div>' +
+      '<div class="si-p">The only sample the retention team can test on is the <b>at-risk book</b>. Right now <b>' + n + ' account' + (n===1?'':'s') + '</b> (' + money(value) + ') are at risk — ' +
+      (ready
+        ? 'enough for a <b>directional</b> read on one test at a time (roughly ' + Math.floor(n/2) + ' per arm), not statistical significance.'
+        : 'too few for a real A/B test yet. Run one save play well and log every outcome until the pool grows.') +
+      ' Ask Mira on the right for which test to run, per-arm sizing, holdout advice, and the full list of levers — every answer is computed from your live crm_contacts and crm_deals.</div>' +
+    '</div>' +
+    '<div class="sectionh">TESTABLE AT-RISK POOL<span>' + n + ' account' + (n===1?'':'s') + '</span></div>' +
+    '<div class="mg-grid">' +
+      '<div class="mg-cell"><div class="mg-h">POOL SIZE</div><div class="mg-kpi">' + n + ' <small>at risk</small></div>' +
+        (bdRows ? '<div style="margin-top:10px">' + bdRows + '</div>' : '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Accounts where a deal has stalled, been lost, or the customer has gone quiet after buying.</div>') + '</div>' +
+      '<div class="mg-cell"><div class="mg-h">VALUE IN THE POOL</div><div class="mg-kpi">' + money(value) + '</div>' +
+        '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Deal value represented by the at-risk pool — what a better save play is worth protecting.</div></div>' +
     '</div>';
 }
 function renderPerformance(){

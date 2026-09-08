@@ -356,9 +356,13 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         // questions (Why is [name] leaving? / price vs product).
         $retentionContactNames = app(\App\Services\RetentionRootCauseService::class)->candidateNames(60);
 
+        // At-risk pool figures for the A/B test pane — computed the same way
+        // the A/B test prompts do, so the pane and the answers agree.
+        $retentionAbPool = app(\App\Services\RetentionAbTestService::class)->poolSummary();
+
         return view('client.business-helpers', compact(
             'marketingPrompts', 'salesPrompts', 'marketingSteps', 'realAccounts',
-            'retentionPrompts', 'retentionSteps', 'retentionContactNames'
+            'retentionPrompts', 'retentionSteps', 'retentionContactNames', 'retentionAbPool'
         ));
     })->name('business-helpers');
 
@@ -526,6 +530,32 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('business-helpers/retention/first-48-hours', function (\Illuminate\Http\Request $request) {
         return response()->json(app(\App\Services\RetentionSavePlayService::class)->first48Hours($request->query('name')));
     })->name('business-helpers.retention.first-48-hours');
+
+    // Customer Retention · A/B test AI answers (crm_contacts + crm_deals only —
+    // see App\Services\RetentionAbTestService). Book-wide, no name needed.
+    Route::get('business-helpers/retention/ab/which-test', function () {
+        return response()->json(app(\App\Services\RetentionAbTestService::class)->whichTestWorthRunning());
+    })->name('business-helpers.retention.ab.which-test');
+
+    Route::get('business-helpers/retention/ab/discount-vs-no-discount', function () {
+        return response()->json(app(\App\Services\RetentionAbTestService::class)->discountVsNoDiscount());
+    })->name('business-helpers.retention.ab.discount-vs-no-discount');
+
+    Route::get('business-helpers/retention/ab/accounts-per-arm', function () {
+        return response()->json(app(\App\Services\RetentionAbTestService::class)->accountsPerArm());
+    })->name('business-helpers.retention.ab.accounts-per-arm');
+
+    Route::get('business-helpers/retention/ab/call-first-or-email-first', function () {
+        return response()->json(app(\App\Services\RetentionAbTestService::class)->callFirstOrEmailFirst());
+    })->name('business-helpers.retention.ab.call-first-or-email-first');
+
+    Route::get('business-helpers/retention/ab/holdout-big-enough', function () {
+        return response()->json(app(\App\Services\RetentionAbTestService::class)->holdoutBigEnough());
+    })->name('business-helpers.retention.ab.holdout-big-enough');
+
+    Route::get('business-helpers/retention/ab/all-test-ideas', function () {
+        return response()->json(app(\App\Services\RetentionAbTestService::class)->allTestIdeas());
+    })->name('business-helpers.retention.ab.all-test-ideas');
 
     // Chat Bot
     Route::get('chatbot',        [ChatBotController::class, 'index'])->name('chatbot');
