@@ -98,8 +98,37 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">Pipeline visualization coming soon.</p>
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100">
+        <h6 class="text-[13px] font-semibold text-gray-800">Pipeline by Stage</h6>
+      </div>
+
+      @if(($stages ?? collect())->isEmpty())
+      <div class="p-8 text-center">
+        @if($data['synced'] ?? false)
+        <p class="text-[13px] text-gray-500">No deals found in your connected CRM.</p>
+        <p class="text-[11px] text-gray-400 mt-1">Your last sync completed successfully — there just aren't any deals recorded there yet.</p>
+        @else
+        <p class="text-[13px] text-gray-500">Connected, but no deals have been synced yet.</p>
+        <p class="text-[11px] text-gray-400 mt-1">Hit "Sync Now" on the CRM Connections page to pull deals in.</p>
+        @endif
+      </div>
+      @else
+      @php $maxValue = $stages->max('total_value') ?: 1; @endphp
+      <div class="p-4 space-y-3">
+        @foreach($stages as $stage)
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[12.5px] font-medium text-gray-700">{{ $stage->stage }}</span>
+            <span class="text-[12px] text-gray-500">{{ $stage->deal_count }} deals &middot; ${{ number_format($stage->total_value) }}</span>
+          </div>
+          <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
+            <div class="h-full rounded-full bg-cyan-500" style="width: {{ max(3, round($stage->total_value / $maxValue * 100)) }}%"></div>
+          </div>
+        </div>
+        @endforeach
+      </div>
+      @endif
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -123,7 +152,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -131,4 +160,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush

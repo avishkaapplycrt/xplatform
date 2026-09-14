@@ -118,6 +118,24 @@ class CrmConnectionController extends Controller
         $data = $validator->validated();
         $data['provider'] = $provider;
 
+        // Api-key providers are never OAuth-verified anywhere else, so this is
+        // the only checkpoint that stands between a typo/placeholder key and a
+        // connection silently marked "connected". Verify live before saving.
+        $apiKeyProviders = ['hubspot', 'pipedrive'];
+        if (($data['status'] ?? null) === 'connected' && in_array($provider, $apiKeyProviders, true)) {
+            $verifyResult = match ($provider) {
+                'hubspot'   => $this->verifyHubSpotApiKey($request->input('api_key')),
+                'pipedrive' => $this->verifyPipedriveApiKey($request->input('api_key')),
+            };
+
+            if (!$verifyResult['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Could not verify credentials: ' . $verifyResult['message'],
+                ], 422);
+            }
+        }
+
         // Encrypt sensitive fields
         $encryptFields = ['api_key', 'api_secret', 'access_token', 'refresh_token'];
         foreach ($encryptFields as $field) {
@@ -769,6 +787,8 @@ class CrmConnectionController extends Controller
                 $syncResult = $this->syncPipedrive($connection);
             } elseif ($provider === 'monday') {
                 $syncResult = $this->syncMonday($connection);
+            } elseif ($provider === 'hubspot') {
+                $syncResult = $this->syncHubSpot($connection);
             }
 
             if ($syncResult && !$syncResult['success']) {
@@ -856,11 +876,83 @@ class CrmConnectionController extends Controller
 
     private function testHubSpot(CrmIntegration $connection): array
     {
-        return [
-            'success' => true,
-            'message' => 'HubSpot connection verified.',
-            'details' => ['portal_id' => $connection->portal_id]
-        ];
+        try {
+            $apiKey = Crypt::decryptString($connection->api_key);
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Stored API key could not be decrypted.'];
+        }
+
+        $result = $this->verifyHubSpotApiKey($apiKey);
+
+        if ($result['success']) {
+            $result['details'] = ['portal_id' => $connection->portal_id];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Calls HubSpot's API directly with the given token — used both to gate
+     * store() before a connection is ever saved as "connected", and by the
+     * Test Connection button. A token that can't list contacts isn't valid,
+     * regardless of what the client claims about it.
+     */
+    private function verifyHubSpotApiKey(?string $apiKey): array
+    {
+        if (empty($apiKey)) {
+            return ['success' => false, 'message' => 'No API key provided.'];
+        }
+
+        try {
+            $response = Http::withToken($apiKey)
+                ->timeout(10)
+                ->get('https://api.hubapi.com/crm/v3/objects/contacts', ['limit' => 1]);
+
+            if ($response->successful()) {
+                return ['success' => true, 'message' => 'HubSpot connection verified.'];
+            }
+
+            $err = $response->json();
+            return [
+                'success' => false,
+                'message' => $err['message'] ?? ('HubSpot API returned HTTP ' . $response->status()),
+            ];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'HubSpot verification failed: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Same purpose as verifyHubSpotApiKey() but for Pipedrive — shared by
+     * store()'s pre-save gate and testPipedrive().
+     */
+    private function verifyPipedriveApiKey(?string $apiKey): array
+    {
+        if (empty($apiKey)) {
+            return ['success' => false, 'message' => 'No API key provided.'];
+        }
+
+        try {
+            $response = Http::timeout(10)->get('https://api.pipedrive.com/v1/users/me', [
+                'api_token' => $apiKey,
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                return [
+                    'success' => true,
+                    'message' => 'Pipedrive connection verified.',
+                    'user'    => $data['data']['name'] ?? null,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Pipedrive API returned error: ' . ($response->json()['error'] ?? 'Unknown error'),
+            ];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Pipedrive verification failed: ' . $e->getMessage()];
+        }
     }
 
     private function testZoho(CrmIntegration $connection): array
@@ -913,28 +1005,17 @@ class CrmConnectionController extends Controller
     {
         try {
             $apiKey = Crypt::decryptString($connection->api_key);
-            
-            $response = Http::get('https://api.pipedrive.com/v1/users/me', [
-                'api_token' => $apiKey,
-            ]);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                return [
-                    'success' => true,
-                    'message' => 'Pipedrive connection verified.',
-                    'details' => ['user' => $data['data']['name'] ?? 'Unknown']
-                ];
-            }
-
-            return [
-                'success' => false,
-                'message' => 'Pipedrive API returned error: ' . ($response->json()['error'] ?? 'Unknown error')
-            ];
-
         } catch (\Exception $e) {
-            return ['success' => false, 'message' => 'Pipedrive test failed: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'Stored API key could not be decrypted.'];
         }
+
+        $result = $this->verifyPipedriveApiKey($apiKey);
+
+        if ($result['success']) {
+            $result['details'] = ['user' => $result['user'] ?? 'Unknown'];
+        }
+
+        return $result;
     }
 
     private function testMonday(CrmIntegration $connection): array
@@ -1120,6 +1201,141 @@ class CrmConnectionController extends Controller
             'count' => count($activities),
             'sample' => array_slice($activities, 0, 3),
         ];
+    }
+
+    /* ================================================================
+       HUBSPOT SYNC HELPERS
+       ================================================================ */
+
+    /**
+     * Sync data from HubSpot CRM.
+     */
+    private function syncHubSpot(CrmIntegration $connection): array
+    {
+        $apiKey = Crypt::decryptString($connection->api_key);
+
+        try {
+            $contactsSynced = $this->syncHubSpotContacts($connection, $apiKey);
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'HubSpot contact sync failed: ' . $e->getMessage()];
+        }
+
+        // Deals need a separate scope (crm.objects.deals.read) that the
+        // Private App token may not have been granted — don't let that
+        // wipe out a successful contact sync.
+        $dealsSynced = null;
+        $dealsWarning = null;
+        try {
+            $dealsSynced = $this->syncHubSpotDeals($connection, $apiKey);
+        } catch (\Exception $e) {
+            $dealsWarning = $e->getMessage();
+        }
+
+        return [
+            'success' => true,
+            'message' => $dealsWarning
+                ? "HubSpot sync completed (contacts only — deals skipped: {$dealsWarning})"
+                : 'HubSpot sync completed.',
+            'details' => ['contacts' => $contactsSynced, 'deals' => $dealsSynced],
+        ];
+    }
+
+    private function syncHubSpotContacts(CrmIntegration $connection, string $apiKey): int
+    {
+        $count = 0;
+        $after = null;
+
+        do {
+            $params = ['limit' => 100, 'properties' => 'email,firstname,lastname,company'];
+            if ($after) {
+                $params['after'] = $after;
+            }
+
+            $response = Http::withToken($apiKey)->timeout(15)
+                ->get('https://api.hubapi.com/crm/v3/objects/contacts', $params);
+
+            if (!$response->successful()) {
+                throw new \Exception('Contacts request failed: HTTP ' . $response->status());
+            }
+
+            $data = $response->json();
+
+            foreach ($data['results'] ?? [] as $contact) {
+                $props = $contact['properties'] ?? [];
+
+                \App\Models\CrmContact::updateOrCreate(
+                    ['connection_id' => $connection->id, 'external_id' => $contact['id']],
+                    [
+                        'provider'         => 'hubspot',
+                        'email'            => $props['email'] ?? null,
+                        'first_name'       => $props['firstname'] ?? null,
+                        'last_name'        => $props['lastname'] ?? null,
+                        'company'          => $props['company'] ?? null,
+                        'last_activity_at' => $contact['updatedAt'] ?? null,
+                        'raw_data'         => $contact,
+                    ]
+                );
+                $count++;
+            }
+
+            $after = $data['paging']['next']['after'] ?? null;
+        } while ($after);
+
+        return $count;
+    }
+
+    private function syncHubSpotDeals(CrmIntegration $connection, string $apiKey): int
+    {
+        $count = 0;
+        $after = null;
+
+        do {
+            $params = [
+                'limit'      => 100,
+                'properties' => 'dealname,amount,dealstage,closedate,hs_is_closed_won,hs_is_closed_lost',
+            ];
+            if ($after) {
+                $params['after'] = $after;
+            }
+
+            $response = Http::withToken($apiKey)->timeout(15)
+                ->get('https://api.hubapi.com/crm/v3/objects/deals', $params);
+
+            if (!$response->successful()) {
+                throw new \Exception('Deals request failed: HTTP ' . $response->status());
+            }
+
+            $data = $response->json();
+
+            foreach ($data['results'] ?? [] as $deal) {
+                $props = $deal['properties'] ?? [];
+
+                $status = 'open';
+                if (($props['hs_is_closed_won'] ?? null) === 'true') {
+                    $status = 'won';
+                } elseif (($props['hs_is_closed_lost'] ?? null) === 'true') {
+                    $status = 'lost';
+                }
+
+                \App\Models\CrmDeal::updateOrCreate(
+                    ['connection_id' => $connection->id, 'external_id' => $deal['id']],
+                    [
+                        'provider'   => 'hubspot',
+                        'name'       => $props['dealname'] ?? 'Untitled',
+                        'value'      => $props['amount'] ?? 0,
+                        'stage'      => $props['dealstage'] ?? null,
+                        'status'     => $status,
+                        'close_date' => $props['closedate'] ?? null,
+                        'raw_data'   => $deal,
+                    ]
+                );
+                $count++;
+            }
+
+            $after = $data['paging']['next']['after'] ?? null;
+        } while ($after);
+
+        return $count;
     }
 
     /* ================================================================

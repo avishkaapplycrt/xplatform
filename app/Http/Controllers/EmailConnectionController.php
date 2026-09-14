@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Str;
 
 class EmailConnectionController extends Controller
@@ -216,6 +219,8 @@ class EmailConnectionController extends Controller
             ], 401);
         }
 
+        $this->ensureEmailLogsTable();
+
         $connection = \App\Models\EmailConnection::create([
             'client_id'     => $client->id,
             'tenant_id'     => $client->tenant_id ?? null,
@@ -338,9 +343,382 @@ class EmailConnectionController extends Controller
         ]);
     }
 
+    /**
+     * Live Email Engagement grid (Delivered / Opens / Clicks / Conversions / Unsubscribes)
+     * for the "Email Engagement" card on the Data Collection page, sourced from the
+     * client's connected Brevo account.
+     */
+    public function brevoEngagementStats(Request $request)
+    {
+        $client = Auth::guard('client')->user();
+        $connection = \App\Models\EmailConnection::where('client_id', $client->id)
+            ->where('platform', 'brevo')
+            ->where('status', 'active')
+            ->first();
+
+        if (!$connection) {
+            return response()->json([
+                'success'   => false,
+                'connected' => false,
+                'message'   => 'Brevo is not connected yet.',
+            ], 200);
+        }
+
+        $cacheKey = "brevo_engagement_stats_{$connection->id}";
+
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+
+        try {
+            $stats = Cache::remember($cacheKey, now()->addMinutes(15), function () use ($connection) {
+                return $this->fetchBrevoEngagementStats($connection);
+            });
+        } catch (\App\Exceptions\BrevoRateLimitedException $e) {
+            return response()->json([
+                'success'   => false,
+                'connected' => true,
+                'message'   => 'Brevo is temporarily rate-limiting requests. Please try again in a few minutes.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success'   => false,
+                'connected' => true,
+                'message'   => 'Could not reach Brevo right now. Please try again shortly.',
+            ], 200);
+        }
+
+        if ($stats === null) {
+            return response()->json([
+                'success'   => false,
+                'connected' => true,
+                'message'   => 'Brevo rejected the stored API key. Please reconnect Brevo.',
+            ], 200);
+        }
+
+        return response()->json([
+            'success'   => true,
+            'connected' => true,
+            'data'      => $stats,
+        ]);
+    }
+
+    /**
+     * Sum globalStats across every "sent" Brevo campaign to build one aggregate
+     * engagement snapshot.
+     */
+    private function fetchBrevoEngagementStats($connection): ?array
+    {
+        $apiKey = decrypt($connection->api_key);
+
+        $totals = [
+            'sent' => 0, 'delivered' => 0, 'uniqueViews' => 0,
+            'uniqueClicks' => 0, 'unsubscriptions' => 0,
+        ];
+        $campaignCount = 0;
+        $offset = 0;
+        $limit  = 100;
+        $total  = null;
+
+        do {
+            $response = Http::withHeaders(['api-key' => $apiKey])
+                ->timeout(20)
+                ->get('https://api.brevo.com/v3/emailCampaigns', [
+                    'limit'      => $limit,
+                    'offset'     => $offset,
+                    'status'     => 'sent',
+                    'statistics' => 'globalStats',
+                ]);
+
+            if ($response->status() === 429) {
+                throw new \App\Exceptions\BrevoRateLimitedException($this->brevoRateLimitRetryAfter($response));
+            }
+
+            if (!$response->successful()) {
+                return null;
+            }
+
+            $data  = $response->json();
+            $total = $data['count'] ?? 0;
+            $batch = $data['campaigns'] ?? [];
+
+            foreach ($batch as $campaign) {
+                $g = $campaign['statistics']['globalStats'] ?? [];
+                foreach ($totals as $key => $value) {
+                    $totals[$key] += $g[$key] ?? 0;
+                }
+                $campaignCount++;
+            }
+
+            $offset += $limit;
+        } while ($total !== null && $offset < $total);
+
+        $delivered      = $totals['delivered'];
+        $baseSent       = max(1, $totals['sent']);
+        $baseDelivered  = max(1, $delivered);
+
+        return [
+            'delivered'         => $delivered,
+            'opens'             => $totals['uniqueViews'],
+            'clicks'            => $totals['uniqueClicks'],
+            'conversions'       => 0,
+            'unsubscribes'      => $totals['unsubscriptions'],
+            'delivery_rate'     => round($delivered / $baseSent * 100, 2),
+            'open_rate'         => round($totals['uniqueViews'] / $baseDelivered * 100, 2),
+            'click_rate'        => round($totals['uniqueClicks'] / $baseDelivered * 100, 2),
+            'conversion_rate'   => 0,
+            'unsubscribe_rate'  => round($totals['unsubscriptions'] / $baseDelivered * 100, 2),
+            'campaign_count'    => $campaignCount,
+            'account_name'      => $connection->account_name,
+            'synced_at'         => now()->toIso8601String(),
+        ];
+    }
+
+    private function brevoRateLimitRetryAfter($response): int
+    {
+        $reset = $response->header('x-sib-ratelimit-reset');
+        return $reset !== null && $reset !== '' ? max(30, (int) $reset) : 300;
+    }
+
+    /**
+     * List of email addresses actually delivered, for the "View" drill-down
+     * on the Delivered / Opens / Clicks / Unsubscribes rows of the Email
+     * Engagement card.
+     *
+     * Brevo has no single live endpoint for "every delivered/opened/clicked/
+     * unsubscribed recipient across all campaigns" — the only way to get real
+     * per-recipient data is an async per-campaign export (see
+     * ExportBrevoCampaignDeliveries), and one such export already carries all
+     * four signals per recipient. So the first call for ANY of these metrics
+     * kicks off one shared background export run across every sent campaign
+     * and reports "building" progress; the frontend polls this same endpoint
+     * until the run completes, at which point every metric reads instantly
+     * from local storage, filtered accordingly.
+     *
+     * There is no "conversions" variant: Brevo campaigns don't track
+     * per-recipient conversions at all (the aggregate conversions stat above
+     * is always 0 for the same reason), so there is nothing real to list.
+     */
+    public function brevoEngagementContacts(Request $request, string $metric)
+    {
+        // A refresh now runs every campaign export inline (see
+        // startBrevoDeliveredSync), which can take a couple of minutes across
+        // several campaigns — well past the default max_execution_time.
+        if ($request->boolean('refresh')) {
+            set_time_limit(0);
+        }
+
+        if (!in_array($metric, ['delivered', 'opens', 'clicks', 'unsubscribes'], true)) {
+            return response()->json([
+                'success'   => false,
+                'connected' => true,
+                'message'   => 'Unknown metric.',
+            ], 200);
+        }
+
+        $client = Auth::guard('client')->user();
+        $connection = \App\Models\EmailConnection::where('client_id', $client->id)
+            ->where('platform', 'brevo')
+            ->where('status', 'active')
+            ->first();
+
+        if (!$connection) {
+            return response()->json([
+                'success'   => false,
+                'connected' => false,
+                'message'   => 'Brevo is not connected yet.',
+            ], 200);
+        }
+
+        $sync = $this->currentOrNewBrevoSync($connection, $client->id, $request->boolean('refresh'));
+
+        if ($sync === null) {
+            return response()->json([
+                'success'   => false,
+                'connected' => true,
+                'message'   => 'Could not reach Brevo to list campaigns. Please try again shortly.',
+            ], 200);
+        }
+
+        if ($sync['status'] !== 'completed') {
+            return response()->json([
+                'success'   => true,
+                'connected' => true,
+                'building'  => true,
+                'total'     => $sync['total'],
+                'done'      => $sync['done'],
+            ]);
+        }
+
+        $query = \App\Models\BrevoDeliveredRecipient::where('client_id', $client->id);
+
+        match ($metric) {
+            'opens'        => $query->whereNotNull('opened_at'),
+            'clicks'       => $query->where('clicked', true),
+            'unsubscribes' => $query->whereNotNull('unsubscribed_at'),
+            default        => null, // 'delivered' — every stored row is already a delivered recipient
+        };
+
+        // Not deduped by email alone — the same recipient can show up under more
+        // than one campaign for this metric, and the campaign_id is what lets the
+        // UI tell those apart instead of silently collapsing them into one row.
+        $rows = $query->select('email', 'name', 'campaign_id')
+            ->orderByRaw('CAST(campaign_id AS UNSIGNED) asc')
+            ->orderBy('email')
+            ->get()
+            ->map(fn ($row) => ['email' => $row->email, 'name' => $row->name, 'campaign_id' => $row->campaign_id]);
+
+        return response()->json([
+            'success'   => true,
+            'connected' => true,
+            'building'  => false,
+            'data'      => $rows,
+            'built_at'  => optional($sync['completed_at'])->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Return the client's current sync state, starting a new export batch if
+     * needed. There is no dedicated "runs" table — whether a sync has ever
+     * completed is derived straight from email_logs_providers (keyed by
+     * client_id, stable across Brevo disconnect/reconnect), and while a batch
+     * is actively running its progress (total/done) lives in the cache under
+     * per-client keys. Starting a batch is wrapped in a per-client lock so two
+     * near-simultaneous requests (e.g. a page load racing a manual retry)
+     * can't both decide nothing is running and each dispatch a duplicate
+     * batch of export jobs.
+     */
+    private function currentOrNewBrevoSync($connection, int $clientId, bool $refresh): ?array
+    {
+        return Cache::lock("brevo_export_run_start_{$clientId}", 30)->block(10, function () use ($connection, $clientId, $refresh) {
+            $status = Cache::get("brevo_sync_status_{$clientId}");
+
+            if ($status === 'running') {
+                return [
+                    'status' => 'running',
+                    'total'  => (int) Cache::get("brevo_sync_total_{$clientId}", 0),
+                    'done'   => (int) Cache::get("brevo_sync_done_{$clientId}", 0),
+                ];
+            }
+
+            $lastSyncedAt = \App\Models\BrevoDeliveredRecipient::where('client_id', $clientId)->max('updated_at');
+
+            if ($lastSyncedAt !== null && $status !== 'failed') {
+                $completedAt = \Carbon\Carbon::parse($lastSyncedAt);
+
+                // A plain (non-refresh) request always reuses whatever's
+                // already local, however old — only an explicit refresh
+                // (the "Sync Data" button / in-modal Refresh) re-syncs from
+                // Brevo, so a normal page load never triggers the export.
+                if (!$refresh) {
+                    return ['status' => 'completed', 'completed_at' => $completedAt];
+                }
+            }
+
+            return $this->startBrevoDeliveredSync($connection, $clientId);
+        });
+    }
+
+    /**
+     * Fetch every sent campaign id straight from Brevo (not the local cache,
+     * which this app's ESP sync doesn't actually persist) and dispatch one
+     * export job per campaign, staggered so they don't all hit Brevo at once.
+     * Progress is tracked in the cache (not a DB table) since it only needs
+     * to survive for the lifetime of the batch itself.
+     */
+    private function startBrevoDeliveredSync($connection, int $clientId): ?array
+    {
+        $apiKey = decrypt($connection->api_key);
+
+        $campaignIds = [];
+        $offset = 0;
+        $limit  = 100;
+        $total  = null;
+
+        do {
+            $response = Http::withHeaders(['api-key' => $apiKey])
+                ->timeout(20)
+                ->get('https://api.brevo.com/v3/emailCampaigns', [
+                    'limit'  => $limit,
+                    'offset' => $offset,
+                    'status' => 'sent',
+                ]);
+
+            if (!$response->successful()) {
+                return null;
+            }
+
+            $data  = $response->json();
+            $total = $data['count'] ?? 0;
+
+            foreach ($data['campaigns'] ?? [] as $campaign) {
+                if (isset($campaign['id'])) {
+                    $campaignIds[] = (string) $campaign['id'];
+                }
+            }
+
+            $offset += $limit;
+        } while ($total !== null && $offset < $total);
+
+        if (empty($campaignIds)) {
+            Cache::forget("brevo_sync_status_{$clientId}");
+            return ['status' => 'completed', 'completed_at' => now()];
+        }
+
+        Cache::forever("brevo_sync_status_{$clientId}", 'running');
+        Cache::forever("brevo_sync_total_{$clientId}", count($campaignIds));
+        Cache::forever("brevo_sync_done_{$clientId}", 0);
+
+        // Run every campaign's export inline (dispatchSync) rather than queueing
+        // it — this app has no queue worker running in the background here, so
+        // a plain ->dispatch() would silently sit in the `jobs` table forever
+        // and the "Sync Data" click would appear to do nothing. Running
+        // synchronously means the click's own request is what does the work,
+        // so email_logs_providers (delivered/opened/clicked/unsubscribed + name)
+        // is guaranteed to be up to date by the time the response comes back.
+        foreach ($campaignIds as $campaignId) {
+            \App\Jobs\ExportBrevoCampaignDeliveries::dispatchSync($clientId, $campaignId);
+        }
+
+        Cache::forget("brevo_sync_status_{$clientId}");
+
+        return ['status' => 'completed', 'completed_at' => now()];
+    }
+
     /* ═══════════════════════════════════════════════════════
        PRIVATE HELPERS
        ═══════════════════════════════════════════════════════ */
+
+    /**
+     * Create email_logs_providers the first time any client connects an
+     * email provider. One shared table across every provider a client
+     * connects — provider_name (backed by email_connections.platform) says
+     * which one each row came from. Idempotent: never recreates or alters
+     * an existing table.
+     */
+    private function ensureEmailLogsTable(): void
+    {
+        if (Schema::hasTable('email_logs_providers')) {
+            return;
+        }
+
+        Schema::create('email_logs_providers', function (Blueprint $t) {
+            $t->id();
+            $t->unsignedBigInteger('client_id');
+            $t->string('provider_name', 50)->nullable();
+            $t->string('campaign_id', 50);
+            $t->string('email');
+            $t->string('name')->nullable();
+            $t->timestamp('delivered_at')->nullable();
+            $t->timestamp('opened_at')->nullable();
+            $t->boolean('clicked')->default(false);
+            $t->timestamp('unsubscribed_at')->nullable();
+            $t->timestamps();
+
+            $t->unique(['client_id', 'campaign_id', 'email']);
+            $t->index(['client_id', 'email']);
+        });
+    }
 
     private function getConnections(int $clientId)
     {

@@ -64,6 +64,17 @@
                 </svg>
                 Data Sources
             </a>
+
+            <a href="{{ route('client.chatbot') }}"
+               class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-gray-50
+                      text-gray-500 text-xs transition">
+                <svg class="w-3.5 h-3.5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor"
+                     stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+                Chat Bot
+            </a>
         </nav>
 
         {{-- Footer --}}

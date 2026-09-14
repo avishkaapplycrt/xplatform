@@ -107,6 +107,71 @@ class AnthropicClient
     }
 
     /**
+     * Send one conversational turn and return the assistant's reply as text.
+     *
+     * The counterpart to structuredCompletion(): it carries the full message
+     * history instead of a single data snapshot, and returns free-form prose
+     * rather than a schema-validated object. Both share the transport below.
+     *
+     * Thinking is on by default on this model family and `max_tokens` caps
+     * thinking and reply text together, so the default budget leaves room for
+     * both. Depth is tuned with `effort`, not by disabling thinking — a
+     * thinking-disabled request can emit a tool call as plain text or leak
+     * internal tags into the reply.
+     *
+     * @param string $system   System prompt — persona, scope, output style.
+     * @param array  $messages Alternating history: [['role' => 'user'|'assistant', 'content' => string], ...]
+     * @param array  $options  ['max_tokens' => int, 'effort' => 'low'|'medium'|'high'|'xhigh'|'max']
+     *
+     * @throws AnthropicException          non-retryable error, retries exhausted, or empty response
+     * @throws AnthropicRefusedException   the model's safety classifiers declined the request
+     */
+    public function chat(string $system, array $messages, array $options = []): string
+    {
+        if (!$this->isConfigured()) {
+            throw new AnthropicException('ANTHROPIC_API_KEY is not configured.');
+        }
+
+        $payload = [
+            'model'      => $this->model,
+            'max_tokens' => $options['max_tokens'] ?? 8000,
+            'system'     => $system,
+            'messages'   => $messages,
+            'output_config' => [
+                'effort' => $options['effort'] ?? 'low',
+            ],
+        ];
+
+        $body = $this->sendWithRetry($payload)->json();
+
+        $stopReason = $body['stop_reason'] ?? null;
+
+        if ($stopReason === 'refusal') {
+            $category = $body['stop_details']['category'] ?? 'unspecified';
+            throw new AnthropicRefusedException("Anthropic declined the request (category: {$category}).");
+        }
+
+        if ($stopReason === 'max_tokens') {
+            throw new AnthropicException(
+                'Reply was truncated at max_tokens. Increase max_tokens (thinking + reply share the same budget on this model).'
+            );
+        }
+
+        /* A turn can open with a thinking block whose text is empty, so take
+           every text block rather than just the first content block. */
+        $text = collect($body['content'] ?? [])
+            ->where('type', 'text')
+            ->pluck('text')
+            ->implode('');
+
+        if (trim($text) === '') {
+            throw new AnthropicException('Anthropic response contained no text content block.');
+        }
+
+        return $text;
+    }
+
+    /**
      * Attempts up to MAX_ATTEMPTS times. Retries on 429 (rate limit) and 5xx/529
      * (server error / overloaded) with exponential backoff, honoring the
      * Retry-After header when the API sends one. 4xx errors other than 429

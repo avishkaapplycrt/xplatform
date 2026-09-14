@@ -129,6 +129,7 @@ class MasterAdminDashboardController extends Controller
 
         // Recent data source connections
         $recentSources = ClientDataSource::where('status', 'connected')
+            ->whereNotNull('connected_at')
             ->latest('connected_at')
             ->take(3)
             ->get();
@@ -143,7 +144,7 @@ class MasterAdminDashboardController extends Controller
         }
 
         // Recent insights
-        $recentInsights = BusinessInsight::latest()->take(3)->get();
+        $recentInsights = BusinessInsight::whereNotNull('generated_at')->latest()->take(3)->get();
         foreach ($recentInsights as $insight) {
             $activities[] = [
                 'type' => 'insight_generated',

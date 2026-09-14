@@ -98,8 +98,52 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">Forecast analytics coming soon.</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Open Pipeline Value</p>
+        <p class="text-[24px] font-bold text-gray-900">${{ number_format($forecast['open_value'] ?? 0) }}</p>
+        <p class="text-[11px] text-gray-400 mt-1">{{ $forecast['open_count'] ?? 0 }} open deals &middot; not yet won or lost</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4 flex items-center">
+        <p class="text-[11.5px] text-gray-500 leading-relaxed">
+          This is a straight total of open deal value, not a probability-weighted forecast — mapping HubSpot's
+          pipeline stages to win-likelihood needs the stage metadata from HubSpot's Pipelines API, which isn't
+          synced yet.
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden mt-4">
+      <div class="px-4 py-3 border-b border-gray-100">
+        <h6 class="text-[13px] font-semibold text-gray-800">Open Value by Expected Close Month</h6>
+      </div>
+
+      @if((($forecast['by_month'] ?? collect()))->isEmpty())
+      <div class="p-8 text-center">
+        @if($data['synced'] ?? false)
+        <p class="text-[13px] text-gray-500">No open deals with a close date found in your connected CRM.</p>
+        <p class="text-[11px] text-gray-400 mt-1">Your last sync completed successfully — there just aren't any recorded there yet.</p>
+        @else
+        <p class="text-[13px] text-gray-500">Connected, but no deals have been synced yet.</p>
+        <p class="text-[11px] text-gray-400 mt-1">Hit "Sync Now" on the CRM Connections page to pull deals in.</p>
+        @endif
+      </div>
+      @else
+      @php $maxMonthValue = $forecast['by_month']->max('total_value') ?: 1; @endphp
+      <div class="p-4 space-y-3">
+        @foreach($forecast['by_month'] as $row)
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[12.5px] font-medium text-gray-700">{{ \Carbon\Carbon::createFromFormat('Y-m', $row->month)->format('F Y') }}</span>
+            <span class="text-[12px] text-gray-500">{{ $row->deal_count }} deals &middot; ${{ number_format($row->total_value) }}</span>
+          </div>
+          <div class="h-2 rounded-full bg-gray-100 overflow-hidden">
+            <div class="h-full rounded-full bg-cyan-500" style="width: {{ max(3, round($row->total_value / $maxMonthValue * 100)) }}%"></div>
+          </div>
+        </div>
+        @endforeach
+      </div>
+      @endif
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -123,7 +167,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -131,4 +175,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush
