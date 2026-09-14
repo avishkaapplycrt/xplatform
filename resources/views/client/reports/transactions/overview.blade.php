@@ -98,22 +98,60 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-      <div class="bg-white border border-gray-200 rounded-xl p-4">
-        <p class="text-[11px] text-gray-500 font-medium mb-1">Total Revenue</p>
-        <p class="text-[20px] font-bold text-gray-900">${{ number_format($data['total_revenue'] ?? 0, 2) }}</p>
-      </div>
-      <div class="bg-white border border-gray-200 rounded-xl p-4">
-        <p class="text-[11px] text-gray-500 font-medium mb-1">Total Orders</p>
-        <p class="text-[20px] font-bold text-gray-900">{{ number_format($data['total_orders'] ?? 0) }}</p>
-      </div>
-      <div class="bg-white border border-gray-200 rounded-xl p-4">
-        <p class="text-[11px] text-gray-500 font-medium mb-1">Avg Order Value</p>
-        <p class="text-[20px] font-bold text-gray-900">${{ number_format($data['avg_order_value'] ?? 0, 2) }}</p>
-      </div>
-      <div class="bg-white border border-gray-200 rounded-xl p-4">
-        <p class="text-[11px] text-gray-500 font-medium mb-1">Refund Rate</p>
-        <p class="text-[20px] font-bold text-gray-900">{{ $data['refund_rate'] ?? 0 }}%</p>
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
+      <div class="grid grid-cols-2 md:grid-cols-4">
+        <div class="p-4 border-b md:border-b-0 md:border-r border-gray-100">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style="background:#3b82f6;color:#fff;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          </div>
+          <p class="text-[11px] text-gray-500 font-semibold uppercase tracking-wide mb-1">Total Revenue</p>
+          <div class="flex items-center gap-2">
+            <p class="text-[20px] font-bold text-gray-900">${{ number_format($data['total_revenue'] ?? 0, 2) }}</p>
+            <a href="{{ route('client.reports.transactions.revenue') }}" class="inline-flex items-center gap-1 text-[10px] font-bold rounded-full px-2.5 py-1" style="background:#eff6ff;color:#3b82f6;text-decoration:none;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              View
+            </a>
+          </div>
+        </div>
+        <div class="p-4 border-b md:border-b-0 md:border-r border-gray-100">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style="background:#7c3aed;color:#fff;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m-9 3a1 1 0 102 0 1 1 0 00-2 0zm9 0a1 1 0 102 0 1 1 0 00-2 0z"/></svg>
+          </div>
+          <p class="text-[11px] text-gray-500 font-semibold uppercase tracking-wide mb-1">Total Orders</p>
+          <div class="flex items-center gap-2">
+            <p class="text-[20px] font-bold text-gray-900">{{ number_format($data['total_orders'] ?? 0) }}</p>
+            <a href="{{ route('client.reports.transactions.sales-funnel') }}" class="inline-flex items-center gap-1 text-[10px] font-bold rounded-full px-2.5 py-1" style="background:#f5f3ff;color:#7c3aed;text-decoration:none;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              View
+            </a>
+          </div>
+        </div>
+        <div class="p-4 border-b md:border-b-0 md:border-r border-gray-100">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style="background:#db2777;color:#fff;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.59 13.41L11 3.83A2 2 0 009.59 3.24L3 3v6.59a2 2 0 00.59 1.41l9.58 9.58a2 2 0 002.83 0l4.59-4.59a2 2 0 000-2.83z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+          </div>
+          <p class="text-[11px] text-gray-500 font-semibold uppercase tracking-wide mb-1">Avg Order Value</p>
+          <div class="flex items-center gap-2">
+            <p class="text-[20px] font-bold text-gray-900">${{ number_format($data['avg_order_value'] ?? 0, 2) }}</p>
+            <a href="{{ route('client.reports.transactions.revenue') }}" class="inline-flex items-center gap-1 text-[10px] font-bold rounded-full px-2.5 py-1" style="background:#fdf2f8;color:#db2777;text-decoration:none;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              View
+            </a>
+          </div>
+        </div>
+        <div class="p-4">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style="background:#ef4444;color:#fff;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </div>
+          <p class="text-[11px] text-gray-500 font-semibold uppercase tracking-wide mb-1">Refund Rate</p>
+          <div class="flex items-center gap-2">
+            <p class="text-[20px] font-bold text-gray-900">{{ $data['refund_rate'] ?? 0 }}%</p>
+            <a href="{{ route('client.reports.transactions.refunds') }}" class="inline-flex items-center gap-1 text-[10px] font-bold rounded-full px-2.5 py-1" style="background:#fef2f2;color:#ef4444;text-decoration:none;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+              View
+            </a>
+          </div>
+        </div>
       </div>
     </div>
     @else

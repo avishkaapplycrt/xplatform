@@ -1,0 +1,2251 @@
+{{-- resources/views/client/business-helpers.blade.php --}}
+@extends('layouts.platform')
+
+@section('title', 'Business Helpers')
+
+@push('styles')
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+@endpush
+
+@section('content')
+
+@php
+$client     = auth('client')->user();
+$clientName = $client?->company_name ?? 'Acme Retail';
+$initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(explode(' ', $clientName), 0, 2))));
+@endphp
+
+<div class="flex flex-col h-full overflow-hidden bg-gray-50">
+
+    {{-- Page Header --}}
+    <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
+        <div>
+            <h1 class="text-lg font-semibold text-gray-900">Business Helpers</h1>
+            <p class="text-xs text-gray-400 mt-0.5">Guided playbooks that tell you exactly what to do next</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button type="button" onclick="toggleSidebarCollapse()" id="bhFullBtn" title="Collapse sidebar"
+               class="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+            </button>
+            <a href="{{ route('client.dashboard') }}"
+               class="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
+               title="Dashboard">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                </svg>
+            </a>
+
+            <div class="relative" id="bhAvatarWrap">
+                <button onclick="var d=document.getElementById('bhDropdown');d.style.display=d.style.display==='block'?'none':'block'"
+                        class="w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-white text-xs font-bold hover:bg-cyan-600 transition-colors">
+                    {{ $initials ?: 'JD' }}
+                </button>
+                <div id="bhDropdown" class="hidden absolute right-0 top-10 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-50">
+                    <div class="px-4 py-2 border-b border-gray-50">
+                        <p class="text-xs font-semibold text-gray-900 truncate">{{ $clientName }}</p>
+                        <p class="text-[10px] text-gray-400">Client Account</p>
+                    </div>
+                    <a href="{{ route('client.dashboard') }}" class="flex items-center gap-2 px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        Profile Settings
+                    </a>
+                    <form method="POST" action="{{ route('client.logout') }}" class="border-t border-gray-50">
+                        @csrf
+                        <button type="submit" class="w-full flex items-center gap-2 px-4 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors text-left">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            </svg>
+                            Log Out
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    {{-- Helper Interface Card --}}
+    <div class="flex-1 overflow-hidden p-6">
+    <div id="bhRoot" class="h-full flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+
+        {{-- Selector bar: agent tabs + task tabs --}}
+        <div class="bar">
+            <div class="atabs">
+                <button type="button" class="atab" id="bhAgentTab-mk" onclick="setAgent('mk')">
+                    <span class="amono">M</span><span class="a2">Marketing</span>
+                </button>
+                <button type="button" class="atab" id="bhAgentTab-sl" onclick="setAgent('sl')">
+                    <span class="amono">S</span><span class="a2">Sales</span>
+                </button>
+                <button type="button" class="atab" id="bhAgentTab-ch" onclick="setAgent('ch')">
+                    <span class="amono">R</span><span class="a2">Customer Retention</span>
+                </button>
+            </div>
+        </div>
+
+        {{-- CLASSIC: guide (left) + console (right) — used by Customer Retention --}}
+        <div class="main" id="bhClassic">
+            <div class="guide">
+                <div class="g-hd" id="bhGHd"></div>
+                <div class="g-body" id="bhGBody"></div>
+            </div>
+            <div class="c-main">
+                <div class="cons-hd">
+                    <div>
+                        <div class="ch-name" id="bhWsName"></div>
+                        <div class="ch-sub" id="bhWsSub"></div>
+                    </div>
+                    <span class="ch-live">Ready</span>
+                </div>
+                <div class="chat" id="bhChat"></div>
+                <div class="quick" id="bhQuick"></div>
+                <div class="inbar">
+                    <input class="in" id="bhInput" type="text" placeholder="Ask anything — plain answers, no jargon..." autocomplete="off">
+                    <button type="button" class="send" onclick="sendMsg()" aria-label="Send">
+                        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- DASHBOARD: step guide + KPI strip/stack/accounts/scripts/forecast/manager + Mira — used by Marketing & Sales --}}
+        <div class="dash" id="bhDash">
+            <aside class="dash-left">
+                <div class="g-body" id="dashGBody"></div>
+            </aside>
+            <div class="dash-main">
+                <div class="dash-vtabs" id="dashVtabs"></div>
+                <div class="dash-view" id="dashView"></div>
+            </div>
+            <aside class="dash-mira" id="bhMira">
+                <div class="mira-resize" id="bhMiraResize" role="separator" aria-orientation="vertical" aria-label="Resize helper panel (arrow keys)" tabindex="0" title="Drag to resize">
+                    <span class="mira-grip" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                    </span>
+                </div>
+                <div class="dm-hd">
+                    <span class="dm-dot"></span>
+                    <div><div class="dm-t" id="dmTitle"></div><div class="dm-s">ENGINE + AI · GROUNDED IN LIVE DATA</div></div>
+                    <span class="dm-ready">Ready</span>
+                    <div class="mira-tools">
+                        <button type="button" class="mira-btn" onclick="bhMira('min')" title="Minimise" aria-label="Minimise helper panel">&minus;</button>
+                        <button type="button" class="mira-btn" data-act="max" onclick="bhMira('max')" title="Maximise" aria-label="Maximise helper panel">&#9974;</button>
+                    </div>
+                </div>
+                <div class="col-rail">
+                    <button type="button" class="col-toggle" onclick="bhMira('restore')" title="Expand helper" aria-label="Expand helper panel">&laquo;</button>
+                    <span class="col-rail-label">Helper</span>
+                </div>
+                <div class="dm-chat" id="dashChat"></div>
+                <div class="dm-quick-hd" id="dashQuickHd"></div>
+                <div class="dm-quick" id="dashQuick"></div>
+                <div class="dm-inbar">
+                    <input class="in" id="dashInput" type="text" placeholder="Ask anything — plain answers, no jargon..." autocomplete="off">
+                    <button type="button" class="send" onclick="dashSend()" aria-label="Send">
+                        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
+                </div>
+            </aside>
+        </div>
+
+        {{-- Popup for the Risk radar AI answers' underlying account data --}}
+        <div class="risk-modal-overlay" id="riskModalOverlay" onclick="if(event.target===this) closeRiskModal()">
+            <div class="risk-modal">
+                <div class="risk-modal-hd">
+                    <span id="riskModalTitle"></span>
+                    <button type="button" onclick="closeRiskModal()" aria-label="Close">✕</button>
+                </div>
+                <div class="risk-modal-body" id="riskModalBody"></div>
+            </div>
+        </div>
+
+    </div>
+    </div>
+
+</div>
+
+<style>
+#bhRoot{
+    --f1:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --fm:'IBM Plex Mono',ui-monospace,monospace;
+    --p1:#f9fafb;--p2:#f3f4f6;--ink:#111827;--g2:#6b7280;--g3:#9ca3af;--g4:#d1d5db;
+    --ln:#e5e7eb;--ln2:#d1d5db;--sig:#059669;--warn:#d97706;--crit:#dc2626;
+    --ac:#4f46e5;--ac-l:#eef2ff;--ac-m:#c7d2fe;--ac-d:#4338ca;
+    font-family:var(--f1);color:var(--ink);
+}
+#bhRoot[data-agent="sl"]{--ac:#2563eb;--ac-l:#eff6ff;--ac-m:#bfdbfe;--ac-d:#1d4ed8}
+#bhRoot[data-agent="ch"]{--ac:#e11d48;--ac-l:#fff1f2;--ac-m:#fecdd3;--ac-d:#be123c}
+
+#bhRoot .bar{display:flex;align-items:stretch;gap:1px;background:var(--ln);border-bottom:1px solid var(--ln);flex-wrap:wrap;flex-shrink:0}
+#bhRoot .atabs{display:flex;gap:1px;background:var(--ln);flex:1}
+#bhRoot .atab{background:#fff;padding:0 18px;cursor:pointer;transition:all .15s;text-align:left;border:none;font-family:var(--f1);display:flex;align-items:center;justify-content:center;gap:10px;min-height:56px;flex:1;position:relative}
+#bhRoot .atab:hover{background:var(--p1)}
+#bhRoot .atab.on{background:var(--ac-l)}
+#bhRoot .atab.on::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--ac)}
+#bhRoot .amono{width:28px;height:28px;flex-shrink:0;display:grid;place-items:center;font-size:12px;font-weight:700;background:var(--p2);color:var(--g2);border-radius:8px;transition:all .15s}
+#bhRoot .atab.on .amono{background:var(--ac);color:#fff}
+#bhRoot .atab .a2{font-size:13px;font-weight:600;color:var(--ink)}
+#bhRoot .atab.on .a2{color:var(--ac-d)}
+
+#bhRoot .main{display:grid;grid-template-columns:1fr 400px;gap:1px;background:var(--ln);flex:1;min-height:0;overflow:hidden}
+@media(max-width:900px){#bhRoot .main{grid-template-columns:1fr}}
+
+#bhRoot .guide{background:#fff;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#bhRoot .g-hd{background:#fff;border-bottom:1px solid var(--ln);padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;flex-shrink:0}
+#bhRoot .g-t{font-size:15px;font-weight:600;color:var(--ink);flex:1;min-width:180px}
+#bhRoot .g-w{font-size:12px;color:var(--g2);display:block;margin-top:3px;font-weight:400}
+#bhRoot .g-prog{display:flex;align-items:center;gap:10px}
+#bhRoot .g-count{font-size:11.5px;color:var(--g2);white-space:nowrap}
+#bhRoot .g-count b{color:var(--ink);font-weight:600}
+#bhRoot .g-bar{width:100px;height:6px;background:var(--p2);overflow:hidden;border-radius:99px}
+#bhRoot .g-fill{height:100%;width:0;background:var(--sig);transition:width .35s ease;border-radius:99px}
+#bhRoot .g-body{flex:1;overflow-y:auto;padding:6px 0}
+
+#bhRoot .st{display:flex;padding:0 20px;position:relative;cursor:pointer}
+#bhRoot .st:hover .st-txt{background:var(--p1)}
+#bhRoot .st.cur .st-txt{background:var(--ac-l);border-left:2px solid var(--ac);margin-left:8px;padding-left:14px}
+#bhRoot .st.cur .st-dot{border-color:var(--ac);color:var(--ac);box-shadow:0 0 0 4px var(--ac-l)}
+#bhRoot .st.cur .st-title{color:var(--ac-d)}
+#bhRoot .st-next{display:inline-block;font-size:10.5px;font-weight:600;color:var(--ac-d);border:1px solid var(--ac-m);background:var(--ac-l);border-radius:99px;padding:2px 9px;margin-left:10px;vertical-align:2px}
+#bhRoot .st-rail{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:36px}
+#bhRoot .st-dot{width:24px;height:24px;border:1.5px solid var(--ln2);background:#fff;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:600;color:var(--g2);transition:all .2s;z-index:1;flex-shrink:0;margin-top:13px}
+#bhRoot .st-line{width:1.5px;flex:1;background:var(--ln);min-height:8px}
+#bhRoot .st:last-of-type .st-line{background:transparent}
+#bhRoot .st.done .st-dot{background:var(--sig);border-color:var(--sig);color:#fff}
+#bhRoot .st.done .st-line{background:var(--sig)}
+#bhRoot .st.done .st-title{color:var(--g3);font-weight:600}
+#bhRoot .st-txt{flex:1;padding:11px 14px 13px;margin-left:10px;transition:background .15s;border-radius:8px}
+#bhRoot .st-title{font-size:13.5px;font-weight:600;color:var(--ink);margin-bottom:3px;transition:color .2s}
+#bhRoot .st-desc{font-size:12px;color:var(--g2);line-height:1.6;max-width:600px}
+#bhRoot .st-where{display:inline-flex;align-items:center;gap:6px;margin-top:7px;font-size:11px;font-weight:600;color:var(--ac-d);background:var(--ac-l);border:1px solid var(--ac-m);border-radius:6px;padding:3px 10px}
+#bhRoot .st-where::before{content:'\2192';color:var(--ac)}
+
+#bhRoot .c-main{background:#fff;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#bhRoot .cons-hd{padding:12px 16px;border-bottom:1px solid var(--ln);display:flex;align-items:center;gap:12px;background:var(--p1);flex-shrink:0}
+#bhRoot .ch-name{font-size:13px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+#bhRoot .ch-name::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--ac)}
+#bhRoot .ch-sub{font-size:11px;color:var(--g3);margin-top:2px}
+#bhRoot .ch-live{margin-left:auto;font-size:11px;font-weight:600;color:var(--sig);background:#ecfdf5;border:1px solid #a7f3d0;border-radius:99px;padding:3px 10px;display:flex;align-items:center;gap:6px;flex-shrink:0}
+#bhRoot .ch-live::before{content:'';width:6px;height:6px;background:var(--sig);border-radius:50%;animation:bhblink 1.8s infinite}
+@keyframes bhblink{0%,100%{opacity:1}50%{opacity:.2}}
+#bhRoot .chat{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:11px}
+#bhRoot .msg{max-width:94%;padding:11px 13px;font-size:12.5px;line-height:1.65;border-radius:10px}
+#bhRoot .msg.user{background:var(--ink);color:#fff;align-self:flex-end}
+#bhRoot .msg.bot{background:var(--p1);border:1px solid var(--ln);align-self:flex-start;color:var(--ink)}
+#bhRoot .msg.bot .tag{font-family:var(--fm);font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:9px;color:var(--ac-d)}
+#bhRoot .msg.bot p{margin-bottom:8px}
+#bhRoot .msg.bot p:last-child{margin-bottom:0}
+#bhRoot .msg.bot strong{color:var(--ink)}
+#bhRoot .msg.bot table{width:100%;border-collapse:collapse;margin:7px 0;font-size:11px}
+#bhRoot .msg.bot th,#bhRoot .msg.bot td{border:1px solid var(--ln);padding:5px 7px;text-align:left;vertical-align:top}
+#bhRoot .msg.bot th{background:var(--p2);font-size:10px;font-weight:600;color:var(--g2)}
+#bhRoot .how{align-self:stretch;border:1px solid var(--ln);background:#fff;margin-top:9px;border-radius:8px;overflow:hidden}
+#bhRoot .how-hd{font-size:11px;font-weight:600;color:var(--ac-d);background:var(--ac-l);padding:8px 12px}
+#bhRoot .how .hstep{display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid var(--ln);font-size:11.5px;line-height:1.55}
+#bhRoot .how .hstep:last-of-type{border-bottom:none}
+#bhRoot .hstep-n{font-size:10.5px;font-weight:600;color:var(--g3);flex-shrink:0;padding-top:2px;width:16px}
+#bhRoot .hstep-route{display:inline-block;font-size:10.5px;font-weight:500;background:var(--p1);border:1px solid var(--ln);border-radius:5px;padding:2px 7px;margin-top:4px;color:var(--g2)}
+#bhRoot .how-watch{padding:9px 12px;background:var(--p1);border-top:1px solid var(--ln);font-size:11px;color:var(--g2);line-height:1.7}
+#bhRoot .how-watch b{color:var(--sig);font-weight:600;display:block;font-size:12px;margin-top:2px}
+
+#bhRoot .acts{display:flex;flex-direction:column;gap:6px;align-self:stretch;margin-top:9px}
+#bhRoot .act{border:1px solid var(--ln);border-left:3px solid var(--ac);background:#fff;padding:10px 12px;display:flex;gap:10px;align-items:center;border-radius:8px}
+#bhRoot .act-t{font-size:12px;font-weight:600;color:var(--ink)}
+#bhRoot .act-d{font-size:10.5px;color:var(--g2);margin-top:2px}
+#bhRoot .act-meta{font-size:10px;color:var(--g3);margin-top:4px}
+#bhRoot .act-btn{margin-left:auto;flex-shrink:0;font-size:11px;font-weight:600;border-radius:6px;padding:7px 12px;border:1px solid var(--ac);background:var(--ac);color:#fff;cursor:pointer;transition:all .15s;white-space:nowrap}
+#bhRoot .act-btn:hover{background:var(--ac-d);border-color:var(--ac-d)}
+#bhRoot .act-btn.done{background:#ecfdf5;border-color:#a7f3d0;color:var(--sig);cursor:default}
+#bhRoot .quick{padding:10px 12px;border-top:1px solid var(--ln);display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}
+#bhRoot .qk{font-size:11px;font-weight:600;color:var(--g2);padding:7px 12px;border:1px solid var(--ln);cursor:pointer;background:#fff;transition:all .15s;border-radius:99px}
+#bhRoot .qk:hover{color:var(--ac-d);border-color:var(--ac-m);background:var(--ac-l)}
+#bhRoot .inbar{display:flex;gap:1px;border-top:1px solid var(--ln);background:var(--ln);flex-shrink:0}
+#bhRoot .in{flex:1;border:none;padding:12px 14px;font-family:var(--f1);font-size:12.5px;outline:none;min-width:0;background:#fff}
+#bhRoot .send{width:44px;border:none;background:var(--ac);color:#fff;cursor:pointer;display:grid;place-items:center;transition:background .15s;flex-shrink:0}
+#bhRoot .send:hover{background:var(--ac-d)}
+#bhRoot .send svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:2.5;stroke-linecap:round}
+
+/* ══ DASHBOARD (Marketing / Sales) ══ */
+#bhRoot .dash{display:none;grid-template-columns:minmax(190px,220px) 1fr var(--bh-mira-w,320px);gap:1px;background:var(--ln);flex:1;min-height:0;overflow:hidden}
+#bhRoot .dash.on{display:grid}
+@media(max-width:1180px){#bhRoot .dash{grid-template-columns:190px 1fr}}
+@media(max-width:820px){#bhRoot .dash{grid-template-columns:1fr;overflow-y:auto}}
+
+#bhRoot .dash-left{background:#fff;display:flex;flex-direction:column;overflow-y:auto;min-height:0;padding-top:8px}
+#bhRoot .flowst{display:flex;align-items:center;gap:13px;padding:12px 20px;cursor:pointer}
+#bhRoot .flowst:hover{background:var(--p1)}
+#bhRoot .flowst.cur{background:var(--ac-l);border-left:2px solid var(--ac);padding-left:18px}
+#bhRoot .flowst-dot{width:27px;height:27px;border-radius:50%;border:1.5px solid var(--ln2);background:#fff;display:grid;place-items:center;font-family:var(--fm);font-size:11px;font-weight:700;color:var(--g3);flex-shrink:0}
+#bhRoot .flowst.cur .flowst-dot{background:var(--ac);border-color:var(--ac);color:#fff}
+#bhRoot .flowst.done .flowst-dot{background:var(--sig);border-color:var(--sig);color:#fff}
+#bhRoot .flowst-t{font-size:13.5px;font-weight:600;color:var(--ink)}
+@media(max-width:820px){#bhRoot .dash-left{max-height:280px}}
+
+#bhRoot .dash-main{background:#fff;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#bhRoot .dash-vtabs{display:flex;gap:1px;background:var(--ln);border-bottom:1px solid var(--ln);flex-shrink:0;flex-wrap:wrap}
+#bhRoot .dvt{flex:1;min-width:110px;font-family:var(--fm);font-size:10.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--g2);padding:13px 8px;background:#fff;border:none;cursor:pointer;text-align:center;transition:all .15s}
+#bhRoot .dvt.on{background:var(--ac);color:#fff}
+#bhRoot .dvt:hover:not(.on){background:var(--p1);color:var(--ink)}
+#bhRoot .dash-view{flex:1;overflow-y:auto}
+
+#bhRoot .stkrow{display:grid;grid-template-columns:30px 108px 1.2fr 1.2fr auto;gap:18px;padding:22px 20px;border-bottom:1px solid var(--p2);align-items:center}
+#bhRoot .stkrow:last-child{border-bottom:none}
+#bhRoot .stk-n{font-family:var(--fm);font-size:17px;font-weight:600;color:var(--g4)}
+#bhRoot .stk-call{font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:10px 10px;border:1px solid var(--ac);background:var(--ac);color:#fff;cursor:pointer;border-radius:7px;white-space:nowrap;width:100%}
+#bhRoot .stk-call:hover{background:var(--ac-d);border-color:var(--ac-d)}
+#bhRoot .stk-call.done{background:#ecfdf5;border-color:#a7f3d0;color:var(--sig);cursor:default}
+#bhRoot .stk-acct{font-size:14px;font-weight:600;color:var(--ink)}
+#bhRoot .stk-play{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:2px 8px;border-radius:99px;margin-left:7px;display:inline-block;vertical-align:2px}
+#bhRoot .stk-play.call{background:var(--ac-l);color:var(--ac-d);border:1px solid var(--ac-m)}
+#bhRoot .stk-play.upsell{background:#ecfdf5;color:#0e7a35;border:1px solid #a7f3d0}
+#bhRoot .stk-play.winback{background:#fdf6e3;color:#9a6700;border:1px solid #f1dfae}
+#bhRoot .stk-play.onboarding{background:#f3eefc;color:#6d28d9;border:1px solid #e2d5f7}
+#bhRoot .stk-play.referral{background:#fdeef2;color:#c11d48;border:1px solid #f5cdd8}
+#bhRoot .stk-mrr{font-family:var(--fm);font-size:10.5px;color:var(--g3);margin-top:4px;letter-spacing:.3px}
+#bhRoot .stk-scores{display:flex;gap:18px;margin-top:12px}
+#bhRoot .sc{text-align:center}
+#bhRoot .sc-v{font-family:var(--fm);font-size:15px;font-weight:700}
+#bhRoot .sc-l{font-family:var(--fm);font-size:8px;color:var(--g4);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+#bhRoot .stk-why{font-size:12px;color:var(--g2);line-height:1.65}
+#bhRoot .stk-why b{color:var(--ink)}
+#bhRoot .stkbtn{font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:9px 14px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;border-radius:7px;white-space:nowrap}
+#bhRoot .stkbtn:hover{background:#000;border-color:#000}
+#bhRoot .stkbtn.ghost{background:#fff;color:var(--g2);border-color:var(--ln2)}
+#bhRoot .stkbtn.ghost:hover{color:var(--ink);border-color:var(--ink)}
+#bhRoot .stk-actions{display:flex;flex-direction:column;gap:8px}
+@media(max-width:900px){#bhRoot .stkrow{grid-template-columns:1fr 1fr;grid-auto-flow:row}}
+
+#bhRoot .stack-intro{padding:20px 20px 18px}
+#bhRoot .si-h{font-family:var(--fm);font-size:11px;font-weight:700;letter-spacing:2px;color:var(--ink);margin-bottom:10px}
+#bhRoot .si-p{font-size:12.5px;color:var(--g2);line-height:1.75;max-width:640px}
+#bhRoot .si-p b{color:var(--ink);font-weight:600}
+#bhRoot .sectionh{padding:11px 20px;background:var(--p1);border-top:1px solid var(--ln);border-bottom:1px solid var(--ln);font-family:var(--fm);font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--g2);display:flex;justify-content:space-between;align-items:center}
+#bhRoot .sectionh span{font-weight:500;letter-spacing:1px;text-transform:none;color:var(--g3)}
+#bhRoot .badge-new{font-family:var(--fm);font-size:8.5px;font-weight:700;letter-spacing:1px;color:var(--ac-d);background:var(--ac-l);border:1px solid var(--ac-m);border-radius:4px;padding:2px 7px;margin-left:8px;display:inline-block;vertical-align:2px}
+#bhRoot .sectionh.warn{color:var(--warn)}
+#bhRoot .sectionh.bad{color:var(--crit)}
+
+#bhRoot .dtbl{width:100%;border-collapse:collapse;font-size:12px}
+#bhRoot .dtbl th{font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--g3);text-align:left;padding:9px 14px;border-bottom:1px solid var(--ln);background:var(--p1);white-space:nowrap;font-weight:700}
+#bhRoot .dtbl td{padding:9px 14px;border-bottom:1px solid var(--p2);vertical-align:middle}
+#bhRoot .dtbl tr:hover td{background:var(--p1)}
+#bhRoot .dtbl .acctn{font-weight:600;color:var(--ink);cursor:pointer}
+#bhRoot .dtbl .acctn:hover{color:var(--ac)}
+#bhRoot .segtag{font-size:9.5px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:99px}
+
+#bhRoot .ss-grid{display:grid;grid-template-columns:230px 1fr;height:100%;min-height:0}
+#bhRoot .ss-list{border-right:1px solid var(--ln);overflow-y:auto}
+#bhRoot .ss-item{padding:11px 14px;border-bottom:1px solid var(--p2);cursor:pointer}
+#bhRoot .ss-item:hover{background:var(--p1)}
+#bhRoot .ss-item.on{background:var(--ac-l);border-left:3px solid var(--ac)}
+#bhRoot .ss-item .n{font-size:12px;font-weight:600;color:var(--ink)}
+#bhRoot .ss-item .m{font-size:10px;color:var(--g3);margin-top:2px}
+#bhRoot .ss-out{padding:18px;overflow-y:auto}
+#bhRoot .ss-chan{display:flex;gap:1px;background:var(--ln);border:1px solid var(--ln);width:max-content;margin-bottom:14px;border-radius:8px;overflow:hidden}
+#bhRoot .ss-chan button{font-size:11px;font-weight:600;text-transform:uppercase;padding:7px 15px;border:none;background:#fff;color:var(--g2);cursor:pointer}
+#bhRoot .ss-chan button.on{background:var(--ink);color:#fff}
+#bhRoot .ss-script{border:1px solid var(--ln2);border-radius:10px;overflow:hidden}
+#bhRoot .ss-shd{font-size:10.5px;font-weight:700;letter-spacing:1px;color:#fff;background:var(--ink);padding:9px 14px}
+#bhRoot .ss-beat{padding:13px 16px;border-bottom:1px solid var(--ln);font-size:13px;line-height:1.65}
+#bhRoot .ss-beat:last-child{border-bottom:none}
+#bhRoot .ss-beat-l{font-size:9.5px;font-weight:700;letter-spacing:1px;color:var(--ac-d);text-transform:uppercase;margin-bottom:5px}
+
+#bhRoot .fc-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--ln)}
+#bhRoot .fc-cell{background:#fff;padding:18px 20px}
+#bhRoot .fc-h{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--g3);text-transform:uppercase;margin-bottom:12px}
+#bhRoot .fc-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--p2);font-size:13px}
+#bhRoot .fc-row:last-child{border-bottom:none}
+#bhRoot .fc-row b{color:var(--ink)}
+#bhRoot .fc-tot{border-top:2px solid var(--ink);margin-top:6px;padding-top:10px;font-weight:700}
+@media(max-width:900px){#bhRoot .fc-grid{grid-template-columns:1fr}}
+
+#bhRoot .mg-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--ln)}
+#bhRoot .mg-cell{background:#fff;padding:16px 20px}
+#bhRoot .mg-h{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--g3);text-transform:uppercase;margin-bottom:10px}
+#bhRoot .mg-kpi{font-size:20px;font-weight:700;color:var(--ink)}
+#bhRoot .mg-kpi small{font-size:10px;color:var(--g3);font-weight:500;margin-left:4px}
+@media(max-width:900px){#bhRoot .mg-grid{grid-template-columns:1fr}}
+
+#bhRoot .dash-mira{background:#fff;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#bhRoot .dm-hd{display:flex;align-items:center;gap:11px;padding:16px 18px;border-bottom:1px solid var(--ln);background:var(--p1);flex-shrink:0}
+#bhRoot .dm-dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0;animation:bhblink 1.8s infinite}
+#bhRoot .dm-t{font-size:13px;font-weight:700;letter-spacing:.2px;color:var(--ink)}
+#bhRoot .dm-s{font-family:var(--fm);font-size:8.5px;letter-spacing:.5px;color:var(--g3);margin-top:3px}
+#bhRoot .dm-ready{margin-left:auto;font-family:var(--fm);font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--sig);background:#ecfdf5;border:1px solid #a7f3d0;border-radius:99px;padding:3px 10px;flex-shrink:0}
+#bhRoot .dm-chat{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:13px;min-height:120px}
+#bhRoot .dm-quick-hd{padding:10px 16px 4px;border-top:1px solid var(--ln);font-family:var(--fm);font-size:9.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--g3);flex-shrink:0}
+#bhRoot .dm-quick{padding:6px 16px 14px;display:flex;flex-direction:column;gap:7px;flex-shrink:0;max-height:220px;overflow-y:auto}
+#bhRoot .dm-quick .qk{width:100%;text-align:left;padding:10px 12px;font-size:12px;white-space:normal;line-height:1.35;border-radius:8px;background:#fff;border:1px solid var(--ln)}
+#bhRoot .dm-quick .qk:hover{border-color:var(--ac-m);background:var(--ac-l);color:var(--ac-d)}
+#bhRoot .dm-inbar{display:flex;gap:1px;border-top:1px solid var(--ln);background:var(--ln);flex-shrink:0}
+
+/* ══ Helper panel (right) — drag-resize · minimise · maximise ══
+   Applies to the "<agent> helper" panel shared by Marketing, Sales and
+   Customer Retention. Panel width is driven by --bh-mira-w on #bhRoot. */
+#bhRoot .dash-mira{position:relative}
+
+/* draggable divider on the panel's left edge (grip like shadcn ResizableHandle) */
+#bhRoot .mira-resize{position:absolute;left:0;top:0;bottom:0;width:12px;z-index:20;cursor:col-resize;display:flex;align-items:center;justify-content:center;touch-action:none}
+#bhRoot .mira-resize::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:var(--ln2);transition:background .15s}
+#bhRoot .mira-resize:hover::before,#bhRoot .mira-resize.dragging::before{background:var(--ac)}
+#bhRoot .mira-grip{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:12px;height:22px;border:1px solid var(--ln2);border-radius:4px;background:#fff;color:var(--g3);transition:all .15s}
+#bhRoot .mira-resize:hover .mira-grip,#bhRoot .mira-resize.dragging .mira-grip{color:var(--ac-d);border-color:var(--ac-m)}
+#bhRoot .mira-resize:focus-visible{outline:2px solid var(--ac);outline-offset:-1px}
+#bhRoot .mira-grip svg{width:12px;height:12px;display:block}
+
+/* header controls */
+#bhRoot .mira-tools{display:flex;gap:4px;flex-shrink:0}
+#bhRoot .mira-btn{width:24px;height:24px;padding:0;border:1px solid var(--ln2);background:#fff;border-radius:7px;cursor:pointer;display:grid;place-items:center;font-size:12px;line-height:1;color:var(--g2);font-family:var(--fm);transition:all .15s}
+#bhRoot .mira-btn:hover{color:var(--ac-d);border-color:var(--ac-m);background:var(--ac-l)}
+
+/* minimised → thin rail with an expand button */
+#bhRoot .col-rail{display:none;flex:1;flex-direction:column;align-items:center;gap:14px;padding:12px 0;background:#fff;overflow:hidden}
+#bhRoot .col-rail .col-toggle{width:26px;height:26px;flex-shrink:0;border:1px solid var(--ln2);background:#fff;border-radius:7px;cursor:pointer;display:grid;place-items:center;font-size:13px;line-height:1;color:var(--g2);font-family:var(--fm);transition:all .15s;padding:0}
+#bhRoot .col-rail .col-toggle:hover{color:var(--ac-d);border-color:var(--ac-m);background:var(--ac-l)}
+#bhRoot .col-rail-label{writing-mode:vertical-rl;font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g3)}
+#bhRoot.bh-mira-min .dash-mira > *:not(.col-rail){display:none}
+#bhRoot.bh-mira-min .dash-mira > .col-rail{display:flex}
+@media(min-width:1181px){
+  #bhRoot.bh-mira-min .dash{grid-template-columns:minmax(190px,220px) 1fr 40px}
+}
+@media(max-width:1180px){
+  #bhRoot .mira-resize{display:none}
+}
+
+.risk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:200;align-items:center;justify-content:center;padding:24px}
+.risk-modal-overlay.show{display:flex}
+.risk-modal{background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.risk-modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;color:#111827}
+.risk-modal-hd button{border:none;background:none;font-size:16px;color:#9ca3af;cursor:pointer;line-height:1;padding:4px}
+.risk-modal-hd button:hover{color:#111827}
+.risk-modal-body{overflow:auto;padding:12px 18px 18px}
+.risk-modal-body table{width:100%;border-collapse:collapse;font-size:12px}
+.risk-modal-body th,.risk-modal-body td{padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:left;white-space:nowrap}
+.risk-modal-body th{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;background:#f9fafb}
+
+/* "Which customer?" name input in a Root cause answer bubble */
+#bhRoot .nmform{display:flex;gap:6px;margin-top:8px;align-items:stretch}
+#bhRoot .nmin{flex:1;min-width:0;border:1px solid var(--ln2);border-radius:8px;padding:8px 10px;font-family:var(--f1);font-size:12px;color:var(--ink);outline:none;background:#fff}
+#bhRoot .nmin:focus{border-color:var(--ac-m);box-shadow:0 0 0 3px var(--ac-l)}
+#bhRoot .nmin:disabled{background:var(--p2);color:var(--g3)}
+#bhRoot .nmform .qk{flex-shrink:0;align-self:center}
+</style>
+
+<script>
+(function () {
+var MARKETING_DB_PROMPTS = @json($marketingPrompts ?? []);
+var SALES_DB_PROMPTS = @json($salesPrompts ?? []);
+var MARKETING_STEPS_DB = @json($marketingSteps ?? []);
+var RETENTION_DB_PROMPTS = @json($retentionPrompts ?? []);
+var RETENTION_AI_ENDPOINTS = {
+  who_save_first_week: @json(route('client.business-helpers.retention.save-first')),
+  drifting_watchlist: @json(route('client.business-helpers.retention.watchlist')),
+  why_leaving: @json(route('client.business-helpers.retention.why-leaving')),
+  price_or_product: @json(route('client.business-helpers.retention.price-or-product')),
+  top_churn_driver: @json(route('client.business-helpers.retention.top-churn-driver')),
+  can_discount: @json(route('client.business-helpers.retention.can-discount')),
+  what_allowed_offer: @json(route('client.business-helpers.retention.what-allowed-offer')),
+  give_get_ask: @json(route('client.business-helpers.retention.give-get')),
+  save_plan_call: @json(route('client.business-helpers.retention.save-plan')),
+  save_email: @json(route('client.business-helpers.retention.save-email')),
+  whatsapp_checkin: @json(route('client.business-helpers.retention.whatsapp-checkin')),
+  first_48_hours: @json(route('client.business-helpers.retention.first-48-hours')),
+  ab_which_test_worth_running: @json(route('client.business-helpers.retention.ab.which-test')),
+  ab_discount_vs_no_discount: @json(route('client.business-helpers.retention.ab.discount-vs-no-discount')),
+  ab_accounts_per_arm: @json(route('client.business-helpers.retention.ab.accounts-per-arm')),
+  ab_call_first_or_email_first: @json(route('client.business-helpers.retention.ab.call-first-or-email-first')),
+  ab_holdout_big_enough: @json(route('client.business-helpers.retention.ab.holdout-big-enough')),
+  ab_all_test_ideas: @json(route('client.business-helpers.retention.ab.all-test-ideas'))
+};
+var MARKETING_AI_ENDPOINTS = {
+  exclude_from_every_send: @json(route('client.business-helpers.marketing.exclude-from-send')),
+  in_live_sales_cycle: @json(route('client.business-helpers.marketing.live-sales-cycle')),
+  proof_or_offer_audience: @json(route('client.business-helpers.marketing.proof-or-offer')),
+  one_lever_mql_sales: @json(route('client.business-helpers.marketing.one-lever')),
+  why_name_here_not_sales: @json(route('client.business-helpers.marketing.why-not-with-sales')),
+  rule_put_people_mql_sales: @json(route('client.business-helpers.marketing.mql-rule')),
+  changed_last_7_days: @json(route('client.business-helpers.marketing.changed-last-7-days')),
+  email_sequence_mql_sales: @json(route('client.business-helpers.marketing.email-sequence')),
+  whatsapp_oneliner_mql_sales: @json(route('client.business-helpers.marketing.whatsapp-oneliner')),
+  sms_optout_mql_sales: @json(route('client.business-helpers.marketing.sms-optout')),
+  discount_or_proof_mql_sales: @json(route('client.business-helpers.marketing.discount-or-proof')),
+  proof_vs_offer_test_mql_sales: @json(route('client.business-helpers.marketing.proof-vs-offer-test')),
+  sample_size_per_arm_mql_sales: @json(route('client.business-helpers.marketing.sample-size-per-arm')),
+  holdout_15_enough_mql_sales: @json(route('client.business-helpers.marketing.holdout-enough')),
+  who_became_mql_since_last_send: @json(route('client.business-helpers.marketing.who-became-mql')),
+  push_week_mqls_to_sales: @json(route('client.business-helpers.marketing.push-mqls-to-sales')),
+  subject_line_test_mql_sales: @json(route('client.business-helpers.marketing.subject-line-test')),
+  when_receive_touch1_mql_sales: @json(route('client.business-helpers.marketing.touch1-send-time')),
+  all_test_ideas_mql_sales: @json(route('client.business-helpers.marketing.all-test-ideas')),
+  lift_vs_holdout_mql_sales: @json(route('client.business-helpers.marketing.lift-vs-holdout')),
+  audience_worst_unsub_rate: @json(route('client.business-helpers.marketing.worst-unsub-audience'))
+};
+var MARKETING_ACCOUNTS_ENDPOINT = @json(route('client.business-helpers.marketing.accounts-snapshot'));
+// Retention prompts that ask about one named customer — the UI collects the
+// name in an input before calling the endpoint (?name=…).
+var RETENTION_AI_NAME_PROMPTS = {
+  why_leaving: 1, price_or_product: 1,
+  can_discount: 1, what_allowed_offer: 1, give_get_ask: 1,
+  save_plan_call: 1, save_email: 1, whatsapp_checkin: 1, first_48_hours: 1
+};
+// Retention prompts that keep the literal [name] placeholder in the button
+// (standard questions) but have no dedicated name-input endpoint yet.
+var RETENTION_KEEP_PLACEHOLDER = { changed_recently: 1, stabilisation_plan_for: 1 };
+var RETENTION_CONTACT_NAMES = @json($retentionContactNames ?? []);
+// At-risk pool for the A/B test pane — computed server-side from
+// crm_contacts + crm_deals, the same way the A/B test prompts do.
+var RETENTION_AB_POOL = @json($retentionAbPool ?? ['count' => 0, 'value' => 0, 'breakdown' => []]);
+var RETENTION_STEPS_DB = @json($retentionSteps ?? []);
+
+/* ═══ TASKS — plain English, per helper ═══ */
+var TASKS = {
+mk: [
+ {n:"Win back customers who've gone quiet", w:"For customers who stopped showing up",
+  steps:[
+   {t:"See who's gone quiet", d:"Open your customer list and look at the “gone quiet” group — these are people who used to buy from you but stopped.", w:"Customers page → “Gone quiet” group"},
+   {t:"Pick the winnable ones", d:"Focus on the ones marked “good chance of coming back” — the platform works this out for you from their behaviour.", w:"Same page — sort by “win-back chance”"},
+   {t:"Start a win-back campaign", d:"Give it a name, choose these customers, and pick email as the channel.", w:"Campaigns → New campaign"},
+   {t:"Write the messages", d:"Three friendly emails: what's new since they left, something useful for them, and a personal note. The agent can write these for you — press the button below.", w:"Inside your new campaign"},
+   {t:"Set the timing", d:"Space the emails a few days apart, and stop automatically if they come back.", w:"Campaign settings → Schedule"},
+   {t:"Switch it on", d:"Press launch, then check it shows up in your campaign list as running.", w:"Campaigns → your campaign → Launch"}],
+  watch:"More of these customers logging in or buying again over the next few weeks"},
+ {n:"Get warned when a customer loses interest", w:"So you find out before it's too late",
+  steps:[
+   {t:"Open your alerts", d:"Alerts are automatic warnings — the platform watches your customers so you don't have to.", w:"Alerts page"},
+   {t:"Create the warning rule", d:"Ask to be told whenever a regular customer's activity drops sharply. That drop usually happens weeks before they actually leave.", w:"Alerts → New rule"},
+   {t:"Choose how you're notified", d:"Email or your team chat — wherever someone will actually see it the same day.", w:"Inside the rule settings"},
+   {t:"Act on each warning", d:"When a warning comes in, reach out to that customer personally, then mark the warning as handled.", w:"Alerts list → tick when done"}],
+  watch:"You hearing about unhappy customers weeks earlier than before"},
+ {n:"Check if your campaign made money", w:"After it's been running a week or more",
+  steps:[
+   {t:"Open the campaign results", d:"See how many people received, opened, and clicked each message.", w:"Campaigns → your campaign → Results"},
+   {t:"See what actually worked", d:"The platform shows which message got customers to come back — not just who opened it.", w:"Results → “What changed behaviour”"},
+   {t:"Read the money summary", d:"A plain summary: what the campaign cost, what it brought back, whether it was worth it.", w:"Reports → Summary"},
+   {t:"Let it learn", d:"The platform remembers what worked and automatically does more of it next time. Nothing for you to do here.", w:"Automatic"}],
+  watch:"Money brought back vs what the campaign cost you"}
+],
+sl: [
+ {n:"Get today's call list", w:"Start every day knowing who to contact",
+  steps:[
+   {t:"Open your customer list", d:"Sort by “ready to buy” — the platform scores every customer on how close they are to saying yes.", w:"Customers page → sort by “Ready to buy”"},
+   {t:"Skip the window-shoppers", d:"Only call people who are both ready AND genuinely interested — the list shows you both.", w:"Same page — “Interest” column"},
+   {t:"Check how much they trust you", d:"If trust is low, don't push — show proof first (a success story) and offer a low-risk way to start. If trust is high, just ask directly.", w:"Customer profile → Trust"},
+   {t:"Get a script for each call", d:"The agent writes you a script matched to each customer's situation — press the button below.", w:"Agent panel on the right"},
+   {t:"Log every call", d:"Record each contact so the platform can learn which calls actually lead to sales.", w:"Customer profile → Log contact"}],
+  watch:"How many calls turn into meetings, and meetings into sales"},
+ {n:"Find customers ready to spend more", w:"Your happiest customers often want more — if you ask",
+  steps:[
+   {t:"Look at your happy customers", d:"Only your regulars and fans — never try to upsell someone who's having problems.", w:"Customers page → “Happy” groups"},
+   {t:"Apply the three checks", d:"Ready to buy? Trusts you? Not frustrated? All three must be yes.", w:"Customer profiles"},
+   {t:"See what to offer", d:"The platform suggests what each customer is most likely to want next.", w:"Customer profile → Suggestions"},
+   {t:"Make the offer", d:"Reach out — the agent can write the message. Log it so results are tracked.", w:"Log contact after sending"},
+   {t:"Check it worked", d:"A month later: did they buy? And importantly — are they still happy?", w:"Reports"}],
+  watch:"Extra sales from existing customers — without any of them getting annoyed"},
+ {n:"Never miss a hot lead again", w:"Get told the moment someone's ready",
+  steps:[
+   {t:"Open your alerts", d:"You can't watch every customer every day. This does it for you.", w:"Alerts page"},
+   {t:"Create the “hot lead” warning", d:"Get notified instantly when any customer becomes very ready to buy.", w:"Alerts → New rule"},
+   {t:"Add a daily digest", d:"A morning summary of everyone whose interest is climbing — your warm list.", w:"Alerts → New rule"},
+   {t:"Call fast, then tick it off", d:"Hot leads cool quickly — aim to call within a few hours. Mark each alert handled.", w:"Alerts list"}],
+  watch:"Time between the warning and your call — keep it under 4 hours"}
+]
+};
+
+/* ═══ AGENTS ═══ */
+var AGENTS = {
+mk: {name:"Marketing", sub:"Bring customers back · Promote smarter",
+  intro:"<p>I help you run campaigns that actually work — using what the platform knows about your customers.</p><p>Right now I can see <strong>2 customers who went quiet but have a good chance of coming back</strong>, and <strong>2 new customers</strong> who need a proper welcome so they stick around.</p><p>Pick a job below, or just ask me anything.</p>",
+  quicks:[
+    {label:"Win back quiet customers", q:"Design a win-back campaign for my dormant segment"},
+    {label:"Welcome new customers", q:"Create an onboarding email sequence for new accounts"},
+    {label:"Get referrals", q:"Design a referral campaign using my champion accounts"},
+    {label:"Top plays this hour", q:"Design a win-back campaign for my dormant segment"}]},
+sl: {name:"Sales", sub:"Know who to call · What to say",
+  intro:"<p>I tell you who's ready to buy and what to say to them.</p><p>Right now: <strong>Kite Travel and Trellis Insurance look ready to buy</strong> — but both are still deciding whether to trust you, so the approach matters. I'll give you the exact words.</p><p>Pick a job below, or ask me about any customer.</p>",
+  quicks:[
+    {label:"Who do I call today?", q:"Prioritise my pipeline — who should I contact today and why?"},
+    {label:"Who'll buy more?", q:"Which existing accounts are ready for an upsell?"},
+    {label:"Words for my best lead", q:"Write me an outreach script for my highest-readiness account"},
+    {label:"Top 5 for this hour", q:"Prioritise my pipeline — who should I contact today and why?"}]},
+/* ch has no classic intro/quicks — Customer Retention always runs in dashboard mode,
+   and its quick prompts come entirely from the agents_pre_defined_prompts table. */
+ch: {name:"Customer Retention"}
+};
+
+/* ═══ PLAYBOOKS — canned rich answers behind the quick-action buttons ═══ */
+var PLAYBOOKS = {
+"Design a win-back campaign for my dormant segment": {agent:"mk", tag:"Marketing · Win-back plan",
+ html:"<p><strong>What I noticed —</strong> Quarry Analytics and Lumen EdTech ($2,600/month between them) both stopped using you — but neither has walked away. Quarry visited your help pages from their office <em>last week</em>, and Lumen still opens most of your emails. The door is open.</p><p><strong>The plan —</strong> three friendly emails, a few days apart: <strong>1)</strong> “Here's what's new since you've been away” — momentum, not apology. <strong>2)</strong> Something useful their own account data found. <strong>3)</strong> A short personal note from you offering a 15-minute catch-up. <strong>No discount in the first email</strong> — people come back for value; discounts come out only if they open twice without clicking.</p>",
+ how:{title:"How to set it up", watch:"They start logging in again — expect roughly 3× the usual comeback rate", steps:[
+  ["Find them: your customer list → the “gone quiet” group, sorted by win-back chance.","Customers page"],
+  ["Create the campaign, choose these 2 customers, channel: email.","Campaigns → New"],
+  ["Paste in the three messages — press the button below and I'll write them.","Campaign editor"],
+  ["Space the emails 3–5 days apart; stop automatically if they come back.","Campaign settings"],
+  ["Launch it.","Campaigns → Launch"],
+  ["Add a warning so you're told the moment either of them logs back in.","Alerts → New rule"]]},
+ acts:[{title:"Set up the win-back emails",desc:"2 customers · $2,600/month at stake · 3 friendly messages",route:"Campaigns → New",btn:"Set up"},
+       {title:"Warn me when they return",desc:"So you can welcome them back personally, same day",route:"Alerts → New rule",btn:"Set up"}]},
+
+"Create an onboarding email sequence for new accounts": {agent:"mk", tag:"Marketing · New-customer welcome",
+ html:"<p><strong>What I noticed —</strong> Trellis Insurance and Kite Travel both signed up recently and are keen — but neither has properly settled in. Trellis got 60% through setup and <em>stalled at connecting their data</em>. Keen-but-stalled is exactly when new customers quietly give up.</p><p><strong>The plan —</strong> four short emails over ten days: <strong>Day 0:</strong> one single ask — finish that setup step, nothing else. <strong>Day 2:</strong> show them their own first result (their data beats any brochure). <strong>Day 5:</strong> invite them to the weekly summary — that habit is what keeps customers for years. <strong>Day 10:</strong> a gentle look at what the next tier unlocks.</p>",
+ how:{title:"How to set it up", watch:"New customers finishing setup within 2 days and using you weekly by week 2", steps:[
+  ["Check your “new customers” group — you'll see where each one stalled.","Customers page"],
+  ["Create the campaign for the new-customer group, 4 emails, days 0/2/5/10.","Campaigns → New"],
+  ["Set it to stop nagging anyone who completes setup.","Campaign settings"],
+  ["Launch, then watch opens and completions in the results page.","Campaigns → Results"]]},
+ acts:[{title:"Set up the welcome series",desc:"2 new customers · 4 emails · stops when they're settled",route:"Campaigns → New",btn:"Set up"}]},
+
+"Design a referral campaign using my champion accounts": {agent:"mk", tag:"Marketing · Referrals",
+ html:"<p><strong>What I noticed —</strong> Solstice Energy and BluePeak SaaS love you — top satisfaction, growing usage, one gave you a 9/10 rating. Happy customers like these will recommend you — <em>but only if you ask properly</em>.</p><p><strong>The ask that works —</strong> don't send a “share this link” email. Ask each one personally: <em>“Who's one business owner you respect who struggles with keeping customers?”</em> Asking for ONE name gets about 3× more introductions than asking them to share. Then: personal intro → you give the new customer VIP treatment → report the good result back to whoever introduced them.</p>",
+ how:{title:"How to set it up", watch:"Replies with names in them — and new signups tagged as referrals", steps:[
+  ["Confirm your happiest customers in the “fans” group.","Customers page"],
+  ["Create a small campaign: just these 2, personal email from you.","Campaigns → New"],
+  ["One follow-up after 3 days if no reply — then stop. Never chase fans twice.","Campaign settings"],
+  ["Tag anyone they introduce, so you can see the referrals working.","New customer → tag"],
+  ["Check the results in a month or two.","Reports"]]},
+ acts:[{title:"Send the referral asks",desc:"2 happy customers · personal one-name ask",route:"Campaigns → New",btn:"Set up"}]},
+
+"Prioritise my pipeline — who should I contact today and why?": {agent:"sl", tag:"Sales · Today's call list",
+ html:"<p><strong>Your call list, in order:</strong></p><table><tr><th>#</th><th>Who</th><th>Why now</th><th>Approach</th></tr><tr><td>1</td><td><strong>Kite Travel</strong></td><td>Checked your prices 3× this month, watched your demo twice</td><td>Interested but not convinced it's you — show a success story, offer an easy low-risk start</td></tr><tr><td>2</td><td><strong>Trellis Insurance</strong></td><td>New signup, very engaged, came via a comparison site</td><td>Same — proof first, then a simple yes</td></tr><tr><td>3</td><td><strong>BluePeak SaaS</strong></td><td>Grew from 12 to 19 seats, asking about enterprise features</td><td>Existing fan — just ask directly about the bigger plan</td></tr></table><p><strong>Skip today:</strong> anyone marked at-risk — selling to an unhappy customer makes it worse.</p>",
+ how:{title:"How to do this yourself any morning", watch:"Calls turning into meetings — and tomorrow's list building itself", steps:[
+  ["Open your customer list, sort by “ready to buy”.","Customers page"],
+  ["Keep only the genuinely interested ones — the interest column.","Same page"],
+  ["Check trust before each call: low = lead with proof; high = just ask.","Customer profile"],
+  ["Ask me for the words for any call — button below.","Agent panel"],
+  ["Log each call so the platform learns what works for you.","Customer → Log contact"]]},
+ acts:[{title:"Get the words for Kite Travel",desc:"Success-story opener + easy-start close",route:"Agent panel",btn:"Write it"},
+       {title:"Warn me about hot leads",desc:"Instant alert whenever anyone becomes very ready to buy",route:"Alerts → New rule",btn:"Set up"}]},
+
+"Which existing accounts are ready for an upsell?": {agent:"sl", tag:"Sales · Who'll buy more",
+ html:"<p><strong>Three checks before offering anyone more:</strong> ready to buy? trusts you? not annoyed about anything? All three must be yes.</p><ul style='margin:4px 0 8px 15px'><li style='margin-bottom:3px'><strong>BluePeak SaaS — yes, yes, yes.</strong> Grew from 12 to 19 seats and reading about your bigger plan. Just ask directly.</li><li style='margin-bottom:3px'><strong>Solstice Energy — yes.</strong> Already made 2 expansion enquiries. Frame it around what they use most.</li><li><strong>Fable Media — nearly.</strong> Invite them to try the new module rather than talking price.</li></ul><p>Never offer more to anyone who's currently annoyed — nobody on this list is.</p>",
+ how:{title:"How to do this", watch:"Extra monthly revenue — with satisfaction staying high", steps:[
+  ["Look only at your happy groups — fans and regulars.","Customers page"],
+  ["Run the three checks on each: ready / trusts you / not annoyed.","Customer profiles"],
+  ["See what the platform suggests offering each one.","Profile → Suggestions"],
+  ["Make the offers — I can write each message.","Agent panel"],
+  ["A month later: did they buy, and are they still happy? Both matter.","Reports"]]},
+ acts:[{title:"Offer BluePeak the bigger plan",desc:"Already using 19 seats and reading about it",route:"Agent panel",btn:"Write it"},
+       {title:"Invite Fable to try the new module",desc:"Soft invitation, no price talk",route:"Agent panel",btn:"Write it"}]},
+
+"Write me an outreach script for my highest-readiness account": {agent:"sl", tag:"Sales · Your words for Kite Travel",
+ html:"<p><strong>The situation —</strong> Kite Travel really wants to solve this problem (prices checked 3×, demo watched twice, they even asked about data ownership in chat). But they don't fully trust you yet. So: don't push — prove.</p><p><strong>Opening:</strong> <em>“I noticed your team's been looking at us a few times this month — that usually means the problem's real but something's holding the decision back. Can I guess what it is?”</em></p><p><strong>The proof:</strong> <em>“Travel businesses using us typically see repeat bookings climb within two months — happy to show you real numbers.”</em></p><p><strong>The easy yes:</strong> <em>“Start on the small plan. If your numbers don't move in 30 days, walk away and keep everything we found.”</em></p>",
+ how:{title:"Before you call", watch:"Trust score climbing after the call — and a yes to the easy start", steps:[
+  ["Glance at their profile — scores change daily.","Customer profile"],
+  ["Have your one success story ready — same industry if possible.","Your notes"],
+  ["Make the call, offer the low-risk start.","Phone"],
+  ["Log the call afterwards so results are tracked.","Customer → Log contact"],
+  ["Set a warning for when their trust rises — that's when to talk bigger plans.","Alerts → New rule"]]},
+ acts:[{title:"Log this as today's priority call",desc:"Script attached · low-risk close",route:"Customer → Log contact",btn:"Queue"}]},
+
+"Triage my at-risk accounts — what do I do about each one this week?": {agent:"ch", tag:"Customer Retention · Who's about to leave",
+ html:"<p><strong>$8,900/month is at risk across three customers.</strong> Each one is leaving for a different reason — so each needs a different rescue:</p><table><tr><th>Customer</th><th>Worth</th><th>What's really going on</th><th>This week</th></tr><tr><td><strong>Meridian Health</strong></td><td>$4,200/mo</td><td>Something keeps breaking for them — 14 error sessions, 3 unhappy support calls</td><td>Fix the broken thing, then YOU call them. <strong>No discount</strong>.</td></tr><tr><td><strong>NovaPay</strong></td><td>$2,800/mo</td><td>Stuck on a technical step for 6 days, main contact just left the company</td><td>Solve the ticket + get introduced to the new person</td></tr><tr><td><strong>Cartwheel</strong></td><td>$1,900/mo</td><td>Things breaking AND their card is failing</td><td>Fix first, then a goodwill offer</td></tr></table><p><strong>Order matters:</strong> fix Meridian's problem BEFORE calling, so the call opens with “it's done” — not “we're working on it”.</p>",
+ how:{title:"How to run the rescues", watch:"Risk scores falling week by week · all three renewing", steps:[
+  ["Open each customer's profile and confirm what's annoying them.","Customer profiles"],
+  ["For Meridian: find exactly where it breaks for them.","Profile → Journey view"],
+  ["Set up a rescue plan per customer: fix → personal call → 30-day check-in.","Campaigns → New"],
+  ["Start each one.","Campaign → Launch"],
+  ["Add daily warnings on all three so you know immediately if anyone gets worse.","Alerts → New rule"],
+  ["In 30 days, see who stayed. The platform learns from every rescue.","Reports"]]},
+ acts:[{title:"Rescue Meridian ($4,200/mo)",desc:"Fix the errors first, then a personal call — no discount",route:"Campaigns → New",btn:"Start"},
+       {title:"Rescue NovaPay + Cartwheel",desc:"$4,700/mo combined · different fix for each",route:"Campaigns → New",btn:"Start"},
+       {title:"Daily warnings on all three",desc:"Know same-day if anyone slips further",route:"Alerts → New rule",btn:"Set up"}]},
+
+"Build a win-back plan for my dormant accounts": {agent:"ch", tag:"Customer Retention · Bring them back",
+ html:"<p><strong>Good news hiding in your quiet list —</strong> Quarry Analytics and Lumen EdTech ($2,600/month) both went quiet, but the signs say they're winnable: Quarry looked at your help pages from work last week, and Lumen opens nearly every email you send. They haven't left — they've just drifted.</p><p><strong>The 3-week plan —</strong> Week 1: “here's what's new” email + one useful thing their own account found. Week 2: if opened but not clicked, send a small offer; if clicked, invite to a 15-minute restart chat. Week 3: one short personal note from you — then stop, and let the alert watch for their return.</p>",
+ how:{title:"How to set it up", watch:"Quiet customers active again — expect ~3× the normal comeback rate", steps:[
+  ["Your quiet list, sorted by win-back chance — these two are on top.","Customers page"],
+  ["Create the campaign with the 3 weekly messages.","Campaigns → New"],
+  ["Add the smart rule: opened-not-clicked → offer · clicked → invite to chat.","Campaign settings"],
+  ["Launch.","Campaign → Launch"],
+  ["Warning on: tell me the moment either logs in.","Alerts → New rule"],
+  ["Count the comebacks in a month.","Reports"]]},
+ acts:[{title:"Start the welcome-back series",desc:"Quarry + Lumen · $2,600/mo · 3 gentle touches",route:"Campaigns → New",btn:"Start"},
+       {title:"Tell me when they return",desc:"So you can say hello personally, same day",route:"Alerts → New rule",btn:"Set up"}]},
+
+"Why is Meridian Health churning and what exactly should I do?": {agent:"ch", tag:"Customer Retention · Why Meridian is leaving",
+ html:"<p><strong>What's happening —</strong> Meridian Health is $4,200/month and their risk score is the highest of any customer you have.</p><p><strong>Why —</strong> not price. Their team hit an error loop in your reports module 14 times this month and session depth dropped 62% — something is genuinely broken for them. They've called support 3 times in 30 days, sounding unhappy each time. No account check-in has been logged in 90 days, and their email opens have fallen from 34% to 8% — they're pulling away quietly. Their renewal is in 41 days.</p><p><strong>What to do —</strong> fix the reports error first, then call personally — in that order. A discount here would tell them their broken product is fine, which makes it worse, not better.</p>",
+ how:{title:"This week", watch:"Their risk score falling — and the renewal going through", steps:[
+  ["Open Meridian's profile and find exactly where the reports module breaks for them.","Customer profile → Journey view"],
+  ["Get that fixed — flag it as priority given what's at stake.","Support → Escalate"],
+  ["Call them yourself once it's fixed, not before.","Phone"],
+  ["Log the call, then set a 30-day check-in.","Customer → Log contact"],
+  ["Add a daily warning so you hear immediately if they get worse before then.","Alerts → New rule"]]},
+ acts:[{title:"Escalate the reports-module fix",desc:"14 error sessions this month — root cause of the churn risk",route:"Support → Escalate",btn:"Escalate"},
+       {title:"Queue the personal call",desc:"After the fix ships — opens with “it's done”, not “we're working on it”",route:"Customer → Log contact",btn:"Queue"}]},
+
+"Why is Kite Travel ready to buy right now?": {agent:"sl", tag:"Sales · Understand — Kite Travel",
+ html:"<p><strong>The signal —</strong> readiness 81, intent 74 — they've checked pricing 3× this month and watched the demo replay twice. That's someone actively comparing you against the alternative of doing nothing.</p><p><strong>The gap —</strong> trust sits at 52, 29 points behind readiness. They believe the problem is real and worth solving — they're just not yet convinced you're the one to solve it. That gap is exactly why a hard close now would stall the deal: they'd say yes to the problem, not to you.</p><p><strong>What it means for the call —</strong> lead with proof (a similar customer's result), not features. The ask should be low-risk, not final.</p>",
+ how:{title:"Read the gap before you dial", watch:"Trust score closing the gap with readiness after the call", steps:[
+  ["Open the account and check trust vs. readiness — a wide gap means proof-first.","Customer profile → scores"],
+  ["Pick one success story from a similar account or industry.","Your notes"],
+  ["Keep the ask small: a pilot or 30-day start, not the full commitment.","Call"]]},
+ acts:[{title:"Get the script for Kite Travel",desc:"Proof-first opener, low-risk close",route:"Agent panel",btn:"Write it"}]},
+
+"They said the price is too high — what do I say?": {agent:"sl", tag:"Sales · Overcome — price objection",
+ html:"<p><strong>What's really being said —</strong> \"too high\" almost always means \"not yet convinced it's worth it\" rather than a hard budget ceiling. Arguing the number rarely works; showing the return does.</p><p><strong>The reframe —</strong> <em>\"Compared to what you're losing by not fixing this, what would make the number feel fair?\"</em> — this moves the conversation from price to value without sounding defensive.</p><p><strong>The de-risked close —</strong> <em>\"Start on the smaller plan. If it doesn't pay for itself in 30 days, walk away — you keep everything we find.\"</em> Removes the risk instead of cutting the price.</p><p>Only discount as a last resort, and never before the value case has been made.</p>",
+ how:{title:"Before you respond", watch:"Whether the objection was really about price, or about trust", steps:[
+  ["Ask what number they had in mind, and why — don't guess.","Call"],
+  ["Reframe to value: what does the problem cost them today?","Call"],
+  ["Offer the low-risk start before offering a discount.","Call"],
+  ["Log the objection so the next rep sees it too.","Customer → Log contact"]]},
+ acts:[{title:"Log this objection",desc:"So the pattern is visible across the account",route:"Customer → Log contact",btn:"Log"}]},
+
+"Why did Quarry Analytics and Lumen EdTech go quiet?": {agent:"mk", tag:"Marketing · Understand — why they went quiet",
+ html:"<p><strong>The pattern —</strong> both stopped logging in, but neither has actually left — Quarry visited your help pages from their office last week, and Lumen still opens most of your emails. Quiet isn't the same as gone.</p><p><strong>Why it happens —</strong> usage drops off when a customer solves the immediate problem they signed up for and nothing pulls them back in. It's rarely dissatisfaction — trust scores for both are still 60+.</p><p><strong>What it means —</strong> the win-back message shouldn't apologise or discount first; it should remind them what's changed and give them one easy reason to log back in.</p>",
+ how:{title:"Before you send anything", watch:"Whether they open the first email — that tells you if the door is really open", steps:[
+  ["Check engagement AND trust — low engagement with high trust means dormant, not lost.","Customer profile → scores"],
+  ["Look for any quiet-period activity (help pages, email opens) — a sign they're still nearby.","Customer profile → activity"],
+  ["Lead the first message with what's new, not with why they left.","Campaign editor"]]},
+ acts:[{title:"See the full win-back plan",desc:"Quarry + Lumen, 3-email sequence",route:"Campaigns → New",btn:"Open plan"}]},
+
+"Who should I not call this week, and why?": {agent:"sl", tag:"Sales · Prioritise — who to skip",
+ html:"<p><strong>Skip these, and why —</strong> anyone flagged at-risk (churn above 60) doesn't belong on a sales call this week — a sales touch on an unhappy customer reads tone-deaf and can push them toward leaving. In the current stack that's Meridian Health, NovaPay Fintech and Cartwheel Retail — all three are Retention's, not Sales', to work right now.</p><p><strong>Also hold off on —</strong> anyone you contacted inside the last 3 days (cool-off) and anyone outside your contact hours — calling either burns trust for a marginal chance of reaching them.</p>",
+ how:{title:"How the skip list is built", watch:"Fewer wasted calls, and no complaints about being contacted too often", steps:[
+  ["Check churn first — anything above 60 routes to Retention automatically.","Today's Stack → Hold section"],
+  ["Check last-contact date — inside the cool-off window, it's demoted not removed.","Customer profile"],
+  ["Check local time — outside contact hours, it's queued for later.","Customer profile → time zone"]]},
+ acts:[{title:"Review the Hold section",desc:"Accounts currently routed away from Sales",route:"Today's Stack → Hold",btn:"Open"}]},
+
+"What changed in my pipeline since yesterday?": {agent:"sl", tag:"Sales · Prioritise — what moved",
+ html:"<p><strong>Biggest mover —</strong> Kite Travel's readiness climbed after they replayed the demo twice and their trial countdown moved to inside the window — that's why they're rank 01 today. Trellis Insurance held steady, with their callback still on the books.</p><p><strong>Also worth knowing —</strong> BluePeak SaaS is now upsell-qualified after their seat count grew — that's new since the last check.</p><p>Nothing dropped off the stack today, and no new Hold flags were added.</p>",
+ how:{title:"How to check this yourself each morning", watch:"Rank changes and any new Hold flags", steps:[
+  ["Open Today's Stack — the order reflects the latest scores.","Today's Stack"],
+  ["Click any score to see what moved it.","Stack row → score"],
+  ["Check the Hold section for anything newly routed to Retention.","Today's Stack → Hold"]]},
+ acts:[{title:"Open today's stack",desc:"See the current order and what's new",route:"Today's Stack",btn:"Open"}]},
+
+"Who should I not target this week, and why?": {agent:"mk", tag:"Marketing · Prioritise — who to skip",
+ html:"<p><strong>Skip these, and why —</strong> anyone flagged at-risk (churn above 60) shouldn't get a marketing push — a campaign lands badly on someone already unhappy, and it's Retention's account to work, not Marketing's. In the current stack that's Meridian Health, NovaPay Fintech and Cartwheel Retail.</p><p><strong>Go carefully with —</strong> anyone contacted in the last few days — repeat touches too close together read as spam rather than care.</p>",
+ how:{title:"How the skip list is built", watch:"Fewer opt-outs, and no overlap with Retention's outreach", steps:[
+  ["Check churn first — anything above 60 routes to Retention automatically.","Today's Campaign Stack → Hold"],
+  ["Check recent contact history before adding anyone to a new send.","Customer profile"]]},
+ acts:[{title:"Review the Hold section",desc:"Accounts currently routed away from Marketing",route:"Today's Campaign Stack → Hold",btn:"Open"}]},
+
+"What changed in my campaigns since yesterday?": {agent:"mk", tag:"Marketing · Prioritise — what moved",
+ html:"<p><strong>Biggest mover —</strong> Trellis Insurance's onboarding stall got worse (dropoff risk climbing) — that's why it's the top campaign play today. Kite Travel held steady in the same onboarding tier.</p><p><strong>Also worth knowing —</strong> Solstice Energy and BluePeak SaaS are both now referral-qualified after their loyalty scores held above 80 with low frustration.</p><p>Nothing dropped off the stack today, and no new Hold flags were added.</p>",
+ how:{title:"How to check this yourself each morning", watch:"Rank changes and any new Hold flags", steps:[
+  ["Open Today's Campaign Stack — the order reflects the latest scores.","Today's Campaign Stack"],
+  ["Click any score to see what moved it.","Stack row → score"],
+  ["Check the Hold section for anything newly routed to Retention.","Today's Campaign Stack → Hold"]]},
+ acts:[{title:"Open today's campaign stack",desc:"See the current order and what's new",route:"Today's Campaign Stack",btn:"Open"}]},
+
+"They said they don't trust us yet — what do I send?": {agent:"mk", tag:"Marketing · Handle — trust objection",
+ html:"<p><strong>What's behind it —</strong> a new or stalled customer questioning trust is usually reacting to a specific unanswered question (data ownership, proof it works, what happens if it doesn't) — not a general feeling.</p><p><strong>What to send —</strong> a short, specific answer to that exact question, plus one piece of independent proof (a case study or number from a similar customer) — not a generic reassurance email.</p><p><strong>What not to do —</strong> don't lead with a discount. A discount answers a price objection, not a trust one, and can make the hesitation look justified.</p>",
+ how:{title:"Before you reply", watch:"Whether the specific question gets asked again — if not, trust moved", steps:[
+  ["Find the exact concern raised (chat log, email reply, form note).","Customer profile → activity"],
+  ["Answer that concern directly in the first line.","Message draft"],
+  ["Attach one piece of proof relevant to their situation.","Message draft"]]},
+ acts:[{title:"Draft the trust-repair message",desc:"Answers the specific concern, plus one proof point",route:"Campaigns → New",btn:"Draft"}]}
+};
+
+/* ═══ STATE + RENDER ═══ */
+var root = document.getElementById('bhRoot');
+var state = { agent: 'mk', taskIndex: 0 };
+var doneSteps = {};
+
+function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = String(s == null ? '' : s);
+    return d.innerHTML;
+}
+
+function nameAttr(n) { return String(n).replace(/'/g, "\\'"); }
+
+function stepKey() { return state.agent + ':' + state.taskIndex; }
+
+function currentTask() { return TASKS[state.agent][state.taskIndex]; }
+
+function renderAgentTabs() {
+    ['mk', 'sl', 'ch'].forEach(function (k) {
+        document.getElementById('bhAgentTab-' + k).classList.toggle('on', k === state.agent);
+    });
+}
+
+function renderGuide() {
+    var task = currentTask();
+    var done = doneSteps[stepKey()] || {};
+    var doneCount = Object.keys(done).filter(function (k) { return done[k]; }).length;
+    var firstOpen = -1;
+    for (var i = 0; i < task.steps.length; i++) {
+        if (!done[i]) { firstOpen = i; break; }
+    }
+    var pct = Math.round((doneCount / task.steps.length) * 100);
+
+    document.getElementById('bhGHd').innerHTML =
+        '<div class="g-t">' + escapeHtml(task.n) + '<span class="g-w">' + escapeHtml(task.w) + '</span></div>' +
+        '<div class="g-prog"><span class="g-count"><b>' + doneCount + '</b> / ' + task.steps.length + ' done</span>' +
+        '<div class="g-bar"><div class="g-fill" style="width:' + pct + '%"></div></div></div>';
+
+    document.getElementById('bhGBody').innerHTML = task.steps.map(function (step, i) {
+        var isDone = !!done[i];
+        var isCur = !isDone && i === firstOpen;
+        var cls = 'st' + (isDone ? ' done' : '') + (isCur ? ' cur' : '');
+        return '<div class="' + cls + '" onclick="toggleStep(' + i + ')">' +
+               '<div class="st-rail"><div class="st-dot">' + (isDone ? '&check;' : (i + 1)) + '</div><div class="st-line"></div></div>' +
+               '<div class="st-txt"><div class="st-title">' + escapeHtml(step.t) + (isCur ? '<span class="st-next">Do this next</span>' : '') + '</div>' +
+               '<div class="st-desc">' + escapeHtml(step.d) + '</div>' +
+               '<span class="st-where">' + escapeHtml(step.w) + '</span></div></div>';
+    }).join('');
+}
+
+function toggleStep(i) {
+    var key = stepKey();
+    if (!doneSteps[key]) doneSteps[key] = {};
+    doneSteps[key][i] = !doneSteps[key][i];
+    renderGuide();
+}
+
+/* Marketing step keys/titles come entirely from the DB (MARKETING_STEPS_DB) — nothing hardcoded here. */
+var MARKETING_STEP_KEYS = MARKETING_STEPS_DB.map(function(s){ return s.key; });
+var PROMPT_STEP_ORDER = ['prioritise', 'understand', 'craft', 'handle', 'launch'];
+var SALES_STEP_TITLES = ['Prioritise', 'Understand', 'Pitch', 'Overcome', 'Close & grow'];
+
+/* Retention step keys/titles come entirely from the DB (RETENTION_STEPS_DB), same as Marketing. */
+var RETENTION_STEP_KEYS = RETENTION_STEPS_DB.map(function(s){ return s.key; });
+var DASH_FLOW = {
+  sl: {label:"Today's call list", steps: SALES_STEP_TITLES.map(function(t){ return {t: t}; })},
+  mk: {label:"Today's campaign list", steps: MARKETING_STEPS_DB.map(function(s){ return {t: s.title}; })},
+  ch: {label:"Today's rescue list", steps: RETENTION_STEPS_DB.map(function(s){ return {t: s.title}; })}
+};
+var FLOW_TABS_BY_AGENT = {
+  sl: ['today', 'accounts', 'scripts', 'forecast', 'manager'],
+  mk: ['today', 'accounts', 'scripts', 'forecast', 'performance'],
+  ch: ['today', 'accounts', 'scripts', 'forecast', 'manager', 'abtest']
+};
+var DB_PROMPTS_BY_AGENT = { sl: SALES_DB_PROMPTS, mk: MARKETING_DB_PROMPTS, ch: RETENTION_DB_PROMPTS };
+var STEP_KEYS_BY_AGENT = { sl: PROMPT_STEP_ORDER, mk: MARKETING_STEP_KEYS, ch: RETENTION_STEP_KEYS };
+function topPrimaryName(agent){
+  var r = rankedFor(agent);
+  var primaryPlays = agent==='sl' ? ['call'] : agent==='ch' ? ['rescue'] : ['winback', 'onboarding'];
+  var primary = r.filter(function(x){ return primaryPlays.indexOf(x.c.play) !== -1; });
+  return dashState.lead || (primary[0] && primary[0].a.name) || (r[0] && r[0].a.name) || 'this account';
+}
+function renderDashQuicks(){
+  var agent = dashState.agent;
+  var idx = FLOW_TABS_BY_AGENT[agent].indexOf(dashState.view);
+  if (idx === -1) idx = 0;
+  var stepTitle = DASH_FLOW[agent].steps[idx].t;
+  var name = topPrimaryName(agent);
+  var hd = document.getElementById('dashQuickHd');
+  var q = document.getElementById('dashQuick');
+  if (!q) return;
+  if (hd) hd.textContent = 'Ask Mira · ' + stepTitle;
+
+  var dbStepKey = STEP_KEYS_BY_AGENT[agent][idx];
+  var prompts = (DB_PROMPTS_BY_AGENT[agent][dbStepKey] || []).filter(function(p){ return p.is_active; });
+  q.innerHTML = prompts.map(function(p){
+    // Retention prompts that collect the customer name in an input keep the
+    // literal [name] placeholder in the button — as does the whole Offers
+    // step, whose questions are standard and must not be personalised.
+    // Every other prompt gets the current lead name substituted in.
+    var keepPlaceholder = (agent === 'ch' && (RETENTION_AI_NAME_PROMPTS[p.slug] || RETENTION_KEEP_PLACEHOLDER[p.slug] || dbStepKey === 'Offers'));
+    var label = keepPlaceholder ? p.label : p.label.replace(/\[name\]/i, name);
+    return '<button type="button" class="qk" onclick="dashPromptClick(\''+dbStepKey+'\',\''+p.slug+'\',\''+nameAttr(label)+'\')">'+escapeHtml(label)+'</button>';
+  }).join('');
+}
+function dashPromptClick(stepKey, promptKey, label){
+  dashPushMsg('user', escapeHtml(label));
+  var agent = dashState.agent;
+
+  if (agent === 'ch' && RETENTION_AI_ENDPOINTS[promptKey]) {
+    if (RETENTION_AI_NAME_PROMPTS[promptKey]) return dashRetentionNameForm(promptKey, stepKey);
+    return dashRetentionAiAnswer(promptKey, stepKey, null);
+  }
+  if (agent === 'mk' && MARKETING_AI_ENDPOINTS[promptKey]) {
+    return dashMarketingAiAnswer(promptKey, stepKey, topPrimaryName(agent));
+  }
+
+  var name = topPrimaryName(agent);
+  var account = ACCOUNTS.filter(function(x){ return x.name === name; })[0];
+  var c = account ? classifyFor(agent, account) : null;
+  dashPushMsg('bot', dashPromptAnswer(agent, stepKey, promptKey, name, account, c));
+}
+function chStepTag(stepKey){
+  var stepIdx = RETENTION_STEP_KEYS.indexOf(stepKey);
+  var stepTitle = DASH_FLOW.ch.steps[stepIdx === -1 ? 0 : stepIdx].t;
+  return '<div class="tag">Customer Retention · ' + escapeHtml(stepTitle) + '</div>';
+}
+/* Root cause questions about one customer collect the name here first, then
+   hand off to the endpoint as ?name=… */
+function dashRetentionNameForm(promptKey, stepKey){
+  var fid = 'nm' + Math.random().toString(36).slice(2, 8);
+  var opts = (RETENTION_CONTACT_NAMES || []).map(function(n){ return '<option value="' + escapeHtml(n) + '"></option>'; }).join('');
+  var prefill = dashState.lead ? escapeHtml(dashState.lead) : '';
+  dashPushMsg('bot', chStepTag(stepKey) +
+    '<p>Which customer? Type a name or company.</p>' +
+    '<div class="nmform">' +
+      '<input class="nmin" id="' + fid + '" list="' + fid + '-l" placeholder="e.g. Kasun Madushan" value="' + prefill + '" autocomplete="off">' +
+      '<datalist id="' + fid + '-l">' + opts + '</datalist>' +
+      '<button type="button" class="qk" onclick="dashRetentionNameSubmit(\'' + promptKey + '\',\'' + stepKey + '\',\'' + fid + '\')">Ask</button>' +
+    '</div>');
+  var input = document.getElementById(fid);
+  if (input){
+    input.focus();
+    input.addEventListener('keydown', function(e){
+      if (e.key === 'Enter'){ e.preventDefault(); dashRetentionNameSubmit(promptKey, stepKey, fid); }
+    });
+  }
+}
+function dashRetentionNameSubmit(promptKey, stepKey, fid){
+  var input = document.getElementById(fid);
+  var name = input ? input.value.trim() : '';
+  if (!name){ if (input) input.focus(); return; }
+  if (input){ input.disabled = true; }
+  dashState.lead = name;
+  dashPushMsg('user', escapeHtml(name));
+  dashRetentionAiAnswer(promptKey, stepKey, name);
+}
+/* Risk radar + Root cause questions answered server-side from real
+   crm_contacts / crm_deals (+ email signal for Risk radar) — see
+   RetentionSaveFirstService / RetentionRootCauseService — optionally written
+   up by OpenAI. The reply carries an expand toggle so the rep can see exactly
+   which accounts and numbers the answer is based on. */
+function dashRetentionAiAnswer(promptKey, stepKey, name){
+  var tagHtml = chStepTag(stepKey);
+  var el = dashPushMsg('bot', tagHtml + '<p style="color:var(--g3)">Thinking…</p>');
+
+  var url = RETENTION_AI_ENDPOINTS[promptKey];
+  if (name) url += (url.indexOf('?') > -1 ? '&' : '?') + 'name=' + encodeURIComponent(name);
+
+  fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      el.innerHTML = tagHtml + renderRiskAiAnswer(data);
+    })
+    .catch(function(){
+      el.innerHTML = tagHtml + '<p>Could not reach the server to compute this — try again in a moment.</p>';
+    });
+}
+/* Marketing · Audience questions answered server-side from real
+   crm_contacts/crm_deals data (see MarketingAudienceService), optionally
+   written up by OpenAI. Same expand/collapse pattern as Retention's risk
+   radar, so the marketer can see exactly which accounts back the answer. */
+function dashMarketingAiAnswer(promptKey, stepKey, name){
+  var stepIdx = MARKETING_STEP_KEYS.indexOf(stepKey);
+  var stepTitle = DASH_FLOW.mk.steps[stepIdx === -1 ? 0 : stepIdx].t;
+  var tagHtml = '<div class="tag">Marketing · ' + escapeHtml(stepTitle) + '</div>';
+  var el = dashPushMsg('bot', tagHtml + '<p style="color:var(--g3)">Thinking…</p>');
+
+  var url = MARKETING_AI_ENDPOINTS[promptKey];
+  if (promptKey === 'why_name_here_not_sales') {
+    url += '?name=' + encodeURIComponent(name || '');
+  }
+
+  fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      el.innerHTML = tagHtml + renderRiskAiAnswer(data);
+    })
+    .catch(function(){
+      el.innerHTML = tagHtml + '<p>Could not reach the server to compute this — try again in a moment.</p>';
+    });
+}
+var RISK_DATA_CACHE = {};
+function renderRiskAiAnswer(data){
+  // Keep line breaks — Save-play drafts (email, 48-hour checklist) are
+  // multi-line; every other answer is a single paragraph and unaffected.
+  var answer = '<p>' + escapeHtml(data.answer || '').replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
+
+  // Name lookup found nothing — show a few valid names to try.
+  if (data.matched === false){
+    var names = (data.suggestions || []).slice(0, 8);
+    return answer + (names.length
+      ? '<p style="color:var(--g3);font-size:11.5px">Try: ' + names.map(escapeHtml).join(' · ') + '</p>'
+      : '');
+  }
+
+  var rows = data.ranked || data.accounts || [];
+  if (!rows.length) return answer;
+
+  var id = 'risk' + Math.random().toString(36).slice(2, 9);
+  RISK_DATA_CACHE[id] = rows;
+
+  return answer
+    + '<button type="button" class="qk" onclick="openRiskModal(\'' + id + '\')">View the ' + rows.length + ' account' + (rows.length === 1 ? '' : 's') + ' behind this →</button>';
+}
+/* Columns rendered in the "accounts behind this" modal, in order. Risk
+   radar (unsubscribed / ever_opened / risk_score), Root cause (deal_status /
+   churn_score) and Marketing's shapes (stage / reason) all flow through
+   here — only the keys actually present on the rows are shown. */
+var RISK_COL_LABELS = {
+  name: 'Name', company: 'Company', situation: 'Situation', deal_value: 'Deal value', deal_status: 'Deal',
+  stage: 'Stage', unsubscribed: 'Unsub?', ever_opened: 'Ever opened?',
+  days_since_activity: 'Days silent', risk_score: 'Risk', churn_score: 'Churn',
+  reason: 'Why', subject: 'Subject', sent_at: 'Sent', opened: 'Opened?'
+};
+function openRiskModal(id, noun){
+  var rows = RISK_DATA_CACHE[id];
+  if (!rows || !rows.length) return;
+  noun = noun || 'account';
+
+  var cols = Object.keys(RISK_COL_LABELS).filter(function(k){ return k in rows[0]; });
+  var head = '<tr><th>#</th>' + cols.map(function(k){ return '<th>' + RISK_COL_LABELS[k] + '</th>'; }).join('') + '</tr>';
+  var body = rows.map(function(r, i){
+    return '<tr><td>' + (i + 1) + '</td>' + cols.map(function(k){
+      var v = r[k];
+      if (k === 'deal_value') return '<td>' + money(v) + '</td>';
+      if (typeof v === 'boolean') return '<td>' + (v ? 'Yes' : 'No') + '</td>';
+      return '<td>' + escapeHtml(v === null || v === undefined || v === '' ? '—' : String(v)) + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+
+  document.getElementById('riskModalTitle').textContent = rows.length + ' ' + noun + (rows.length === 1 ? '' : 's') + ' behind this answer';
+  document.getElementById('riskModalBody').innerHTML = '<table>' + head + body + '</table>';
+  document.getElementById('riskModalOverlay').classList.add('show');
+}
+function closeRiskModal(){
+  var overlay = document.getElementById('riskModalOverlay');
+  if (overlay) overlay.classList.remove('show');
+}
+function marketingDbAnswer(stepKey, slug, name, account, c){
+  var stepIdx = MARKETING_STEP_KEYS.indexOf(stepKey);
+  var stepTitle = DASH_FLOW.mk.steps[stepIdx === -1 ? 0 : stepIdx].t;
+  var head = '<div class="tag">Marketing · ' + escapeHtml(stepTitle) + '</div>';
+  var r = rankedFor('mk');
+  var winback = r.filter(function(x){ return x.c.play === 'winback'; });
+  var onboarding = r.filter(function(x){ return x.c.play === 'onboarding'; });
+  var referral = r.filter(function(x){ return x.c.play === 'referral'; });
+  var hold = r.filter(function(x){ return x.c.play === 'hold'; });
+  var mqlReady = r.filter(function(x){ return x.a.scores.buying_readiness >= DTH.ready; });
+  var s = account ? account.scores : null;
+
+  var expansionReady = r.filter(function(x){ return x.c.play !== 'hold' && x.a.scores.loyalty >= 70 && x.a.scores.buying_readiness >= 50; });
+
+  switch (slug) {
+    case 'winback_sequence_this_week':
+      return head + '<p>' + (winback.length ? winback.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'The win-back list is empty right now.') + '</p>';
+    case 'new_not_reached_first_value':
+      return head + '<p>' + (onboarding.length ? '<strong>Still stalling on first value:</strong></p><p>'+onboarding.map(function(x){ return escapeHtml(x.a.name)+' — '+x.c.why[0]; }).join('</p><p>') : 'No new accounts are stalling right now — onboarding is on track.') + '</p>';
+    case 'ready_for_upsell':
+      return head + '<p>' + (expansionReady.length ? '<strong>Upsell-ready:</strong></p><p>'+expansionReady.map(function(x){ return escapeHtml(x.a.name)+' (loyalty '+x.a.scores.loyalty+', readiness '+x.a.scores.buying_readiness+')'; }).join(', ') : 'No one currently clears the loyalty + readiness bar for an upsell offer.') + '</p>';
+    case 'who_would_refer_us':
+      return head + '<p>' + (referral.length ? referral.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'No one has crossed the loyalty bar for a referral ask yet.') + '</p>';
+    /* exclude_from_every_send and in_live_sales_cycle are answered before
+       this function runs — see MARKETING_AI_ENDPOINTS / dashMarketingAiAnswer,
+       backed by real crm_contacts + crm_deals data (MarketingAudienceService). */
+
+    case 'top_shared_signal_mql_sales':
+      return head + '<p>The strongest shared signal across the current MQL-ready group: pricing/demo page revisits paired with a direct question in chat (data ownership, instalments, SSO). That combination consistently precedes a readiness jump.</p>';
+
+    /* proof_or_offer_audience, one_lever_mql_sales, why_name_here_not_sales,
+       rule_put_people_mql_sales and changed_last_7_days are answered before
+       this function runs — see MARKETING_AI_ENDPOINTS / dashMarketingAiAnswer,
+       backed by real crm_contacts + crm_deals data (MarketingInsightsService). */
+
+    /* email_sequence_mql_sales, whatsapp_oneliner_mql_sales, sms_optout_mql_sales
+       and discount_or_proof_mql_sales are answered before this function runs —
+       see MARKETING_AI_ENDPOINTS / dashMarketingAiAnswer, backed by real
+       crm_contacts + crm_deals data (MarketingCampaignService). */
+    case 'linkedin_dm_post_mql_sales':
+      return head + '<p><strong>DM:</strong> <em>"Saw your team has been exploring this — happy to share what similar teams found."</em></p><p><strong>Post angle:</strong> a short case study result, tagged to the same segment this account sits in.</p>';
+    case 'ad_social_copy_mql_sales':
+      return head + '<p><strong>Ad angle:</strong> lead with the outcome, not the feature — "See results in 30 days" outperforms feature-first copy for this segment by a wide margin.</p>';
+    case 'rewrite_touch1_brand_voice':
+      return head + '<p>Paste touch 1 into the chat box below and I\'ll rewrite it to match your brand voice — plain, direct, no jargon.</p>';
+
+    /* subject_line_test_mql_sales, proof_vs_offer_test_mql_sales,
+       sample_size_per_arm_mql_sales, when_receive_touch1_mql_sales,
+       holdout_15_enough_mql_sales and all_test_ideas_mql_sales are all
+       answered before this function runs — see MARKETING_AI_ENDPOINTS /
+       dashMarketingAiAnswer, backed by real crm_contacts + crm_deals data
+       (MarketingAbTestService) or email_logs + email_logs_providers data
+       (MarketingEmailTestService). */
+
+    /* lift_vs_holdout_mql_sales and audience_worst_unsub_rate are answered
+       before this function runs — see MARKETING_AI_ENDPOINTS /
+       dashMarketingAiAnswer, backed by real crm_contacts + crm_deals joined
+       to email_logs + email_logs_providers (MarketingLiftService). */
+    case 'audience_worth_next_dollar':
+      return head + '<p>' + (winback.length >= onboarding.length ? 'Win-back has the larger pool right now — put the next budget increment there.' : 'Onboarding has the larger pool right now — put the next budget increment there.') + '</p>';
+    case 'expected_return_send_everything_week':
+      var wb = winback.reduce(function(s,x){return s+x.a.mrr;},0), ob = onboarding.reduce(function(s,x){return s+x.a.mrr;},0), rf = referral.reduce(function(s,x){return s+x.a.mrr;},0);
+      return head + '<p><strong>Value by audience if sent this week:</strong> Win-back '+money(wb)+' · Onboarding '+money(ob)+' · Referral '+money(rf)+'. Win-back and onboarding carry the most near-term return right now.</p>';
+    /* who_became_mql_since_last_send and push_week_mqls_to_sales are answered
+       before this function runs — see MARKETING_AI_ENDPOINTS /
+       dashMarketingAiAnswer, backed by real crm_contacts + crm_deals data
+       (MarketingPerformanceService). */
+
+    default:
+      return head + '<p>I don\'t have a ready-made answer for that yet — try rephrasing in the chat box below.</p>';
+  }
+}
+function retentionDbAnswer(stepKey, slug, name, account, c){
+  var stepIdx = RETENTION_STEP_KEYS.indexOf(stepKey);
+  var stepTitle = DASH_FLOW.ch.steps[stepIdx === -1 ? 0 : stepIdx].t;
+  var head = '<div class="tag">Customer Retention · ' + escapeHtml(stepTitle) + '</div>';
+  var r = rankedFor('ch');
+  var rescue = r.filter(function(x){ return x.c.play === 'rescue'; });
+  var winback = r.filter(function(x){ return x.c.play === 'winback'; });
+  var watch = r.filter(function(x){ return x.c.play === 'nurture'; });
+  var s = account ? account.scores : null;
+
+  switch (slug) {
+    case 'who_save_first_week':
+      return head + '<p>' + (rescue.length ? rescue.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'Nobody is in the rescue tier right now.') + '</p>';
+    case 'renewals_in_danger':
+      return head + '<p>No renewal-date field is synced yet, so this ranks by churn risk instead: ' + (rescue.length ? rescue.map(function(x){ return escapeHtml(x.a.name)+' (churn '+x.a.scores.churn+')'; }).join(', ') : 'nobody at high churn right now') + '.</p>';
+    case 'payment_failures_today':
+      return head + '<p>No payment-failure signal is synced from the connected data yet — this will populate once billing/CRM failed-payment events are wired in.</p>';
+    case 'drifting_watchlist':
+      return head + '<p>' + (watch.length ? watch.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — churn '+x.a.scores.churn+', creeping up.'; }).join('</p><p>') : 'Nobody is drifting onto the watchlist right now.') + '</p>';
+    case 'value_at_risk':
+      var atRiskV = rescue.concat(winback).reduce(function(sum,x){ return sum + x.a.mrr; }, 0);
+      return head + '<p><b>'+money(atRiskV)+'/mo</b> at risk across '+(rescue.length+winback.length)+' accounts — '+rescue.length+' urgent rescues, '+winback.length+' gone-quiet win-backs.</p>';
+
+    case 'why_leaving':
+      return head + (c ? '<p><b>'+escapeHtml(name)+'</b> — '+c.why.join(' ')+'</p>' : '<p>Pick an account to see why it\'s ranked where it is.</p>');
+    case 'price_or_product':
+      return head + '<p>' + (s ? (s.frustration >= DTH.fr ? '<b>'+escapeHtml(name)+'</b> looks like a product problem — frustration '+s.frustration+' is the driver, not price. Fix first, don\'t discount.' : '<b>'+escapeHtml(name)+'</b> looks like a value problem, not a broken product — frustration is only '+s.frustration+'. Show them what they\'re getting before touching price.') : 'Select an account first.') + '</p>';
+    case 'top_churn_driver':
+      return head + '<p>Right now: <b>'+rescue.length+'</b> at urgent churn risk, <b>'+winback.length+'</b> gone quiet (dormant), <b>'+watch.length+'</b> drifting upward. '+(rescue.length >= winback.length ? 'Active churn risk is the bigger group — prioritise rescues.' : 'Gone-quiet accounts are the bigger group — prioritise win-backs.')+'</p>';
+    case 'lost_champion':
+      return head + '<p>No champion/contact-departure signal is synced from the CRM yet — this will populate once contact-change events are wired in.</p>';
+    case 'changed_recently':
+      var sig = account && account.l1 ? Object.keys(account.l1).map(function(k){ return escapeHtml(k)+': '+escapeHtml(account.l1[k]); }) : [];
+      return head + '<p><b>'+escapeHtml(name)+'</b> — ' + (sig.length ? sig.join('. ') : 'no recent activity on file.') + '</p>';
+
+    case 'save_plan_call':
+    case 'save_email':
+    case 'whatsapp_checkin':
+      var beats = scriptBeats('ch', account || {scores:{trust:60,frustration:20}, name:name}, c || {play:'rescue'}, 'call');
+      return head + '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+'</div>' + beats.map(function(b){ return '<div class="ss-beat"><div class="ss-beat-l">'+b[0]+'</div>'+b[1]+'</div>'; }).join('') + '</div>';
+    case 'first_48_hours':
+      return head + '<p>Send the written summary of what you found today, do the one thing you promised, then check back in at 48 hours with proof it happened — the save happens between the touches, not on the call itself.</p>';
+    case 'should_escalate':
+      return head + '<p>' + (s && s.churn >= 80 ? '<b>Yes</b> — churn '+s.churn+' and '+money(account.mrr)+'/mo justifies executive time now.' : 'Not yet — run the rescue play first; escalation loses its power if it\'s the opening move.') + '</p>';
+    case 'exec_brief':
+      return head + (c ? '<p><b>EXEC BRIEF — '+escapeHtml(name.toUpperCase())+'</b></p><p>Exposure: '+money(account.mrr)+'/mo. '+c.why.join(' ')+'</p>' : '<p>Select an account first.</p>');
+
+    case 'can_discount':
+    case 'what_allowed_offer':
+      return head + '<p>' + (s && s.frustration >= DTH.fr ? '<b>No</b> — this is product pain. Fix the problem first; a discount just tells them the broken thing is fine.' : '<b>Yes, carefully</b> — trust is '+(s?s.trust:'—')+'. A time-boxed concession is safe here as long as it trades for something (a testimonial, a referral, an annual commitment).') + '</p>';
+    case 'concession_worth_it':
+      var annual = account ? account.mrr * 12 : 0;
+      var expectedLoss = account ? Math.round(annual * (s.churn/100)) : 0;
+      return head + '<p>' + (account ? 'Expected loss if unsaved ≈ <b>'+money(expectedLoss)+'</b> ('+money(annual)+' annual × churn '+s.churn+'%). A modest concession is worth it if it\'s well under that number.' : 'Select an account first.') + '</p>';
+    case 'downgrade_to_save':
+      return head + '<p>' + (account ? 'Right-sizing to what '+escapeHtml(name)+' actually uses beats losing them outright — keeping roughly '+money(Math.round(account.mrr*0.6))+'/mo beats losing '+money(account.mrr)+'/mo.' : 'Select an account first.') + '</p>';
+    case 'give_get_ask':
+      return head + '<p>Give-gets that fit a save: an annual commitment, a public case study, a reference call, or a referral. No concession should leave the room without one — otherwise the account learns that asking loudly works.</p>';
+
+    case 'save_rate_revenue':
+      return head + '<p>Outcome logging isn\'t wired up yet for Retention, so save rate and revenue-saved can\'t be computed — that will populate once rescue outcomes start being recorded.</p>';
+    case 'lost_to_what':
+      return head + '<p>No lost-account reasons are logged yet — record an outcome after each rescue attempt and this will start showing the real pattern.</p>';
+    case 'stabilising_hands_off':
+      return head + '<p>Nobody is in a tracked stabilisation window yet — that starts once a save is logged.</p>';
+    case 'stabilisation_plan_for':
+      return head + '<p>' + (account ? escapeHtml(name)+' isn\'t in a stabilisation window yet — that starts after a save is logged for them.' : 'Select an account first.') + '</p>';
+    case 'ready_hand_back_sales':
+      return head + '<p>Nobody is growth-ready yet — accounts get handed back to Sales once they\'ve been saved and stabilised. None have been logged as saved so far.</p>';
+    case 'send_growth_ready':
+      return head + '<p>Nothing to export yet — growth-ready accounts appear here once rescues are saved and stabilised.</p>';
+
+    default:
+      return head + '<p>I don\'t have a ready-made answer for that yet — try rephrasing in the chat box below.</p>';
+  }
+}
+function dashPromptAnswer(agent, stepKey, promptKey, name, account, c){
+  if (agent === 'mk') return marketingDbAnswer(stepKey, promptKey, name, account, c);
+  if (agent === 'ch') return retentionDbAnswer(stepKey, promptKey, name, account, c);
+
+  var r = rankedFor(agent);
+  var isSl = agent === 'sl';
+  var tag = (isSl ? 'Sales' : 'Marketing') + ' · ' + DASH_FLOW[agent].steps[PROMPT_STEP_ORDER.indexOf(stepKey)].t;
+  var head = '<div class="tag">' + escapeHtml(tag) + '</div>';
+  var primaryPlays = isSl ? ['call'] : ['winback', 'onboarding'];
+  var primary = r.filter(function(x){ return primaryPlays.indexOf(x.c.play) !== -1; });
+  var secondaryPlays = isSl ? ['upsell'] : ['referral'];
+  var secondary = r.filter(function(x){ return secondaryPlays.indexOf(x.c.play) !== -1; });
+  var hold = r.filter(function(x){ return x.c.play === 'hold'; });
+  var s = account ? account.scores : null;
+
+  switch (stepKey + ':' + promptKey) {
+    case 'prioritise:contact_today':
+      return head + '<p>' + (primary.length ? primary.map(function(x,i){ return '<b>'+(i+1)+'. '+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'Nothing urgent right now — check Accounts for the full list.') + '</p>';
+    case 'prioritise:top5_hour':
+      var top5 = r.slice(0, 5);
+      return head + '<p><strong>Top 5 by priority right now:</strong></p><ul style="margin:4px 0 0 16px">' + top5.map(function(x){ return '<li>'+escapeHtml(x.a.name)+' — priority '+x.c.priority+' ('+PLAY_LABEL[x.c.play]+')</li>'; }).join('') + '</ul>';
+    case 'prioritise:buying_window':
+      return head + '<p>' + (primary.length ? primary.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b>: '+x.c.why[0]; }).join('</p><p>') : 'No one is in the buying window right now.') + '</p>';
+    case 'prioritise:not_call':
+      return head + '<p>' + (hold.length ? hold.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'Nobody is on hold right now — the whole stack is safe to work.') + '</p>';
+    case 'prioritise:changed_yesterday':
+      return head + '<p>The stack re-ranks every time a score or contact outcome changes. Right now <b>'+escapeHtml((primary[0]&&primary[0].a.name)||'the top account')+'</b> leads with priority '+((primary[0]&&primary[0].c.priority)||'—')+'. Log outcomes as you work the list so tomorrow\'s ranking reflects today\'s calls.</p>';
+
+    case 'understand:why_ranked':
+      return head + (c ? '<p><b>'+escapeHtml(name)+'</b> — '+c.why.join(' ')+'</p>' : '<p>Pick an account to see why it ranks where it does.</p>');
+    case 'understand:been_doing':
+      var sig = account && account.l1 ? Object.keys(account.l1).map(function(k){ return escapeHtml(k)+': '+escapeHtml(account.l1[k]); }) : [];
+      return head + '<p><b>'+escapeHtml(name)+'</b> — ' + (sig.length ? sig.join('. ') : 'no recent activity on file.') + '</p>';
+    case 'understand:holding_back':
+      return head + '<p>' + (s ? 'Trust is '+s.trust+' against a readiness of '+s.buying_readiness+' — '+(s.buying_readiness-s.trust>=20 ? 'they believe the problem is real, not yet that '+escapeHtml(name)+' has the answer.' : 'the gap is small; hesitation is more likely price or timing than trust.') : 'Select an account to see what\'s holding them back.') + '</p>';
+    case 'understand:ready_or_researching':
+      return head + '<p>' + (s ? (s.buying_readiness>=DTH.ready && s.intent>=DTH.intent ? '<b>'+escapeHtml(name)+'</b> is ready — readiness '+s.buying_readiness+' and intent '+s.intent+' both clear the bar.' : '<b>'+escapeHtml(name)+'</b> is still researching — readiness '+s.buying_readiness+', intent '+s.intent+'. One useful touch, no hard ask yet.') : 'Select an account first.') + '</p>';
+    case 'understand:cares_about':
+      var lead = account && account.l1 ? Object.values(account.l1)[0] : null;
+      return head + '<p><b>'+escapeHtml(name)+'</b> — ' + (lead ? 'their own activity points to it: '+escapeHtml(lead) : 'no strong signal yet — ask directly on the next touch.') + '</p>';
+
+    case 'craft:script_for':
+      var beats = scriptBeats(agent, account || {scores:{trust:60,buying_readiness:60}, name:name}, c || {play: isSl ? 'call' : 'winback'}, 'call');
+      return head + '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+'</div>' + beats.map(function(b){ return '<div class="ss-beat"><div class="ss-beat-l">'+b[0]+'</div>'+b[1]+'</div>'; }).join('') + '</div>';
+    case 'craft:opener_30s':
+      return head + '<p><em>"'+escapeHtml(name)+' — quick one. I noticed you\'ve been active on this lately, and most people at that stage are weighing up whether it\'s worth solving now. Is that where you\'re at?"</em></p><p style="color:var(--g3);font-size:11.5px">Under 30 seconds, ends in a question — keeps them talking.</p>';
+    case 'craft:whatsapp_version':
+      return head + '<p><em>"Hi '+escapeHtml(name)+' 👋 saw you\'ve been looking into this — happy to answer anything directly here, no pressure. What\'s the main thing you\'re weighing up?"</em></p>';
+    case 'craft:email_version':
+      return head + '<p><strong>Subject:</strong> Quick question about {'+escapeHtml(name)+'}\'s next step</p><p><em>"Hi — noticed the recent activity on your end and wanted to check in directly rather than let it go quiet. What would need to be true for this to be a clear yes?"</em></p>';
+    case 'craft:proof_to_show':
+      return head + '<p>' + (s && s.trust < DTH.trust ? 'Trust is the gap here (score '+s.trust+') — lead with one concrete result from a similar customer, not a feature list.' : 'Trust is solid — a quick reference or case study is a nice-to-have, not a requirement. A direct ask works.') + '</p>';
+    case 'craft:shorter_less_salesy':
+      return head + '<p><em>"'+escapeHtml(name)+' — worth a 10-minute call this week?"</em></p><p style="color:var(--g3);font-size:11.5px">Strip it back to one line and one question — the shorter version usually gets a faster reply.</p>';
+
+    case 'handle:too_expensive':
+      return head + '<p><em>"Compared to what this is costing you today, what would make the number feel fair?"</em> Reframe to value before touching the price. Offer a low-risk start before a discount.</p>';
+    case 'handle:not_right_now':
+      return head + '<p><em>"Understood — what would need to change for the timing to be right?"</em> Get a real reason and a real date, then set a callback for that date rather than a vague follow-up.</p>';
+    case 'handle:use_competitor':
+      return head + '<p><em>"Good to know — what\'s working well with them, and what would you change if you could?"</em> Listen for the gap, then show only the part of your offer that closes it.</p>';
+    case 'handle:send_info':
+      return head + '<p>"Send me some info" is often a polite no. Send one short, specific thing (not a brochure) and set a defined follow-up date rather than waiting for them to reply.</p>';
+    case 'handle:no_budget':
+      return head + '<p>Separate "no budget" from "not a priority yet." Ask what it would need to deliver to justify finding the budget — if the answer is vague, it\'s priority, not price.</p>';
+    case 'handle:need_boss':
+      return head + '<p>Ask to join that conversation, or arm them with a one-page summary of the case for their boss. Deals that go dark after "I\'ll check" usually needed that help and didn\'t get it.</p>';
+    case 'handle:something_else':
+      return head + '<p>Type the objection into the chat box below and I\'ll match it against similar accounts and give you a specific response.</p>';
+
+    case 'launch:how_close':
+      return head + '<p>' + (s && s.trust < DTH.trust ? 'Trust is still behind readiness for '+escapeHtml(name)+' — close on a low-risk start, not the full commitment.' : '<b>'+escapeHtml(name)+'</b> has the trust to support a direct ask — propose the plan and a start date.') + '</p>';
+    case 'launch:smallest_ask':
+      return head + '<p>The smallest reasonable next step for <b>'+escapeHtml(name)+'</b>: a 30-day pilot or a single-team rollout — small enough to say yes to this week, big enough to prove the case.</p>';
+    case 'launch:ready_upgrade':
+      return head + '<p>' + (secondary.length ? secondary.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'No accounts are upgrade-ready right now.') + '</p>';
+    case 'launch:offer_discount':
+      return head + '<p>' + (s && s.trust >= DTH.trust ? 'No — trust is already high; a discount here signals the price was inflated. Ask directly instead.' : 'Only as a last resort, and only after the value case has been made — lead with a low-risk start first.') + '</p>';
+    case 'launch:weighted_pipeline':
+      var weighted = r.reduce(function(sum,x){ return sum + (x.a.mrr * x.a.scores.buying_readiness / 100); }, 0);
+      return head + '<p>Weighted pipeline across the current stack: <b>'+money(Math.round(weighted))+'</b> (each account\'s MRR weighted by its readiness score).</p>';
+    case 'launch:at_risk_no_touch':
+      return head + '<p>' + (hold.length ? hold.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> ('+money(x.a.mrr)+') — '+x.c.why[0]; }).join('</p><p>') : 'Nothing currently flagged as at-risk in the stack.') + '</p>';
+
+    default:
+      return head + '<p>I don\'t have a ready-made answer for that yet — try rephrasing in the chat box below.</p>';
+  }
+}
+function renderDashGuide() {
+    var agent = state.agent;
+    var flow = DASH_FLOW[agent];
+    var flowTabs = FLOW_TABS_BY_AGENT[agent];
+    var current = flowTabs.indexOf(dashState.view);
+    if (current === -1) current = 0;
+
+    document.getElementById('dashGBody').innerHTML = flow.steps.map(function (step, i) {
+        var isCur = i === current;
+        var cls = 'flowst' + (isCur ? ' cur' : '');
+        return '<div class="' + cls + '" onclick="showDashView(\'' + flowTabs[i] + '\')">' +
+               '<div class="flowst-dot">' + (i + 1) + '</div>' +
+               '<div><div class="flowst-t">' + escapeHtml(step.t) + '</div></div></div>';
+    }).join('');
+}
+
+function setAgent(key) {
+    state.agent = key;
+    state.taskIndex = 0;
+    root.setAttribute('data-agent', key);
+    renderAgentTabs();
+
+    var isDash = (key === 'mk' || key === 'sl' || key === 'ch');
+    document.getElementById('bhClassic').style.display = isDash ? 'none' : 'grid';
+    document.getElementById('bhDash').classList.toggle('on', isDash);
+
+    if (isDash) {
+        initDash(key);
+    } else {
+        renderGuide();
+        document.getElementById('bhWsName').textContent = AGENTS[key].name;
+        document.getElementById('bhWsSub').textContent = AGENTS[key].sub;
+        resetChat();
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DASHBOARD ENGINE — Marketing & Sales
+   Shared account pool + a per-domain classifier/renderer.
+   ══════════════════════════════════════════════════════════════ */
+// Sourced server-side from the client's real synced CRM contacts + deals
+// (and real Brevo delivery signal for trust/frustration) — see the
+// business-helpers route in routes/web.php. No fictional companies.
+var ACCOUNTS = @json($realAccounts ?? []);
+var DTH = {trust:65, ready:65, intent:55, up:55, fr:40, churn:60};
+var SEG_LABEL = {champion:"Champion",loyal:"Loyal",at_risk:"At risk",dormant:"Dormant","new":"New"};
+var SEG_COLOR = {champion:"#0e7a35",loyal:"#1d4ed8",at_risk:"#b42332",dormant:"#9a6700","new":"#6d28d9"};
+var dashState = { agent: 'sl', view: 'today', lead: null };
+var dashDone = {}; /* per-account logged outcomes, session only */
+
+function money(n){ return '$' + (n||0).toLocaleString(); }
+
+/* ── SALES classifier: who to call, and why ── */
+function classifySales(a){
+  var s = a.scores, why = [], play='none', prio=0;
+  if (a.seg==='at_risk' || s.churn > DTH.churn){
+    play='hold'; why.push('Churn '+s.churn+' — this account belongs to Retention right now, not a sales call.');
+  } else if ((a.seg==='champion'||a.seg==='loyal') && s.buying_readiness>DTH.up && s.trust>=DTH.trust && s.frustration<DTH.fr){
+    play='upsell'; prio = Math.round(s.buying_readiness*0.7 + s.trust*0.3);
+    why.push('Upsell-qualified: readiness '+s.buying_readiness+' with trust '+s.trust+' and frustration only '+s.frustration+'.');
+  } else if (s.buying_readiness>=DTH.ready && s.intent>=DTH.intent){
+    play='call'; prio = Math.round(s.buying_readiness*0.6 + s.intent*0.4);
+    why.push('In the buying window: readiness '+s.buying_readiness+' × intent '+s.intent+'.');
+    var gap = s.buying_readiness - s.trust;
+    if (gap>=25) why.push('Trust is '+gap+' points behind readiness — they believe the problem is real, not yet that you\'re the fix.');
+    else if (s.trust<DTH.trust) why.push('Trust is close behind readiness here — a direct ask lands better than another proof point. Skip the case study.');
+    else why.push('Trust '+s.trust+' is high — skip the warm-up, ask directly.');
+    if (a.event_days!=null){ prio += Math.round((30-a.event_days)/2); }
+  } else if (s.buying_readiness>=45 || s.intent>=DTH.intent){
+    play='nurture'; prio=(s.buying_readiness+s.intent)/4;
+    why.push('Warming, not ready yet: readiness '+s.buying_readiness+', intent '+s.intent+'. One useful touch, no ask.');
+  } else {
+    why.push('No buying signal yet (readiness '+s.buying_readiness+', intent '+s.intent+').');
+  }
+  return {play:play, priority:Math.round(prio), why:why};
+}
+/* ── MARKETING classifier: which campaign play fits this account ── */
+function classifyMarketing(a){
+  var s = a.scores, why = [], play='none', prio=0;
+  if (a.seg==='at_risk' || s.churn > DTH.churn){
+    play='hold'; why.push('Churn '+s.churn+' — hand this one to Retention; a marketing push on an unhappy customer backfires.');
+  } else if (a.seg==='dormant'){
+    play='winback'; prio = (100-s.engagement)*0.5 + s.trust*0.3 + (60-s.churn>0?60-s.churn:0)*0.2;
+    why.push('Gone quiet (engagement '+s.engagement+') but trust is still '+s.trust+' — the door is open. A short win-back series, no discount up front.');
+  } else if (a.seg==='new' && s.buying_readiness>=60 && s.engagement<60){
+    play='onboarding'; prio = s.buying_readiness*0.6 + (100-s.engagement)*0.4;
+    why.push('New and keen (readiness '+s.buying_readiness+') but engagement is only '+s.engagement+' — keen-but-stalled is exactly when new customers quietly give up.');
+  } else if (a.seg==='champion' && s.loyalty>=80){
+    play='referral'; prio = s.loyalty*0.6 + (100-s.frustration)*0.4;
+    why.push('Loyalty '+s.loyalty+', frustration only '+s.frustration+' — ask for one personal introduction, not a generic share link.');
+  } else if (s.engagement>=45){
+    play='nurture'; prio = s.engagement*0.5;
+    why.push('Steady but not primed for a campaign yet (engagement '+s.engagement+'). Keep them warm.');
+  } else {
+    why.push('No clear campaign signal right now.');
+  }
+  return {play:play, priority:Math.round(prio), why:why};
+}
+/* ── RETENTION classifier: who's about to leave, and what to do ── */
+function classifyRetention(a){
+  var s = a.scores, why = [], play='none', prio=0;
+  if (s.churn >= 65 || a.seg==='at_risk'){
+    play='rescue'; prio = s.churn*0.7 + (a.mrr||0)/50;
+    why.push('Churn risk '+s.churn+' on '+money(a.mrr)+'/mo — frustration '+s.frustration+', trust '+s.trust+'.');
+    if (s.frustration>=DTH.fr) why.push('Frustration is high — something is broken for them. Fix that first, don\'t offer a discount.');
+    else why.push('Frustration is low but they\'re still at risk — they\'ve stopped seeing the value. Show it, don\'t discount it.');
+  } else if (a.seg==='dormant'){
+    play='winback'; prio = (100-s.engagement)*0.5 + s.trust*0.3;
+    why.push('Gone quiet (engagement '+s.engagement+') but trust is still '+s.trust+' — worth a win-back touch before they fully churn.');
+  } else if (s.churn>=40){
+    play='nurture'; prio = s.churn*0.5;
+    why.push('Churn is creeping up ('+s.churn+') — not urgent yet, but worth a check-in before it grows.');
+  } else {
+    why.push('Healthy — churn only '+s.churn+', no action needed right now.');
+  }
+  return {play:play, priority:Math.round(prio), why:why};
+}
+function classifyFor(agent, a){ return agent==='sl' ? classifySales(a) : agent==='ch' ? classifyRetention(a) : classifyMarketing(a); }
+function rankedFor(agent){
+  return ACCOUNTS.map(function(a){ return {a:a, c:classifyFor(agent,a)}; })
+    .sort(function(x,y){ return y.c.priority - x.c.priority; });
+}
+
+var AGENT_TABS = {
+  sl: [
+    {k:'today', label:"Today's stack"},
+    {k:'accounts', label:'Accounts'},
+    {k:'scripts', label:'Script studio'},
+    {k:'forecast', label:'Forecast'},
+    {k:'manager', label:'Manager'}
+  ],
+  mk: FLOW_TABS_BY_AGENT.mk.map(function(viewKey, i){
+    return {k: viewKey, label: (MARKETING_STEPS_DB[i] && MARKETING_STEPS_DB[i].title) || MARKETING_STEP_KEYS[i]};
+  }),
+  ch: FLOW_TABS_BY_AGENT.ch.map(function(viewKey, i){
+    return {k: viewKey, label: (RETENTION_STEPS_DB[i] && RETENTION_STEPS_DB[i].title) || RETENTION_STEP_KEYS[i] || viewKey};
+  })
+};
+var PLAY_LABEL = {call:'Call', upsell:'Upsell', hold:'Hold', nurture:'Nurture', winback:'Win-back', onboarding:'Onboarding', referral:'Referral', rescue:'Rescue', none:'—'};
+var PLAY_BTN = {call:'Call now', upsell:'Call now', winback:'Launch →', onboarding:'Launch →', referral:'Launch →', nurture:'Queue touch', hold:'Hand to Retention', rescue:'Rescue now'};
+
+function initDash(agent){
+  dashState.agent = agent;
+  document.getElementById('dmTitle').textContent = AGENTS[agent].name + ' helper';
+  renderDashGuide();
+  renderDashVtabs();
+  showDashView(dashState.view || 'today');
+  dashResetChat();
+}
+function renderDashVtabs(){
+  document.getElementById('dashVtabs').innerHTML = AGENT_TABS[dashState.agent].map(function(t){
+    var on = t.k===dashState.view ? ' on' : '';
+    return '<button type="button" class="dvt'+on+'" onclick="showDashView(\''+t.k+'\')">'+escapeHtml(t.label)+'</button>';
+  }).join('');
+}
+function showDashView(v){
+  dashState.view = v;
+  renderDashVtabs();
+  renderDashGuide();
+  renderDashQuicks();
+  var el = document.getElementById('dashView');
+  if (v==='today' && dashState.agent==='mk') renderMarketingCampaignStack();
+  else if (v==='today') el.innerHTML = renderTodayStack();
+  else if (v==='accounts' && dashState.agent==='mk') renderMarketingAccountsTab();
+  else if (v==='accounts') el.innerHTML = renderAccountsTable();
+  else if (v==='scripts' && dashState.agent==='mk') renderMarketingAudienceTab();
+  else if (v==='scripts') el.innerHTML = renderScriptStudio();
+  else if (v==='forecast' && dashState.agent==='mk') renderMarketingInsightsTab();
+  else if (v==='forecast') el.innerHTML = renderForecast();
+  else if (v==='performance' && dashState.agent==='mk') renderMarketingAbTestTab();
+  else if (v==='performance') el.innerHTML = renderPerformance();
+  else if (v==='manager') el.innerHTML = renderManager();
+  else if (v==='abtest') el.innerHTML = renderRetentionAbTest();
+  if (v==='scripts' && dashState.agent!=='mk') selectScriptAccount(rankedFor(dashState.agent)[0].a.name, 'call');
+}
+var STACK_INTRO = {
+  sl: {h:'RANKED STACK — WHO, IN ORDER', p:'Sorted by <b>readiness × intent</b>, trust-adjusted, then <b>time</b> (deadlines, callbacks due), <b>contact memory</b> (a cool-off after a touch) and <b>contact rules</b> (hours, do-not-call). Click any score to see what moved it — log the outcome after each call and I\'ll re-rank for tomorrow.'},
+  ch: {h:'RANKED STACK — WHO TO SAVE, IN ORDER', p:'Sorted by <b>churn risk × value at stake</b>, then how long they\'ve been going quiet and how frustrated they are. Click any score to see what moved it — log the rescue after each save attempt and I\'ll re-rank for tomorrow.'}
+};
+function metaLine(a, c){
+  var bits = [money(a.mrr)+' MRR', 'Priority '+c.priority];
+  if (a.event_days!=null) bits.push('Event in '+a.event_days+'d');
+  else if (a.callback_due) bits.push('Callback due');
+  else bits.push(SEG_LABEL[a.seg]);
+  if (a.city) bits.push(a.city);
+  return bits.join(' · ');
+}
+function renderTodayStack(){
+  var agent = dashState.agent;
+  var r = rankedFor(agent);
+  var primaryPlays = agent==='sl' ? ['call'] : agent==='ch' ? ['rescue'] : ['winback','onboarding'];
+  var secondaryPlays = agent==='sl' ? ['upsell'] : agent==='ch' ? ['winback'] : ['referral'];
+  var primary = r.filter(function(x){ return primaryPlays.indexOf(x.c.play)!==-1; });
+  var secondary = r.filter(function(x){ return secondaryPlays.indexOf(x.c.play)!==-1; });
+  var shown = primary.slice(0, 2);
+  var nurture = r.filter(function(x){ return x.c.play==='nurture'; });
+  var hold = r.filter(function(x){ return x.c.play==='hold'; });
+  function row(x, i){
+    var a=x.a, c=x.c, s=a.scores, key=agent+':'+a.name;
+    var logged = dashDone[key];
+    var callBtn = logged
+      ? '<button type="button" class="stk-call done" disabled>&check; Logged</button>'
+      : '<button type="button" class="stk-call" onclick="logOutcome(\''+nameAttr(a.name)+'\')">'+PLAY_BTN[c.play]+'</button>';
+    return '<div class="stkrow">'+
+      '<div class="stk-n">'+String(i+1).padStart(2,'0')+'</div>'+
+      callBtn+
+      '<div><div class="stk-acct">'+escapeHtml(a.name)+(a.seg==='new'?'<span class="badge-new">NEW</span>':'')+'</div>'+
+      '<div class="stk-mrr">'+metaLine(a,c)+'</div>'+
+      '<div class="stk-scores">'+
+        '<div class="sc"><div class="sc-v" style="color:'+scoreCol(s.buying_readiness)+'">'+s.buying_readiness+'</div><div class="sc-l">Ready</div></div>'+
+        '<div class="sc"><div class="sc-v" style="color:'+scoreCol(s.intent)+'">'+s.intent+'</div><div class="sc-l">Intent</div></div>'+
+        '<div class="sc"><div class="sc-v" style="color:'+scoreCol(s.trust)+'">'+s.trust+'</div><div class="sc-l">Trust</div></div>'+
+      '</div></div>'+
+      '<div class="stk-why">'+c.why.join(' ')+'</div>'+
+      '<div class="stk-actions">'+
+        '<button type="button" class="stkbtn" onclick="openScriptFor(\''+nameAttr(a.name)+'\')">'+((agent==='sl'||agent==='ch')?'Script →':'Copy →')+'</button>'+
+        (logged?'':'<button type="button" class="stkbtn ghost" onclick="logOutcome(\''+nameAttr(a.name)+'\')">Log outcome</button>')+
+      '</div></div>';
+  }
+  var intro = STACK_INTRO[agent];
+  var html = agent==='mk' ? '' : '<div class="stack-intro"><div class="si-h">'+intro.h+'</div><div class="si-p">'+intro.p+'</div></div>';
+  html += '<div class="sectionh">'+(agent==='sl'?"TODAY'S CONTACT STACK":agent==='ch'?"TODAY'S RESCUE STACK":"TODAY'S CAMPAIGN STACK")+'<span>'+shown.length+' of '+primary.length+' shown</span></div>';
+  html += shown.length ? shown.map(row).join('') : '<div style="padding:20px;color:var(--g3);font-size:12.5px">Nothing urgent right now — check Accounts for the full list.</div>';
+  if (secondary.length){ html += '<div class="sectionh">'+(agent==='sl'?'UPSELL — READY TO EXPAND':agent==='ch'?'WIN-BACK — GONE QUIET, STILL WINNABLE':'REFERRAL — ASK FOR ONE NAME')+'</div>' + secondary.map(row).join(''); }
+  if (nurture.length){ html += '<div class="sectionh warn">'+(agent==='ch'?'WATCH — CHURN CREEPING UP':'NURTURE — NOT READY YET')+'</div>' + nurture.map(row).join(''); }
+  if (hold.length){ html += '<div class="sectionh bad">HOLD — ROUTE TO RETENTION</div>' + hold.map(row).join(''); }
+  return html;
+}
+/* Marketing · Campaign tab — same stack layout as renderTodayStack(), fed
+   from real crm_contacts/crm_deals accounts instead of the fictional
+   ACCOUNTS list. See MarketingPerformanceService::accountsSnapshot(). */
+var MK_CAMPAIGN_STACK_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">Your real MQL-ready accounts, each with the campaign call that matters most for them: whether to lead with <b>proof</b> or an <b>offer</b>, based on their own real trust score against the 65-point line — not the pool average. Sorted by deal value, biggest first.</div>' +
+  '</div>';
+function renderMarketingCampaignStack(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = MK_CAMPAIGN_STACK_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">Loading real campaign data…</div>';
+
+  fetch(MARKETING_ACCOUNTS_ENDPOINT)
+    .then(function(r){ return r.json(); })
+    .then(function(data){ el.innerHTML = MK_CAMPAIGN_STACK_INTRO + renderMkCampaignTableHtml(data.accounts || []); })
+    .catch(function(){ el.innerHTML = MK_CAMPAIGN_STACK_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">Could not load campaign data — try again in a moment.</div>'; });
+}
+function renderMkCampaignTableHtml(accounts){
+  var ready = accounts.filter(function(a){ return a.segment === 'mql_ready'; }).sort(function(x,y){ return y.deal_value - x.deal_value; });
+
+  if (!ready.length) {
+    return '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts are MQL-ready right now.</div>';
+  }
+
+  var rows = ready.map(function(a){
+    var proofLed = a.trust < 65;
+    var approach = proofLed
+      ? '<span style="color:var(--warn);font-weight:600">Proof-led</span>'
+      : '<span style="color:#0e7a35;font-weight:600">Offer-led</span>';
+    var lastTouch = a.days_since_activity <= 7 ? 'This week' : a.days_since_activity + 'd ago';
+    return '<tr>'
+      + '<td class="acctn">' + escapeHtml(a.name) + ' <span style="color:var(--g3);font-weight:400">(' + escapeHtml(a.company) + ')</span></td>'
+      + '<td>' + money(a.deal_value) + '</td>'
+      + '<td>' + escapeHtml(a.stage_label) + '</td>'
+      + '<td>' + a.buying_readiness + '</td>'
+      + '<td>' + a.trust + '</td>'
+      + '<td>' + approach + '</td>'
+      + '<td>' + lastTouch + '</td>'
+      + '</tr>';
+  }).join('');
+
+  return '<table class="dtbl"><thead><tr><th>Account</th><th>Deal value</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+function scoreCol(v){ return v>=70?'#0e7a35':v>=50?'#9a6700':'#b42332'; }
+function renderAccountsTable(){
+  var agent = dashState.agent;
+  var r = rankedFor(agent);
+  var rows = r.map(function(x){
+    var a=x.a, s=a.scores;
+    return '<tr><td class="acctn" onclick="openScriptFor(\''+nameAttr(a.name)+'\')">'+escapeHtml(a.name)+'</td>'+
+      '<td><span class="segtag" style="background:'+SEG_COLOR[a.seg]+'22;color:'+SEG_COLOR[a.seg]+'">'+SEG_LABEL[a.seg]+'</span></td>'+
+      '<td>'+money(a.mrr)+'</td><td>'+s.buying_readiness+'</td><td>'+s.intent+'</td><td>'+s.trust+'</td><td>'+s.churn+'</td>'+
+      '<td><span class="stk-play '+x.c.play+'">'+PLAY_LABEL[x.c.play]+'</span></td></tr>';
+  }).join('');
+  return '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>MRR</th><th>Ready</th><th>Intent</th><th>Trust</th><th>Churn</th><th>Play</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+/* Marketing · Performance tab — real crm_contacts/crm_deals accounts, not the
+   fictional ACCOUNTS list. See MarketingPerformanceService::accountsSnapshot(). */
+var MK_SEGMENT_LABEL = {mql_ready:'MQL-ready', at_risk:'At-risk', other:'Other'};
+var MK_SEGMENT_COLOR = {mql_ready:'#0e7a35', at_risk:'#b42332', other:'#6b7280'};
+function renderMarketingAccountsTab(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = '<div style="padding:24px;color:var(--g3);font-size:12.5px">Loading real accounts…</div>';
+  fetch(MARKETING_ACCOUNTS_ENDPOINT)
+    .then(function(r){ return r.json(); })
+    .then(function(data){ el.innerHTML = renderMarketingAccountsTable(data.accounts || []); })
+    .catch(function(){ el.innerHTML = '<div style="padding:24px;color:var(--g3);font-size:12.5px">Could not load accounts — try again in a moment.</div>'; });
+}
+var MK_ACCOUNTS_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">This is your real customer data, showing each contact, their deal, Readiness, Trust, Segment, Deal Value, and Stage. Readiness and Trust increase as customers move further through the buying process. ' +
+    '<b>At-risk</b> means an open deal has had no activity for 3+ months. <b>MQL-ready</b> means the customer is ready for Sales based on their Readiness score. <b>Other</b> means they are not currently at risk or sales-ready. ' +
+    'Deal values and stages come directly from your data, with the highest-value deals shown first.</div>' +
+  '</div>';
+function renderMarketingAccountsTable(accounts){
+  if (!accounts.length) return MK_ACCOUNTS_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">No synced CRM contacts found.</div>';
+  var rows = accounts.map(function(a){
+    var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
+    var segColor = MK_SEGMENT_COLOR[a.segment] || '#6b7280';
+    return '<tr><td class="acctn">'+escapeHtml(a.name)+' <span style="color:var(--g3);font-weight:400">('+escapeHtml(a.company)+')</span></td>'+
+      '<td><span class="segtag" style="background:'+segColor+'22;color:'+segColor+'">'+escapeHtml(segLabel)+'</span></td>'+
+      '<td>'+money(a.deal_value)+'</td><td>'+a.buying_readiness+'</td><td>'+a.trust+'</td>'+
+      '<td>'+escapeHtml(a.stage_label)+'</td><td>'+a.days_since_activity+'d ago</td></tr>';
+  }).join('');
+  return MK_ACCOUNTS_INTRO + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>Deal value</th><th>Readiness</th><th>Trust</th><th>Stage</th><th>Last active</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+/* Marketing · Audience tab — the same real crm_contacts/crm_deals accounts
+   as Performance, browsable one at a time with a real profile instead of
+   the fictional "Referral" script list. See
+   MarketingPerformanceService::accountsSnapshot(). */
+var MK_AUDIENCE_ACCOUNTS = [];
+var MK_AUDIENCE_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">Your real contacts on the left, grouped by <b>Segment</b>. Click any name to see its real profile on the right — deal value, stage, Readiness, Trust, and how long since they were last active. ' +
+    '<b>At-risk</b> means an open deal has had no activity for 3+ months. <b>MQL-ready</b> means the contact is ready for Sales based on their Readiness score. <b>Other</b> means neither — still early, no action needed yet. Nothing here is guessed or written by AI.</div>' +
+  '</div>';
+function renderMarketingAudienceTab(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = '<div style="display:flex;flex-direction:column;height:100%;min-height:0">' + MK_AUDIENCE_INTRO
+    + '<div class="ss-grid" style="flex:1;min-height:0"><div class="ss-list" id="mkAudList"><div style="padding:16px;color:var(--g3);font-size:12.5px">Loading real accounts…</div></div>'
+    + '<div class="ss-out" id="mkAudOut"><div style="padding:20px;color:var(--g3);font-size:12.5px">Select an account to see its real profile.</div></div></div></div>';
+
+  fetch(MARKETING_ACCOUNTS_ENDPOINT)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      MK_AUDIENCE_ACCOUNTS = data.accounts || [];
+      var list = document.getElementById('mkAudList');
+      if (!list) return;
+      if (!MK_AUDIENCE_ACCOUNTS.length) { list.innerHTML = '<div style="padding:16px;color:var(--g3);font-size:12.5px">No synced CRM contacts found.</div>'; return; }
+      list.innerHTML = MK_AUDIENCE_ACCOUNTS.map(function(a, i){
+        var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
+        return '<div class="ss-item" data-i="'+i+'" onclick="selectMkAudienceAccount('+i+')"><div class="n">'+escapeHtml(a.name)+'</div><div class="m">'+escapeHtml(segLabel)+' · '+money(a.deal_value)+'</div></div>';
+      }).join('');
+      selectMkAudienceAccount(0);
+    })
+    .catch(function(){
+      var list = document.getElementById('mkAudList');
+      if (list) list.innerHTML = '<div style="padding:16px;color:var(--g3);font-size:12.5px">Could not load accounts — try again in a moment.</div>';
+    });
+}
+function selectMkAudienceAccount(i){
+  var a = MK_AUDIENCE_ACCOUNTS[i];
+  var out = document.getElementById('mkAudOut');
+  if (!a || !out) return;
+
+  document.querySelectorAll('#mkAudList .ss-item').forEach(function(el, idx){ el.classList.toggle('on', idx===i); });
+
+  var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
+  var segColor = MK_SEGMENT_COLOR[a.segment] || '#6b7280';
+  var segNote = a.segment === 'at_risk'
+    ? 'Gone quiet 3+ months with a deal still open — a marketing send here reads tone-deaf; this is Retention\'s account to work.'
+    : a.segment === 'mql_ready'
+      ? 'Readiness clears the bar and this account is not going cold — ready to hand off to Sales.'
+      : 'Not at risk, not ready yet — keep nurturing, no hand-off or exclusion needed.';
+
+  out.innerHTML =
+    '<div class="ss-script"><div class="ss-shd">'+escapeHtml(a.name.toUpperCase())+' · '+escapeHtml(a.company)+'</div>'
+    + '<div class="ss-beat"><div class="ss-beat-l">SEGMENT</div><span class="segtag" style="background:'+segColor+'22;color:'+segColor+'">'+escapeHtml(segLabel)+'</span><div style="margin-top:8px">'+segNote+'</div></div>'
+    + '<div class="ss-beat"><div class="ss-beat-l">DEAL</div>'+money(a.deal_value)+' — '+escapeHtml(a.stage_label)+'</div>'
+    + '<div class="ss-beat"><div class="ss-beat-l">READINESS &amp; TRUST</div>Readiness '+a.buying_readiness+' · Trust '+a.trust+'</div>'
+    + '<div class="ss-beat"><div class="ss-beat-l">LAST ACTIVITY</div>'+a.days_since_activity+' day(s) ago</div>'
+    + '</div>';
+}
+var scriptAcct = null, scriptChan = 'call';
+function renderScriptStudio(){
+  var r = rankedFor(dashState.agent);
+  var list = r.map(function(x){
+    return '<div class="ss-item" data-name="'+nameAttr(x.a.name)+'" onclick="selectScriptAccount(\''+nameAttr(x.a.name)+'\')"><div class="n">'+escapeHtml(x.a.name)+'</div><div class="m">'+PLAY_LABEL[x.c.play]+' · '+money(x.a.mrr)+'</div></div>';
+  }).join('');
+  return '<div class="ss-grid"><div class="ss-list">'+list+'</div><div class="ss-out" id="ssOut"></div></div>';
+}
+function selectScriptAccount(name, chan){
+  scriptAcct = name; scriptChan = chan || 'call';
+  document.querySelectorAll('.ss-item').forEach(function(el){ el.classList.toggle('on', el.getAttribute('data-name')===name); });
+  var agent = dashState.agent;
+  var chans = agent==='sl' ? ['call','email','linkedin'] : agent==='ch' ? ['call','email','sms'] : ['email','sms','ad'];
+  var a = ACCOUNTS.filter(function(x){ return x.name===name; })[0];
+  var c = classifyFor(agent, a);
+  var chanBtns = chans.map(function(ch){ return '<button type="button" class="'+(ch===scriptChan?'on':'')+'" onclick="selectScriptAccount(\''+nameAttr(name)+'\',\''+ch+'\')">'+ch+'</button>'; }).join('');
+  var beats = scriptBeats(agent, a, c, scriptChan);
+  document.getElementById('ssOut').innerHTML =
+    '<div class="ss-chan">'+chanBtns+'</div>'+
+    '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+' · '+PLAY_LABEL[c.play].toUpperCase()+'</div>'+
+    beats.map(function(b){ return '<div class="ss-beat"><div class="ss-beat-l">'+b[0]+'</div>'+b[1]+'</div>'; }).join('') +
+    '</div>';
+  dashState.lead = name;
+}
+function openScriptFor(name){ showDashView('scripts'); selectScriptAccount(name); }
+function scriptBeats(agent, a, c, chan){
+  var s = a.scores;
+  if (c.play==='hold') return [['DO NOT PITCH','<em>Churn '+s.churn+'.</em> Route to Retention — this account needs a fix, not an offer.']];
+  if (agent==='sl'){
+    if (s.trust < DTH.trust){
+      return [
+        ['OPENER','<em>"I noticed your team\'s been looking at us a few times recently — that usually means the problem\'s real but something\'s holding the decision back. Can I ask what it is?"</em>'],
+        ['PROOF','<em>"Businesses like yours typically see results within the first couple of months — happy to walk you through the numbers."</em>'],
+        ['LOW-RISK CLOSE','<em>"Start on the smaller plan. If it doesn\'t move the numbers in 30 days, walk away and keep everything we found."</em>']
+      ];
+    }
+    return [
+      ['OPENER','<em>"You\'ve clearly found value already — I\'d like to talk about what\'s next."</em>'],
+      ['DIRECT ASK','<em>"Given where you\'re at, the bigger plan pays for itself. Want me to set it up?"</em>']
+    ];
+  }
+  if (c.play==='rescue') return [
+    ['DIAGNOSE FIRST', s.frustration>=DTH.fr ? '<em>Frustration is high — something is broken for them. Find and fix it before you call.</em>' : '<em>Frustration is low but they\'re still leaving — they\'ve stopped seeing the value. Show it, don\'t discount it.</em>'],
+    ['THE CALL','<em>"I wanted to check in personally — is everything working the way it should be for you?"</em>'],
+    ['NO DISCOUNT YET','Fix the problem or show the value first. Offering money off before that tells them the broken thing is fine.'],
+    ['FOLLOW-UP','A 30-day check-in to confirm it actually stuck.']
+  ];
+  if (c.play==='winback') return [
+    ['SUBJECT','<em>"Here\'s what\'s new since you\'ve been away"</em>'],
+    ['BODY','No apology, no discount yet — lead with momentum. Show one thing their own account found while they were gone.'],
+    ['FOLLOW-UP','A short personal note 3–5 days later. A small offer only if they open twice without clicking.']
+  ];
+  if (c.play==='onboarding') return [
+    ['SUBJECT','<em>"One thing left to finish"</em>'],
+    ['BODY','A single, specific ask — the exact step they stalled on. Nothing else in this email.'],
+    ['FOLLOW-UP','Day 2: show their own first result. Day 5: invite them into the weekly habit that keeps customers for years.']
+  ];
+  if (c.play==='referral') return [
+    ['ASK','<em>"Who\'s one business owner you respect who struggles with this?"</em> — one name beats a share link roughly 3×.'],
+    ['FOLLOW-UP','Personal intro → VIP treatment for the new account → report the result back to them.']
+  ];
+  return [['TOUCH','Keep it useful and low-pressure — one relevant resource, no ask yet.']];
+}
+function renderForecast(){
+  var agent = dashState.agent;
+  var r = rankedFor(agent);
+  if (agent==='sl'){
+    var call = r.filter(function(x){return x.c.play==='call';});
+    var up = r.filter(function(x){return x.c.play==='upsell';});
+    var newBiz = call.reduce(function(s,x){return s+x.a.mrr;},0);
+    var newW = Math.round(call.reduce(function(s,x){return s+x.a.mrr*x.a.scores.buying_readiness/100;},0));
+    var upV = up.reduce(function(s,x){return s+Math.round(x.a.mrr*0.3);},0);
+    var upW = Math.round(up.reduce(function(s,x){return s+Math.round(x.a.mrr*0.3)*x.a.scores.buying_readiness/100;},0));
+    return '<div class="fc-grid">'+
+      '<div class="fc-cell"><div class="fc-h">NEW BUSINESS IN PLAY</div>'+
+      call.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
+      '<div class="fc-row fc-tot"><span>Weighted total</span><span>'+money(newW)+' <small>of '+money(newBiz)+'</small></span></div></div>'+
+      '<div class="fc-cell"><div class="fc-h">UPSELL IN PLAY</div>'+
+      up.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(Math.round(x.a.mrr*0.3))+'</span></div>';}).join('')+
+      '<div class="fc-row fc-tot"><span>Weighted total</span><span>'+money(upW)+' <small>of '+money(upV)+'</small></span></div></div>'+
+      '</div>';
+  }
+  if (agent==='ch'){
+    var resc = r.filter(function(x){return x.c.play==='rescue';});
+    var chWb = r.filter(function(x){return x.c.play==='winback';});
+    var rescV = resc.reduce(function(s,x){return s+x.a.mrr;},0);
+    var chWbV = chWb.reduce(function(s,x){return s+x.a.mrr;},0);
+    return '<div class="fc-grid">'+
+      '<div class="fc-cell"><div class="fc-h">VALUE AT RISK THIS WEEK</div>'+
+      resc.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
+      '<div class="fc-row fc-tot"><span>Total</span><span>'+money(rescV)+'</span></div></div>'+
+      '<div class="fc-cell"><div class="fc-h">WIN-BACK VALUE IN PLAY</div>'+
+      chWb.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
+      '<div class="fc-row fc-tot"><span>Total</span><span>'+money(chWbV)+'</span></div></div>'+
+      '</div>';
+  }
+  var wb = r.filter(function(x){return x.c.play==='winback';});
+  var ob = r.filter(function(x){return x.c.play==='onboarding';});
+  var wbV = wb.reduce(function(s,x){return s+x.a.mrr;},0);
+  var obV = ob.reduce(function(s,x){return s+x.a.mrr;},0);
+  return '<div class="fc-grid">'+
+    '<div class="fc-cell"><div class="fc-h">WIN-BACK VALUE AT STAKE</div>'+
+    wb.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
+    '<div class="fc-row fc-tot"><span>Total</span><span>'+money(wbV)+'</span></div></div>'+
+    '<div class="fc-cell"><div class="fc-h">ONBOARDING AT RISK OF STALLING</div>'+
+    ob.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
+    '<div class="fc-row fc-tot"><span>Total</span><span>'+money(obV)+'</span></div></div>'+
+    '</div>';
+}
+/* Marketing · Insights tab — real crm_contacts/crm_deals data, shown as
+   charts instead of the fictional win-back/onboarding $0 tiles. Reuses the
+   same MQL-ready pool and per-account fields (trust, stage_label) the
+   Insights quick-prompts already compute — see MarketingInsightsService. */
+var MK_INSIGHTS_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">A snapshot of your real MQL-ready pool: how much trust they\'ve built on average, where most of them sit in the buying process, and who newly qualified this week. All read straight from your CRM — nothing guessed.</div>' +
+  '</div>';
+function renderMarketingInsightsTab(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = MK_INSIGHTS_INTRO + '<div id="mkInsBody" style="padding:24px;color:var(--g3);font-size:12.5px">Loading real insights…</div>';
+
+  Promise.all([
+    fetch(MARKETING_AI_ENDPOINTS.proof_or_offer_audience).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.one_lever_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.changed_last_7_days).then(function(r){ return r.json(); })
+  ]).then(function(results){
+    var body = document.getElementById('mkInsBody');
+    if (body) body.outerHTML = '<div id="mkInsBody">' + renderMarketingInsightsBody(results[0], results[1], results[2]) + '</div>';
+  }).catch(function(){
+    var body = document.getElementById('mkInsBody');
+    if (body) body.innerHTML = 'Could not load insights — try again in a moment.';
+  });
+}
+function renderMarketingInsightsBody(proofData, leverData, recentData){
+  var pool = proofData.ranked || [];
+
+  if (!pool.length) {
+    return '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts are in the MQL-ready pool right now.</div>';
+  }
+
+  var avgTrust = Math.round(pool.reduce(function(s,a){ return s + a.trust; }, 0) / pool.length);
+  var verdict = avgTrust < 65 ? 'Proof audience — lead with evidence' : 'Offer audience — a discount is safe';
+  var gaugeColor = scoreCol(avgTrust);
+
+  var stageCounts = {};
+  pool.forEach(function(a){ stageCounts[a.stage_label] = (stageCounts[a.stage_label] || 0) + 1; });
+  var stages = Object.keys(stageCounts).map(function(k){ return {label:k, count:stageCounts[k]}; }).sort(function(x,y){ return y.count - x.count; });
+  var maxStageCount = stages[0] ? stages[0].count : 1;
+
+  var recent = recentData.ranked || [];
+
+  var html = '<div class="fc-grid">';
+
+  html += '<div class="fc-cell"><div class="fc-h">AVERAGE TRUST — PROOF OR OFFER?</div>'
+    + '<div style="margin:12px 0 6px;height:10px;background:var(--p2);border-radius:99px;position:relative;overflow:hidden">'
+    + '<div style="height:100%;width:'+avgTrust+'%;background:'+gaugeColor+';border-radius:99px"></div>'
+    + '<div style="position:absolute;left:65%;top:-3px;bottom:-3px;width:2px;background:var(--ink)"></div>'
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--g3)"><span>0</span><span>65 — hand-off bar</span><span>100</span></div>'
+    + '<div style="margin-top:12px;font-size:13px"><b>'+avgTrust+'</b> average trust across <b>'+pool.length+'</b> MQL-ready account(s) — '+verdict+'</div>'
+    + '</div>';
+
+  html += '<div class="fc-cell"><div class="fc-h">WHERE THE POOL SITS — FUNNEL STAGE</div>'
+    + stages.map(function(s, i){
+      var pct = Math.round(s.count / maxStageCount * 100);
+      return '<div style="margin-bottom:10px">'
+        + '<div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px"><span>'+escapeHtml(s.label)+(i===0?' <span style="color:var(--ac-d);font-weight:600">← most common</span>':'')+'</span><span>'+s.count+'</span></div>'
+        + '<div style="height:8px;background:var(--p2);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--ac)"></div></div>'
+        + '</div>';
+    }).join('')
+    + '</div>';
+
+  html += '<div class="fc-cell" style="grid-column:1/-1"><div class="fc-h">THE ONE LEVER TO PULL</div>'
+    + '<div style="font-size:13px;line-height:1.65;color:var(--ink)">'+escapeHtml(leverData.answer || '')+'</div>'
+    + '</div>';
+
+  html += '<div class="fc-cell" style="grid-column:1/-1"><div class="fc-h">NEWLY QUALIFIED — LAST 7 DAYS</div>'
+    + (recent.length
+        ? recent.map(function(a){ return '<div class="fc-row"><span><b>'+escapeHtml(a.name)+'</b> ('+escapeHtml(a.company)+') — '+escapeHtml(a.stage_label)+'</span><span>'+a.days_since_activity+'d ago</span></div>'; }).join('')
+        : '<div style="color:var(--g3);font-size:12.5px">Nobody newly qualified in the last 7 days.</div>')
+    + '</div>';
+
+  html += '</div>';
+  return html;
+}
+function renderManager(){
+  var agent = dashState.agent;
+  var r = rankedFor(agent);
+  var loggedCount = Object.keys(dashDone).filter(function(k){return k.indexOf(agent+':')===0;}).length;
+  var active = r.filter(function(x){ return ['call','upsell','winback','onboarding','referral','rescue'].indexOf(x.c.play)!==-1; });
+  return '<div class="mg-grid">'+
+    '<div class="mg-cell"><div class="mg-h">STACK ADHERENCE TODAY</div>'+
+    '<div class="mg-kpi">'+loggedCount+' <small>of '+active.length+' actioned</small></div>'+
+    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Every "'+(agent==='sl'?'Call now':agent==='ch'?'Rescue now':'Launch')+'" pressed on Today\'s Stack counts here — it\'s how you tell whether the stack is actually being worked.</div></div>'+
+    '<div class="mg-cell"><div class="mg-h">VALUE IN THE STACK</div>'+
+    '<div class="mg-kpi">'+money(active.reduce(function(s,x){return s+x.a.mrr;},0))+'</div>'+
+    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Total MRR represented by accounts currently ranked as an active play.</div></div>'+
+    '</div>';
+}
+function renderRetentionAbTest(){
+  var pool = RETENTION_AB_POOL || {count:0, value:0, breakdown:{}};
+  var n = pool.count || 0;
+  var value = pool.value || 0;
+  var ready = n >= 4;
+  var bd = pool.breakdown || {};
+  var bdRows = Object.keys(bd).map(function(k){
+    var b = bd[k];
+    return '<div class="fc-row"><span>' + escapeHtml(b.label || k) + '</span><span>' + b.accounts + ' &middot; ' + money(b.value) + '</span></div>';
+  }).join('');
+
+  return '<div class="stack-intro">' +
+      '<div class="si-h">A/B TESTING SAVE PLAYS</div>' +
+      '<div class="si-p">The only sample the retention team can test on is the <b>at-risk book</b>. Right now <b>' + n + ' account' + (n===1?'':'s') + '</b> (' + money(value) + ') are at risk — ' +
+      (ready
+        ? 'enough for a <b>directional</b> read on one test at a time (roughly ' + Math.floor(n/2) + ' per arm), not statistical significance.'
+        : 'too few for a real A/B test yet. Run one save play well and log every outcome until the pool grows.') +
+      ' Ask Mira on the right for which test to run, per-arm sizing, holdout advice, and the full list of levers — every answer is computed from your live crm_contacts and crm_deals.</div>' +
+    '</div>' +
+    '<div class="sectionh">TESTABLE AT-RISK POOL<span>' + n + ' account' + (n===1?'':'s') + '</span></div>' +
+    '<div class="mg-grid">' +
+      '<div class="mg-cell"><div class="mg-h">POOL SIZE</div><div class="mg-kpi">' + n + ' <small>at risk</small></div>' +
+        (bdRows ? '<div style="margin-top:10px">' + bdRows + '</div>' : '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Accounts where a deal has stalled, been lost, or the customer has gone quiet after buying.</div>') + '</div>' +
+      '<div class="mg-cell"><div class="mg-h">VALUE IN THE POOL</div><div class="mg-kpi">' + money(value) + '</div>' +
+        '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Deal value represented by the at-risk pool — what a better save play is worth protecting.</div></div>' +
+    '</div>';
+}
+function renderPerformance(){
+  var agent = dashState.agent;
+  var r = rankedFor(agent);
+  var active = r.filter(function(x){ return ['winback','onboarding','referral'].indexOf(x.c.play)!==-1; });
+  var lift = active.reduce(function(s,x){ return s + Math.round(x.a.mrr * x.a.scores.buying_readiness / 100); }, 0);
+  var mqlCount = r.filter(function(x){ return x.a.scores.buying_readiness >= DTH.ready; }).length;
+  return '<div class="mg-grid">'+
+    '<div class="mg-cell"><div class="mg-h">PROJECTED LIFT</div>'+
+    '<div class="mg-kpi">'+money(lift)+' <small>from active plays</small></div>'+
+    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Value of accounts in an active campaign play, weighted by readiness — the honest estimate of what these sends are worth.</div></div>'+
+    '<div class="mg-cell"><div class="mg-h">MQL HAND-OFF</div>'+
+    '<div class="mg-kpi">'+mqlCount+' <small>ready for Sales</small></div>'+
+    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Accounts that have crossed the readiness bar — these are the hand-off candidates for the Sales stack.</div></div>'+
+    '</div>';
+}
+/* Marketing · A/B test tab — real email_logs / crm_contacts data, shown as
+   charts instead of the fictional "Projected lift" / "MQL hand-off" tiles.
+   See MarketingEmailTestService (subject line, send time, test ideas) and
+   MarketingAbTestService (proof-vs-offer, sample size, holdout). */
+var MK_ABTEST_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">Real results from emails you\'ve actually sent, plus real sizing checks against your current MQL-ready pool. Nothing here is a guess — every number is measured from what already happened.</div>' +
+  '</div>';
+function renderMarketingAbTestTab(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = MK_ABTEST_INTRO + '<div id="mkAbBody" style="padding:24px;color:var(--g3);font-size:12.5px">Loading real test data…</div>';
+
+  Promise.all([
+    fetch(MARKETING_AI_ENDPOINTS.subject_line_test_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.when_receive_touch1_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.sample_size_per_arm_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.holdout_15_enough_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.proof_vs_offer_test_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.all_test_ideas_mql_sales).then(function(r){ return r.json(); })
+  ]).then(function(results){
+    var body = document.getElementById('mkAbBody');
+    if (body) body.outerHTML = '<div id="mkAbBody">' + renderMarketingAbTestBody(results[0], results[1], results[2], results[3], results[4], results[5]) + '</div>';
+  }).catch(function(){
+    var body = document.getElementById('mkAbBody');
+    if (body) body.innerHTML = 'Could not load test data — try again in a moment.';
+  });
+}
+function renderMarketingAbTestBody(subjectData, sendTimeData, sampleData, holdoutData, proofData, ideasData){
+  var html = '<div class="fc-grid">';
+
+  // Subject line: standard vs urgency — each bar opens the real emails behind it
+  var subj = subjectData.ranked || [];
+  var subjDetail = subjectData.detail || {};
+  if (subj.length) {
+    var subjMax = Math.max.apply(null, subj.map(function(s){ return s.open_rate; }));
+    html += '<div class="fc-cell"><div class="fc-h">SUBJECT LINE — STANDARD VS URGENCY <span style="text-transform:none;font-weight:400;color:var(--g3)">(click a bar for the real emails)</span></div>'
+      + subj.map(function(s, i){
+        var pct = subjMax > 0 ? Math.round(s.open_rate / subjMax * 100) : 0;
+        var color = i===0 ? '#0e7a35' : 'var(--ac)';
+        var emails = subjDetail[s.style] || [];
+        var cacheId = 'subj' + Math.random().toString(36).slice(2, 9);
+        RISK_DATA_CACHE[cacheId] = emails;
+        return '<div style="margin-bottom:10px;cursor:pointer" onclick="openRiskModal(\''+cacheId+'\',\'email\')" title="View the '+emails.length+' real emails behind this">'
+          + '<div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px"><span style="text-transform:capitalize">'+escapeHtml(s.style)+(i===0?' <span style="color:#0e7a35;font-weight:600">← better</span>':'')+'</span><span>'+s.open_rate+'% <small style="color:var(--g3)">('+s.opened+'/'+s.sent+')</small></span></div>'
+          + '<div style="height:8px;background:var(--p2);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+'"></div></div>'
+          + '</div>';
+      }).join('')
+      + '</div>';
+  } else {
+    html += '<div class="fc-cell"><div class="fc-h">SUBJECT LINE — STANDARD VS URGENCY</div><div style="color:var(--g3);font-size:12.5px">No sent emails with a subject line yet.</div></div>';
+  }
+
+  // Send time window — each bar opens the real emails sent in that window
+  var win = sendTimeData.ranked || [];
+  var winDetail = sendTimeData.detail || {};
+  if (win.length) {
+    var winMax = Math.max.apply(null, win.map(function(w){ return w.open_rate; }));
+    html += '<div class="fc-cell"><div class="fc-h">BEST SEND-TIME WINDOW <span style="text-transform:none;font-weight:400;color:var(--g3)">(click a bar for the real emails)</span></div>'
+      + win.map(function(w, i){
+        var pct = winMax > 0 ? Math.round(w.open_rate / winMax * 100) : 0;
+        var color = i===0 ? '#0e7a35' : 'var(--ac)';
+        var emails = winDetail[w.window] || [];
+        var cacheId = 'send' + Math.random().toString(36).slice(2, 9);
+        RISK_DATA_CACHE[cacheId] = emails;
+        return '<div style="margin-bottom:8px;cursor:pointer" onclick="openRiskModal(\''+cacheId+'\',\'email\')" title="View the '+emails.length+' real emails behind this">'
+          + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span>'+escapeHtml(w.window)+(i===0?' <span style="color:#0e7a35;font-weight:600">← best</span>':'')+(!w.reliable?' <span style="color:var(--g3)">(low volume)</span>':'')+'</span><span>'+w.open_rate+'%</span></div>'
+          + '<div style="height:6px;background:var(--p2);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+(w.reliable?'':';opacity:.5')+'"></div></div>'
+          + '</div>';
+      }).join('')
+      + '</div>';
+  } else {
+    html += '<div class="fc-cell"><div class="fc-h">BEST SEND-TIME WINDOW</div><div style="color:var(--g3);font-size:12.5px">No sent emails yet.</div></div>';
+  }
+
+  // Sample size per arm + holdout
+  var poolSize = (sampleData.ranked || []).length;
+  var perArm = Math.floor(poolSize / 2);
+  var reliablePool = poolSize >= 30;
+  var holdoutCount = Math.round(poolSize * 15 / 100);
+  var holdoutEnough = holdoutCount >= 5;
+  html += '<div class="fc-cell"><div class="fc-h">SAMPLE SIZE &amp; HOLDOUT CHECK</div>'
+    + '<div style="display:flex;gap:1px;height:26px;border-radius:6px;overflow:hidden;margin-bottom:6px">'
+      + '<div style="flex:1;background:var(--ac);color:#fff;font-size:10.5px;display:flex;align-items:center;justify-content:center">Arm A · '+perArm+'</div>'
+      + '<div style="flex:1;background:var(--ac-d);color:#fff;font-size:10.5px;display:flex;align-items:center;justify-content:center">Arm B · '+(poolSize-perArm)+'</div>'
+    + '</div>'
+    + '<div style="font-size:11.5px;color:var(--g2);margin-bottom:14px">'+poolSize+' MQL-ready account(s) total — '+(reliablePool?'<span style="color:#0e7a35;font-weight:600">enough to trust a clear result</span>':'<span style="color:var(--warn)">below 30, treat as directional</span>')+'.</div>'
+    + '<div style="font-size:11px;color:var(--g3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">15% Holdout</div>'
+    + '<div style="height:8px;background:var(--p2);border-radius:99px;overflow:hidden;margin-bottom:6px"><div style="height:100%;width:15%;background:'+(holdoutEnough?'#0e7a35':'var(--crit)')+'"></div></div>'
+    + '<div style="font-size:11.5px;color:var(--g2)">'+holdoutCount+' account(s) held out — '+(holdoutEnough?'<span style="color:#0e7a35;font-weight:600">workable, wide margin of error</span>':'<span style="color:var(--crit);font-weight:600">too small to mean anything</span>')+'.</div>'
+    + '</div>';
+
+  // Proof vs offer — same gauge style as Insights tab
+  var proofPool = proofData.ranked || [];
+  var avgTrust = proofPool.length ? Math.round(proofPool.reduce(function(s,a){ return s+a.trust; }, 0) / proofPool.length) : 0;
+  var gap = Math.abs(avgTrust - 65);
+  var tooClose = gap <= 10;
+  html += '<div class="fc-cell"><div class="fc-h">SHOULD I TEST PROOF VS OFFER?</div>'
+    + '<div style="margin:12px 0 6px;height:10px;background:var(--p2);border-radius:99px;position:relative;overflow:hidden">'
+    + '<div style="height:100%;width:'+avgTrust+'%;background:'+scoreCol(avgTrust)+';border-radius:99px"></div>'
+    + '<div style="position:absolute;left:65%;top:-3px;bottom:-3px;width:2px;background:var(--ink)"></div>'
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--g3)"><span>0</span><span>65 — the line</span><span>100</span></div>'
+    + '<div style="margin-top:12px;font-size:13px"><b>'+avgTrust+'</b> average trust, '+gap+' point(s) from the line — '
+    + (tooClose ? '<b style="color:var(--warn)">worth testing</b>, it\'s too close to call' : '<b style="color:#0e7a35">no test needed</b>, the number is already decisive')
+    + '.</div>'
+    + '</div>';
+
+  // All test ideas
+  var ideas = ideasData.ranked || [];
+  html += '<div class="fc-cell" style="grid-column:1/-1"><div class="fc-h">ALL TEST IDEAS — ONLY WHAT\'S JUSTIFIED RIGHT NOW</div>'
+    + (ideas.length
+        ? ideas.map(function(idea, i){
+            return '<div style="padding:10px 0;'+(i>0?'border-top:1px solid var(--p2);':'')+'">'
+              + '<div style="font-size:12.5px;font-weight:600;color:var(--ink)">'+escapeHtml(idea.idea)+' <span style="font-weight:400;color:var(--g3);text-transform:none">— '+escapeHtml(idea.metric)+'</span></div>'
+              + '<div style="font-size:12px;color:var(--g2);margin-top:3px;line-height:1.55">'+escapeHtml(idea.why)+'</div>'
+              + '</div>';
+          }).join('')
+        : '<div style="color:var(--g3);font-size:12.5px">No sent emails on file yet to base test ideas on.</div>')
+    + '</div>';
+
+  html += '</div>';
+  return html;
+}
+function logOutcome(name){
+  dashDone[dashState.agent+':'+name] = true;
+  showDashView(dashState.view);
+}
+
+/* ── Mira panel (dashboard) — reuses PLAYBOOKS where the question matches ── */
+function dashResetChat(){
+  var chat = document.getElementById('dashChat');
+  chat.innerHTML = '';
+  renderDashQuicks();
+}
+function dashPushMsg(role, html){
+  var chat = document.getElementById('dashChat');
+  var el = document.createElement('div');
+  el.className = 'msg ' + role;
+  el.innerHTML = html;
+  chat.appendChild(el);
+  chat.scrollTop = chat.scrollHeight;
+  return el;
+}
+function dashQuick(q){
+  dashPushMsg('user', escapeHtml(q));
+  var pb = PLAYBOOKS[q];
+  if (pb) { dashPushMsg('bot', '<div class="tag">'+pb.tag+'</div>'+pb.html + (pb.how?renderHow(pb.how):'') + (pb.acts?renderActs(pb.acts):'')); return; }
+  dashPushMsg('bot', "I don't have a ready-made playbook for that one yet — try one of the buttons above.");
+}
+function dashSend(){
+  var input = document.getElementById('dashInput');
+  var text = input.value.trim();
+  if (!text) return;
+  dashPushMsg('user', escapeHtml(text));
+  input.value = '';
+  var inWords = normWords(text), best=null, bestScore=0;
+  Object.keys(PLAYBOOKS).forEach(function(k){
+    if (PLAYBOOKS[k].agent !== dashState.agent) return;
+    var score = normWords(k).filter(function(w){ return inWords.indexOf(w)!==-1; }).length;
+    if (score>bestScore){ bestScore=score; best=k; }
+  });
+  if (bestScore>=2){ var pb=PLAYBOOKS[best]; dashPushMsg('bot', '<div class="tag">'+pb.tag+'</div>'+pb.html + (pb.how?renderHow(pb.how):'') + (pb.acts?renderActs(pb.acts):'')); return; }
+  dashPushMsg('bot', "I don't have a ready-made playbook for that yet — try a customer's name, or use one of the buttons above.");
+}
+document.getElementById('dashInput') && document.getElementById('dashInput').addEventListener('keydown', function(e){
+  if (e.key === 'Enter') { e.preventDefault(); dashSend(); }
+});
+window.showDashView = showDashView;
+window.selectScriptAccount = selectScriptAccount;
+window.selectMkAudienceAccount = selectMkAudienceAccount;
+window.openScriptFor = openScriptFor;
+window.logOutcome = logOutcome;
+window.dashQuick = dashQuick;
+window.dashSend = dashSend;
+window.dashPromptClick = dashPromptClick;
+window.dashRetentionNameSubmit = dashRetentionNameSubmit;
+window.openRiskModal = openRiskModal;
+window.closeRiskModal = closeRiskModal;
+
+function renderHow(how) {
+    var stepsHtml = how.steps.map(function (s, i) {
+        return '<div class="hstep"><span class="hstep-n">' + (i + 1) + '</span><div>' + s[0] + '<span class="hstep-route">' + s[1] + '</span></div></div>';
+    }).join('');
+    return '<div class="how"><div class="how-hd">' + how.title + '</div>' + stepsHtml +
+           '<div class="how-watch">How you’ll know it’s working<b>' + how.watch + '</b></div></div>';
+}
+
+function renderActs(acts) {
+    return '<div class="acts">' + acts.map(function (a) {
+        return '<div class="act"><div><div class="act-t">' + a.title + '</div><div class="act-d">' + a.desc + '</div>' +
+               '<div class="act-meta">' + a.route + '</div></div>' +
+               '<button type="button" class="act-btn" onclick="this.textContent=\'✓ Done\';this.classList.add(\'done\')">' + a.btn + '</button></div>';
+    }).join('') + '</div>';
+}
+
+function pushPlaybook(pb) {
+    var html = '<div class="tag">' + pb.tag + '</div>' + pb.html;
+    if (pb.how) html += renderHow(pb.how);
+    if (pb.acts) html += renderActs(pb.acts);
+    pushMsg('bot', html);
+}
+
+function pushMsg(role, html) {
+    var chat = document.getElementById('bhChat');
+    var el = document.createElement('div');
+    el.className = 'msg ' + role;
+    el.innerHTML = html;
+    chat.appendChild(el);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+function resetChat() {
+    document.getElementById('bhChat').innerHTML = '';
+    pushMsg('bot', '<div class="tag">' + escapeHtml(AGENTS[state.agent].name) + ' helper</div>' + AGENTS[state.agent].intro);
+    var q = document.getElementById('bhQuick');
+    q.innerHTML = AGENTS[state.agent].quicks.map(function (qk) {
+        return '<button type="button" class="qk" onclick="handleQuick(\'' + qk.q.replace(/'/g, "\\'") + '\')">' + escapeHtml(qk.label) + '</button>';
+    }).join('');
+}
+
+function handleQuick(q) {
+    pushMsg('user', escapeHtml(q));
+    var pb = PLAYBOOKS[q];
+    if (pb) { pushPlaybook(pb); return; }
+    pushMsg('bot', "I don't have a ready-made playbook for that one yet — try one of the buttons above.");
+}
+
+function normWords(s) {
+    return s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w.length > 3; });
+}
+
+function matchPlaybook(text) {
+    var inWords = normWords(text);
+    var best = null, bestScore = 0;
+    Object.keys(PLAYBOOKS).forEach(function (k) {
+        if (PLAYBOOKS[k].agent !== state.agent) return;
+        var score = normWords(k).filter(function (w) { return inWords.indexOf(w) !== -1; }).length;
+        if (score > bestScore) { bestScore = score; best = k; }
+    });
+    return bestScore >= 2 ? PLAYBOOKS[best] : null;
+}
+
+function sendMsg() {
+    var input = document.getElementById('bhInput');
+    var text = input.value.trim();
+    if (!text) return;
+    pushMsg('user', escapeHtml(text));
+    input.value = '';
+    var pb = matchPlaybook(text);
+    if (pb) { pushPlaybook(pb); return; }
+    pushMsg('bot', "I don't have a ready-made playbook for that yet — try rephrasing with a customer's name, or use one of the buttons above.");
+}
+
+document.getElementById('bhInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); sendMsg(); }
+});
+
+document.addEventListener('click', function (e) {
+    var wrap = document.getElementById('bhAvatarWrap');
+    var drop = document.getElementById('bhDropdown');
+    if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
+});
+
+var ICON_EXPAND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+var ICON_COMPRESS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v3a2 2 0 0 1-2 2H4"/><path d="M15 3v3a2 2 0 0 0 2 2h3"/><path d="M9 21v-3a2 2 0 0 0-2-2H4"/><path d="M15 21v-3a2 2 0 0 1 2-2h3"/></svg>';
+
+function toggleSidebarCollapse() {
+    var sidebar = document.getElementById('platformSidebar');
+    if (!sidebar) return;
+    var collapsed = sidebar.classList.toggle('bh-sidebar-collapsed');
+    if (collapsed) {
+        sidebar.style.width = '0px';
+        sidebar.style.minWidth = '0px';
+        sidebar.style.overflow = 'hidden';
+        sidebar.style.borderRightWidth = '0px';
+    } else {
+        sidebar.style.width = '';
+        sidebar.style.minWidth = '';
+        sidebar.style.overflow = '';
+        sidebar.style.borderRightWidth = '';
+    }
+    document.getElementById('bhFullBtn').innerHTML = collapsed ? ICON_COMPRESS : ICON_EXPAND;
+    document.getElementById('bhFullBtn').title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+}
+
+/* ── "<agent> helper" panel: drag-resize · minimise · maximise ──
+   Shared by Marketing, Sales and Customer Retention. Width lives in the
+   --bh-mira-w custom property; size + minimised state persist per viewer. */
+var BH_MIRA_MIN = 250;      // narrowest the panel can go while open (px)
+var BH_MIRA_DEFAULT = 320;
+var bhMiraState = { w: BH_MIRA_DEFAULT, min: false, maxed: false, prev: null };
+
+function bhMiraCap(){
+    var dash = document.getElementById('bhDash');
+    var total = dash ? dash.clientWidth : 1200;
+    return Math.max(BH_MIRA_MIN + 40, total - 460); // always leave room for Steps + content
+}
+function bhMiraApply(){
+    var w = Math.min(Math.max(bhMiraState.w, BH_MIRA_MIN), bhMiraCap());
+    root.style.setProperty('--bh-mira-w', w + 'px');
+    root.classList.toggle('bh-mira-min', bhMiraState.min);
+    var btn = document.querySelector('#bhMira .mira-btn[data-act="max"]');
+    if (btn){
+        btn.innerHTML = bhMiraState.maxed ? '&#10005;' : '&#9974;';
+        btn.title = bhMiraState.maxed ? 'Restore' : 'Maximise';
+    }
+}
+function bhMiraSave(){
+    try { localStorage.setItem('bhMira', JSON.stringify({ w: bhMiraState.w, min: bhMiraState.min })); }
+    catch (e) {}
+}
+function bhMiraLoad(){
+    try {
+        var s = JSON.parse(localStorage.getItem('bhMira') || '{}') || {};
+        if (typeof s.w === 'number' && isFinite(s.w)) bhMiraState.w = s.w;
+        bhMiraState.min = !!s.min;
+    } catch (e) {}
+    bhMiraApply();
+}
+function bhMira(action){
+    if (action === 'min'){
+        bhMiraState.min = true; bhMiraState.maxed = false;
+    } else if (action === 'restore'){
+        bhMiraState.min = false;
+    } else if (action === 'max'){
+        if (bhMiraState.maxed){
+            bhMiraState.maxed = false;
+            bhMiraState.w = bhMiraState.prev || BH_MIRA_DEFAULT;
+        } else {
+            bhMiraState.prev = bhMiraState.w;
+            bhMiraState.maxed = true;
+            bhMiraState.min = false;
+            bhMiraState.w = bhMiraCap();
+        }
+    }
+    bhMiraApply(); bhMiraSave();
+}
+
+(function bhMiraDrag(){
+    var h = document.getElementById('bhMiraResize');
+    if (!h) return;
+    var dragging = false, startX = 0, startW = 0;
+
+    h.addEventListener('pointerdown', function (e){
+        if (bhMiraState.min) return;
+        dragging = true;
+        startX = e.clientX;
+        startW = parseFloat(getComputedStyle(root).getPropertyValue('--bh-mira-w')) || BH_MIRA_DEFAULT;
+        h.classList.add('dragging');
+        try { h.setPointerCapture(e.pointerId); } catch (_) {}
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+    h.addEventListener('pointermove', function (e){
+        if (!dragging) return;
+        bhMiraState.w = Math.min(Math.max(startW + (startX - e.clientX), BH_MIRA_MIN), bhMiraCap());
+        bhMiraState.maxed = false;
+        root.style.setProperty('--bh-mira-w', bhMiraState.w + 'px');
+    });
+    function stop(e){
+        if (!dragging) return;
+        dragging = false;
+        h.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        try { h.releasePointerCapture(e.pointerId); } catch (_) {}
+        bhMiraApply(); bhMiraSave();
+    }
+    h.addEventListener('pointerup', stop);
+    h.addEventListener('pointercancel', stop);
+    h.addEventListener('dblclick', function (){ bhMiraState.w = BH_MIRA_DEFAULT; bhMiraState.maxed = false; bhMiraApply(); bhMiraSave(); });
+    h.addEventListener('keydown', function (e){
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        e.preventDefault();
+        var step = (e.shiftKey ? 48 : 16) * (e.key === 'ArrowLeft' ? 1 : -1); // left = wider
+        bhMiraState.w = Math.min(Math.max(bhMiraState.w + step, BH_MIRA_MIN), bhMiraCap());
+        bhMiraState.maxed = false;
+        bhMiraApply(); bhMiraSave();
+    });
+})();
+
+window.addEventListener('resize', function (){ bhMiraApply(); });
+
+window.setAgent = setAgent;
+window.toggleStep = toggleStep;
+window.handleQuick = handleQuick;
+window.sendMsg = sendMsg;
+window.toggleSidebarCollapse = toggleSidebarCollapse;
+window.bhMira = bhMira;
+
+setAgent('mk');
+bhMiraLoad();
+
+})();
+</script>
+@endsection

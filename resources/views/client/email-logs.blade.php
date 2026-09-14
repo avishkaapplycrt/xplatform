@@ -17,7 +17,8 @@
   .el-stat-lbl { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; margin-top: 6px; }
   .el-stat-delta { font-size: 11px; font-weight: 600; margin-top: 4px; }
   .el-stat-delta.up { color: #10B981; }
-  .el-stat-delta.down { color: #F43F5E; }
+  .el-stat-delta.down { c
+  olor: #F43F5E; }
 
   .el-filters { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; max-width: 1200px; margin: 0 auto 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
   .el-filter-group { display: flex; align-items: center; gap: 6px; }

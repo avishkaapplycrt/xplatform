@@ -10,24 +10,39 @@
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
+  --body-bg:linear-gradient(135deg,#dbeafe 0%,#bfdbfe 50%,#dbeafe 100%);
+  --bg:#dbeafe;--bg2:rgba(219,234,254,.55);--bg3:rgba(191,219,254,.5);--card:rgba(255,255,255,.55);--card-h:rgba(255,255,255,.68);
+  --blue:#2563eb;--blue2:#1d4ed8;--blue-g:rgba(37,99,235,.08);--blue-g2:rgba(37,99,235,.04);
+  --cyan:#0891b2;--violet:#7c3aed;--emerald:#059669;--amber:#b45309;--rose:#e11d48;
+  --white:#0f172a;--g100:#334155;--g200:#475569;--g300:#64748b;--g400:#94a3b8;--g500:#cbd5e1;--g600:#e2e8f0;
+  --brd:rgba(37,99,235,.16);--brd2:rgba(37,99,235,.24);
+  --glow:0 0 60px rgba(37,99,235,.12);--glow2:0 0 80px rgba(37,99,235,.08);
+  --glass-blur:blur(22px) saturate(1.5);
+  --chrome-bg:rgba(219,234,254,.85);--chrome-bg-soft:rgba(219,234,254,.65);--panel-tint:rgba(219,234,254,.55);
+  --f1:'Outfit',system-ui,sans-serif;--f2:'Source Serif 4',Georgia,serif;--fm:'IBM Plex Mono',monospace;
+  --ease:cubic-bezier(.16,1,.3,1);--mw:1200px;
+}
+body.theme-dark{
+  --body-bg:#05070e;
   --bg:#05070e;--bg2:#090d19;--bg3:#0d1224;--card:#0f1628;--card-h:#141d36;
   --blue:#4f8fff;--blue2:#2563eb;--blue-g:rgba(79,143,255,.08);--blue-g2:rgba(79,143,255,.04);
   --cyan:#38bdf8;--violet:#818cf8;--emerald:#34d399;--amber:#fbbf24;--rose:#f472b6;
   --white:#f1f5f9;--g100:#cbd5e1;--g200:#94a3b8;--g300:#64748b;--g400:#475569;--g500:#334155;--g600:#1e293b;
   --brd:rgba(79,143,255,.08);--brd2:rgba(79,143,255,.15);
   --glow:0 0 60px rgba(79,143,255,.12);--glow2:0 0 40px rgba(79,143,255,.08);
-  --f1:'Outfit',system-ui,sans-serif;--f2:'Source Serif 4',Georgia,serif;--fm:'IBM Plex Mono',monospace;
-  --ease:cubic-bezier(.16,1,.3,1);--mw:1200px;
+  --glass-blur:none;
+  --chrome-bg:rgba(5,7,14,.97);--chrome-bg-soft:rgba(5,7,14,.75);--panel-tint:rgba(9,13,25,.6);
 }
+.billing-toggle,.pc,.addon,.roi-bar,.rs,.ent-card,.tc,.trust-badge,.faq-section,.faq-item,.foot{backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur)}
 html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--white);font-family:var(--f1);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body{background:var(--body-bg);background-attachment:fixed;color:var(--white);font-family:var(--f1);-webkit-font-smoothing:antialiased;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
 canvas#neural{position:fixed;inset:0;z-index:0;pointer-events:none}
 button{font-family:var(--f1)}
 
 /* NAV */
 .nav{position:fixed;top:0;width:100%;z-index:100;border-bottom:1px solid var(--brd)}
-.nav-bg{position:absolute;inset:0;background:rgba(5,7,14,.75);backdrop-filter:blur(40px)}
+.nav-bg{position:absolute;inset:0;background:var(--chrome-bg-soft);backdrop-filter:blur(40px)}
 .nav-in{position:relative;max-width:var(--mw);margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between}
 .logo{display:flex;align-items:center;gap:11px;font-weight:700;font-size:15px;letter-spacing:-.3px}
 .logo-m{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--violet));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;box-shadow:0 0 20px rgba(79,143,255,.25)}
@@ -38,6 +53,9 @@ button{font-family:var(--f1)}
 .nav-cta:hover{box-shadow:0 0 36px rgba(79,143,255,.4)}
 .nav-login{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border:1px solid var(--g500);color:var(--g200)!important;border-radius:8px;font-weight:500!important;font-size:13px!important;transition:all .25s;background:transparent;cursor:pointer;font-family:var(--f1)}
 .nav-login:hover{border-color:var(--brd2);color:var(--white)!important;background:rgba(79,143,255,.05)}
+.appearance-toggle{width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--brd2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--g200);transition:all .2s;flex-shrink:0;padding:0}
+.appearance-toggle:hover{color:var(--blue);border-color:var(--blue)}
+.appearance-toggle svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2}
 
 /* HERO */
 .hero{position:relative;z-index:1;padding:140px 40px 80px;text-align:center}
@@ -271,7 +289,7 @@ button{font-family:var(--f1)}
 .nav-ham.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
 .nav-ham.open span:nth-child(2){opacity:0}
 .nav-ham.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
-.nav-mob{display:none;position:fixed;inset:0;z-index:99;background:rgba(5,7,14,.97);backdrop-filter:blur(20px);flex-direction:column;align-items:center;justify-content:center;overflow-y:auto}
+.nav-mob{display:none;position:fixed;inset:0;z-index:99;background:var(--chrome-bg);backdrop-filter:blur(20px);flex-direction:column;align-items:center;justify-content:center;overflow-y:auto}
 .nav-mob.open{display:flex}.nav-mob-inner{width:100%;max-width:340px;padding:24px}
 .nav-mob-link{display:block;font-size:18px;font-weight:500;color:var(--g200);padding:16px 0;border-bottom:1px solid var(--brd);transition:color .2s;text-align:center}
 .nav-mob-link:first-child{border-top:1px solid var(--brd)}.nav-mob-link:hover{color:var(--white)}
@@ -282,6 +300,7 @@ button{font-family:var(--f1)}
 </style>
 </head>
 <body>
+<script>try{if(localStorage.getItem('xp-appearance')==='dark')document.body.classList.add('theme-dark')}catch(e){}</script>
 <canvas id="neural"></canvas>
 
 <!-- NAV -->
@@ -295,6 +314,7 @@ button{font-family:var(--f1)}
     <li><a href="{{ route('pricing') }}">Pricing</a></li>
     <li style="display:flex;align-items:center;gap:10px">
       <!-- <a href="{{ route('client.login') }}" class="nav-login"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Log in</a> -->
+      <button type="button" class="appearance-toggle" id="appearanceToggle" onclick="toggleAppearance()" title="Switch appearance" aria-label="Switch appearance"></button>
       <a href="{{ route('book-demo') }}" class="nav-cta">Book a Demo</a>
     </li>
   </ul>
@@ -308,6 +328,7 @@ button{font-family:var(--f1)}
     <a class="nav-mob-link" href="{{ route('simulator') }}">Simulator</a>
     <a class="nav-mob-link" href="{{ route('pricing') }}">Pricing</a>
     <a class="nav-mob-link" href="{{ route('client.login') }}">Log in</a>
+    <button type="button" class="appearance-toggle" id="appearanceToggleMob" onclick="toggleAppearance()" title="Switch appearance" aria-label="Switch appearance" style="margin-top:20px"></button>
     <a class="nav-mob-cta" href="{{ route('book-demo') }}">Book a Demo</a>
   </div>
 </div>
@@ -644,6 +665,24 @@ button{font-family:var(--f1)}
 </div><div class="foot-b"><span>&copy; {{ date('Y') }} X Platforms.</span><span><a href="{{ route('privacy') }}" style="color:inherit">Privacy</a> &middot; <a href="{{ route('terms') }}" style="color:inherit">Terms</a> &middot; <a href="{{ route('security') }}" style="color:inherit">Security</a></span></div></footer>
 
 <script>
+// APPEARANCE TOGGLE
+const APPEARANCE_SUN = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+const APPEARANCE_MOON = '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
+function applyAppearanceIcon(){
+  const isDark = document.body.classList.contains('theme-dark');
+  const icon = isDark ? APPEARANCE_MOON : APPEARANCE_SUN;
+  ['appearanceToggle','appearanceToggleMob'].forEach(function(id){
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = icon;
+  });
+}
+function toggleAppearance(){
+  const isDark = document.body.classList.toggle('theme-dark');
+  localStorage.setItem('xp-appearance', isDark ? 'dark' : 'light');
+  applyAppearanceIcon();
+}
+applyAppearanceIcon();
+
 // NEURAL NET
 const cv=document.getElementById('neural'),cx=cv.getContext('2d');let W,H,nd=[];
 function rsz(){W=cv.width=innerWidth;H=cv.height=innerHeight}addEventListener('resize',rsz);rsz();
@@ -701,7 +740,7 @@ const obs=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){x.targ
 document.querySelectorAll('.rv').forEach(el=>obs.observe(el));
 
 // SCROLL NAV
-addEventListener('scroll',()=>{document.querySelector('.nav-bg').style.background=scrollY>40?'rgba(5,7,14,.92)':'rgba(5,7,14,.8)'});
+addEventListener('scroll',()=>{document.querySelector('.nav-bg').style.background=scrollY>40?'var(--chrome-bg)':'var(--chrome-bg-soft)'});
 
 // SMOOTH ANCHOR SCROLL
 document.querySelectorAll('a[href^="#"]').forEach(a=>{a.addEventListener('click',e=>{const h=a.getAttribute('href');if(h==='#')return;e.preventDefault();document.querySelector(h)?.scrollIntoView({behavior:'smooth'})})});

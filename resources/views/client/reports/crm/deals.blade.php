@@ -98,8 +98,52 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">Deal analytics coming soon.</p>
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100">
+        <h6 class="text-[13px] font-semibold text-gray-800">Deals</h6>
+      </div>
+
+      @if(($deals ?? collect())->isEmpty())
+      <div class="p-8 text-center">
+        @if($data['synced'] ?? false)
+        <p class="text-[13px] text-gray-500">No deals found in your connected CRM.</p>
+        <p class="text-[11px] text-gray-400 mt-1">Your last sync completed successfully — there just aren't any deals recorded there yet.</p>
+        @else
+        <p class="text-[13px] text-gray-500">Connected, but no deals have been synced yet.</p>
+        <p class="text-[11px] text-gray-400 mt-1">Hit "Sync Now" on the CRM Connections page to pull deals in.</p>
+        @endif
+      </div>
+      @else
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b border-gray-100">
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Deal</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Value</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Stage</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Status</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Close Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach($deals as $deal)
+            <tr class="border-b border-gray-50 last:border-b-0">
+              <td class="px-4 py-2.5 text-[13px] text-gray-800">{{ $deal->name }}</td>
+              <td class="px-4 py-2.5 text-[13px] text-gray-600">${{ number_format($deal->value) }}</td>
+              <td class="px-4 py-2.5 text-[12px] text-gray-500">{{ $deal->stage ?? '—' }}</td>
+              <td class="px-4 py-2.5 text-[12px]">
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-medium
+                  {{ $deal->status === 'won' ? 'bg-emerald-50 text-emerald-700' : ($deal->status === 'lost' ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-600') }}">
+                  {{ ucfirst($deal->status ?? 'open') }}
+                </span>
+              </td>
+              <td class="px-4 py-2.5 text-[12px] text-gray-500">{{ $deal->close_date ? \Carbon\Carbon::parse($deal->close_date)->format('M j, Y') : '—' }}</td>
+            </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+      @endif
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -123,7 +167,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -131,4 +175,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush

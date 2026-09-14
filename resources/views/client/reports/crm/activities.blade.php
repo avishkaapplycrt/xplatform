@@ -98,8 +98,38 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">Activity analytics coming soon.</p>
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100">
+        <h6 class="text-[13px] font-semibold text-gray-800">Recent Activity</h6>
+        <p class="text-[11px] text-gray-400 mt-0.5">Contact and deal updates pulled in from your connected CRM.</p>
+      </div>
+
+      @if(($activities ?? collect())->isEmpty())
+      <div class="p-8 text-center">
+        @if($data['synced'] ?? false)
+        <p class="text-[13px] text-gray-500">No contacts or deals found in your connected CRM.</p>
+        <p class="text-[11px] text-gray-400 mt-1">Your last sync completed successfully — there just aren't any recorded there yet.</p>
+        @else
+        <p class="text-[13px] text-gray-500">Connected, but nothing has been synced yet.</p>
+        <p class="text-[11px] text-gray-400 mt-1">Hit "Sync Now" on the CRM Connections page to pull contacts and deals in.</p>
+        @endif
+      </div>
+      @else
+      <div class="divide-y divide-gray-50">
+        @foreach($activities as $event)
+        <div class="px-4 py-3 flex items-center gap-3">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 {{ $event->type === 'deal' ? 'bg-cyan-500' : 'bg-violet-500' }}"></span>
+          <div class="flex-1 min-w-0">
+            <p class="text-[13px] text-gray-800 truncate">{{ $event->label }}</p>
+            @if($event->meta)
+            <p class="text-[11px] text-gray-500 mt-0.5">{{ $event->meta }}</p>
+            @endif
+          </div>
+          <span class="text-[11px] text-gray-400 flex-shrink-0">{{ \Carbon\Carbon::parse($event->timestamp)->diffForHumans() }}</span>
+        </div>
+        @endforeach
+      </div>
+      @endif
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -123,7 +153,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -131,4 +161,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush
