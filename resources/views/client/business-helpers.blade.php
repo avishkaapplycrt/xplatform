@@ -142,8 +142,17 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
                     <span class="col-rail-label">Helper</span>
                 </div>
                 <div class="dm-chat" id="dashChat"></div>
-                <div class="dm-quick-hd" id="dashQuickHd"></div>
+                <div class="dm-quick-hd" id="dashQuickHd">
+                    <span id="dashQuickHdText"></span>
+                    <button type="button" class="dm-quick-min" onclick="collapseDashQuicks()" title="Hide suggestions" aria-label="Hide suggestions">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                </div>
                 <div class="dm-quick" id="dashQuick"></div>
+                <div class="dm-quick-reopen" id="dashQuickReopen" onclick="expandDashQuicks()" title="Show suggestions" aria-label="Show suggestions">
+                    <span>Suggestions</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="18 15 12 9 6 15"/></svg>
+                </div>
                 <div class="dm-inbar">
                     <input class="in" id="dashInput" type="text" placeholder="Ask anything — plain answers, no jargon..." autocomplete="off">
                     <button type="button" class="send" onclick="dashSend()" aria-label="Send">
@@ -382,10 +391,16 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .dm-s{font-family:var(--fm);font-size:8.5px;letter-spacing:.5px;color:var(--g3);margin-top:3px}
 #bhRoot .dm-ready{margin-left:auto;font-family:var(--fm);font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--sig);background:#ecfdf5;border:1px solid #a7f3d0;border-radius:99px;padding:3px 10px;flex-shrink:0}
 #bhRoot .dm-chat{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:13px;min-height:120px}
-#bhRoot .dm-quick-hd{padding:10px 16px 4px;border-top:1px solid var(--ln);font-family:var(--fm);font-size:9.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--g3);flex-shrink:0}
+#bhRoot .dm-quick-hd{padding:10px 16px 4px;border-top:1px solid var(--ln);font-family:var(--fm);font-size:9.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--g3);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:8px}
+#bhRoot .dm-quick-min{width:20px;height:20px;padding:0;border:1px solid var(--ln2);background:#fff;border-radius:6px;cursor:pointer;display:grid;place-items:center;color:var(--g3);flex-shrink:0}
+#bhRoot .dm-quick-min:hover{color:var(--ac-d);border-color:var(--ac-m);background:var(--ac-l)}
 #bhRoot .dm-quick{padding:6px 16px 14px;display:flex;flex-direction:column;gap:7px;flex-shrink:0;max-height:220px;overflow-y:auto}
 #bhRoot .dm-quick .qk{width:100%;text-align:left;padding:10px 12px;font-size:12px;white-space:normal;line-height:1.35;border-radius:8px;background:#fff;border:1px solid var(--ln)}
 #bhRoot .dm-quick .qk:hover{border-color:var(--ac-m);background:var(--ac-l);color:var(--ac-d)}
+#bhRoot .dm-quick-hd.dm-quick-collapsed,#bhRoot .dm-quick.dm-quick-collapsed{display:none}
+#bhRoot .dm-quick-reopen{display:none;align-items:center;justify-content:center;gap:5px;padding:7px 16px;border-top:1px solid var(--ln);font-family:var(--fm);font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--g3);cursor:pointer;flex-shrink:0;background:#fff}
+#bhRoot .dm-quick-reopen:hover{color:var(--ac-d);background:var(--ac-l)}
+#bhRoot .dm-quick-reopen.dm-quick-reopen-show{display:flex}
 #bhRoot .dm-inbar{display:flex;gap:1px;border-top:1px solid var(--ln);background:var(--ln);flex-shrink:0;position:sticky;bottom:0;z-index:2}
 
 /* ══ Helper panel (right) — drag-resize · minimise · maximise ══
@@ -499,6 +514,7 @@ var MARKETING_AI_ENDPOINTS = {
   audience_worst_unsub_rate: @json(route('client.business-helpers.marketing.worst-unsub-audience'))
 };
 var MARKETING_ACCOUNTS_ENDPOINT = @json(route('client.business-helpers.marketing.accounts-snapshot'));
+var MARKETING_ASK_ENDPOINT = @json(route('client.business-helpers.marketing.ask'));
 // Retention prompts that ask about one named customer — the UI collects the
 // name in an input before calling the endpoint (?name=…).
 var RETENTION_AI_NAME_PROMPTS = {
@@ -844,10 +860,11 @@ function renderDashQuicks(){
   if (idx === -1) idx = 0;
   var stepTitle = DASH_FLOW[agent].steps[idx].t;
   var name = topPrimaryName(agent);
-  var hd = document.getElementById('dashQuickHd');
+  var hdText = document.getElementById('dashQuickHdText');
   var q = document.getElementById('dashQuick');
   if (!q) return;
-  if (hd) hd.textContent = 'Ask Mira · ' + stepTitle;
+  if (hdText) hdText.textContent = 'Ask Mira · ' + stepTitle;
+  expandDashQuicks();
 
   var dbStepKey = STEP_KEYS_BY_AGENT[agent][idx];
   var prompts = (DB_PROMPTS_BY_AGENT[agent][dbStepKey] || []).filter(function(p){ return p.is_active; });
@@ -1030,7 +1047,14 @@ function openRiskModal(id, noun){
   noun = noun || 'account';
 
   var cols = Object.keys(RISK_COL_LABELS).filter(function(k){ return k in rows[0]; });
-  var head = '<tr><th>#</th>' + cols.map(function(k){ return '<th>' + RISK_COL_LABELS[k] + '</th>'; }).join('') + '</tr>';
+  // Stat-shaped rows (e.g. per-audience/per-group rates from the Marketing
+  // "ask anything" box) don't use the account/email column vocabulary above
+  // — fall back to their own keys so the table isn't empty.
+  if (!cols.length) cols = Object.keys(rows[0]);
+  var head = '<tr><th>#</th>' + cols.map(function(k){
+    var label = RISK_COL_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+    return '<th>' + label + '</th>';
+  }).join('') + '</tr>';
   var body = rows.map(function(r, i){
     return '<tr><td>' + (i + 1) + '</td>' + cols.map(function(k){
       var v = r[k];
@@ -2133,9 +2157,26 @@ function dashPushMsg(role, html){
 }
 function dashQuick(q){
   dashPushMsg('user', escapeHtml(q));
+  collapseDashQuicks();
   var pb = PLAYBOOKS[q];
   if (pb) { dashPushMsg('bot', '<div class="tag">'+pb.tag+'</div>'+pb.html + (pb.how?renderHow(pb.how):'') + (pb.acts?renderActs(pb.acts):'')); return; }
   dashPushMsg('bot', "I don't have a ready-made playbook for that one yet — try one of the buttons above.");
+}
+function collapseDashQuicks(){
+  var hd = document.getElementById('dashQuickHd');
+  var q = document.getElementById('dashQuick');
+  var reopen = document.getElementById('dashQuickReopen');
+  if (hd) hd.classList.add('dm-quick-collapsed');
+  if (q) q.classList.add('dm-quick-collapsed');
+  if (reopen) reopen.classList.add('dm-quick-reopen-show');
+}
+function expandDashQuicks(){
+  var hd = document.getElementById('dashQuickHd');
+  var q = document.getElementById('dashQuick');
+  var reopen = document.getElementById('dashQuickReopen');
+  if (hd) hd.classList.remove('dm-quick-collapsed');
+  if (q) q.classList.remove('dm-quick-collapsed');
+  if (reopen) reopen.classList.remove('dm-quick-reopen-show');
 }
 function dashSend(){
   var input = document.getElementById('dashInput');
@@ -2143,6 +2184,16 @@ function dashSend(){
   if (!text) return;
   dashPushMsg('user', escapeHtml(text));
   input.value = '';
+  collapseDashQuicks();
+
+  if (dashState.agent === 'mk') {
+    askMarketingData(text).then(function (result) { dashPushMsg('bot', renderMarketingAskAnswer(result)); });
+    return;
+  }
+
+  dashFallbackPlaybookMatch(text);
+}
+function dashFallbackPlaybookMatch(text){
   var inWords = normWords(text), best=null, bestScore=0;
   Object.keys(PLAYBOOKS).forEach(function(k){
     if (PLAYBOOKS[k].agent !== dashState.agent) return;
@@ -2187,6 +2238,8 @@ window.selectMkAudienceAccount = selectMkAudienceAccount;
 window.openScriptFor = openScriptFor;
 window.logOutcome = logOutcome;
 window.dashQuick = dashQuick;
+window.expandDashQuicks = expandDashQuicks;
+window.collapseDashQuicks = collapseDashQuicks;
 window.dashSend = dashSend;
 window.dashPromptClick = dashPromptClick;
 window.dashRetentionNameSubmit = dashRetentionNameSubmit;
@@ -2246,6 +2299,25 @@ function normWords(s) {
     return s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w.length > 3; });
 }
 
+function askMarketingData(text) {
+    var tokenInput = document.querySelector('input[name="_token"]');
+    return fetch(MARKETING_ASK_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': tokenInput ? tokenInput.value : ''
+        },
+        body: JSON.stringify({ question: text })
+    }).then(function (r) { return r.json(); }).catch(function () {
+        return { answer: "Couldn't reach the server to answer that just now — try again in a moment.", ranked: [], ai_used: false };
+    });
+}
+
+function renderMarketingAskAnswer(result) {
+    return '<div class="tag">Marketing</div>' + renderRiskAiAnswer(result);
+}
+
 function matchPlaybook(text) {
     var inWords = normWords(text);
     var best = null, bestScore = 0;
@@ -2263,6 +2335,12 @@ function sendMsg() {
     if (!text) return;
     pushMsg('user', escapeHtml(text));
     input.value = '';
+
+    if (state.agent === 'mk') {
+        askMarketingData(text).then(function (result) { pushMsg('bot', renderMarketingAskAnswer(result)); });
+        return;
+    }
+
     var pb = matchPlaybook(text);
     if (pb) { pushPlaybook(pb); return; }
     if (state.agent === 'sl') { askSalesAi(text); return; }

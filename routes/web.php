@@ -445,6 +445,15 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return response()->json(app(\App\Services\MarketingLiftService::class)->worstUnsubscribeAudience());
     })->name('business-helpers.marketing.worst-unsub-audience');
 
+    // Marketing · "Ask anything" free-text box — genuinely open-ended:
+    // hands the typed question plus a real snapshot of crm_contacts +
+    // crm_deals joined to email_logs / email_logs_providers to the LLM,
+    // which must answer using only that data. Needs OPENAI_API_KEY
+    // configured. See App\Services\MarketingAskService.
+    Route::post('business-helpers/marketing/ask', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\MarketingAskService::class)->answer((string) $request->input('question', '')));
+    })->name('business-helpers.marketing.ask');
+
     Route::get('business-helpers/retention/watchlist', function () {
         return response()->json(app(\App\Services\RetentionSaveFirstService::class)->watchlistAnswer());
     })->name('business-helpers.retention.watchlist');
