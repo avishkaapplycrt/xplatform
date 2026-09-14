@@ -145,13 +145,13 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
                 <div class="dm-quick-hd" id="dashQuickHd">
                     <span id="dashQuickHdText"></span>
                     <button type="button" class="dm-quick-min" onclick="collapseDashQuicks()" title="Hide suggestions" aria-label="Hide suggestions">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="18 15 12 9 6 15"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="6 9 12 15 18 9"/></svg>
                     </button>
                 </div>
                 <div class="dm-quick" id="dashQuick"></div>
                 <div class="dm-quick-reopen" id="dashQuickReopen" onclick="expandDashQuicks()" title="Show suggestions" aria-label="Show suggestions">
                     <span>Suggestions</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="18 15 12 9 6 15"/></svg>
                 </div>
                 <div class="dm-inbar">
                     <input class="in" id="dashInput" type="text" placeholder="Ask anything — plain answers, no jargon..." autocomplete="off">
