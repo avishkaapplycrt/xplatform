@@ -30,6 +30,14 @@ class RealAccountsService
         'appointmentscheduled' => 50,
     ];
 
+    private const STAGE_LABELS = [
+        'closedwon' => 'Closed won',
+        'decisionmakerboughtin' => 'Decision-maker bought in',
+        'presentationscheduled' => 'Presentation scheduled',
+        'qualifiedtobuy' => 'Qualified to buy',
+        'appointmentscheduled' => 'Appointment scheduled',
+    ];
+
     public function build(int $limit = 14): Collection
     {
         $deals = CrmDeal::all();
@@ -88,6 +96,15 @@ class RealAccountsService
                     'email' => $contact->email,
                     'seg' => $seg,
                     'mrr' => $deal ? (int) round($deal->value) : 800,
+                    'deal_stage' => $deal->stage ?? null,
+                    'deal_stage_label' => $deal
+                        ? (self::STAGE_LABELS[$deal->stage] ?? $deal->stage)
+                        : 'No active deal',
+                    'deal_status' => $deal->status ?? null,
+                    'last_activity_days' => $daysAgo,
+                    'last_activity_label' => $contact->last_activity_at
+                        ? $contact->last_activity_at->diffForHumans()
+                        : 'No activity on file',
                     'scores' => [
                         'intent' => $intent,
                         'engagement' => $engagement,

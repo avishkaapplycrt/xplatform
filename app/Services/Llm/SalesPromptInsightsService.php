@@ -6,43 +6,71 @@ use App\Models\BrevoDeliveredRecipient;
 use App\Models\CrmContact;
 use App\Models\CrmDeal;
 use App\Models\CrmIntegration;
+use App\Services\RealAccountsService;
 use Illuminate\Support\Collection;
 
 /**
- * Answers the handful of Sales agent predefined prompts that the
- * deterministic dashPromptAnswer() switch in business-helpers.blade.php
- * can't really answer: "What changed since yesterday?" (no real recency
- * diff), "What does [name] care about most?" (previously read an undefined
- * field), the email script variant (no real Brevo engagement lookup), and
- * the six objection-handling prompts (previously generic scripts with zero
- * per-account data). Every other predefined Sales prompt already reads real
+ * Answers the Sales agent predefined prompts that the deterministic
+ * dashPromptAnswer() switch in business-helpers.blade.php can't really
+ * answer: whether a named account's priority has genuinely changed
+ * recently (needs a real recency diff, not just the current snapshot), and
+ * the eight objection-response prompts spread across the Pitch ("how should
+ * I respond if...") and Overcome ("I'm not interested", "Contact me
+ * later", ...) categories — previously generic scripts with zero
+ * per-account data. Every other predefined Sales prompt already reads real
  * scored data via rankedFor()/classifySales() and is left untouched — see
  * HANDLED_KEYS.
  *
- * Pulls fresh crm_contacts (incl. raw synced HubSpot properties), crm_deals,
- * crm_integrations (provider/last sync — per the client's confirmed choice
- * over the separate, unused crm_connections table) and, for the email
- * variant, email_logs_providers (formerly email_logs_brevo), then has
- * OpenAI write the answer from that real snapshot. Falls back to a plain,
- * still real-data-grounded (or, for the objection scripts, the original
- * curated) answer when OPENAI_API_KEY isn't set or the call fails.
+ * Pulls fresh crm_contacts (incl. raw synced HubSpot properties), crm_deals
+ * and crm_integrations (provider/last sync — per the client's confirmed
+ * choice over the separate, unused crm_connections table), then has OpenAI
+ * write the answer from that real snapshot. Falls back to a plain, still
+ * real-data-grounded (or, for the objection scripts, the original curated)
+ * answer when OPENAI_API_KEY isn't set or the call fails.
  */
 class SalesPromptInsightsService
 {
-    public const HANDLED_KEYS = [
-        'prioritise:changed_yesterday',
-        'understand:cares_about',
-        'craft:email_version',
-        'handle:too_expensive',
-        'handle:not_right_now',
-        'handle:use_competitor',
-        'handle:send_info',
-        'handle:no_budget',
-        'handle:need_boss',
+    /**
+     * Pitch-category "how should I respond if..." prompts map onto the same
+     * underlying objection as their Overcome-category counterpart — same
+     * real data, same response, just reached from a different question.
+     */
+    private const OBJECTION_ALIASES = [
+        'craft:not_ready_response' => 'handle:not_right_now',
+        'craft:too_expensive_response' => 'handle:too_expensive',
+        'craft:competitor_response' => 'handle:use_competitor',
     ];
 
-    public function __construct(private readonly OpenAiClient $client)
-    {
+    private const OBJECTION_FALLBACKS = [
+        'handle:not_interested' => 'Don\'t argue the "no" — get curious instead. '
+            . '"Fair enough — can I ask what\'s not landing? I\'d rather know than guess." '
+            . 'If they engage, you\'ve found the real objection underneath. If they don\'t, let them go without pushing.',
+        'handle:not_right_now' => '"Understood — what would need to change for the timing to be right?" '
+            . 'Get a real reason and a real date, then set a callback for that date rather than a vague follow-up.',
+        'handle:why_need_this' => 'Don\'t defend the product — ask what "fine as-is" is actually costing them. '
+            . '"What happens if this stays the same for another six months?" Let their own answer make the case.',
+        'handle:use_competitor' => '"Good to know — what\'s working well with them, and what would you change if you could?" '
+            . 'Listen for the gap, then show only the part of your offer that closes it.',
+        'handle:too_expensive' => '"Compared to what this is costing you today, what would make the number feel fair?" '
+            . 'Reframe to value before touching the price. Offer a low-risk start before a discount.',
+    ];
+
+    public const HANDLED_KEYS = [
+        'understand:priority_changed',
+        'craft:not_ready_response',
+        'craft:too_expensive_response',
+        'craft:competitor_response',
+        'handle:not_interested',
+        'handle:not_right_now',
+        'handle:why_need_this',
+        'handle:use_competitor',
+        'handle:too_expensive',
+    ];
+
+    public function __construct(
+        private readonly OpenAiClient $client,
+        private readonly RealAccountsService $accounts,
+    ) {
     }
 
     public static function handles(string $step, string $prompt): bool
@@ -115,22 +143,21 @@ class SalesPromptInsightsService
             ])->values()->all(),
         ];
 
-        if ($key === 'prioritise:changed_yesterday') {
-            $context['recently_updated_contacts'] = CrmContact::where('updated_at', '>=', now()->subDay())
-                ->get()
-                ->map(fn (CrmContact $c) => [
-                    'name' => trim($c->first_name . ' ' . $c->last_name) ?: $c->company,
-                    'company' => $c->company,
-                    'updated' => $c->updated_at?->diffForHumans(),
-                ])->values()->all();
+        if ($key === 'understand:priority_changed') {
+            // No historical priority snapshot is stored anywhere in this
+            // system, so "changed recently" is answered honestly from what
+            // actually IS recorded: whether this specific contact's record
+            // or their matched deal(s) were touched in the last 7 days.
+            $context['contact_recently_updated'] = $contact
+                && $contact->updated_at
+                && $contact->updated_at->greaterThanOrEqualTo(now()->subDays(7));
 
-            $context['recently_updated_deals'] = CrmDeal::where('updated_at', '>=', now()->subDay())
-                ->get()
+            $context['deals_recently_updated'] = $deals
+                ->filter(fn (CrmDeal $d) => $d->updated_at && $d->updated_at->greaterThanOrEqualTo(now()->subDays(7)))
                 ->map(fn (CrmDeal $d) => [
                     'name' => $d->name,
                     'stage' => $d->stage,
                     'status' => $d->status,
-                    'value' => (float) $d->value,
                     'updated' => $d->updated_at?->diffForHumans(),
                 ])->values()->all();
         }
@@ -177,10 +204,11 @@ class SalesPromptInsightsService
             . 'If something needed to answer precisely is missing or empty in the data, say so plainly rather than guessing. '
             . 'Be brief, concrete, and practical — under 130 words, plain English, no headers or markdown.';
 
-        // The raw prompt label is ambiguous out of context for these six —
-        // "Need my boss" reads as the rep's own boss unless framed as the
-        // prospect's objection.
-        $question = str_starts_with($key, 'handle:')
+        // The raw prompt label is ambiguous out of context for the objection
+        // prompts — "Need help from my boss" style wording reads as the
+        // rep's own boss unless framed as the prospect's objection.
+        $isObjection = str_starts_with($key, 'handle:') || array_key_exists($key, self::OBJECTION_ALIASES);
+        $question = $isObjection
             ? 'The prospect the rep is talking to just raised this objection: "' . $context['question'] . '". '
                 . 'How should the rep respond, given the real account data below?'
             : $context['question'];
@@ -193,35 +221,14 @@ class SalesPromptInsightsService
 
     private function fallback(string $key, array $context): string
     {
-        return match ($key) {
-            'prioritise:changed_yesterday' => $this->fallbackChangedYesterday($context),
-            'understand:cares_about' => $this->fallbackCaresAbout($context),
-            'craft:email_version' => $this->fallbackEmailVersion($context),
-            default => $this->fallbackObjection($key, $context),
-        };
+        if ($key === 'understand:priority_changed') {
+            return $this->fallbackPriorityChanged($context);
+        }
+
+        return $this->fallbackObjection($key, $context);
     }
 
-    private function fallbackChangedYesterday(array $context): string
-    {
-        $contacts = $context['recently_updated_contacts'] ?? [];
-        $deals = $context['recently_updated_deals'] ?? [];
-
-        if (empty($contacts) && empty($deals)) {
-            return 'Nothing has changed in the last 24 hours — no contact activity and no deal updates since yesterday.';
-        }
-
-        $lines = [];
-        foreach ($contacts as $c) {
-            $lines[] = $c['name'] . ' (' . ($c['company'] ?: 'no company on file') . ') — activity ' . $c['updated'];
-        }
-        foreach ($deals as $d) {
-            $lines[] = 'Deal "' . $d['name'] . '" — ' . $d['stage'] . ' (' . $d['status'] . '), updated ' . $d['updated'];
-        }
-
-        return "Since yesterday:\n" . implode("\n", $lines);
-    }
-
-    private function fallbackCaresAbout(array $context): string
+    private function fallbackPriorityChanged(array $context): string
     {
         $contact = $context['contact'];
 
@@ -229,60 +236,195 @@ class SalesPromptInsightsService
             return 'No matching CRM contact found for that name yet.';
         }
 
-        $props = $contact['synced_hubspot_properties'] ?? [];
-        $signals = array_filter([
-            !empty($props['num_unique_conversion_events'] ?? null)
-                ? $props['num_unique_conversion_events'] . ' conversion event(s) logged' : null,
-            !empty($props['notes_last_contacted'] ?? null)
-                ? 'last contacted ' . $props['notes_last_contacted'] : null,
-            !empty($props['hs_email_last_click_date'] ?? null)
-                ? 'last clicked an email on ' . $props['hs_email_last_click_date'] : null,
-        ]);
+        $dealsChanged = $context['deals_recently_updated'] ?? [];
+        $contactChanged = $context['contact_recently_updated'] ?? false;
 
-        if (empty($signals)) {
-            return $contact['name'] . ' — no specific interest signal has synced from the CRM yet beyond company and email. Ask directly on the next touch.';
+        if (!$contactChanged && empty($dealsChanged)) {
+            return $contact['name'] . ' — no contact or deal updates recorded in the last 7 days. '
+                . 'This system doesn\'t store a historical priority score to compare against, so "unchanged" here means no new CRM activity, not a confirmed same ranking.';
         }
 
-        return $contact['name'] . ' — ' . implode('; ', $signals) . '.';
-    }
+        $lines = [];
+        if ($contactChanged) {
+            $lines[] = 'their contact record was updated ' . ($contact['last_activity'] ?? 'recently');
+        }
+        foreach ($dealsChanged as $d) {
+            $lines[] = 'deal "' . $d['name'] . '" moved to ' . $d['stage'] . ' (' . $d['status'] . '), updated ' . $d['updated'];
+        }
 
-    private function fallbackEmailVersion(array $context): string
-    {
-        $contact = $context['contact'];
-        $name = $contact['name'] ?? 'there';
-        $emailActivity = $context['email_activity'] ?? [];
-
-        $engagementNote = empty($emailActivity)
-            ? 'No prior email activity on file for this contact yet.'
-            : (collect($emailActivity)->contains(fn ($e) => !empty($e['opened_at']))
-                ? "They've opened previous emails, so a direct, short subject line works well."
-                : 'No opens on file yet — lead with a subject line that states the value plainly.');
-
-        return "Subject: Quick question about {$name}'s next step\n\n"
-            . "Hi {$name} — noticed the recent activity on your end and wanted to check in directly rather than let it go quiet. "
-            . "What would need to be true for this to be a clear yes?\n\n"
-            . $engagementNote;
+        return $contact['name'] . ' has recent activity: ' . implode('; ', $lines) . '. '
+            . 'No historical priority snapshot is stored, so treat this as "something moved," not a confirmed rank change.';
     }
 
     private function fallbackObjection(string $key, array $context): string
     {
+        $resolvedKey = self::OBJECTION_ALIASES[$key] ?? $key;
+        $text = self::OBJECTION_FALLBACKS[$resolvedKey] ?? "I don't have a ready-made answer for that yet.";
+
         $deal = $context['deals'][0] ?? null;
         $dealNote = $deal ? " (their current deal: \${$deal['value']} at the {$deal['stage']} stage)" : '';
 
-        return match ($key) {
-            'handle:too_expensive' => '"Compared to what this is costing you today, what would make the number feel fair?" '
-                . 'Reframe to value before touching the price. Offer a low-risk start before a discount.' . $dealNote,
-            'handle:not_right_now' => '"Understood — what would need to change for the timing to be right?" '
-                . 'Get a real reason and a real date, then set a callback for that date rather than a vague follow-up.' . $dealNote,
-            'handle:use_competitor' => '"Good to know — what\'s working well with them, and what would you change if you could?" '
-                . 'Listen for the gap, then show only the part of your offer that closes it.' . $dealNote,
-            'handle:send_info' => '"Send me some info" is often a polite no. Send one short, specific thing (not a brochure) '
-                . 'and set a defined follow-up date rather than waiting for them to reply.' . $dealNote,
-            'handle:no_budget' => 'Separate "no budget" from "not a priority yet." Ask what it would need to deliver to justify '
-                . 'finding the budget — if the answer is vague, it\'s priority, not price.' . $dealNote,
-            'handle:need_boss' => 'Ask to join that conversation, or arm them with a one-page summary of the case for their boss. '
-                . 'Deals that go dark after "I\'ll check" usually needed that help and didn\'t get it.' . $dealNote,
-            default => "I don't have a ready-made answer for that yet.",
-        };
+        return $text . $dealNote;
+    }
+
+    /**
+     * Powers the Overcome category's structured playbook — "when the
+     * salesperson selects a client" — diagnosing the single most likely
+     * objection from real account scores + CRM/deal detail, then giving the
+     * 4-part breakdown (objection, real barrier, recommended response,
+     * proof to use). Uses OpenAI when configured, with a deterministic
+     * rule-based fallback (same real signals, no invented facts) when it
+     * isn't or the call fails.
+     *
+     * @return array{objection: string, confidence: string, why: string, barrier: string, response: string, proof: string, ai_used: bool}
+     */
+    public function objectionPlaybook(?string $name): array
+    {
+        $accounts = $this->accounts->build();
+        $account = $name
+            ? $accounts->first(fn (array $a) => $a['name'] === $name)
+            : $accounts->first();
+
+        if (!$account) {
+            return [
+                'objection' => null, 'confidence' => null, 'why' => null,
+                'barrier' => null, 'response' => null, 'proof' => null,
+                'ai_used' => false,
+            ];
+        }
+
+        $contact = $this->findContact($account['name']);
+        $deals = $contact ? $this->dealsFor($contact) : collect();
+        $emailRows = $contact && $contact->email ? $this->emailsFor($contact->email) : collect();
+
+        $context = [
+            'account' => $account,
+            'deals' => $deals->map(fn (CrmDeal $d) => [
+                'name' => $d->name, 'value' => (float) $d->value,
+                'stage' => $d->stage, 'status' => $d->status,
+            ])->values()->all(),
+            'email_activity' => $emailRows->map(fn (BrevoDeliveredRecipient $r) => [
+                'opened_at' => $r->opened_at?->toDateTimeString(),
+                'clicked' => (bool) $r->clicked,
+                'unsubscribed_at' => $r->unsubscribed_at?->toDateTimeString(),
+            ])->values()->all(),
+        ];
+
+        if ($this->client->isConfigured()) {
+            try {
+                $parsed = $this->askObjectionJson($context);
+                if ($parsed !== null) {
+                    return $parsed + ['ai_used' => true];
+                }
+            } catch (OpenAiException $e) {
+                report($e);
+                // Fall through to the deterministic diagnosis below.
+            }
+        }
+
+        return $this->fallbackObjectionPlaybook($account) + ['ai_used' => false];
+    }
+
+    /**
+     * @return array{objection: string, confidence: string, why: string, barrier: string, response: string, proof: string}|null
+     */
+    private function askObjectionJson(array $context): ?array
+    {
+        $system = 'You are a sales objection-diagnosis assistant inside a B2B analytics platform. '
+            . 'Given one account\'s real CRM data as JSON, diagnose the single most likely objection this '
+            . 'prospect would raise right now, using ONLY the data given — never invent a fact. '
+            . 'Respond with ONLY a raw JSON object, no markdown fences, no prose outside it, matching exactly this shape: '
+            . '{"objection": string, "confidence": "High"|"Medium"|"Low", "why": string, "barrier": string, "response": string, "proof": string}. '
+            . '"objection" must be one of exactly: "Not interested", "Contact me later", "Why do we need this?", '
+            . '"We\'re happy with our current provider", "It\'s too expensive compared to other options". '
+            . '"why" cites the real numbers/signals in the data to justify the diagnosis and confidence level. '
+            . '"barrier" explains what is really holding them back underneath the stated objection. '
+            . '"response" is one natural line the rep could actually say. '
+            . '"proof" names the single best category of evidence for this account (ROI/cost saving, a relevant customer result, '
+            . 'a product comparison, a specific feature, a case study, or their own previous activity) and why it fits.';
+
+        $prompt = "Account data:\n" . json_encode($context, JSON_PRETTY_PRINT);
+
+        $raw = $this->client->chat($system, $prompt, ['max_tokens' => 500, 'temperature' => 0.2]);
+        $clean = trim(preg_replace('/^```(?:json)?|```$/m', '', trim($raw)));
+        $decoded = json_decode($clean, true);
+
+        if (!is_array($decoded) || !isset($decoded['objection'], $decoded['response'])) {
+            return null;
+        }
+
+        return [
+            'objection' => (string) $decoded['objection'],
+            'confidence' => (string) ($decoded['confidence'] ?? 'Medium'),
+            'why' => (string) ($decoded['why'] ?? ''),
+            'barrier' => (string) ($decoded['barrier'] ?? ''),
+            'response' => (string) $decoded['response'],
+            'proof' => (string) ($decoded['proof'] ?? ''),
+        ];
+    }
+
+    /**
+     * @return array{objection: string, confidence: string, why: string, barrier: string, response: string, proof: string}
+     */
+    private function fallbackObjectionPlaybook(array $account): array
+    {
+        $s = $account['scores'];
+        $hasDeal = $account['deal_stage'] !== null;
+        $trust = $s['trust'];
+        $engagement = $s['engagement'];
+        $readiness = $s['buying_readiness'];
+
+        if (!$hasDeal && $engagement < 40) {
+            return [
+                'objection' => 'Not interested',
+                'confidence' => 'Medium',
+                'why' => "No active deal on file and engagement is only {$engagement} — low signal of genuine interest.",
+                'barrier' => 'Either a genuine lack of interest, or relevance was never established for their specific situation.',
+                'response' => '"Fair enough — can I ask what\'s not landing? I\'d rather know than guess."',
+                'proof' => 'A relevant customer result — a concrete example close to their own situation, to re-establish relevance.',
+            ];
+        }
+
+        if (!$hasDeal) {
+            return [
+                'objection' => 'Why do we need this?',
+                'confidence' => 'Medium',
+                'why' => "No active deal yet, but engagement is {$engagement} — they're paying attention without a clear reason to act.",
+                'barrier' => 'The value case hasn\'t been made concrete for their specific situation yet.',
+                'response' => '"What happens if this stays the same for another six months?"',
+                'proof' => 'ROI / cost saving — quantify what standing still is costing them.',
+            ];
+        }
+
+        if ($trust < 65 && $readiness >= 50) {
+            return [
+                'objection' => "It's too expensive compared to other options",
+                'confidence' => ($readiness - $trust) >= 20 ? 'High' : 'Medium',
+                'why' => "Buying readiness ({$readiness}) is ahead of trust ({$trust}) — they believe the problem is real but aren't yet convinced this is worth the price.",
+                'barrier' => 'Price feels high because the value hasn\'t fully landed yet — this reads as a value gap, not a hard budget ceiling.',
+                'response' => '"Compared to what this is costing you today, what would make the number feel fair?"',
+                'proof' => 'ROI / cost saving — show how a similar customer reduced costs using the recommended package.',
+            ];
+        }
+
+        if ($engagement < 50) {
+            return [
+                'objection' => 'Contact me later',
+                'confidence' => 'Medium',
+                'why' => "There's an open deal ({$account['deal_stage_label']}) but engagement has cooled to {$engagement} — momentum has stalled.",
+                'barrier' => 'Likely timing rather than lack of interest — competing priorities right now, not a lost cause.',
+                'response' => '"Understood — what would need to change for the timing to be right?"',
+                'proof' => 'A relevant customer result — a timely example to re-open the conversation.',
+            ];
+        }
+
+        return [
+            'objection' => "We're happy with our current provider",
+            'confidence' => 'Low',
+            'why' => "Trust ({$trust}) and readiness ({$readiness}) are both solid but the deal ({$account['deal_stage_label']}) hasn't moved — they may be quietly comparing alternatives.",
+            'barrier' => 'Perceived parity with an existing solution, not a real blocker.',
+            'response' => '"Good to know — what\'s working well with them, and what would you change if you could?"',
+            'proof' => 'Product comparison — a direct comparison on whatever specific gap they name.',
+        ];
     }
 }

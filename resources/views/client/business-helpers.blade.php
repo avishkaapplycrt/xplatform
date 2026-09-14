@@ -122,11 +122,24 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
                 <div class="dash-vtabs" id="dashVtabs"></div>
                 <div class="dash-view" id="dashView"></div>
             </div>
-            <aside class="dash-mira">
+            <aside class="dash-mira" id="bhMira">
+                <div class="mira-resize" id="bhMiraResize" role="separator" aria-orientation="vertical" aria-label="Resize helper panel (arrow keys)" tabindex="0" title="Drag to resize">
+                    <span class="mira-grip" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                    </span>
+                </div>
                 <div class="dm-hd">
                     <span class="dm-dot"></span>
                     <div><div class="dm-t" id="dmTitle"></div><div class="dm-s">ENGINE + AI · GROUNDED IN LIVE DATA</div></div>
                     <span class="dm-ready">Ready</span>
+                    <div class="mira-tools">
+                        <button type="button" class="mira-btn" onclick="bhMira('min')" title="Minimise" aria-label="Minimise helper panel">&minus;</button>
+                        <button type="button" class="mira-btn" data-act="max" onclick="bhMira('max')" title="Maximise" aria-label="Maximise helper panel">&#9974;</button>
+                    </div>
+                </div>
+                <div class="col-rail">
+                    <button type="button" class="col-toggle" onclick="bhMira('restore')" title="Expand helper" aria-label="Expand helper panel">&laquo;</button>
+                    <span class="col-rail-label">Helper</span>
                 </div>
                 <div class="dm-chat" id="dashChat"></div>
                 <div class="dm-quick-hd" id="dashQuickHd"></div>
@@ -258,7 +271,7 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .send svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:2.5;stroke-linecap:round}
 
 /* ══ DASHBOARD (Marketing / Sales) ══ */
-#bhRoot .dash{display:none;grid-template-columns:minmax(190px,220px) 1fr minmax(300px,340px);gap:1px;background:var(--ln);flex:1;min-height:0;overflow:hidden}
+#bhRoot .dash{display:none;grid-template-columns:minmax(190px,220px) 1fr var(--bh-mira-w,320px);gap:1px;background:var(--ln);flex:1;min-height:0;overflow:hidden}
 #bhRoot .dash.on{display:grid}
 @media(max-width:1180px){#bhRoot .dash{grid-template-columns:190px 1fr}}
 @media(max-width:820px){#bhRoot .dash{grid-template-columns:1fr;overflow-y:auto}}
@@ -275,12 +288,16 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 
 #bhRoot .dash-main{background:#fff;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 #bhRoot .dash-vtabs{display:flex;gap:1px;background:var(--ln);border-bottom:1px solid var(--ln);flex-shrink:0;flex-wrap:wrap}
-#bhRoot .dvt{flex:1;min-width:110px;font-family:var(--fm);font-size:10.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--g2);padding:13px 8px;background:#fff;border:none;cursor:pointer;text-align:center;transition:all .15s}
+#bhRoot .dvt{flex:1;min-width:78px;font-family:var(--fm);font-size:10.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--g2);padding:13px 6px;background:#fff;border:none;cursor:pointer;text-align:center;transition:all .15s}
 #bhRoot .dvt.on{background:var(--ac);color:#fff}
 #bhRoot .dvt:hover:not(.on){background:var(--p1);color:var(--ink)}
 #bhRoot .dash-view{flex:1;overflow-y:auto}
 
 #bhRoot .stkrow{display:grid;grid-template-columns:30px 108px 1.2fr 1.2fr auto;gap:18px;padding:22px 20px;border-bottom:1px solid var(--p2);align-items:center}
+#bhRoot .stkrow.no-actions{grid-template-columns:30px 1.3fr 1.5fr}
+#bhRoot .stkrow-close{display:grid;grid-template-columns:30px 130px 1.2fr 1.3fr;gap:18px;padding:22px 20px;border-bottom:1px solid var(--p2);align-items:center}
+#bhRoot .stkrow-growth{display:grid;grid-template-columns:1fr 1.4fr;gap:18px;padding:22px 20px;border-bottom:1px solid var(--p2);align-items:center}
+@media(max-width:900px){#bhRoot .stkrow-close,#bhRoot .stkrow-growth{grid-template-columns:1fr 1fr;grid-auto-flow:row}}
 #bhRoot .stkrow:last-child{border-bottom:none}
 #bhRoot .stk-n{font-family:var(--fm);font-size:17px;font-weight:600;color:var(--g4)}
 #bhRoot .stk-call{font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:10px 10px;border:1px solid var(--ac);background:var(--ac);color:#fff;cursor:pointer;border-radius:7px;white-space:nowrap;width:100%}
@@ -358,7 +375,7 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .mg-kpi small{font-size:10px;color:var(--g3);font-weight:500;margin-left:4px}
 @media(max-width:900px){#bhRoot .mg-grid{grid-template-columns:1fr}}
 
-#bhRoot .dash-mira{background:#fff;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#bhRoot .dash-mira{background:#fff;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;min-height:0}
 #bhRoot .dm-hd{display:flex;align-items:center;gap:11px;padding:16px 18px;border-bottom:1px solid var(--ln);background:var(--p1);flex-shrink:0}
 #bhRoot .dm-dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0;animation:bhblink 1.8s infinite}
 #bhRoot .dm-t{font-size:13px;font-weight:700;letter-spacing:.2px;color:var(--ink)}
@@ -369,7 +386,40 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .dm-quick{padding:6px 16px 14px;display:flex;flex-direction:column;gap:7px;flex-shrink:0;max-height:220px;overflow-y:auto}
 #bhRoot .dm-quick .qk{width:100%;text-align:left;padding:10px 12px;font-size:12px;white-space:normal;line-height:1.35;border-radius:8px;background:#fff;border:1px solid var(--ln)}
 #bhRoot .dm-quick .qk:hover{border-color:var(--ac-m);background:var(--ac-l);color:var(--ac-d)}
-#bhRoot .dm-inbar{display:flex;gap:1px;border-top:1px solid var(--ln);background:var(--ln);flex-shrink:0}
+#bhRoot .dm-inbar{display:flex;gap:1px;border-top:1px solid var(--ln);background:var(--ln);flex-shrink:0;position:sticky;bottom:0;z-index:2}
+
+/* ══ Helper panel (right) — drag-resize · minimise · maximise ══
+   Applies to the "<agent> helper" panel shared by Marketing, Sales and
+   Customer Retention. Panel width is driven by --bh-mira-w on #bhRoot. */
+#bhRoot .dash-mira{position:relative}
+
+/* draggable divider on the panel's left edge (grip like shadcn ResizableHandle) */
+#bhRoot .mira-resize{position:absolute;left:0;top:0;bottom:0;width:12px;z-index:20;cursor:col-resize;display:flex;align-items:center;justify-content:center;touch-action:none}
+#bhRoot .mira-resize::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:var(--ln2);transition:background .15s}
+#bhRoot .mira-resize:hover::before,#bhRoot .mira-resize.dragging::before{background:var(--ac)}
+#bhRoot .mira-grip{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:12px;height:22px;border:1px solid var(--ln2);border-radius:4px;background:#fff;color:var(--g3);transition:all .15s}
+#bhRoot .mira-resize:hover .mira-grip,#bhRoot .mira-resize.dragging .mira-grip{color:var(--ac-d);border-color:var(--ac-m)}
+#bhRoot .mira-resize:focus-visible{outline:2px solid var(--ac);outline-offset:-1px}
+#bhRoot .mira-grip svg{width:12px;height:12px;display:block}
+
+/* header controls */
+#bhRoot .mira-tools{display:flex;gap:4px;flex-shrink:0}
+#bhRoot .mira-btn{width:24px;height:24px;padding:0;border:1px solid var(--ln2);background:#fff;border-radius:7px;cursor:pointer;display:grid;place-items:center;font-size:12px;line-height:1;color:var(--g2);font-family:var(--fm);transition:all .15s}
+#bhRoot .mira-btn:hover{color:var(--ac-d);border-color:var(--ac-m);background:var(--ac-l)}
+
+/* minimised → thin rail with an expand button */
+#bhRoot .col-rail{display:none;flex:1;flex-direction:column;align-items:center;gap:14px;padding:12px 0;background:#fff;overflow:hidden}
+#bhRoot .col-rail .col-toggle{width:26px;height:26px;flex-shrink:0;border:1px solid var(--ln2);background:#fff;border-radius:7px;cursor:pointer;display:grid;place-items:center;font-size:13px;line-height:1;color:var(--g2);font-family:var(--fm);transition:all .15s;padding:0}
+#bhRoot .col-rail .col-toggle:hover{color:var(--ac-d);border-color:var(--ac-m);background:var(--ac-l)}
+#bhRoot .col-rail-label{writing-mode:vertical-rl;font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g3)}
+#bhRoot.bh-mira-min .dash-mira > *:not(.col-rail){display:none}
+#bhRoot.bh-mira-min .dash-mira > .col-rail{display:flex}
+@media(min-width:1181px){
+  #bhRoot.bh-mira-min .dash{grid-template-columns:minmax(190px,220px) 1fr 40px}
+}
+@media(max-width:1180px){
+  #bhRoot .mira-resize{display:none}
+}
 
 .risk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:200;align-items:center;justify-content:center;padding:24px}
 .risk-modal-overlay.show{display:flex}
@@ -381,6 +431,13 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 .risk-modal-body table{width:100%;border-collapse:collapse;font-size:12px}
 .risk-modal-body th,.risk-modal-body td{padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:left;white-space:nowrap}
 .risk-modal-body th{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;background:#f9fafb}
+
+/* "Which customer?" name input in a Root cause answer bubble */
+#bhRoot .nmform{display:flex;gap:6px;margin-top:8px;align-items:stretch}
+#bhRoot .nmin{flex:1;min-width:0;border:1px solid var(--ln2);border-radius:8px;padding:8px 10px;font-family:var(--f1);font-size:12px;color:var(--ink);outline:none;background:#fff}
+#bhRoot .nmin:focus{border-color:var(--ac-m);box-shadow:0 0 0 3px var(--ac-l)}
+#bhRoot .nmin:disabled{background:var(--p2);color:var(--g3)}
+#bhRoot .nmform .qk{flex-shrink:0;align-self:center}
 </style>
 
 <script>
@@ -391,15 +448,71 @@ var MARKETING_STEPS_DB = @json($marketingSteps ?? []);
 var RETENTION_DB_PROMPTS = @json($retentionPrompts ?? []);
 var RETENTION_AI_ENDPOINTS = {
   who_save_first_week: @json(route('client.business-helpers.retention.save-first')),
-  drifting_watchlist: @json(route('client.business-helpers.retention.watchlist'))
+  drifting_watchlist: @json(route('client.business-helpers.retention.watchlist')),
+  why_leaving: @json(route('client.business-helpers.retention.why-leaving')),
+  price_or_product: @json(route('client.business-helpers.retention.price-or-product')),
+  top_churn_driver: @json(route('client.business-helpers.retention.top-churn-driver')),
+  can_discount: @json(route('client.business-helpers.retention.can-discount')),
+  what_allowed_offer: @json(route('client.business-helpers.retention.what-allowed-offer')),
+  give_get_ask: @json(route('client.business-helpers.retention.give-get')),
+  save_plan_call: @json(route('client.business-helpers.retention.save-plan')),
+  save_email: @json(route('client.business-helpers.retention.save-email')),
+  whatsapp_checkin: @json(route('client.business-helpers.retention.whatsapp-checkin')),
+  first_48_hours: @json(route('client.business-helpers.retention.first-48-hours')),
+  ab_which_test_worth_running: @json(route('client.business-helpers.retention.ab.which-test')),
+  ab_discount_vs_no_discount: @json(route('client.business-helpers.retention.ab.discount-vs-no-discount')),
+  ab_accounts_per_arm: @json(route('client.business-helpers.retention.ab.accounts-per-arm')),
+  ab_call_first_or_email_first: @json(route('client.business-helpers.retention.ab.call-first-or-email-first')),
+  ab_holdout_big_enough: @json(route('client.business-helpers.retention.ab.holdout-big-enough')),
+  ab_all_test_ideas: @json(route('client.business-helpers.retention.ab.all-test-ideas'))
 };
 var SALES_ASK_ENDPOINT = @json(route('client.business-helpers.sales.ask'));
 var SALES_PROMPT_AI_ENDPOINT = @json(route('client.business-helpers.sales.prompt-insight'));
+var SALES_OBJECTION_PLAYBOOK_ENDPOINT = @json(route('client.business-helpers.sales.objection-playbook'));
 var SALES_PROMPT_AI_KEYS = [
-  'prioritise:changed_yesterday', 'understand:cares_about', 'craft:email_version',
-  'handle:too_expensive', 'handle:not_right_now', 'handle:use_competitor',
-  'handle:send_info', 'handle:no_budget', 'handle:need_boss'
+  'understand:priority_changed',
+  'craft:not_ready_response', 'craft:too_expensive_response', 'craft:competitor_response',
+  'handle:not_interested', 'handle:not_right_now', 'handle:why_need_this',
+  'handle:use_competitor', 'handle:too_expensive'
 ];
+var MARKETING_AI_ENDPOINTS = {
+  exclude_from_every_send: @json(route('client.business-helpers.marketing.exclude-from-send')),
+  in_live_sales_cycle: @json(route('client.business-helpers.marketing.live-sales-cycle')),
+  proof_or_offer_audience: @json(route('client.business-helpers.marketing.proof-or-offer')),
+  one_lever_mql_sales: @json(route('client.business-helpers.marketing.one-lever')),
+  why_name_here_not_sales: @json(route('client.business-helpers.marketing.why-not-with-sales')),
+  rule_put_people_mql_sales: @json(route('client.business-helpers.marketing.mql-rule')),
+  changed_last_7_days: @json(route('client.business-helpers.marketing.changed-last-7-days')),
+  email_sequence_mql_sales: @json(route('client.business-helpers.marketing.email-sequence')),
+  whatsapp_oneliner_mql_sales: @json(route('client.business-helpers.marketing.whatsapp-oneliner')),
+  sms_optout_mql_sales: @json(route('client.business-helpers.marketing.sms-optout')),
+  discount_or_proof_mql_sales: @json(route('client.business-helpers.marketing.discount-or-proof')),
+  proof_vs_offer_test_mql_sales: @json(route('client.business-helpers.marketing.proof-vs-offer-test')),
+  sample_size_per_arm_mql_sales: @json(route('client.business-helpers.marketing.sample-size-per-arm')),
+  holdout_15_enough_mql_sales: @json(route('client.business-helpers.marketing.holdout-enough')),
+  who_became_mql_since_last_send: @json(route('client.business-helpers.marketing.who-became-mql')),
+  push_week_mqls_to_sales: @json(route('client.business-helpers.marketing.push-mqls-to-sales')),
+  subject_line_test_mql_sales: @json(route('client.business-helpers.marketing.subject-line-test')),
+  when_receive_touch1_mql_sales: @json(route('client.business-helpers.marketing.touch1-send-time')),
+  all_test_ideas_mql_sales: @json(route('client.business-helpers.marketing.all-test-ideas')),
+  lift_vs_holdout_mql_sales: @json(route('client.business-helpers.marketing.lift-vs-holdout')),
+  audience_worst_unsub_rate: @json(route('client.business-helpers.marketing.worst-unsub-audience'))
+};
+var MARKETING_ACCOUNTS_ENDPOINT = @json(route('client.business-helpers.marketing.accounts-snapshot'));
+// Retention prompts that ask about one named customer — the UI collects the
+// name in an input before calling the endpoint (?name=…).
+var RETENTION_AI_NAME_PROMPTS = {
+  why_leaving: 1, price_or_product: 1,
+  can_discount: 1, what_allowed_offer: 1, give_get_ask: 1,
+  save_plan_call: 1, save_email: 1, whatsapp_checkin: 1, first_48_hours: 1
+};
+// Retention prompts that keep the literal [name] placeholder in the button
+// (standard questions) but have no dedicated name-input endpoint yet.
+var RETENTION_KEEP_PLACEHOLDER = { changed_recently: 1, stabilisation_plan_for: 1 };
+var RETENTION_CONTACT_NAMES = @json($retentionContactNames ?? []);
+// At-risk pool for the A/B test pane — computed server-side from
+// crm_contacts + crm_deals, the same way the A/B test prompts do.
+var RETENTION_AB_POOL = @json($retentionAbPool ?? ['count' => 0, 'value' => 0, 'breakdown' => []]);
 var RETENTION_STEPS_DB = @json($retentionSteps ?? []);
 
 /* ═══ TASKS — plain English, per helper ═══ */
@@ -715,7 +828,7 @@ var DASH_FLOW = {
 var FLOW_TABS_BY_AGENT = {
   sl: ['today', 'accounts', 'scripts', 'forecast', 'manager'],
   mk: ['today', 'accounts', 'scripts', 'forecast', 'performance'],
-  ch: ['today', 'accounts', 'scripts', 'forecast', 'manager']
+  ch: ['today', 'accounts', 'scripts', 'forecast', 'manager', 'abtest']
 };
 var DB_PROMPTS_BY_AGENT = { sl: SALES_DB_PROMPTS, mk: MARKETING_DB_PROMPTS, ch: RETENTION_DB_PROMPTS };
 var STEP_KEYS_BY_AGENT = { sl: PROMPT_STEP_ORDER, mk: MARKETING_STEP_KEYS, ch: RETENTION_STEP_KEYS };
@@ -739,7 +852,12 @@ function renderDashQuicks(){
   var dbStepKey = STEP_KEYS_BY_AGENT[agent][idx];
   var prompts = (DB_PROMPTS_BY_AGENT[agent][dbStepKey] || []).filter(function(p){ return p.is_active; });
   q.innerHTML = prompts.map(function(p){
-    var label = p.label.replace('[name]', name);
+    // Retention prompts that collect the customer name in an input keep the
+    // literal [name] placeholder in the button — as does the whole Offers
+    // step, whose questions are standard and must not be personalised.
+    // Every other prompt gets the current lead name substituted in.
+    var keepPlaceholder = (agent === 'ch' && (RETENTION_AI_NAME_PROMPTS[p.slug] || RETENTION_KEEP_PLACEHOLDER[p.slug] || dbStepKey === 'Offers'));
+    var label = keepPlaceholder ? p.label : p.label.replace(/\[name\]/i, name);
     return '<button type="button" class="qk" onclick="dashPromptClick(\''+dbStepKey+'\',\''+p.slug+'\',\''+nameAttr(label)+'\')">'+escapeHtml(label)+'</button>';
   }).join('');
 }
@@ -748,7 +866,11 @@ function dashPromptClick(stepKey, promptKey, label){
   var agent = dashState.agent;
 
   if (agent === 'ch' && RETENTION_AI_ENDPOINTS[promptKey]) {
-    return dashRetentionAiAnswer(promptKey, stepKey);
+    if (RETENTION_AI_NAME_PROMPTS[promptKey]) return dashRetentionNameForm(promptKey, stepKey);
+    return dashRetentionAiAnswer(promptKey, stepKey, null);
+  }
+  if (agent === 'mk' && MARKETING_AI_ENDPOINTS[promptKey]) {
+    return dashMarketingAiAnswer(promptKey, stepKey, topPrimaryName(agent));
   }
 
   var name = topPrimaryName(agent);
@@ -789,17 +911,78 @@ function dashSalesPromptAi(stepKey, promptKey, name, label){
     el.innerHTML = tagHtml + "<p>I couldn't reach the AI just now — try again in a moment.</p>";
   });
 }
-/* Risk radar questions answered server-side from real crm_contacts/crm_deals/
-   email_logs_providers data (see RetentionSaveFirstService), optionally
-   written up by OpenAI. The reply carries an expand/collapse toggle so the
-   rep can see exactly which accounts and numbers the answer is based on. */
-function dashRetentionAiAnswer(promptKey, stepKey){
+function chStepTag(stepKey){
   var stepIdx = RETENTION_STEP_KEYS.indexOf(stepKey);
   var stepTitle = DASH_FLOW.ch.steps[stepIdx === -1 ? 0 : stepIdx].t;
-  var tagHtml = '<div class="tag">Customer Retention · ' + escapeHtml(stepTitle) + '</div>';
+  return '<div class="tag">Customer Retention · ' + escapeHtml(stepTitle) + '</div>';
+}
+/* Root cause questions about one customer collect the name here first, then
+   hand off to the endpoint as ?name=… */
+function dashRetentionNameForm(promptKey, stepKey){
+  var fid = 'nm' + Math.random().toString(36).slice(2, 8);
+  var opts = (RETENTION_CONTACT_NAMES || []).map(function(n){ return '<option value="' + escapeHtml(n) + '"></option>'; }).join('');
+  var prefill = dashState.lead ? escapeHtml(dashState.lead) : '';
+  dashPushMsg('bot', chStepTag(stepKey) +
+    '<p>Which customer? Type a name or company.</p>' +
+    '<div class="nmform">' +
+      '<input class="nmin" id="' + fid + '" list="' + fid + '-l" placeholder="e.g. Kasun Madushan" value="' + prefill + '" autocomplete="off">' +
+      '<datalist id="' + fid + '-l">' + opts + '</datalist>' +
+      '<button type="button" class="qk" onclick="dashRetentionNameSubmit(\'' + promptKey + '\',\'' + stepKey + '\',\'' + fid + '\')">Ask</button>' +
+    '</div>');
+  var input = document.getElementById(fid);
+  if (input){
+    input.focus();
+    input.addEventListener('keydown', function(e){
+      if (e.key === 'Enter'){ e.preventDefault(); dashRetentionNameSubmit(promptKey, stepKey, fid); }
+    });
+  }
+}
+function dashRetentionNameSubmit(promptKey, stepKey, fid){
+  var input = document.getElementById(fid);
+  var name = input ? input.value.trim() : '';
+  if (!name){ if (input) input.focus(); return; }
+  if (input){ input.disabled = true; }
+  dashState.lead = name;
+  dashPushMsg('user', escapeHtml(name));
+  dashRetentionAiAnswer(promptKey, stepKey, name);
+}
+/* Risk radar + Root cause questions answered server-side from real
+   crm_contacts / crm_deals (+ email signal for Risk radar) — see
+   RetentionSaveFirstService / RetentionRootCauseService — optionally written
+   up by OpenAI. The reply carries an expand toggle so the rep can see exactly
+   which accounts and numbers the answer is based on. */
+function dashRetentionAiAnswer(promptKey, stepKey, name){
+  var tagHtml = chStepTag(stepKey);
   var el = dashPushMsg('bot', tagHtml + '<p style="color:var(--g3)">Thinking…</p>');
 
-  fetch(RETENTION_AI_ENDPOINTS[promptKey])
+  var url = RETENTION_AI_ENDPOINTS[promptKey];
+  if (name) url += (url.indexOf('?') > -1 ? '&' : '?') + 'name=' + encodeURIComponent(name);
+
+  fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      el.innerHTML = tagHtml + renderRiskAiAnswer(data);
+    })
+    .catch(function(){
+      el.innerHTML = tagHtml + '<p>Could not reach the server to compute this — try again in a moment.</p>';
+    });
+}
+/* Marketing · Audience questions answered server-side from real
+   crm_contacts/crm_deals data (see MarketingAudienceService), optionally
+   written up by OpenAI. Same expand/collapse pattern as Retention's risk
+   radar, so the marketer can see exactly which accounts back the answer. */
+function dashMarketingAiAnswer(promptKey, stepKey, name){
+  var stepIdx = MARKETING_STEP_KEYS.indexOf(stepKey);
+  var stepTitle = DASH_FLOW.mk.steps[stepIdx === -1 ? 0 : stepIdx].t;
+  var tagHtml = '<div class="tag">Marketing · ' + escapeHtml(stepTitle) + '</div>';
+  var el = dashPushMsg('bot', tagHtml + '<p style="color:var(--g3)">Thinking…</p>');
+
+  var url = MARKETING_AI_ENDPOINTS[promptKey];
+  if (promptKey === 'why_name_here_not_sales') {
+    url += '?name=' + encodeURIComponent(name || '');
+  }
+
+  fetch(url)
     .then(function(r){ return r.json(); })
     .then(function(data){
       el.innerHTML = tagHtml + renderRiskAiAnswer(data);
@@ -810,28 +993,55 @@ function dashRetentionAiAnswer(promptKey, stepKey){
 }
 var RISK_DATA_CACHE = {};
 function renderRiskAiAnswer(data){
-  var answer = '<p>' + escapeHtml(data.answer || '') + '</p>';
-  var ranked = data.ranked || [];
-  if (!ranked.length) return answer;
+  // Keep line breaks — Save-play drafts (email, 48-hour checklist) are
+  // multi-line; every other answer is a single paragraph and unaffected.
+  var answer = '<p>' + escapeHtml(data.answer || '').replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
+
+  // Name lookup found nothing — show a few valid names to try.
+  if (data.matched === false){
+    var names = (data.suggestions || []).slice(0, 8);
+    return answer + (names.length
+      ? '<p style="color:var(--g3);font-size:11.5px">Try: ' + names.map(escapeHtml).join(' · ') + '</p>'
+      : '');
+  }
+
+  var rows = data.ranked || data.accounts || [];
+  if (!rows.length) return answer;
 
   var id = 'risk' + Math.random().toString(36).slice(2, 9);
-  RISK_DATA_CACHE[id] = ranked;
+  RISK_DATA_CACHE[id] = rows;
 
   return answer
-    + '<button type="button" class="qk" onclick="openRiskModal(\'' + id + '\')">View the ' + ranked.length + ' account' + (ranked.length === 1 ? '' : 's') + ' behind this →</button>';
+    + '<button type="button" class="qk" onclick="openRiskModal(\'' + id + '\')">View the ' + rows.length + ' account' + (rows.length === 1 ? '' : 's') + ' behind this →</button>';
 }
-function openRiskModal(id){
-  var ranked = RISK_DATA_CACHE[id];
-  if (!ranked) return;
+/* Columns rendered in the "accounts behind this" modal, in order. Risk
+   radar (unsubscribed / ever_opened / risk_score), Root cause (deal_status /
+   churn_score) and Marketing's shapes (stage / reason) all flow through
+   here — only the keys actually present on the rows are shown. */
+var RISK_COL_LABELS = {
+  name: 'Name', company: 'Company', situation: 'Situation', deal_value: 'Deal value', deal_status: 'Deal',
+  stage: 'Stage', unsubscribed: 'Unsub?', ever_opened: 'Ever opened?',
+  days_since_activity: 'Days silent', risk_score: 'Risk', churn_score: 'Churn',
+  reason: 'Why', subject: 'Subject', sent_at: 'Sent', opened: 'Opened?'
+};
+function openRiskModal(id, noun){
+  var rows = RISK_DATA_CACHE[id];
+  if (!rows || !rows.length) return;
+  noun = noun || 'account';
 
-  var rows = ranked.map(function(r, i){
-    return '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(r.name) + '</td><td>' + escapeHtml(r.company) + '</td>'
-      + '<td>' + money(r.deal_value) + '</td><td>' + (r.unsubscribed ? 'Yes' : 'No') + '</td>'
-      + '<td>' + (r.ever_opened ? 'Yes' : 'No') + '</td><td>' + r.days_since_activity + '</td><td>' + r.risk_score + '</td></tr>';
+  var cols = Object.keys(RISK_COL_LABELS).filter(function(k){ return k in rows[0]; });
+  var head = '<tr><th>#</th>' + cols.map(function(k){ return '<th>' + RISK_COL_LABELS[k] + '</th>'; }).join('') + '</tr>';
+  var body = rows.map(function(r, i){
+    return '<tr><td>' + (i + 1) + '</td>' + cols.map(function(k){
+      var v = r[k];
+      if (k === 'deal_value') return '<td>' + money(v) + '</td>';
+      if (typeof v === 'boolean') return '<td>' + (v ? 'Yes' : 'No') + '</td>';
+      return '<td>' + escapeHtml(v === null || v === undefined || v === '' ? '—' : String(v)) + '</td>';
+    }).join('') + '</tr>';
   }).join('');
 
-  document.getElementById('riskModalTitle').textContent = ranked.length + ' account' + (ranked.length === 1 ? '' : 's') + ' behind this answer';
-  document.getElementById('riskModalBody').innerHTML = '<table><tr><th>#</th><th>Name</th><th>Company</th><th>Deal value</th><th>Unsub?</th><th>Ever opened?</th><th>Days silent</th><th>Risk</th></tr>' + rows + '</table>';
+  document.getElementById('riskModalTitle').textContent = rows.length + ' ' + noun + (rows.length === 1 ? '' : 's') + ' behind this answer';
+  document.getElementById('riskModalBody').innerHTML = '<table>' + head + body + '</table>';
   document.getElementById('riskModalOverlay').classList.add('show');
 }
 function closeRiskModal(){
@@ -861,68 +1071,50 @@ function marketingDbAnswer(stepKey, slug, name, account, c){
       return head + '<p>' + (expansionReady.length ? '<strong>Upsell-ready:</strong></p><p>'+expansionReady.map(function(x){ return escapeHtml(x.a.name)+' (loyalty '+x.a.scores.loyalty+', readiness '+x.a.scores.buying_readiness+')'; }).join(', ') : 'No one currently clears the loyalty + readiness bar for an upsell offer.') + '</p>';
     case 'who_would_refer_us':
       return head + '<p>' + (referral.length ? referral.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'No one has crossed the loyalty bar for a referral ask yet.') + '</p>';
-    case 'exclude_from_every_send':
-      return head + '<p>' + (hold.length ? '<strong>Exclude from every send — at-risk, Retention\'s to work:</strong></p><p>'+hold.map(function(x){ return escapeHtml(x.a.name); }).join(', ') : 'Nobody needs excluding right now — no at-risk accounts in the pool.') + '</p>';
-    case 'in_live_sales_cycle':
-      return head + '<p>' + (mqlReady.length ? '<strong>Already in a live sales cycle — leave them alone:</strong></p><p>'+mqlReady.map(function(x){ return escapeHtml(x.a.name)+' (readiness '+x.a.scores.buying_readiness+')'; }).join(', ') : 'No one is currently in a live sales cycle.') + '</p>';
+    /* exclude_from_every_send and in_live_sales_cycle are answered before
+       this function runs — see MARKETING_AI_ENDPOINTS / dashMarketingAiAnswer,
+       backed by real crm_contacts + crm_deals data (MarketingAudienceService). */
 
     case 'top_shared_signal_mql_sales':
       return head + '<p>The strongest shared signal across the current MQL-ready group: pricing/demo page revisits paired with a direct question in chat (data ownership, instalments, SSO). That combination consistently precedes a readiness jump.</p>';
-    case 'proof_or_offer_audience':
-      var avgTrust = mqlReady.length ? Math.round(mqlReady.reduce(function(s,x){return s+x.a.scores.trust;},0)/mqlReady.length) : 0;
-      return head + '<p>' + (mqlReady.length ? (avgTrust < DTH.trust ? '<b>Proof audience</b> — average trust '+avgTrust+' is still below the bar, so lead with evidence, not an offer.' : '<b>Offer audience</b> — average trust '+avgTrust+' is solid, so a time-boxed incentive can safely accelerate the decision.') : 'No accounts are in MQL → Sales right now to judge this by.') + '</p>';
-    case 'one_lever_mql_sales':
-      return head + '<p>The single lever that moves an account fastest: a second touch that lands inside the trust cool-off window with one piece of proof matched to their stated concern.</p>';
-    case 'why_name_here_not_sales':
-      return head + (c ? '<p><b>'+escapeHtml(name)+'</b> — '+c.why.join(' ')+' Still short of the buying readiness ≥ '+DTH.ready+' bar Sales works from.</p>' : '<p>Select an account to see why it\'s here and not with Sales.</p>');
-    case 'rule_put_people_mql_sales':
-      return head + '<p>An account becomes an MQL hand-off once <b>buying readiness ≥ '+DTH.ready+'</b> and it isn\'t flagged at-risk. That\'s the same bar Sales uses for their "call" tier, so nothing gets double-worked.</p>';
-    case 'changed_last_7_days':
-      return head + '<p>' + (mqlReady.length ? '<b>'+escapeHtml(mqlReady[0].a.name)+'</b> crossed the MQL bar most recently (readiness '+mqlReady[0].a.scores.buying_readiness+').' : 'No new accounts crossed the MQL bar this week.') + ' Check Insights weekly — this list moves as scores update.</p>';
 
-    case 'email_sequence_mql_sales':
-      return head + '<p><strong>3-touch email sequence:</strong></p><ol style="margin:4px 0 0 16px"><li>What\'s new / what they\'ve been missing — no ask.</li><li>One proof point matched to their stage.</li><li>A direct, low-risk invitation to talk to Sales.</li></ol>';
-    case 'whatsapp_oneliner_mql_sales':
-      return head + '<p><em>"Hi '+escapeHtml(name)+' 👋 quick one — noticed some activity on your end, happy to help directly here if useful."</em></p>';
-    case 'sms_optout_mql_sales':
-      return head + '<p><em>"'+escapeHtml(name)+': quick update on your account — reply YES for a 2-minute call, or STOP to opt out."</em></p>';
+    /* proof_or_offer_audience, one_lever_mql_sales, why_name_here_not_sales,
+       rule_put_people_mql_sales and changed_last_7_days are answered before
+       this function runs — see MARKETING_AI_ENDPOINTS / dashMarketingAiAnswer,
+       backed by real crm_contacts + crm_deals data (MarketingInsightsService). */
+
+    /* email_sequence_mql_sales, whatsapp_oneliner_mql_sales, sms_optout_mql_sales
+       and discount_or_proof_mql_sales are answered before this function runs —
+       see MARKETING_AI_ENDPOINTS / dashMarketingAiAnswer, backed by real
+       crm_contacts + crm_deals data (MarketingCampaignService). */
     case 'linkedin_dm_post_mql_sales':
       return head + '<p><strong>DM:</strong> <em>"Saw your team has been exploring this — happy to share what similar teams found."</em></p><p><strong>Post angle:</strong> a short case study result, tagged to the same segment this account sits in.</p>';
     case 'ad_social_copy_mql_sales':
       return head + '<p><strong>Ad angle:</strong> lead with the outcome, not the feature — "See results in 30 days" outperforms feature-first copy for this segment by a wide margin.</p>';
-    case 'discount_or_proof_mql_sales':
-      return head + '<p>' + (s && s.trust < DTH.trust ? 'Proof only — trust is the gap here, so a case study or result beats a discount.' : 'A discount is safe to offer — trust is already solid, so a time-boxed incentive can accelerate the decision.') + '</p>';
     case 'rewrite_touch1_brand_voice':
       return head + '<p>Paste touch 1 into the chat box below and I\'ll rewrite it to match your brand voice — plain, direct, no jargon.</p>';
 
-    case 'subject_line_test_mql_sales':
-      return head + '<p><strong>Worth testing:</strong> urgency framing ("your window is closing") vs. curiosity framing ("what changed since you looked") for the MQL → Sales subject line.</p>';
-    case 'proof_vs_offer_test_mql_sales':
-      return head + '<p>' + (s && s.trust < DTH.trust ? 'Test proof first — trust is the gap here, so a case study variant is more likely to move the needle than an offer variant.' : 'Test offer vs. proof head-to-head — trust is high enough that either could win; let the data decide.') + '</p>';
-    case 'sample_size_per_arm_mql_sales':
-      return head + '<p>With '+r.length+' accounts in the current pool, split evenly across arms for a directional read — for a statistically solid result you\'ll want a larger list; treat this pool\'s test as a signal, not a verdict.</p>';
-    case 'when_receive_touch1_mql_sales':
-      return head + '<p>Mid-morning on a weekday consistently outperforms weekend or late-evening sends for this kind of B2B audience — start there and adjust from actual open data.</p>';
-    case 'holdout_15_enough_mql_sales':
-      return head + '<p>15% is workable for a directional read on a pool this size, but a smaller pool means a wider margin of error — treat a borderline result as inconclusive rather than a clear win or loss.</p>';
-    case 'all_test_ideas_mql_sales':
-      return head + '<p><strong>All test ideas for MQL → Sales:</strong></p><ul style="margin:4px 0 0 16px"><li>Subject line: urgency vs. curiosity</li><li>Proof vs. offer as the core argument</li><li>Send time: morning vs. afternoon</li><li>CTA framing: \'talk to sales\' vs. \'see your results\'</li></ul>';
+    /* subject_line_test_mql_sales, proof_vs_offer_test_mql_sales,
+       sample_size_per_arm_mql_sales, when_receive_touch1_mql_sales,
+       holdout_15_enough_mql_sales and all_test_ideas_mql_sales are all
+       answered before this function runs — see MARKETING_AI_ENDPOINTS /
+       dashMarketingAiAnswer, backed by real crm_contacts + crm_deals data
+       (MarketingAbTestService) or email_logs + email_logs_providers data
+       (MarketingEmailTestService). */
 
-    case 'lift_vs_holdout_mql_sales':
-      return head + '<p>Compare the MQL rate inside the campaign group against the holdout group after this send — a lift above the holdout\'s baseline is the campaign\'s real contribution, not just seasonal movement.</p>';
+    /* lift_vs_holdout_mql_sales and audience_worst_unsub_rate are answered
+       before this function runs — see MARKETING_AI_ENDPOINTS /
+       dashMarketingAiAnswer, backed by real crm_contacts + crm_deals joined
+       to email_logs + email_logs_providers (MarketingLiftService). */
     case 'audience_worth_next_dollar':
       return head + '<p>' + (winback.length >= onboarding.length ? 'Win-back has the larger pool right now — put the next budget increment there.' : 'Onboarding has the larger pool right now — put the next budget increment there.') + '</p>';
     case 'expected_return_send_everything_week':
       var wb = winback.reduce(function(s,x){return s+x.a.mrr;},0), ob = onboarding.reduce(function(s,x){return s+x.a.mrr;},0), rf = referral.reduce(function(s,x){return s+x.a.mrr;},0);
       return head + '<p><strong>Value by audience if sent this week:</strong> Win-back '+money(wb)+' · Onboarding '+money(ob)+' · Referral '+money(rf)+'. Win-back and onboarding carry the most near-term return right now.</p>';
-    case 'audience_worst_unsub_rate':
-      var groups = [{k:'winback',l:'Win-back',list:winback},{k:'onboarding',l:'Onboarding',list:onboarding},{k:'referral',l:'Referral',list:referral},{k:'hold',l:'Suppressed',list:hold}].filter(function(g){return g.list.length;});
-      var worst = groups.map(function(g){ return {l:g.l, avgFrustration: Math.round(g.list.reduce(function(s,x){return s+x.a.scores.frustration;},0)/g.list.length)}; }).sort(function(x,y){return y.avgFrustration-x.avgFrustration;})[0];
-      return head + '<p>' + (worst ? '<b>'+worst.l+'</b> has the highest average frustration score ('+worst.avgFrustration+') — the closest real signal we have to unsubscribe risk. Ease off frequency there before the next send.' : 'Not enough audience data yet to compare unsubscribe risk.') + '</p>';
-    case 'who_became_mql_since_last_send':
-      return head + '<p>' + mqlReady.length + ' accounts are currently MQL-ready: ' + (mqlReady.length ? mqlReady.map(function(x){return escapeHtml(x.a.name);}).join(', ') : 'none yet') + '.</p>';
-    case 'push_week_mqls_to_sales':
-      return head + '<p>' + (mqlReady.length ? 'Ready to push: '+mqlReady.map(function(x){return escapeHtml(x.a.name);}).join(', ')+'. Use "Who is in a live sales cycle" on Audience to review before sending.' : 'Nothing is ready to push to Sales yet.') + '</p>';
+    /* who_became_mql_since_last_send and push_week_mqls_to_sales are answered
+       before this function runs — see MARKETING_AI_ENDPOINTS /
+       dashMarketingAiAnswer, backed by real crm_contacts + crm_deals data
+       (MarketingPerformanceService). */
 
     default:
       return head + '<p>I don\'t have a ready-made answer for that yet — try rephrasing in the chat box below.</p>';
@@ -1024,69 +1216,45 @@ function dashPromptAnswer(agent, stepKey, promptKey, name, account, c){
       return head + '<p>' + (primary.length ? primary.map(function(x,i){ return '<b>'+(i+1)+'. '+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'Nothing urgent right now — check Accounts for the full list.') + '</p>';
     case 'prioritise:top5_hour':
       var top5 = r.slice(0, 5);
-      return head + '<p><strong>Top 5 by priority right now:</strong></p><ul style="margin:4px 0 0 16px">' + top5.map(function(x){ return '<li>'+escapeHtml(x.a.name)+' — priority '+x.c.priority+' ('+PLAY_LABEL[x.c.play]+')</li>'; }).join('') + '</ul>';
+      return head + '<p><strong>Highest priority right now:</strong></p><ul style="margin:4px 0 0 16px">' + top5.map(function(x){ return '<li>'+escapeHtml(x.a.name)+' — priority '+x.c.priority+' ('+PLAY_LABEL[x.c.play]+')</li>'; }).join('') + '</ul>';
     case 'prioritise:buying_window':
-      return head + '<p>' + (primary.length ? primary.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b>: '+x.c.why[0]; }).join('</p><p>') : 'No one is in the buying window right now.') + '</p>';
+      return head + '<p>' + (primary.length ? primary.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b>: '+x.c.why[0]; }).join('</p><p>') : 'No one looks likely to buy soon right now.') + '</p>';
     case 'prioritise:not_call':
       return head + '<p>' + (hold.length ? hold.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'Nobody is on hold right now — the whole stack is safe to work.') + '</p>';
-    case 'prioritise:changed_yesterday':
-      return head + '<p>The stack re-ranks every time a score or contact outcome changes. Right now <b>'+escapeHtml((primary[0]&&primary[0].a.name)||'the top account')+'</b> leads with priority '+((primary[0]&&primary[0].c.priority)||'—')+'. Log outcomes as you work the list so tomorrow\'s ranking reflects today\'s calls.</p>';
+    case 'prioritise:immediate_attention':
+      var urgent = r.filter(function(x){ return x.a.mrr > 0 && (x.c.play === 'hold' || x.a.scores.churn >= 40); })
+        .sort(function(x,y){ return y.a.mrr - x.a.mrr; }).slice(0, 5);
+      return head + '<p>' + (urgent.length ? '<strong>Dollars at stake, ranked by size:</strong></p><p>'+urgent.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+money(x.a.mrr)+'/mo, churn '+x.a.scores.churn+'.'; }).join('</p><p>') : 'No deals are showing urgent risk signals right now.') + '</p>';
 
     case 'understand:why_ranked':
       return head + (c ? '<p><b>'+escapeHtml(name)+'</b> — '+c.why.join(' ')+'</p>' : '<p>Pick an account to see why it ranks where it does.</p>');
-    case 'understand:been_doing':
-      var sig = account && account.l1 ? Object.keys(account.l1).map(function(k){ return escapeHtml(k)+': '+escapeHtml(account.l1[k]); }) : [];
-      return head + '<p><b>'+escapeHtml(name)+'</b> — ' + (sig.length ? sig.join('. ') : 'no recent activity on file.') + '</p>';
-    case 'understand:holding_back':
-      return head + '<p>' + (s ? 'Trust is '+s.trust+' against a readiness of '+s.buying_readiness+' — '+(s.buying_readiness-s.trust>=20 ? 'they believe the problem is real, not yet that '+escapeHtml(name)+' has the answer.' : 'the gap is small; hesitation is more likely price or timing than trust.') : 'Select an account to see what\'s holding them back.') + '</p>';
+    case 'understand:last_active':
+      return head + '<p>' + (account ? '<b>'+escapeHtml(name)+'</b> was last active '+escapeHtml(account.last_activity_label || (account.last_activity_days + ' day(s) ago'))+'.' : 'Select an account first.') + '</p>';
+    case 'understand:deal_status':
+      return head + '<p>' + (account ? '<b>'+escapeHtml(name)+'</b>\'s current deal: '+escapeHtml(account.deal_stage_label || 'No active deal')+(account.deal_status ? ' ('+escapeHtml(account.deal_status)+')' : '')+', worth '+money(account.mrr)+'/mo.' : 'Select an account first.') + '</p>';
     case 'understand:ready_or_researching':
-      return head + '<p>' + (s ? (s.buying_readiness>=DTH.ready && s.intent>=DTH.intent ? '<b>'+escapeHtml(name)+'</b> is ready — readiness '+s.buying_readiness+' and intent '+s.intent+' both clear the bar.' : '<b>'+escapeHtml(name)+'</b> is still researching — readiness '+s.buying_readiness+', intent '+s.intent+'. One useful touch, no hard ask yet.') : 'Select an account first.') + '</p>';
-    case 'understand:cares_about':
-      var lead = account && account.l1 ? Object.values(account.l1)[0] : null;
-      return head + '<p><b>'+escapeHtml(name)+'</b> — ' + (lead ? 'their own activity points to it: '+escapeHtml(lead) : 'no strong signal yet — ask directly on the next touch.') + '</p>';
+      return head + '<p>' + (s ? (s.buying_readiness>=DTH.ready && s.intent>=DTH.intent ? '<b>'+escapeHtml(name)+'</b> is close — readiness '+s.buying_readiness+' and intent '+s.intent+' both clear the bar.' : '<b>'+escapeHtml(name)+'</b> is still researching — readiness '+s.buying_readiness+', intent '+s.intent+'. One useful touch, no hard ask yet.') : 'Select an account first.') + '</p>';
 
-    case 'craft:script_for':
-      var beats = scriptBeats(agent, account || {scores:{trust:60,buying_readiness:60}, name:name}, c || {play: isSl ? 'call' : 'winback'}, 'call');
-      return head + '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+'</div>' + beats.map(function(b){ return '<div class="ss-beat"><div class="ss-beat-l">'+b[0]+'</div>'+b[1]+'</div>'; }).join('') + '</div>';
     case 'craft:opener_30s':
-      return head + '<p><em>"'+escapeHtml(name)+' — quick one. I noticed you\'ve been active on this lately, and most people at that stage are weighing up whether it\'s worth solving now. Is that where you\'re at?"</em></p><p style="color:var(--g3);font-size:11.5px">Under 30 seconds, ends in a question — keeps them talking.</p>';
-    case 'craft:whatsapp_version':
-      return head + '<p><em>"Hi '+escapeHtml(name)+' 👋 saw you\'ve been looking into this — happy to answer anything directly here, no pressure. What\'s the main thing you\'re weighing up?"</em></p>';
-    case 'craft:email_version':
-      return head + '<p><strong>Subject:</strong> Quick question about {'+escapeHtml(name)+'}\'s next step</p><p><em>"Hi — noticed the recent activity on your end and wanted to check in directly rather than let it go quiet. What would need to be true for this to be a clear yes?"</em></p>';
-    case 'craft:proof_to_show':
-      return head + '<p>' + (s && s.trust < DTH.trust ? 'Trust is the gap here (score '+s.trust+') — lead with one concrete result from a similar customer, not a feature list.' : 'Trust is solid — a quick reference or case study is a nice-to-have, not a requirement. A direct ask works.') + '</p>';
+      return head + '<p><em>"'+escapeHtml(name)+' — quick one, do you have 15 minutes this week to talk through what you\'ve been looking at? I can work around your schedule."</em></p><p style="color:var(--g3);font-size:11.5px">Direct meeting ask, low commitment, ends in a question — keeps them talking.</p>';
     case 'craft:shorter_less_salesy':
-      return head + '<p><em>"'+escapeHtml(name)+' — worth a 10-minute call this week?"</em></p><p style="color:var(--g3);font-size:11.5px">Strip it back to one line and one question — the shorter version usually gets a faster reply.</p>';
+      return head + '<p><em>"'+escapeHtml(name)+' — worth a 10-minute call this week? No pitch, just answering whatever\'s useful."</em></p><p style="color:var(--g3);font-size:11.5px">Strip it back to one line and one low-pressure question — the shorter version usually gets a faster reply.</p>';
 
-    case 'handle:too_expensive':
-      return head + '<p><em>"Compared to what this is costing you today, what would make the number feel fair?"</em> Reframe to value before touching the price. Offer a low-risk start before a discount.</p>';
-    case 'handle:not_right_now':
-      return head + '<p><em>"Understood — what would need to change for the timing to be right?"</em> Get a real reason and a real date, then set a callback for that date rather than a vague follow-up.</p>';
-    case 'handle:use_competitor':
-      return head + '<p><em>"Good to know — what\'s working well with them, and what would you change if you could?"</em> Listen for the gap, then show only the part of your offer that closes it.</p>';
-    case 'handle:send_info':
-      return head + '<p>"Send me some info" is often a polite no. Send one short, specific thing (not a brochure) and set a defined follow-up date rather than waiting for them to reply.</p>';
-    case 'handle:no_budget':
-      return head + '<p>Separate "no budget" from "not a priority yet." Ask what it would need to deliver to justify finding the budget — if the answer is vague, it\'s priority, not price.</p>';
-    case 'handle:need_boss':
-      return head + '<p>Ask to join that conversation, or arm them with a one-page summary of the case for their boss. Deals that go dark after "I\'ll check" usually needed that help and didn\'t get it.</p>';
-    case 'handle:something_else':
-      return head + '<p>Type the objection into the chat box below and I\'ll match it against similar accounts and give you a specific response.</p>';
-
-    case 'launch:how_close':
-      return head + '<p>' + (s && s.trust < DTH.trust ? 'Trust is still behind readiness for '+escapeHtml(name)+' — close on a low-risk start, not the full commitment.' : '<b>'+escapeHtml(name)+'</b> has the trust to support a direct ask — propose the plan and a start date.') + '</p>';
-    case 'launch:smallest_ask':
-      return head + '<p>The smallest reasonable next step for <b>'+escapeHtml(name)+'</b>: a 30-day pilot or a single-team rollout — small enough to say yes to this week, big enough to prove the case.</p>';
+    case 'launch:renewal_approach':
+      var renewalPool = r.filter(function(x){ return (x.a.seg === 'champion' || x.a.seg === 'loyal') && x.a.mrr > 0; })
+        .sort(function(x,y){ return y.a.mrr - x.a.mrr; }).slice(0, 5);
+      return head + '<p>' + (renewalPool.length ? renewalPool.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+money(x.a.mrr)+'/mo, '+escapeHtml(SEG_LABEL[x.a.seg])+'.'; }).join('</p><p>') : 'No existing customers are due a renewal check-in right now.') + '</p>';
     case 'launch:ready_upgrade':
-      return head + '<p>' + (secondary.length ? secondary.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'No accounts are upgrade-ready right now.') + '</p>';
-    case 'launch:offer_discount':
-      return head + '<p>' + (s && s.trust >= DTH.trust ? 'No — trust is already high; a discount here signals the price was inflated. Ask directly instead.' : 'Only as a last resort, and only after the value case has been made — lead with a low-risk start first.') + '</p>';
-    case 'launch:weighted_pipeline':
-      var weighted = r.reduce(function(sum,x){ return sum + (x.a.mrr * x.a.scores.buying_readiness / 100); }, 0);
-      return head + '<p>Weighted pipeline across the current stack: <b>'+money(Math.round(weighted))+'</b> (each account\'s MRR weighted by its readiness score).</p>';
+      return head + '<p>' + (secondary.length ? secondary.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'No accounts currently clear the upsell bar.') + '</p>';
     case 'launch:at_risk_no_touch':
-      return head + '<p>' + (hold.length ? hold.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> ('+money(x.a.mrr)+') — '+x.c.why[0]; }).join('</p><p>') : 'Nothing currently flagged as at-risk in the stack.') + '</p>';
+      return head + '<p>' + (hold.length ? hold.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> ('+money(x.a.mrr)+'/mo) — '+x.c.why[0]; }).join('</p><p>') : 'Nothing currently flagged as at-risk in the stack.') + '</p>';
+    case 'launch:close_this_month':
+      var closing = r.filter(function(x){ return x.c.play === 'call' || x.c.play === 'upsell'; }).slice(0, 5);
+      return head + '<p>' + (closing.length ? closing.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+money(x.a.mrr)+'/mo, priority '+x.c.priority+' ('+PLAY_LABEL[x.c.play]+').'; }).join('</p><p>') : 'Nothing is close enough to call likely to close this month.') + '</p>';
+    case 'launch:growth_potential':
+      var growthPool = r.filter(function(x){ return (x.a.seg === 'champion' || x.a.seg === 'loyal') && x.a.mrr > 0; })
+        .sort(function(x,y){ return y.a.scores.engagement - x.a.scores.engagement; }).slice(0, 5);
+      return head + '<p>' + (growthPool.length ? growthPool.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — engagement '+x.a.scores.engagement+', trust '+x.a.scores.trust+', potential expansion +'+money(Math.round(x.a.mrr*0.3))+'/mo.'; }).join('</p><p>') : 'No existing customers currently show strong growth signal.') + '</p>';
 
     default:
       return head + '<p>I don\'t have a ready-made answer for that yet — try rephrasing in the chat box below.</p>';
@@ -1217,17 +1385,17 @@ function rankedFor(agent){
 
 var AGENT_TABS = {
   sl: [
-    {k:'today', label:"Today's stack"},
-    {k:'accounts', label:'Accounts'},
-    {k:'scripts', label:'Script studio'},
-    {k:'forecast', label:'Forecast'},
-    {k:'manager', label:'Manager'}
+    {k:'today', label:'Prioritise'},
+    {k:'accounts', label:'Understand'},
+    {k:'scripts', label:'Pitch'},
+    {k:'forecast', label:'Overcome'},
+    {k:'manager', label:'Close & grow'}
   ],
   mk: FLOW_TABS_BY_AGENT.mk.map(function(viewKey, i){
     return {k: viewKey, label: (MARKETING_STEPS_DB[i] && MARKETING_STEPS_DB[i].title) || MARKETING_STEP_KEYS[i]};
-  }).concat([{k:'manager', label:'Manager'}]),
-  ch: ['today', 'accounts', 'scripts', 'forecast', 'manager'].map(function(viewKey, i){
-    return {k: viewKey, label: (RETENTION_STEPS_DB[i] && RETENTION_STEPS_DB[i].title) || RETENTION_STEP_KEYS[i]};
+  }),
+  ch: FLOW_TABS_BY_AGENT.ch.map(function(viewKey, i){
+    return {k: viewKey, label: (RETENTION_STEPS_DB[i] && RETENTION_STEPS_DB[i].title) || RETENTION_STEP_KEYS[i] || viewKey};
   })
 };
 var PLAY_LABEL = {call:'Call', upsell:'Upsell', hold:'Hold', nurture:'Nurture', winback:'Win-back', onboarding:'Onboarding', referral:'Referral', rescue:'Rescue', none:'—'};
@@ -1253,17 +1421,32 @@ function showDashView(v){
   renderDashGuide();
   renderDashQuicks();
   var el = document.getElementById('dashView');
-  if (v==='today') el.innerHTML = renderTodayStack();
+  if (v==='today' && dashState.agent==='mk') renderMarketingCampaignStack();
+  else if (v==='today') el.innerHTML = renderTodayStack();
+  else if (v==='accounts' && dashState.agent==='mk') renderMarketingAccountsTab();
   else if (v==='accounts') el.innerHTML = renderAccountsTable();
+  else if (v==='scripts' && dashState.agent==='mk') renderMarketingAudienceTab();
   else if (v==='scripts') el.innerHTML = renderScriptStudio();
+  else if (v==='forecast' && dashState.agent==='mk') renderMarketingInsightsTab();
   else if (v==='forecast') el.innerHTML = renderForecast();
+  else if (v==='performance' && dashState.agent==='mk') renderMarketingAbTestTab();
   else if (v==='performance') el.innerHTML = renderPerformance();
   else if (v==='manager') el.innerHTML = renderManager();
-  if (v==='scripts') selectScriptAccount(rankedFor(dashState.agent)[0].a.name, 'call');
+  else if (v==='abtest') el.innerHTML = renderRetentionAbTest();
+  if (v==='scripts' && dashState.agent!=='mk') selectScriptAccount(rankedFor(dashState.agent)[0].a.name, 'call');
 }
 var STACK_INTRO = {
-  sl: {h:'RANKED STACK — WHO, IN ORDER', p:'Sorted by <b>readiness × intent</b>, trust-adjusted, then <b>time</b> (deadlines, callbacks due), <b>contact memory</b> (a cool-off after a touch) and <b>contact rules</b> (hours, do-not-call). Click any score to see what moved it — log the outcome after each call and I\'ll re-rank for tomorrow.'},
   ch: {h:'RANKED STACK — WHO TO SAVE, IN ORDER', p:'Sorted by <b>churn risk × value at stake</b>, then how long they\'ve been going quiet and how frustrated they are. Click any score to see what moved it — log the rescue after each save attempt and I\'ll re-rank for tomorrow.'}
+};
+/* One "WHAT YOU'RE LOOKING AT" description per Sales category, shown at the
+   top of that category's view (today=Prioritise, accounts=Understand,
+   scripts=Pitch, forecast=Overcome, manager=Close & grow). */
+var SALES_STEP_INTRO = {
+  today: {h:"WHAT YOU'RE LOOKING AT", p:"See the customers and prospects that need your attention right now, ranked by their buying readiness, intent, engagement, and overall sales opportunity. Use this list to quickly identify who to contact first, who is ready to buy, who needs nurturing, and who should be left alone for now."},
+  accounts: {h:"WHAT YOU'RE LOOKING AT", p:"This view gives you a detailed picture of every customer and prospect, showing their segment, MRR, buying readiness, intent, trust, churn risk, and recommended sales action. Use it to understand each account before deciding how to engage."},
+  scripts: {h:"WHAT YOU'RE LOOKING AT", p:"Get personalized call, email, and LinkedIn pitches for each customer based on their needs, interests, and buying signals, so you know what to say and how to approach them."},
+  forecast: {h:"WHAT YOU'RE LOOKING AT", p:"Get personalized responses to common customer objections, helping you address concerns around price, timing, competitors, budget, and decision-making while keeping the conversation moving forward."},
+  manager: {h:"WHAT YOU'RE LOOKING AT", p:"Find the opportunities most likely to close and discover where you can upsell, expand, or grow existing accounts. Get practical guidance on the next step to move deals forward and turn opportunities into revenue."}
 };
 function metaLine(a, c){
   var bits = [money(a.mrr)+' MRR', 'Priority '+c.priority];
@@ -1286,6 +1469,21 @@ function renderTodayStack(){
   function row(x, i){
     var a=x.a, c=x.c, s=a.scores, key=agent+':'+a.name;
     var logged = dashDone[key];
+    // Sales' Today's Contact Stack is read-only here — no call/script/log
+    // actions on the row itself; those live in Script Studio instead.
+    if (agent === 'sl') {
+      return '<div class="stkrow no-actions">'+
+        '<div class="stk-n">'+String(i+1).padStart(2,'0')+'</div>'+
+        '<div><div class="stk-acct">'+escapeHtml(a.name)+(a.seg==='new'?'<span class="badge-new">NEW</span>':'')+'</div>'+
+        '<div class="stk-mrr">'+metaLine(a,c)+'</div>'+
+        '<div class="stk-scores">'+
+          '<div class="sc"><div class="sc-v" style="color:'+scoreCol(s.buying_readiness)+'">'+s.buying_readiness+'</div><div class="sc-l">Ready</div></div>'+
+          '<div class="sc"><div class="sc-v" style="color:'+scoreCol(s.intent)+'">'+s.intent+'</div><div class="sc-l">Intent</div></div>'+
+          '<div class="sc"><div class="sc-v" style="color:'+scoreCol(s.trust)+'">'+s.trust+'</div><div class="sc-l">Trust</div></div>'+
+        '</div></div>'+
+        '<div class="stk-why">'+c.why.join(' ')+'</div>'+
+        '</div>';
+    }
     var callBtn = logged
       ? '<button type="button" class="stk-call done" disabled>&check; Logged</button>'
       : '<button type="button" class="stk-call" onclick="logOutcome(\''+nameAttr(a.name)+'\')">'+PLAY_BTN[c.play]+'</button>';
@@ -1305,7 +1503,7 @@ function renderTodayStack(){
         (logged?'':'<button type="button" class="stkbtn ghost" onclick="logOutcome(\''+nameAttr(a.name)+'\')">Log outcome</button>')+
       '</div></div>';
   }
-  var intro = STACK_INTRO[agent];
+  var intro = agent==='sl' ? SALES_STEP_INTRO.today : STACK_INTRO[agent];
   var html = agent==='mk' ? '' : '<div class="stack-intro"><div class="si-h">'+intro.h+'</div><div class="si-p">'+intro.p+'</div></div>';
   html += '<div class="sectionh">'+(agent==='sl'?"TODAY'S CONTACT STACK":agent==='ch'?"TODAY'S RESCUE STACK":"TODAY'S CAMPAIGN STACK")+'<span>'+shown.length+' of '+primary.length+' shown</span></div>';
   html += shown.length ? shown.map(row).join('') : '<div style="padding:20px;color:var(--g3);font-size:12.5px">Nothing urgent right now — check Accounts for the full list.</div>';
@@ -1313,6 +1511,49 @@ function renderTodayStack(){
   if (nurture.length){ html += '<div class="sectionh warn">'+(agent==='ch'?'WATCH — CHURN CREEPING UP':'NURTURE — NOT READY YET')+'</div>' + nurture.map(row).join(''); }
   if (hold.length){ html += '<div class="sectionh bad">HOLD — ROUTE TO RETENTION</div>' + hold.map(row).join(''); }
   return html;
+}
+/* Marketing · Campaign tab — same stack layout as renderTodayStack(), fed
+   from real crm_contacts/crm_deals accounts instead of the fictional
+   ACCOUNTS list. See MarketingPerformanceService::accountsSnapshot(). */
+var MK_CAMPAIGN_STACK_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">Your real MQL-ready accounts, each with the campaign call that matters most for them: whether to lead with <b>proof</b> or an <b>offer</b>, based on their own real trust score against the 65-point line — not the pool average. Sorted by deal value, biggest first.</div>' +
+  '</div>';
+function renderMarketingCampaignStack(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = MK_CAMPAIGN_STACK_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">Loading real campaign data…</div>';
+
+  fetch(MARKETING_ACCOUNTS_ENDPOINT)
+    .then(function(r){ return r.json(); })
+    .then(function(data){ el.innerHTML = MK_CAMPAIGN_STACK_INTRO + renderMkCampaignTableHtml(data.accounts || []); })
+    .catch(function(){ el.innerHTML = MK_CAMPAIGN_STACK_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">Could not load campaign data — try again in a moment.</div>'; });
+}
+function renderMkCampaignTableHtml(accounts){
+  var ready = accounts.filter(function(a){ return a.segment === 'mql_ready'; }).sort(function(x,y){ return y.deal_value - x.deal_value; });
+
+  if (!ready.length) {
+    return '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts are MQL-ready right now.</div>';
+  }
+
+  var rows = ready.map(function(a){
+    var proofLed = a.trust < 65;
+    var approach = proofLed
+      ? '<span style="color:var(--warn);font-weight:600">Proof-led</span>'
+      : '<span style="color:#0e7a35;font-weight:600">Offer-led</span>';
+    var lastTouch = a.days_since_activity <= 7 ? 'This week' : a.days_since_activity + 'd ago';
+    return '<tr>'
+      + '<td class="acctn">' + escapeHtml(a.name) + ' <span style="color:var(--g3);font-weight:400">(' + escapeHtml(a.company) + ')</span></td>'
+      + '<td>' + money(a.deal_value) + '</td>'
+      + '<td>' + escapeHtml(a.stage_label) + '</td>'
+      + '<td>' + a.buying_readiness + '</td>'
+      + '<td>' + a.trust + '</td>'
+      + '<td>' + approach + '</td>'
+      + '<td>' + lastTouch + '</td>'
+      + '</tr>';
+  }).join('');
+
+  return '<table class="dtbl"><thead><tr><th>Account</th><th>Deal value</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead><tbody>' + rows + '</tbody></table>';
 }
 function scoreCol(v){ return v>=70?'#0e7a35':v>=50?'#9a6700':'#b42332'; }
 function renderAccountsTable(){
@@ -1325,7 +1566,97 @@ function renderAccountsTable(){
       '<td>'+money(a.mrr)+'</td><td>'+s.buying_readiness+'</td><td>'+s.intent+'</td><td>'+s.trust+'</td><td>'+s.churn+'</td>'+
       '<td><span class="stk-play '+x.c.play+'">'+PLAY_LABEL[x.c.play]+'</span></td></tr>';
   }).join('');
-  return '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>MRR</th><th>Ready</th><th>Intent</th><th>Trust</th><th>Churn</th><th>Play</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  var intro = agent==='sl' ? '<div class="stack-intro"><div class="si-h">'+SALES_STEP_INTRO.accounts.h+'</div><div class="si-p">'+SALES_STEP_INTRO.accounts.p+'</div></div>' : '';
+  return intro + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>MRR</th><th>Ready</th><th>Intent</th><th>Trust</th><th>Churn</th><th>Play</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+/* Marketing · Performance tab — real crm_contacts/crm_deals accounts, not the
+   fictional ACCOUNTS list. See MarketingPerformanceService::accountsSnapshot(). */
+var MK_SEGMENT_LABEL = {mql_ready:'MQL-ready', at_risk:'At-risk', other:'Other'};
+var MK_SEGMENT_COLOR = {mql_ready:'#0e7a35', at_risk:'#b42332', other:'#6b7280'};
+function renderMarketingAccountsTab(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = '<div style="padding:24px;color:var(--g3);font-size:12.5px">Loading real accounts…</div>';
+  fetch(MARKETING_ACCOUNTS_ENDPOINT)
+    .then(function(r){ return r.json(); })
+    .then(function(data){ el.innerHTML = renderMarketingAccountsTable(data.accounts || []); })
+    .catch(function(){ el.innerHTML = '<div style="padding:24px;color:var(--g3);font-size:12.5px">Could not load accounts — try again in a moment.</div>'; });
+}
+var MK_ACCOUNTS_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">This is your real customer data, showing each contact, their deal, Readiness, Trust, Segment, Deal Value, and Stage. Readiness and Trust increase as customers move further through the buying process. ' +
+    '<b>At-risk</b> means an open deal has had no activity for 3+ months. <b>MQL-ready</b> means the customer is ready for Sales based on their Readiness score. <b>Other</b> means they are not currently at risk or sales-ready. ' +
+    'Deal values and stages come directly from your data, with the highest-value deals shown first.</div>' +
+  '</div>';
+function renderMarketingAccountsTable(accounts){
+  if (!accounts.length) return MK_ACCOUNTS_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">No synced CRM contacts found.</div>';
+  var rows = accounts.map(function(a){
+    var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
+    var segColor = MK_SEGMENT_COLOR[a.segment] || '#6b7280';
+    return '<tr><td class="acctn">'+escapeHtml(a.name)+' <span style="color:var(--g3);font-weight:400">('+escapeHtml(a.company)+')</span></td>'+
+      '<td><span class="segtag" style="background:'+segColor+'22;color:'+segColor+'">'+escapeHtml(segLabel)+'</span></td>'+
+      '<td>'+money(a.deal_value)+'</td><td>'+a.buying_readiness+'</td><td>'+a.trust+'</td>'+
+      '<td>'+escapeHtml(a.stage_label)+'</td><td>'+a.days_since_activity+'d ago</td></tr>';
+  }).join('');
+  return MK_ACCOUNTS_INTRO + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>Deal value</th><th>Readiness</th><th>Trust</th><th>Stage</th><th>Last active</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+/* Marketing · Audience tab — the same real crm_contacts/crm_deals accounts
+   as Performance, browsable one at a time with a real profile instead of
+   the fictional "Referral" script list. See
+   MarketingPerformanceService::accountsSnapshot(). */
+var MK_AUDIENCE_ACCOUNTS = [];
+var MK_AUDIENCE_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">Your real contacts on the left, grouped by <b>Segment</b>. Click any name to see its real profile on the right — deal value, stage, Readiness, Trust, and how long since they were last active. ' +
+    '<b>At-risk</b> means an open deal has had no activity for 3+ months. <b>MQL-ready</b> means the contact is ready for Sales based on their Readiness score. <b>Other</b> means neither — still early, no action needed yet. Nothing here is guessed or written by AI.</div>' +
+  '</div>';
+function renderMarketingAudienceTab(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = '<div style="display:flex;flex-direction:column;height:100%;min-height:0">' + MK_AUDIENCE_INTRO
+    + '<div class="ss-grid" style="flex:1;min-height:0"><div class="ss-list" id="mkAudList"><div style="padding:16px;color:var(--g3);font-size:12.5px">Loading real accounts…</div></div>'
+    + '<div class="ss-out" id="mkAudOut"><div style="padding:20px;color:var(--g3);font-size:12.5px">Select an account to see its real profile.</div></div></div></div>';
+
+  fetch(MARKETING_ACCOUNTS_ENDPOINT)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      MK_AUDIENCE_ACCOUNTS = data.accounts || [];
+      var list = document.getElementById('mkAudList');
+      if (!list) return;
+      if (!MK_AUDIENCE_ACCOUNTS.length) { list.innerHTML = '<div style="padding:16px;color:var(--g3);font-size:12.5px">No synced CRM contacts found.</div>'; return; }
+      list.innerHTML = MK_AUDIENCE_ACCOUNTS.map(function(a, i){
+        var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
+        return '<div class="ss-item" data-i="'+i+'" onclick="selectMkAudienceAccount('+i+')"><div class="n">'+escapeHtml(a.name)+'</div><div class="m">'+escapeHtml(segLabel)+' · '+money(a.deal_value)+'</div></div>';
+      }).join('');
+      selectMkAudienceAccount(0);
+    })
+    .catch(function(){
+      var list = document.getElementById('mkAudList');
+      if (list) list.innerHTML = '<div style="padding:16px;color:var(--g3);font-size:12.5px">Could not load accounts — try again in a moment.</div>';
+    });
+}
+function selectMkAudienceAccount(i){
+  var a = MK_AUDIENCE_ACCOUNTS[i];
+  var out = document.getElementById('mkAudOut');
+  if (!a || !out) return;
+
+  document.querySelectorAll('#mkAudList .ss-item').forEach(function(el, idx){ el.classList.toggle('on', idx===i); });
+
+  var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
+  var segColor = MK_SEGMENT_COLOR[a.segment] || '#6b7280';
+  var segNote = a.segment === 'at_risk'
+    ? 'Gone quiet 3+ months with a deal still open — a marketing send here reads tone-deaf; this is Retention\'s account to work.'
+    : a.segment === 'mql_ready'
+      ? 'Readiness clears the bar and this account is not going cold — ready to hand off to Sales.'
+      : 'Not at risk, not ready yet — keep nurturing, no hand-off or exclusion needed.';
+
+  out.innerHTML =
+    '<div class="ss-script"><div class="ss-shd">'+escapeHtml(a.name.toUpperCase())+' · '+escapeHtml(a.company)+'</div>'
+    + '<div class="ss-beat"><div class="ss-beat-l">SEGMENT</div><span class="segtag" style="background:'+segColor+'22;color:'+segColor+'">'+escapeHtml(segLabel)+'</span><div style="margin-top:8px">'+segNote+'</div></div>'
+    + '<div class="ss-beat"><div class="ss-beat-l">DEAL</div>'+money(a.deal_value)+' — '+escapeHtml(a.stage_label)+'</div>'
+    + '<div class="ss-beat"><div class="ss-beat-l">READINESS &amp; TRUST</div>Readiness '+a.buying_readiness+' · Trust '+a.trust+'</div>'
+    + '<div class="ss-beat"><div class="ss-beat-l">LAST ACTIVITY</div>'+a.days_since_activity+' day(s) ago</div>'
+    + '</div>';
 }
 var scriptAcct = null, scriptChan = 'call';
 function renderScriptStudio(){
@@ -1333,7 +1664,11 @@ function renderScriptStudio(){
   var list = r.map(function(x){
     return '<div class="ss-item" data-name="'+nameAttr(x.a.name)+'" onclick="selectScriptAccount(\''+nameAttr(x.a.name)+'\')"><div class="n">'+escapeHtml(x.a.name)+'</div><div class="m">'+PLAY_LABEL[x.c.play]+' · '+money(x.a.mrr)+'</div></div>';
   }).join('');
-  return '<div class="ss-grid"><div class="ss-list">'+list+'</div><div class="ss-out" id="ssOut"></div></div>';
+  var grid = '<div class="ss-grid" style="flex:1;min-height:0"><div class="ss-list">'+list+'</div><div class="ss-out" id="ssOut"></div></div>';
+  if (dashState.agent!=='sl') return '<div class="ss-grid"><div class="ss-list">'+list+'</div><div class="ss-out" id="ssOut"></div></div>';
+  return '<div style="display:flex;flex-direction:column;height:100%;min-height:0">'
+    + '<div class="stack-intro"><div class="si-h">'+SALES_STEP_INTRO.scripts.h+'</div><div class="si-p">'+SALES_STEP_INTRO.scripts.p+'</div></div>'
+    + grid + '</div>';
 }
 function selectScriptAccount(name, chan){
   scriptAcct = name; scriptChan = chan || 'call';
@@ -1394,20 +1729,7 @@ function renderForecast(){
   var agent = dashState.agent;
   var r = rankedFor(agent);
   if (agent==='sl'){
-    var call = r.filter(function(x){return x.c.play==='call';});
-    var up = r.filter(function(x){return x.c.play==='upsell';});
-    var newBiz = call.reduce(function(s,x){return s+x.a.mrr;},0);
-    var newW = Math.round(call.reduce(function(s,x){return s+x.a.mrr*x.a.scores.buying_readiness/100;},0));
-    var upV = up.reduce(function(s,x){return s+Math.round(x.a.mrr*0.3);},0);
-    var upW = Math.round(up.reduce(function(s,x){return s+Math.round(x.a.mrr*0.3)*x.a.scores.buying_readiness/100;},0));
-    return '<div class="fc-grid">'+
-      '<div class="fc-cell"><div class="fc-h">NEW BUSINESS IN PLAY</div>'+
-      call.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
-      '<div class="fc-row fc-tot"><span>Weighted total</span><span>'+money(newW)+' <small>of '+money(newBiz)+'</small></span></div></div>'+
-      '<div class="fc-cell"><div class="fc-h">UPSELL IN PLAY</div>'+
-      up.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(Math.round(x.a.mrr*0.3))+'</span></div>';}).join('')+
-      '<div class="fc-row fc-tot"><span>Weighted total</span><span>'+money(upW)+' <small>of '+money(upV)+'</small></span></div></div>'+
-      '</div>';
+    return renderOvercomePlaybook();
   }
   if (agent==='ch'){
     var resc = r.filter(function(x){return x.c.play==='rescue';});
@@ -1436,18 +1758,218 @@ function renderForecast(){
     '<div class="fc-row fc-tot"><span>Total</span><span>'+money(obV)+'</span></div></div>'+
     '</div>';
 }
+/* Sales · Overcome playbook — "when the salesperson selects a client" show
+   the 4-part objection diagnosis (Current Objection, What's Really Holding
+   Them Back, Recommended Response, Proof to Use), computed from real
+   crm_contacts/crm_deals/email_logs_providers data and the same scores
+   every other Sales view reads, written up by OpenAI with a deterministic
+   fallback — see App\Services\Llm\SalesPromptInsightsService::objectionPlaybook(). */
+function renderOvercomePlaybook(){
+  var r = rankedFor('sl');
+  var opts = r.map(function(x){ return '<option value="'+nameAttr(x.a.name)+'">'+escapeHtml(x.a.name)+'</option>'; }).join('');
+  var defaultName = (r[0] && r[0].a.name) || '';
+  setTimeout(function(){ loadOvercomePlaybook(defaultName); }, 0);
+  return '<div class="stack-intro"><div class="si-h">'+SALES_STEP_INTRO.forecast.h+'</div><div class="si-p">'+SALES_STEP_INTRO.forecast.p+'</div></div>'
+    + '<div style="padding:0 0 14px;display:flex;align-items:center;gap:8px">'
+    + '<label style="font-size:11.5px;color:var(--g3)">Client:</label>'
+    + '<select id="ovClientSel" onchange="loadOvercomePlaybook(this.value)">'+opts+'</select>'
+    + '</div>'
+    + '<div id="ovBody"><div style="padding:20px;color:var(--g3);font-size:12.5px">Loading…</div></div>';
+}
+function loadOvercomePlaybook(name){
+  var body = document.getElementById('ovBody');
+  if (!body || !name) return;
+  body.innerHTML = '<div style="padding:20px;color:var(--g3);font-size:12.5px">Thinking…</div>';
+  fetch(SALES_OBJECTION_PLAYBOOK_ENDPOINT + '?name=' + encodeURIComponent(name))
+    .then(function(r){ return r.json(); })
+    .then(function(data){ body.innerHTML = renderOvercomeBody(data); })
+    .catch(function(){ body.innerHTML = '<div style="padding:20px;color:var(--g3);font-size:12.5px">Could not load — try again in a moment.</div>'; });
+}
+function renderOvercomeBody(data){
+  if (!data || !data.objection) return '<div style="padding:20px;color:var(--g3);font-size:12.5px">No account data available yet.</div>';
+  return '<div class="mg-grid" style="grid-template-columns:1fr">'
+    + '<div class="mg-cell"><div class="mg-h">1. CURRENT OBJECTION</div>'
+    + '<div style="font-size:14px;font-weight:600;margin:6px 0">'+escapeHtml(data.objection)+' <span style="font-size:11px;font-weight:500;color:var(--g3)">— Confidence: '+escapeHtml(data.confidence||'')+'</span></div>'
+    + '<div style="font-size:12.5px;color:var(--g2);line-height:1.6">'+escapeHtml(data.why||'')+'</div></div>'
+    + '<div class="mg-cell"><div class="mg-h">2. WHAT\'S REALLY HOLDING THEM BACK?</div>'
+    + '<div style="font-size:12.5px;color:var(--g2);line-height:1.6">'+escapeHtml(data.barrier||'')+'</div></div>'
+    + '<div class="mg-cell"><div class="mg-h">3. RECOMMENDED RESPONSE</div>'
+    + '<div style="font-size:13px;font-style:italic;line-height:1.6">'+escapeHtml(data.response||'')+'</div></div>'
+    + '<div class="mg-cell"><div class="mg-h">4. PROOF / EVIDENCE TO USE</div>'
+    + '<div style="font-size:12.5px;color:var(--g2);line-height:1.6">'+escapeHtml(data.proof||'')+'</div></div>'
+    + '</div>';
+}
+/* Marketing · Insights tab — real crm_contacts/crm_deals data, shown as
+   charts instead of the fictional win-back/onboarding $0 tiles. Reuses the
+   same MQL-ready pool and per-account fields (trust, stage_label) the
+   Insights quick-prompts already compute — see MarketingInsightsService. */
+var MK_INSIGHTS_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">A snapshot of your real MQL-ready pool: how much trust they\'ve built on average, where most of them sit in the buying process, and who newly qualified this week. All read straight from your CRM — nothing guessed.</div>' +
+  '</div>';
+function renderMarketingInsightsTab(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = MK_INSIGHTS_INTRO + '<div id="mkInsBody" style="padding:24px;color:var(--g3);font-size:12.5px">Loading real insights…</div>';
+
+  Promise.all([
+    fetch(MARKETING_AI_ENDPOINTS.proof_or_offer_audience).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.one_lever_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.changed_last_7_days).then(function(r){ return r.json(); })
+  ]).then(function(results){
+    var body = document.getElementById('mkInsBody');
+    if (body) body.outerHTML = '<div id="mkInsBody">' + renderMarketingInsightsBody(results[0], results[1], results[2]) + '</div>';
+  }).catch(function(){
+    var body = document.getElementById('mkInsBody');
+    if (body) body.innerHTML = 'Could not load insights — try again in a moment.';
+  });
+}
+function renderMarketingInsightsBody(proofData, leverData, recentData){
+  var pool = proofData.ranked || [];
+
+  if (!pool.length) {
+    return '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts are in the MQL-ready pool right now.</div>';
+  }
+
+  var avgTrust = Math.round(pool.reduce(function(s,a){ return s + a.trust; }, 0) / pool.length);
+  var verdict = avgTrust < 65 ? 'Proof audience — lead with evidence' : 'Offer audience — a discount is safe';
+  var gaugeColor = scoreCol(avgTrust);
+
+  var stageCounts = {};
+  pool.forEach(function(a){ stageCounts[a.stage_label] = (stageCounts[a.stage_label] || 0) + 1; });
+  var stages = Object.keys(stageCounts).map(function(k){ return {label:k, count:stageCounts[k]}; }).sort(function(x,y){ return y.count - x.count; });
+  var maxStageCount = stages[0] ? stages[0].count : 1;
+
+  var recent = recentData.ranked || [];
+
+  var html = '<div class="fc-grid">';
+
+  html += '<div class="fc-cell"><div class="fc-h">AVERAGE TRUST — PROOF OR OFFER?</div>'
+    + '<div style="margin:12px 0 6px;height:10px;background:var(--p2);border-radius:99px;position:relative;overflow:hidden">'
+    + '<div style="height:100%;width:'+avgTrust+'%;background:'+gaugeColor+';border-radius:99px"></div>'
+    + '<div style="position:absolute;left:65%;top:-3px;bottom:-3px;width:2px;background:var(--ink)"></div>'
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--g3)"><span>0</span><span>65 — hand-off bar</span><span>100</span></div>'
+    + '<div style="margin-top:12px;font-size:13px"><b>'+avgTrust+'</b> average trust across <b>'+pool.length+'</b> MQL-ready account(s) — '+verdict+'</div>'
+    + '</div>';
+
+  html += '<div class="fc-cell"><div class="fc-h">WHERE THE POOL SITS — FUNNEL STAGE</div>'
+    + stages.map(function(s, i){
+      var pct = Math.round(s.count / maxStageCount * 100);
+      return '<div style="margin-bottom:10px">'
+        + '<div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px"><span>'+escapeHtml(s.label)+(i===0?' <span style="color:var(--ac-d);font-weight:600">← most common</span>':'')+'</span><span>'+s.count+'</span></div>'
+        + '<div style="height:8px;background:var(--p2);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--ac)"></div></div>'
+        + '</div>';
+    }).join('')
+    + '</div>';
+
+  html += '<div class="fc-cell" style="grid-column:1/-1"><div class="fc-h">THE ONE LEVER TO PULL</div>'
+    + '<div style="font-size:13px;line-height:1.65;color:var(--ink)">'+escapeHtml(leverData.answer || '')+'</div>'
+    + '</div>';
+
+  html += '<div class="fc-cell" style="grid-column:1/-1"><div class="fc-h">NEWLY QUALIFIED — LAST 7 DAYS</div>'
+    + (recent.length
+        ? recent.map(function(a){ return '<div class="fc-row"><span><b>'+escapeHtml(a.name)+'</b> ('+escapeHtml(a.company)+') — '+escapeHtml(a.stage_label)+'</span><span>'+a.days_since_activity+'d ago</span></div>'; }).join('')
+        : '<div style="color:var(--g3);font-size:12.5px">Nobody newly qualified in the last 7 days.</div>')
+    + '</div>';
+
+  html += '</div>';
+  return html;
+}
 function renderManager(){
   var agent = dashState.agent;
+  if (agent === 'sl') return renderCloseGrowPlaybook();
   var r = rankedFor(agent);
   var loggedCount = Object.keys(dashDone).filter(function(k){return k.indexOf(agent+':')===0;}).length;
   var active = r.filter(function(x){ return ['call','upsell','winback','onboarding','referral','rescue'].indexOf(x.c.play)!==-1; });
   return '<div class="mg-grid">'+
     '<div class="mg-cell"><div class="mg-h">STACK ADHERENCE TODAY</div>'+
     '<div class="mg-kpi">'+loggedCount+' <small>of '+active.length+' actioned</small></div>'+
-    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Every "'+(agent==='sl'?'Call now':agent==='ch'?'Rescue now':'Launch')+'" pressed on Today\'s Stack counts here — it\'s how you tell whether the stack is actually being worked.</div></div>'+
+    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Every "Rescue now" pressed on Today\'s Stack counts here — it\'s how you tell whether the stack is actually being worked.</div></div>'+
     '<div class="mg-cell"><div class="mg-h">VALUE IN THE STACK</div>'+
     '<div class="mg-kpi">'+money(active.reduce(function(s,x){return s+x.a.mrr;},0))+'</div>'+
     '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Total MRR represented by accounts currently ranked as an active play.</div></div>'+
+    '</div>';
+}
+/* Sales · Close & grow playbook — real crm_contacts/crm_deals accounts,
+   scored the same way as every other Sales view (rankedFor/classifySales),
+   just aggregated into the 4 sections this category is about: which
+   opportunities to close, what to do next for each, how much revenue is on
+   the table, and which existing customers are ready to grow. No AI call —
+   every number here already exists in ACCOUNTS, this just reshapes it. */
+function nextBestAction(x){
+  var stage = x.a.deal_stage, play = x.c.play;
+  if (play === 'upsell') return {action:'Send Proposal', detail:'Send the upgrade proposal and a start date.'};
+  if (stage === 'decisionmakerboughtin' || stage === 'presentationscheduled') return {action:'Call', detail:'Call the decision-maker today — confirm approval and contract timeline.'};
+  if (stage === 'qualifiedtobuy' || stage === 'appointmentscheduled') return {action:'Schedule Meeting', detail:'Get a meeting on the calendar to move the deal to the next stage.'};
+  if (!stage) return {action:'Follow Up', detail:'No deal open yet — a follow-up touch is the next step.'};
+  return {action:'Email', detail:'Send a check-in — confirm they\'re still moving and ask what\'s next.'};
+}
+function renderCloseGrowPlaybook(){
+  var r = rankedFor('sl');
+  var closing = r.filter(function(x){ return (x.c.play === 'call' || x.c.play === 'upsell') && x.a.mrr > 0; }).slice(0, 5);
+  var growth = r.filter(function(x){ return (x.a.seg === 'champion' || x.a.seg === 'loyal') && x.a.mrr > 0; })
+    .sort(function(x,y){ return y.a.scores.engagement - x.a.scores.engagement; }).slice(0, 5);
+
+  var potentialRevenue = closing.reduce(function(s,x){ return s + x.a.mrr; }, 0);
+  var weightedPipeline = Math.round(r.reduce(function(s,x){ return s + (x.a.mrr * x.a.scores.buying_readiness / 100); }, 0));
+  var highest = closing[0];
+
+  var html = '<div class="stack-intro"><div class="si-h">'+SALES_STEP_INTRO.manager.h+'</div><div class="si-p">'+SALES_STEP_INTRO.manager.p+'</div></div>';
+
+  html += '<div class="sectionh">TOP OPPORTUNITIES TO CLOSE<span>'+closing.length+' shown</span></div>';
+  html += closing.length ? closing.map(function(x,i){
+    var nba = nextBestAction(x);
+    return '<div class="stkrow-close"><div class="stk-n">'+String(i+1).padStart(2,'0')+'</div>'
+      + '<button type="button" class="stkbtn" onclick="openScriptFor(\''+nameAttr(x.a.name)+'\')">'+escapeHtml(nba.action)+'</button>'
+      + '<div><div class="stk-acct">'+escapeHtml(x.a.name)+'</div>'
+      + '<div class="stk-mrr">'+money(x.a.mrr)+' MRR · '+x.a.scores.buying_readiness+'% ready · '+x.a.scores.intent+'% intent · '+escapeHtml(x.a.deal_stage_label)+'</div></div>'
+      + '<div class="stk-why">'+escapeHtml(nba.detail)+'</div></div>';
+  }).join('') : '<div style="padding:20px;color:var(--g3);font-size:12.5px">Nothing close enough to call a near-term opportunity right now.</div>';
+
+  html += '<div class="sectionh">REVENUE AT STAKE</div>';
+  html += '<div class="mg-grid">'
+    + '<div class="mg-cell"><div class="mg-h">POTENTIAL REVENUE</div><div class="mg-kpi">'+money(potentialRevenue)+' <small>MRR</small></div>'
+    + '<div style="font-size:11.5px;color:var(--g2);margin-top:8px">'+closing.length+' high-probability opportunit'+(closing.length===1?'y':'ies')+' · '+money(potentialRevenue*12)+' potential ARR</div></div>'
+    + '<div class="mg-cell"><div class="mg-h">WEIGHTED PIPELINE</div><div class="mg-kpi">'+money(weightedPipeline)+'</div>'
+    + '<div style="font-size:11.5px;color:var(--g2);margin-top:8px">'+(highest ? 'Highest-value opportunity: '+escapeHtml(highest.a.name)+' — '+money(highest.a.mrr)+' MRR' : 'Every account\'s MRR weighted by its readiness score.')+'</div></div>'
+    + '</div>';
+
+  html += '<div class="sectionh">UPSELL &amp; EXPANSION OPPORTUNITIES</div>';
+  html += growth.length ? growth.map(function(x){
+    var expansion = Math.round(x.a.mrr * 0.3);
+    return '<div class="stkrow-growth"><div><div class="stk-acct">'+escapeHtml(x.a.name)+'</div>'
+      + '<div class="stk-mrr">Current MRR '+money(x.a.mrr)+' · Engagement '+x.a.scores.engagement+' · Trust '+x.a.scores.trust+'</div></div>'
+      + '<div class="stk-why">Recommended: upgrade conversation — potential expansion +'+money(expansion)+'/mo.</div></div>';
+  }).join('') : '<div style="padding:20px;color:var(--g3);font-size:12.5px">No existing customers currently show strong growth signal.</div>';
+
+  return html;
+}
+function renderRetentionAbTest(){
+  var pool = RETENTION_AB_POOL || {count:0, value:0, breakdown:{}};
+  var n = pool.count || 0;
+  var value = pool.value || 0;
+  var ready = n >= 4;
+  var bd = pool.breakdown || {};
+  var bdRows = Object.keys(bd).map(function(k){
+    var b = bd[k];
+    return '<div class="fc-row"><span>' + escapeHtml(b.label || k) + '</span><span>' + b.accounts + ' &middot; ' + money(b.value) + '</span></div>';
+  }).join('');
+
+  return '<div class="stack-intro">' +
+      '<div class="si-h">A/B TESTING SAVE PLAYS</div>' +
+      '<div class="si-p">The only sample the retention team can test on is the <b>at-risk book</b>. Right now <b>' + n + ' account' + (n===1?'':'s') + '</b> (' + money(value) + ') are at risk — ' +
+      (ready
+        ? 'enough for a <b>directional</b> read on one test at a time (roughly ' + Math.floor(n/2) + ' per arm), not statistical significance.'
+        : 'too few for a real A/B test yet. Run one save play well and log every outcome until the pool grows.') +
+      ' Ask Mira on the right for which test to run, per-arm sizing, holdout advice, and the full list of levers — every answer is computed from your live crm_contacts and crm_deals.</div>' +
+    '</div>' +
+    '<div class="sectionh">TESTABLE AT-RISK POOL<span>' + n + ' account' + (n===1?'':'s') + '</span></div>' +
+    '<div class="mg-grid">' +
+      '<div class="mg-cell"><div class="mg-h">POOL SIZE</div><div class="mg-kpi">' + n + ' <small>at risk</small></div>' +
+        (bdRows ? '<div style="margin-top:10px">' + bdRows + '</div>' : '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Accounts where a deal has stalled, been lost, or the customer has gone quiet after buying.</div>') + '</div>' +
+      '<div class="mg-cell"><div class="mg-h">VALUE IN THE POOL</div><div class="mg-kpi">' + money(value) + '</div>' +
+        '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Deal value represented by the at-risk pool — what a better save play is worth protecting.</div></div>' +
     '</div>';
 }
 function renderPerformance(){
@@ -1464,6 +1986,130 @@ function renderPerformance(){
     '<div class="mg-kpi">'+mqlCount+' <small>ready for Sales</small></div>'+
     '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Accounts that have crossed the readiness bar — these are the hand-off candidates for the Sales stack.</div></div>'+
     '</div>';
+}
+/* Marketing · A/B test tab — real email_logs / crm_contacts data, shown as
+   charts instead of the fictional "Projected lift" / "MQL hand-off" tiles.
+   See MarketingEmailTestService (subject line, send time, test ideas) and
+   MarketingAbTestService (proof-vs-offer, sample size, holdout). */
+var MK_ABTEST_INTRO =
+  '<div class="stack-intro">' +
+    '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
+    '<div class="si-p">Real results from emails you\'ve actually sent, plus real sizing checks against your current MQL-ready pool. Nothing here is a guess — every number is measured from what already happened.</div>' +
+  '</div>';
+function renderMarketingAbTestTab(){
+  var el = document.getElementById('dashView');
+  el.innerHTML = MK_ABTEST_INTRO + '<div id="mkAbBody" style="padding:24px;color:var(--g3);font-size:12.5px">Loading real test data…</div>';
+
+  Promise.all([
+    fetch(MARKETING_AI_ENDPOINTS.subject_line_test_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.when_receive_touch1_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.sample_size_per_arm_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.holdout_15_enough_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.proof_vs_offer_test_mql_sales).then(function(r){ return r.json(); }),
+    fetch(MARKETING_AI_ENDPOINTS.all_test_ideas_mql_sales).then(function(r){ return r.json(); })
+  ]).then(function(results){
+    var body = document.getElementById('mkAbBody');
+    if (body) body.outerHTML = '<div id="mkAbBody">' + renderMarketingAbTestBody(results[0], results[1], results[2], results[3], results[4], results[5]) + '</div>';
+  }).catch(function(){
+    var body = document.getElementById('mkAbBody');
+    if (body) body.innerHTML = 'Could not load test data — try again in a moment.';
+  });
+}
+function renderMarketingAbTestBody(subjectData, sendTimeData, sampleData, holdoutData, proofData, ideasData){
+  var html = '<div class="fc-grid">';
+
+  // Subject line: standard vs urgency — each bar opens the real emails behind it
+  var subj = subjectData.ranked || [];
+  var subjDetail = subjectData.detail || {};
+  if (subj.length) {
+    var subjMax = Math.max.apply(null, subj.map(function(s){ return s.open_rate; }));
+    html += '<div class="fc-cell"><div class="fc-h">SUBJECT LINE — STANDARD VS URGENCY <span style="text-transform:none;font-weight:400;color:var(--g3)">(click a bar for the real emails)</span></div>'
+      + subj.map(function(s, i){
+        var pct = subjMax > 0 ? Math.round(s.open_rate / subjMax * 100) : 0;
+        var color = i===0 ? '#0e7a35' : 'var(--ac)';
+        var emails = subjDetail[s.style] || [];
+        var cacheId = 'subj' + Math.random().toString(36).slice(2, 9);
+        RISK_DATA_CACHE[cacheId] = emails;
+        return '<div style="margin-bottom:10px;cursor:pointer" onclick="openRiskModal(\''+cacheId+'\',\'email\')" title="View the '+emails.length+' real emails behind this">'
+          + '<div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px"><span style="text-transform:capitalize">'+escapeHtml(s.style)+(i===0?' <span style="color:#0e7a35;font-weight:600">← better</span>':'')+'</span><span>'+s.open_rate+'% <small style="color:var(--g3)">('+s.opened+'/'+s.sent+')</small></span></div>'
+          + '<div style="height:8px;background:var(--p2);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+'"></div></div>'
+          + '</div>';
+      }).join('')
+      + '</div>';
+  } else {
+    html += '<div class="fc-cell"><div class="fc-h">SUBJECT LINE — STANDARD VS URGENCY</div><div style="color:var(--g3);font-size:12.5px">No sent emails with a subject line yet.</div></div>';
+  }
+
+  // Send time window — each bar opens the real emails sent in that window
+  var win = sendTimeData.ranked || [];
+  var winDetail = sendTimeData.detail || {};
+  if (win.length) {
+    var winMax = Math.max.apply(null, win.map(function(w){ return w.open_rate; }));
+    html += '<div class="fc-cell"><div class="fc-h">BEST SEND-TIME WINDOW <span style="text-transform:none;font-weight:400;color:var(--g3)">(click a bar for the real emails)</span></div>'
+      + win.map(function(w, i){
+        var pct = winMax > 0 ? Math.round(w.open_rate / winMax * 100) : 0;
+        var color = i===0 ? '#0e7a35' : 'var(--ac)';
+        var emails = winDetail[w.window] || [];
+        var cacheId = 'send' + Math.random().toString(36).slice(2, 9);
+        RISK_DATA_CACHE[cacheId] = emails;
+        return '<div style="margin-bottom:8px;cursor:pointer" onclick="openRiskModal(\''+cacheId+'\',\'email\')" title="View the '+emails.length+' real emails behind this">'
+          + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span>'+escapeHtml(w.window)+(i===0?' <span style="color:#0e7a35;font-weight:600">← best</span>':'')+(!w.reliable?' <span style="color:var(--g3)">(low volume)</span>':'')+'</span><span>'+w.open_rate+'%</span></div>'
+          + '<div style="height:6px;background:var(--p2);border-radius:99px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+(w.reliable?'':';opacity:.5')+'"></div></div>'
+          + '</div>';
+      }).join('')
+      + '</div>';
+  } else {
+    html += '<div class="fc-cell"><div class="fc-h">BEST SEND-TIME WINDOW</div><div style="color:var(--g3);font-size:12.5px">No sent emails yet.</div></div>';
+  }
+
+  // Sample size per arm + holdout
+  var poolSize = (sampleData.ranked || []).length;
+  var perArm = Math.floor(poolSize / 2);
+  var reliablePool = poolSize >= 30;
+  var holdoutCount = Math.round(poolSize * 15 / 100);
+  var holdoutEnough = holdoutCount >= 5;
+  html += '<div class="fc-cell"><div class="fc-h">SAMPLE SIZE &amp; HOLDOUT CHECK</div>'
+    + '<div style="display:flex;gap:1px;height:26px;border-radius:6px;overflow:hidden;margin-bottom:6px">'
+      + '<div style="flex:1;background:var(--ac);color:#fff;font-size:10.5px;display:flex;align-items:center;justify-content:center">Arm A · '+perArm+'</div>'
+      + '<div style="flex:1;background:var(--ac-d);color:#fff;font-size:10.5px;display:flex;align-items:center;justify-content:center">Arm B · '+(poolSize-perArm)+'</div>'
+    + '</div>'
+    + '<div style="font-size:11.5px;color:var(--g2);margin-bottom:14px">'+poolSize+' MQL-ready account(s) total — '+(reliablePool?'<span style="color:#0e7a35;font-weight:600">enough to trust a clear result</span>':'<span style="color:var(--warn)">below 30, treat as directional</span>')+'.</div>'
+    + '<div style="font-size:11px;color:var(--g3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">15% Holdout</div>'
+    + '<div style="height:8px;background:var(--p2);border-radius:99px;overflow:hidden;margin-bottom:6px"><div style="height:100%;width:15%;background:'+(holdoutEnough?'#0e7a35':'var(--crit)')+'"></div></div>'
+    + '<div style="font-size:11.5px;color:var(--g2)">'+holdoutCount+' account(s) held out — '+(holdoutEnough?'<span style="color:#0e7a35;font-weight:600">workable, wide margin of error</span>':'<span style="color:var(--crit);font-weight:600">too small to mean anything</span>')+'.</div>'
+    + '</div>';
+
+  // Proof vs offer — same gauge style as Insights tab
+  var proofPool = proofData.ranked || [];
+  var avgTrust = proofPool.length ? Math.round(proofPool.reduce(function(s,a){ return s+a.trust; }, 0) / proofPool.length) : 0;
+  var gap = Math.abs(avgTrust - 65);
+  var tooClose = gap <= 10;
+  html += '<div class="fc-cell"><div class="fc-h">SHOULD I TEST PROOF VS OFFER?</div>'
+    + '<div style="margin:12px 0 6px;height:10px;background:var(--p2);border-radius:99px;position:relative;overflow:hidden">'
+    + '<div style="height:100%;width:'+avgTrust+'%;background:'+scoreCol(avgTrust)+';border-radius:99px"></div>'
+    + '<div style="position:absolute;left:65%;top:-3px;bottom:-3px;width:2px;background:var(--ink)"></div>'
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--g3)"><span>0</span><span>65 — the line</span><span>100</span></div>'
+    + '<div style="margin-top:12px;font-size:13px"><b>'+avgTrust+'</b> average trust, '+gap+' point(s) from the line — '
+    + (tooClose ? '<b style="color:var(--warn)">worth testing</b>, it\'s too close to call' : '<b style="color:#0e7a35">no test needed</b>, the number is already decisive')
+    + '.</div>'
+    + '</div>';
+
+  // All test ideas
+  var ideas = ideasData.ranked || [];
+  html += '<div class="fc-cell" style="grid-column:1/-1"><div class="fc-h">ALL TEST IDEAS — ONLY WHAT\'S JUSTIFIED RIGHT NOW</div>'
+    + (ideas.length
+        ? ideas.map(function(idea, i){
+            return '<div style="padding:10px 0;'+(i>0?'border-top:1px solid var(--p2);':'')+'">'
+              + '<div style="font-size:12.5px;font-weight:600;color:var(--ink)">'+escapeHtml(idea.idea)+' <span style="font-weight:400;color:var(--g3);text-transform:none">— '+escapeHtml(idea.metric)+'</span></div>'
+              + '<div style="font-size:12px;color:var(--g2);margin-top:3px;line-height:1.55">'+escapeHtml(idea.why)+'</div>'
+              + '</div>';
+          }).join('')
+        : '<div style="color:var(--g3);font-size:12.5px">No sent emails on file yet to base test ideas on.</div>')
+    + '</div>';
+
+  html += '</div>';
+  return html;
 }
 function logOutcome(name){
   dashDone[dashState.agent+':'+name] = true;
@@ -1537,11 +2183,13 @@ document.getElementById('dashInput') && document.getElementById('dashInput').add
 });
 window.showDashView = showDashView;
 window.selectScriptAccount = selectScriptAccount;
+window.selectMkAudienceAccount = selectMkAudienceAccount;
 window.openScriptFor = openScriptFor;
 window.logOutcome = logOutcome;
 window.dashQuick = dashQuick;
 window.dashSend = dashSend;
 window.dashPromptClick = dashPromptClick;
+window.dashRetentionNameSubmit = dashRetentionNameSubmit;
 window.openRiskModal = openRiskModal;
 window.closeRiskModal = closeRiskModal;
 
@@ -1678,13 +2326,112 @@ function toggleSidebarCollapse() {
     document.getElementById('bhFullBtn').title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
 }
 
+/* ── "<agent> helper" panel: drag-resize · minimise · maximise ──
+   Shared by Marketing, Sales and Customer Retention. Width lives in the
+   --bh-mira-w custom property; size + minimised state persist per viewer. */
+var BH_MIRA_MIN = 250;      // narrowest the panel can go while open (px)
+var BH_MIRA_DEFAULT = 320;
+var bhMiraState = { w: BH_MIRA_DEFAULT, min: false, maxed: false, prev: null };
+
+function bhMiraCap(){
+    var dash = document.getElementById('bhDash');
+    var total = dash ? dash.clientWidth : 1200;
+    return Math.max(BH_MIRA_MIN + 40, total - 460); // always leave room for Steps + content
+}
+function bhMiraApply(){
+    var w = Math.min(Math.max(bhMiraState.w, BH_MIRA_MIN), bhMiraCap());
+    root.style.setProperty('--bh-mira-w', w + 'px');
+    root.classList.toggle('bh-mira-min', bhMiraState.min);
+    var btn = document.querySelector('#bhMira .mira-btn[data-act="max"]');
+    if (btn){
+        btn.innerHTML = bhMiraState.maxed ? '&#10005;' : '&#9974;';
+        btn.title = bhMiraState.maxed ? 'Restore' : 'Maximise';
+    }
+}
+function bhMiraSave(){
+    try { localStorage.setItem('bhMira', JSON.stringify({ w: bhMiraState.w, min: bhMiraState.min })); }
+    catch (e) {}
+}
+function bhMiraLoad(){
+    try {
+        var s = JSON.parse(localStorage.getItem('bhMira') || '{}') || {};
+        if (typeof s.w === 'number' && isFinite(s.w)) bhMiraState.w = s.w;
+        bhMiraState.min = !!s.min;
+    } catch (e) {}
+    bhMiraApply();
+}
+function bhMira(action){
+    if (action === 'min'){
+        bhMiraState.min = true; bhMiraState.maxed = false;
+    } else if (action === 'restore'){
+        bhMiraState.min = false;
+    } else if (action === 'max'){
+        if (bhMiraState.maxed){
+            bhMiraState.maxed = false;
+            bhMiraState.w = bhMiraState.prev || BH_MIRA_DEFAULT;
+        } else {
+            bhMiraState.prev = bhMiraState.w;
+            bhMiraState.maxed = true;
+            bhMiraState.min = false;
+            bhMiraState.w = bhMiraCap();
+        }
+    }
+    bhMiraApply(); bhMiraSave();
+}
+
+(function bhMiraDrag(){
+    var h = document.getElementById('bhMiraResize');
+    if (!h) return;
+    var dragging = false, startX = 0, startW = 0;
+
+    h.addEventListener('pointerdown', function (e){
+        if (bhMiraState.min) return;
+        dragging = true;
+        startX = e.clientX;
+        startW = parseFloat(getComputedStyle(root).getPropertyValue('--bh-mira-w')) || BH_MIRA_DEFAULT;
+        h.classList.add('dragging');
+        try { h.setPointerCapture(e.pointerId); } catch (_) {}
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+    h.addEventListener('pointermove', function (e){
+        if (!dragging) return;
+        bhMiraState.w = Math.min(Math.max(startW + (startX - e.clientX), BH_MIRA_MIN), bhMiraCap());
+        bhMiraState.maxed = false;
+        root.style.setProperty('--bh-mira-w', bhMiraState.w + 'px');
+    });
+    function stop(e){
+        if (!dragging) return;
+        dragging = false;
+        h.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        try { h.releasePointerCapture(e.pointerId); } catch (_) {}
+        bhMiraApply(); bhMiraSave();
+    }
+    h.addEventListener('pointerup', stop);
+    h.addEventListener('pointercancel', stop);
+    h.addEventListener('dblclick', function (){ bhMiraState.w = BH_MIRA_DEFAULT; bhMiraState.maxed = false; bhMiraApply(); bhMiraSave(); });
+    h.addEventListener('keydown', function (e){
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        e.preventDefault();
+        var step = (e.shiftKey ? 48 : 16) * (e.key === 'ArrowLeft' ? 1 : -1); // left = wider
+        bhMiraState.w = Math.min(Math.max(bhMiraState.w + step, BH_MIRA_MIN), bhMiraCap());
+        bhMiraState.maxed = false;
+        bhMiraApply(); bhMiraSave();
+    });
+})();
+
+window.addEventListener('resize', function (){ bhMiraApply(); });
+
 window.setAgent = setAgent;
 window.toggleStep = toggleStep;
 window.handleQuick = handleQuick;
 window.sendMsg = sendMsg;
 window.toggleSidebarCollapse = toggleSidebarCollapse;
+window.bhMira = bhMira;
 
 setAgent('mk');
+bhMiraLoad();
 
 })();
 </script>

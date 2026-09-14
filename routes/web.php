@@ -279,9 +279,17 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         // AI chat endpoint below, so both read the same numbers.
         $realAccounts = app(\App\Services\RealAccountsService::class)->build();
 
+        // Names offered in the "Which customer?" input for the Root cause
+        // questions (Why is [name] leaving? / price vs product).
+        $retentionContactNames = app(\App\Services\RetentionRootCauseService::class)->candidateNames(60);
+
+        // At-risk pool figures for the A/B test pane — computed the same way
+        // the A/B test prompts do, so the pane and the answers agree.
+        $retentionAbPool = app(\App\Services\RetentionAbTestService::class)->poolSummary();
+
         return view('client.business-helpers', compact(
             'marketingPrompts', 'salesPrompts', 'marketingSteps', 'realAccounts',
-            'retentionPrompts', 'retentionSteps'
+            'retentionPrompts', 'retentionSteps', 'retentionContactNames', 'retentionAbPool'
         ));
     })->name('business-helpers');
 
@@ -313,6 +321,17 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         );
     })->name('business-helpers.sales.prompt-insight');
 
+    // Sales agent · Overcome category playbook — diagnoses the single most
+    // likely objection for the selected client from real crm_contacts/
+    // crm_deals/email_logs_providers data + the same scores every other
+    // Sales view reads, written up by OpenAI with a deterministic
+    // rule-based fallback (see SalesPromptInsightsService::objectionPlaybook).
+    Route::get('business-helpers/sales/objection-playbook', function (\Illuminate\Http\Request $request) {
+        return response()->json(
+            app(\App\Services\Llm\SalesPromptInsightsService::class)->objectionPlaybook($request->query('name'))
+        );
+    })->name('business-helpers.sales.objection-playbook');
+
     // Customer Retention · Risk radar AI answers (crm_contacts + crm_deals +
     // email_logs_providers, written up by OpenAI when OPENAI_API_KEY is set —
     // see App\Services\RetentionSaveFirstService).
@@ -320,9 +339,189 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return response()->json(app(\App\Services\RetentionSaveFirstService::class)->answer());
     })->name('business-helpers.retention.save-first');
 
+    // Marketing · Audience AI answers (crm_contacts + crm_deals, written up by
+    // OpenAI when OPENAI_API_KEY is set — see App\Services\MarketingAudienceService).
+    Route::get('business-helpers/marketing/exclude-from-send', function () {
+        return response()->json(app(\App\Services\MarketingAudienceService::class)->excludeFromEverySend());
+    })->name('business-helpers.marketing.exclude-from-send');
+
+    Route::get('business-helpers/marketing/live-sales-cycle', function () {
+        return response()->json(app(\App\Services\MarketingAudienceService::class)->liveSalesCycle());
+    })->name('business-helpers.marketing.live-sales-cycle');
+
+    // Marketing · Insights AI answers (crm_contacts + crm_deals, written up by
+    // OpenAI when OPENAI_API_KEY is set — see App\Services\MarketingInsightsService).
+    Route::get('business-helpers/marketing/proof-or-offer', function () {
+        return response()->json(app(\App\Services\MarketingInsightsService::class)->proofOrOfferAudience());
+    })->name('business-helpers.marketing.proof-or-offer');
+
+    Route::get('business-helpers/marketing/one-lever', function () {
+        return response()->json(app(\App\Services\MarketingInsightsService::class)->oneLever());
+    })->name('business-helpers.marketing.one-lever');
+
+    Route::get('business-helpers/marketing/why-not-with-sales', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\MarketingInsightsService::class)->whyNameNotWithSales((string) $request->query('name', '')));
+    })->name('business-helpers.marketing.why-not-with-sales');
+
+    Route::get('business-helpers/marketing/mql-rule', function () {
+        return response()->json(app(\App\Services\MarketingInsightsService::class)->rulePutPeopleIntoMqlSales());
+    })->name('business-helpers.marketing.mql-rule');
+
+    Route::get('business-helpers/marketing/changed-last-7-days', function () {
+        return response()->json(app(\App\Services\MarketingInsightsService::class)->changedLast7Days());
+    })->name('business-helpers.marketing.changed-last-7-days');
+
+    // Marketing · Campaign AI answers (crm_contacts + crm_deals, written up by
+    // OpenAI when OPENAI_API_KEY is set — see App\Services\MarketingCampaignService).
+    Route::get('business-helpers/marketing/email-sequence', function () {
+        return response()->json(app(\App\Services\MarketingCampaignService::class)->emailSequence());
+    })->name('business-helpers.marketing.email-sequence');
+
+    Route::get('business-helpers/marketing/whatsapp-oneliner', function () {
+        return response()->json(app(\App\Services\MarketingCampaignService::class)->whatsappOneLiner());
+    })->name('business-helpers.marketing.whatsapp-oneliner');
+
+    Route::get('business-helpers/marketing/sms-optout', function () {
+        return response()->json(app(\App\Services\MarketingCampaignService::class)->smsOptout());
+    })->name('business-helpers.marketing.sms-optout');
+
+    Route::get('business-helpers/marketing/discount-or-proof', function () {
+        return response()->json(app(\App\Services\MarketingCampaignService::class)->discountOrProof());
+    })->name('business-helpers.marketing.discount-or-proof');
+
+    // Marketing · A/B test AI answers (crm_contacts + crm_deals, written up by
+    // OpenAI when OPENAI_API_KEY is set — see App\Services\MarketingAbTestService).
+    Route::get('business-helpers/marketing/proof-vs-offer-test', function () {
+        return response()->json(app(\App\Services\MarketingAbTestService::class)->proofVsOfferTest());
+    })->name('business-helpers.marketing.proof-vs-offer-test');
+
+    Route::get('business-helpers/marketing/sample-size-per-arm', function () {
+        return response()->json(app(\App\Services\MarketingAbTestService::class)->sampleSizePerArm());
+    })->name('business-helpers.marketing.sample-size-per-arm');
+
+    Route::get('business-helpers/marketing/holdout-enough', function () {
+        return response()->json(app(\App\Services\MarketingAbTestService::class)->holdoutEnough());
+    })->name('business-helpers.marketing.holdout-enough');
+
+    // Marketing · Performance AI answers (crm_contacts + crm_deals, written up
+    // by OpenAI when OPENAI_API_KEY is set — see App\Services\MarketingPerformanceService).
+    Route::get('business-helpers/marketing/who-became-mql', function () {
+        return response()->json(app(\App\Services\MarketingPerformanceService::class)->whoBecameMqlSinceLastSend());
+    })->name('business-helpers.marketing.who-became-mql');
+
+    Route::get('business-helpers/marketing/push-mqls-to-sales', function () {
+        return response()->json(app(\App\Services\MarketingPerformanceService::class)->pushWeekMqlsToSales());
+    })->name('business-helpers.marketing.push-mqls-to-sales');
+
+    // Marketing · Performance tab accounts table (crm_contacts + crm_deals,
+    // raw data — no AI needed. See App\Services\MarketingPerformanceService::accountsSnapshot()).
+    Route::get('business-helpers/marketing/accounts-snapshot', function () {
+        return response()->json(app(\App\Services\MarketingPerformanceService::class)->accountsSnapshot());
+    })->name('business-helpers.marketing.accounts-snapshot');
+
+    // Marketing · A/B test (email format) AI answers (email_logs +
+    // email_logs_providers, written up by OpenAI when OPENAI_API_KEY is set —
+    // see App\Services\MarketingEmailTestService).
+    Route::get('business-helpers/marketing/subject-line-test', function () {
+        return response()->json(app(\App\Services\MarketingEmailTestService::class)->subjectLineTest());
+    })->name('business-helpers.marketing.subject-line-test');
+
+    Route::get('business-helpers/marketing/touch1-send-time', function () {
+        return response()->json(app(\App\Services\MarketingEmailTestService::class)->touch1SendTime());
+    })->name('business-helpers.marketing.touch1-send-time');
+
+    Route::get('business-helpers/marketing/all-test-ideas', function () {
+        return response()->json(app(\App\Services\MarketingEmailTestService::class)->allTestIdeas());
+    })->name('business-helpers.marketing.all-test-ideas');
+
+    // Marketing · Performance (lift/holdout) AI answers (crm_contacts +
+    // crm_deals joined to email_logs + email_logs_providers by email, written
+    // up by OpenAI when OPENAI_API_KEY is set — see App\Services\MarketingLiftService).
+    Route::get('business-helpers/marketing/lift-vs-holdout', function () {
+        return response()->json(app(\App\Services\MarketingLiftService::class)->mqlLiftVsHoldout());
+    })->name('business-helpers.marketing.lift-vs-holdout');
+
+    Route::get('business-helpers/marketing/worst-unsub-audience', function () {
+        return response()->json(app(\App\Services\MarketingLiftService::class)->worstUnsubscribeAudience());
+    })->name('business-helpers.marketing.worst-unsub-audience');
+
     Route::get('business-helpers/retention/watchlist', function () {
         return response()->json(app(\App\Services\RetentionSaveFirstService::class)->watchlistAnswer());
     })->name('business-helpers.retention.watchlist');
+
+    // Customer Retention · Root cause AI answers (crm_contacts + crm_deals only,
+    // written up by OpenAI when OPENAI_API_KEY is set — see
+    // App\Services\RetentionRootCauseService). why-leaving / price-or-product
+    // take ?name= ; top-churn-driver is book-wide.
+    Route::get('business-helpers/retention/why-leaving', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionRootCauseService::class)->whyLeaving($request->query('name')));
+    })->name('business-helpers.retention.why-leaving');
+
+    Route::get('business-helpers/retention/price-or-product', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionRootCauseService::class)->priceOrProduct($request->query('name')));
+    })->name('business-helpers.retention.price-or-product');
+
+    Route::get('business-helpers/retention/top-churn-driver', function () {
+        return response()->json(app(\App\Services\RetentionRootCauseService::class)->topChurnDriver());
+    })->name('business-helpers.retention.top-churn-driver');
+
+    // Customer Retention · Offers AI answers (crm_contacts + crm_deals only —
+    // see App\Services\RetentionOffersService). All take ?name= .
+    Route::get('business-helpers/retention/can-discount', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionOffersService::class)->canDiscount($request->query('name')));
+    })->name('business-helpers.retention.can-discount');
+
+    Route::get('business-helpers/retention/what-allowed-offer', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionOffersService::class)->whatAllowedToOffer($request->query('name')));
+    })->name('business-helpers.retention.what-allowed-offer');
+
+    Route::get('business-helpers/retention/give-get', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionOffersService::class)->giveGetToAskFor($request->query('name')));
+    })->name('business-helpers.retention.give-get');
+
+    // Customer Retention · Save play AI answers (crm_contacts + crm_deals only —
+    // see App\Services\RetentionSavePlayService). All take ?name= .
+    Route::get('business-helpers/retention/save-plan', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionSavePlayService::class)->savePlan($request->query('name')));
+    })->name('business-helpers.retention.save-plan');
+
+    Route::get('business-helpers/retention/save-email', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionSavePlayService::class)->saveEmail($request->query('name')));
+    })->name('business-helpers.retention.save-email');
+
+    Route::get('business-helpers/retention/whatsapp-checkin', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionSavePlayService::class)->whatsappCheckin($request->query('name')));
+    })->name('business-helpers.retention.whatsapp-checkin');
+
+    Route::get('business-helpers/retention/first-48-hours', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\RetentionSavePlayService::class)->first48Hours($request->query('name')));
+    })->name('business-helpers.retention.first-48-hours');
+
+    // Customer Retention · A/B test AI answers (crm_contacts + crm_deals only —
+    // see App\Services\RetentionAbTestService). Book-wide, no name needed.
+    Route::get('business-helpers/retention/ab/which-test', function () {
+        return response()->json(app(\App\Services\RetentionAbTestService::class)->whichTestWorthRunning());
+    })->name('business-helpers.retention.ab.which-test');
+
+    Route::get('business-helpers/retention/ab/discount-vs-no-discount', function () {
+        return response()->json(app(\App\Services\RetentionAbTestService::class)->discountVsNoDiscount());
+    })->name('business-helpers.retention.ab.discount-vs-no-discount');
+
+    Route::get('business-helpers/retention/ab/accounts-per-arm', function () {
+        return response()->json(app(\App\Services\RetentionAbTestService::class)->accountsPerArm());
+    })->name('business-helpers.retention.ab.accounts-per-arm');
+
+    Route::get('business-helpers/retention/ab/call-first-or-email-first', function () {
+        return response()->json(app(\App\Services\RetentionAbTestService::class)->callFirstOrEmailFirst());
+    })->name('business-helpers.retention.ab.call-first-or-email-first');
+
+    Route::get('business-helpers/retention/ab/holdout-big-enough', function () {
+        return response()->json(app(\App\Services\RetentionAbTestService::class)->holdoutBigEnough());
+    })->name('business-helpers.retention.ab.holdout-big-enough');
+
+    Route::get('business-helpers/retention/ab/all-test-ideas', function () {
+        return response()->json(app(\App\Services\RetentionAbTestService::class)->allTestIdeas());
+    })->name('business-helpers.retention.ab.all-test-ideas');
 
     // Chat Bot
     Route::get('chatbot',        [ChatBotController::class, 'index'])->name('chatbot');
