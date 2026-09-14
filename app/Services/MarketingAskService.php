@@ -62,7 +62,7 @@ class MarketingAskService
         }
 
         try {
-            $answer = $this->askOpenAi($client, $question, $dataset);
+            $raw = $this->askOpenAi($client, $question, $dataset);
         } catch (OpenAiException $e) {
             report($e);
 
@@ -73,7 +73,41 @@ class MarketingAskService
             ];
         }
 
-        return ['answer' => $answer, 'ranked' => $dataset, 'ai_used' => true];
+        [$answer, $companiesUsed] = $this->parseModelResponse($raw);
+
+        // Narrow "view accounts behind this" down to only the companies the
+        // answer actually named — without this, every answer (even "who is
+        // our single best account") would show all ~150 synced accounts
+        // handed to the model, which is misleading busywork for the user.
+        $ranked = empty($companiesUsed)
+            ? $dataset
+            : array_values(array_filter($dataset, fn (array $row) => in_array($row['company'], $companiesUsed, true)));
+
+        return ['answer' => $answer, 'ranked' => $ranked, 'ai_used' => true];
+    }
+
+    /**
+     * The model is asked to reply with a small JSON envelope so the "view
+     * accounts behind this" list can be narrowed to just the companies it
+     * actually used. Falls back to treating the whole reply as plain-text
+     * answer (with every account left in ranked) if it doesn't come back as
+     * valid JSON — a malformed envelope should never lose the answer itself.
+     *
+     * @return array{0: string, 1: array<int, string>}
+     */
+    private function parseModelResponse(string $raw): array
+    {
+        $decoded = json_decode(trim($raw), true);
+
+        if (is_array($decoded) && isset($decoded['answer']) && is_string($decoded['answer'])) {
+            $companies = is_array($decoded['companies'] ?? null)
+                ? array_values(array_filter($decoded['companies'], 'is_string'))
+                : [];
+
+            return [$decoded['answer'], $companies];
+        }
+
+        return [$raw, []];
     }
 
     /**
@@ -128,13 +162,15 @@ class MarketingAskService
     {
         $system = 'You are the Marketing copilot inside a B2B analytics platform. Answer the question using ONLY '
             . 'the JSON data provided — never invent a name, number or fact that is not in it. If the data cannot '
-            . "answer the question, say so plainly instead of guessing. Output PLAIN TEXT only, never JSON or "
-            . 'markdown — a short, direct paragraph, in plain English, under 150 words.';
+            . 'answer the question, say so plainly instead of guessing. '
+            . 'Reply with ONLY a single JSON object, no markdown fences, shaped exactly like '
+            . '{"answer": "<plain-text answer, in plain English, under 150 words>", '
+            . '"companies": ["<the exact \"company\" value of every account your answer names or relies on, in order — omit entirely if your answer names none>"]}.';
 
         $prompt = "Question: {$question}\n\n"
             . "Data — one row per synced account, from crm_contacts + crm_deals joined to email_logs / "
             . "email_logs_providers by email address:\n" . json_encode($dataset, JSON_PRETTY_PRINT);
 
-        return $client->chat($system, $prompt, ['max_tokens' => 400]);
+        return $client->chat($system, $prompt, ['max_tokens' => 500]);
     }
 }
