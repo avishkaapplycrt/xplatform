@@ -453,6 +453,13 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .nmin:focus{border-color:var(--ac-m);box-shadow:0 0 0 3px var(--ac-l)}
 #bhRoot .nmin:disabled{background:var(--p2);color:var(--g3)}
 #bhRoot .nmform .qk{flex-shrink:0;align-self:center}
+
+/* Sales · Overcome — client picker above the objection playbook */
+#bhRoot .ov-client-row{padding:16px 20px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--p2)}
+#bhRoot .ov-client-label{font-family:var(--fm);font-size:10.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--g3)}
+#bhRoot .ov-client-sel{border:1px solid var(--ln2);border-radius:8px;padding:9px 14px;font-family:var(--f1);font-size:13px;font-weight:600;color:var(--ink);background:#fff;cursor:pointer;outline:none;min-width:220px;transition:border-color .15s}
+#bhRoot .ov-client-sel:hover{border-color:var(--ac-m)}
+#bhRoot .ov-client-sel:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac-l)}
 </style>
 
 <script>
@@ -1705,7 +1712,7 @@ function selectScriptAccount(name, chan){
   var beats = scriptBeats(agent, a, c, scriptChan);
   document.getElementById('ssOut').innerHTML =
     '<div class="ss-chan">'+chanBtns+'</div>'+
-    '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+' · '+PLAY_LABEL[c.play].toUpperCase()+'</div>'+
+    '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+' · '+escapeHtml(scriptChan.toUpperCase())+'</div>'+
     beats.map(function(b){ return '<div class="ss-beat"><div class="ss-beat-l">'+b[0]+'</div>'+b[1]+'</div>'; }).join('') +
     '</div>';
   dashState.lead = name;
@@ -1719,12 +1726,33 @@ function scriptBeats(agent, a, c, chan){
   var s = a.scores;
   if (c.play==='hold') return [['DO NOT PITCH','<em>Churn '+s.churn+'.</em> Route to Retention — this account needs a fix, not an offer.']];
   if (agent==='sl'){
+    var firstName = (a.name || '').split(' ')[0];
     if (s.trust < DTH.trust){
+      if (chan === 'email') {
+        return [['EMAIL','<em>"Hi '+escapeHtml(firstName)+',<br><br>'
+          + 'I noticed your team\'s been checking us out a few times lately — usually a sign the problem\'s real, but something\'s still holding the decision back.<br><br>'
+          + 'Companies in a similar spot to [Company] typically see [specific result] within the first [30–60 days], which is often what makes the case internally.<br><br>'
+          + 'Happy to walk you through how that would look for your situation — would a quick 15-minute call this week work?<br><br>'
+          + 'Best,<br>[Your name]"</em>']];
+      }
+      if (chan === 'linkedin') {
+        return [['LINKEDIN MESSAGE','<em>"Hi '+escapeHtml(firstName)+' — noticed you\'ve been checking us out a bit recently. Usually means there\'s a real problem worth solving, just something in the way of moving on it. Curious what that is for you — happy to share how similar teams got past it (most see [result] within [30-60 days]). Worth a quick chat?"</em>']];
+      }
       return [
         ['OPENER','<em>"I noticed your team\'s been looking at us a few times recently — that usually means the problem\'s real but something\'s holding the decision back. Can I ask what it is?"</em>'],
         ['PROOF','<em>"Businesses like yours typically see results within the first couple of months — happy to walk you through the numbers."</em>'],
         ['LOW-RISK CLOSE','<em>"Start on the smaller plan. If it doesn\'t move the numbers in 30 days, walk away and keep everything we found."</em>']
       ];
+    }
+    if (chan === 'email') {
+      return [['EMAIL','<em>"Hi '+escapeHtml(firstName)+',<br><br>'
+        + 'You\'ve clearly gotten real value out of this already, and I think you\'re in a great position to get even more from it.<br><br>'
+        + 'Based on where things stand, the next plan up would likely pay for itself quickly for a team like [Company]\'s.<br><br>'
+        + 'Want me to put together what that would look like and jump on a quick call this week?<br><br>'
+        + 'Best,<br>[Your name]"</em>']];
+    }
+    if (chan === 'linkedin') {
+      return [['LINKEDIN MESSAGE','<em>"Hi '+escapeHtml(firstName)+' — you\'ve clearly gotten real value out of this so far. Given where things stand, the next tier would likely pay for itself quickly. Worth a quick chat about what that could look like for you?"</em>']];
     }
     return [
       ['OPENER','<em>"You\'ve clearly found value already — I\'d like to talk about what\'s next."</em>'],
@@ -1798,9 +1826,9 @@ function renderOvercomePlaybook(){
   var defaultName = (r[0] && r[0].a.name) || '';
   setTimeout(function(){ loadOvercomePlaybook(defaultName); }, 0);
   return '<div class="stack-intro"><div class="si-h">'+SALES_STEP_INTRO.forecast.h+'</div><div class="si-p">'+SALES_STEP_INTRO.forecast.p+'</div></div>'
-    + '<div style="padding:0 0 14px;display:flex;align-items:center;gap:8px">'
-    + '<label style="font-size:11.5px;color:var(--g3)">Client:</label>'
-    + '<select id="ovClientSel" onchange="loadOvercomePlaybook(this.value)">'+opts+'</select>'
+    + '<div class="ov-client-row">'
+    + '<label class="ov-client-label" for="ovClientSel">Client</label>'
+    + '<select id="ovClientSel" class="ov-client-sel" onchange="loadOvercomePlaybook(this.value)">'+opts+'</select>'
     + '</div>'
     + '<div id="ovBody"><div style="padding:20px;color:var(--g3);font-size:12.5px">Loading…</div></div>';
 }
