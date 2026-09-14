@@ -1709,6 +1709,10 @@ function selectScriptAccount(name, chan){
     beats.map(function(b){ return '<div class="ss-beat"><div class="ss-beat-l">'+b[0]+'</div>'+b[1]+'</div>'; }).join('') +
     '</div>';
   dashState.lead = name;
+  // Quick-question buttons show [name] substituted from dashState.lead —
+  // refresh them so they reflect whichever client was just selected here,
+  // instead of staying stuck on whoever was the default when the tab opened.
+  renderDashQuicks();
 }
 function openScriptFor(name){ showDashView('scripts'); selectScriptAccount(name); }
 function scriptBeats(agent, a, c, chan){
