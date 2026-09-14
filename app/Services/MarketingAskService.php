@@ -2,165 +2,139 @@
 
 namespace App\Services;
 
+use App\Models\BrevoDeliveredRecipient;
+use App\Models\EmailLog;
+use App\Services\Llm\OpenAiClient;
+use App\Services\Llm\OpenAiException;
+use App\Services\Marketing\Concerns\ScoresMqlPool;
+use Illuminate\Support\Collection;
+
 /**
- * Answers free-text questions typed into the Marketing "Ask anything" box by
- * matching them to the same real, data-grounded questions already answered
- * elsewhere on this page (Audience/Insights/Campaign/Performance/A-B
- * test/Lift services — all backed by crm_contacts, crm_deals, email_logs and
- * email_logs_providers). Nothing here invents an answer: a question either
- * matches one of these known intents and returns the real service's answer,
- * or it doesn't match and the caller is told plainly that no data-backed
- * answer exists yet for it.
- *
- * Matching is deliberately simple keyword overlap (score = how many of an
- * intent's keywords appear in the typed text), the same approach already
- * used by the page's PLAYBOOKS matcher — no LLM call is needed to route the
- * question, only (optionally, inside the underlying services) to phrase the
- * already-computed numbers in prose.
+ * Answers genuinely open-ended, free-text questions typed into the Marketing
+ * "Ask anything" box — not a fixed list of canned questions. It builds a
+ * bounded, real snapshot from this client's own crm_contacts + crm_deals
+ * (via ScoresMqlPool, the same scoring the rest of the Marketing agent uses)
+ * joined to their real email_logs / email_logs_providers history by email,
+ * then hands that snapshot plus the user's exact question to the LLM with a
+ * strict instruction: answer using ONLY the data given, never invent a name,
+ * number or fact. This means any phrasing works, not just questions that
+ * happen to match a hardcoded keyword list — the tradeoff is that it needs
+ * OPENAI_API_KEY configured (config('services.openai')) to work at all,
+ * since there is no non-AI fallback for arbitrary natural language the way
+ * there is for the rest of this app's fixed-question services.
  */
 class MarketingAskService
 {
+    use ScoresMqlPool;
+
+    private const DATASET_LIMIT = 150;
+
     /**
-     * @return array{matched: bool, question?: string, answer?: string, ranked?: array, ai_used?: bool}
+     * @return array{answer: string, ranked: array, ai_used: bool}
      */
-    public function answer(string $text): array
+    public function answer(string $question): array
     {
-        $words = $this->normWords($text);
+        $question = trim($question);
 
-        $best = null;
-        $bestScore = 0;
-
-        foreach ($this->intents() as $intent) {
-            $score = count(array_intersect($intent['keywords'], $words));
-            if ($score > $bestScore) {
-                $bestScore = $score;
-                $best = $intent;
-            }
+        if ($question === '') {
+            return ['answer' => 'Ask me something about your Marketing data.', 'ranked' => [], 'ai_used' => false];
         }
 
-        if ($best === null || $bestScore < 2) {
-            return ['matched' => false];
+        $dataset = $this->buildDataset();
+
+        if (empty($dataset)) {
+            return [
+                'answer' => 'No synced crm_contacts/crm_deals data is on file yet to answer from.',
+                'ranked' => [],
+                'ai_used' => false,
+            ];
         }
 
-        $result = $best['handler']();
+        $client = app(OpenAiClient::class);
 
-        return [
-            'matched' => true,
-            'question' => $best['question'],
-            'answer' => $result['answer'],
-            'ranked' => $result['ranked'],
-            'ai_used' => $result['ai_used'] ?? false,
-        ];
+        if (!$client->isConfigured()) {
+            return [
+                'answer' => "Free-text answers need an OpenAI key configured (OPENAI_API_KEY) — ask your admin to set one up. "
+                    . 'Until then, try one of the buttons above for a ready-made answer.',
+                'ranked' => [],
+                'ai_used' => false,
+            ];
+        }
+
+        try {
+            $answer = $this->askOpenAi($client, $question, $dataset);
+        } catch (OpenAiException $e) {
+            report($e);
+
+            return [
+                'answer' => "Couldn't reach the AI to answer that just now — try again in a moment.",
+                'ranked' => [],
+                'ai_used' => false,
+            ];
+        }
+
+        return ['answer' => $answer, 'ranked' => $dataset, 'ai_used' => true];
     }
 
     /**
-     * @return array<int, array{question: string, keywords: array<int, string>, handler: callable}>
+     * One row per synced account (crm_contacts + crm_deals, via
+     * ScoresMqlPool), enriched with real send/open/unsubscribe history
+     * matched from email_logs + email_logs_providers by lowercased email.
+     * Capped and sorted by deal value so the highest-value, most relevant
+     * accounts are the ones that make the cut when there are more contacts
+     * than the limit.
+     *
+     * @return array<int, array>
      */
-    private function intents(): array
+    private function buildDataset(): array
     {
-        return [
-            [
-                'question' => 'Who must be excluded from every send, and why?',
-                'keywords' => ['exclude', 'excluded', 'every', 'send', 'sends', 'sending'],
-                'handler' => fn () => app(MarketingAudienceService::class)->excludeFromEverySend(),
-            ],
-            [
-                'question' => 'Who is in a live sales cycle — leave them alone?',
-                'keywords' => ['live', 'sales', 'cycle', 'alone', 'leave'],
-                'handler' => fn () => app(MarketingAudienceService::class)->liveSalesCycle(),
-            ],
-            [
-                'question' => 'Is MQL → Sales a proof audience or an offer audience?',
-                'keywords' => ['proof', 'offer', 'audience', 'lead'],
-                'handler' => fn () => app(MarketingInsightsService::class)->proofOrOfferAudience(),
-            ],
-            [
-                'question' => 'What is the one lever that moves MQL → Sales?',
-                'keywords' => ['lever', 'moves', 'move', 'biggest', 'single'],
-                'handler' => fn () => app(MarketingInsightsService::class)->oneLever(),
-            ],
-            [
-                'question' => 'What rule put people into MQL → Sales?',
-                'keywords' => ['rule', 'qualify', 'qualifies', 'criteria', 'threshold'],
-                'handler' => fn () => app(MarketingInsightsService::class)->rulePutPeopleIntoMqlSales(),
-            ],
-            [
-                'question' => 'What changed in the last 7 days?',
-                'keywords' => ['changed', 'last', 'days', 'week', 'recent', 'recently'],
-                'handler' => fn () => app(MarketingInsightsService::class)->changedLast7Days(),
-            ],
-            [
-                'question' => 'Write the 3-touch email sequence for MQL → Sales',
-                'keywords' => ['sequence', 'touch', 'email', 'emails', 'series', 'write'],
-                'handler' => fn () => app(MarketingCampaignService::class)->emailSequence(),
-            ],
-            [
-                'question' => 'Can MQL → Sales get a discount, or proof only?',
-                'keywords' => ['discount', 'proof', 'only'],
-                'handler' => fn () => app(MarketingCampaignService::class)->discountOrProof(),
-            ],
-            [
-                'question' => 'Should I test proof vs offer on MQL → Sales?',
-                'keywords' => ['test', 'proof', 'offer', 'versus'],
-                'handler' => fn () => app(MarketingAbTestService::class)->proofVsOfferTest(),
-            ],
-            [
-                'question' => 'How many per arm do I need for MQL → Sales?',
-                'keywords' => ['many', 'arm', 'sample', 'size'],
-                'handler' => fn () => app(MarketingAbTestService::class)->sampleSizePerArm(),
-            ],
-            [
-                'question' => 'Is my holdout enough for MQL → Sales?',
-                'keywords' => ['holdout', 'enough', 'percent'],
-                'handler' => fn () => app(MarketingAbTestService::class)->holdoutEnough(),
-            ],
-            [
-                'question' => 'Who became an MQL since the last send?',
-                'keywords' => ['became', 'since', 'last', 'send', 'new'],
-                'handler' => fn () => app(MarketingPerformanceService::class)->whoBecameMqlSinceLastSend(),
-            ],
-            [
-                'question' => "Push this week's MQLs to Sales",
-                'keywords' => ['push', 'week', 'sales', 'mqls'],
-                'handler' => fn () => app(MarketingPerformanceService::class)->pushWeekMqlsToSales(),
-            ],
-            [
-                'question' => 'Which subject-line test is worth running on MQL → Sales?',
-                'keywords' => ['subject', 'line', 'test', 'worth', 'running'],
-                'handler' => fn () => app(MarketingEmailTestService::class)->subjectLineTest(),
-            ],
-            [
-                'question' => 'When should MQL → Sales receive touch 1?',
-                'keywords' => ['touch', 'send', 'time', 'when', 'receive'],
-                'handler' => fn () => app(MarketingEmailTestService::class)->touch1SendTime(),
-            ],
-            [
-                'question' => 'All test ideas for MQL → Sales',
-                'keywords' => ['test', 'ideas', 'all'],
-                'handler' => fn () => app(MarketingEmailTestService::class)->allTestIdeas(),
-            ],
-            [
-                'question' => 'What lift did MQL → Sales get vs its holdout?',
-                'keywords' => ['lift', 'holdout', 'versus', 'compare'],
-                'handler' => fn () => app(MarketingLiftService::class)->mqlLiftVsHoldout(),
-            ],
-            [
-                'question' => 'Which audience has the worst unsubscribe rate?',
-                'keywords' => ['unsubscribe', 'unsubscribed', 'worst', 'audience', 'rate'],
-                'handler' => fn () => app(MarketingLiftService::class)->worstUnsubscribeAudience(),
-            ],
-        ];
+        $scored = $this->scoredContacts()->sortByDesc('deal_value')->take(self::DATASET_LIMIT)->values();
+
+        $emails = $scored->pluck('email')->filter()->map(fn ($e) => mb_strtolower($e))->unique()->all();
+
+        $logsByEmail = EmailLog::whereIn('email_address', $emails)
+            ->get(['email_address', 'opened_at', 'clicked_at', 'unsubscribed_at'])
+            ->groupBy(fn ($r) => mb_strtolower($r->email_address));
+
+        $providersByEmail = BrevoDeliveredRecipient::whereIn('email', $emails)
+            ->get(['email', 'opened_at', 'unsubscribed_at'])
+            ->groupBy(fn ($r) => mb_strtolower($r->email));
+
+        return $scored->map(function (array $row) use ($logsByEmail, $providersByEmail) {
+            $email = $row['email'] ? mb_strtolower($row['email']) : null;
+            /** @var Collection $logs */
+            $logs = $email ? ($logsByEmail->get($email) ?? collect()) : collect();
+            /** @var Collection $providers */
+            $providers = $email ? ($providersByEmail->get($email) ?? collect()) : collect();
+
+            return [
+                'name' => $row['name'],
+                'company' => $row['company'],
+                'deal_value' => $row['deal_value'],
+                'stage' => $row['stage_label'],
+                'buying_readiness' => $row['buying_readiness'],
+                'trust' => $row['trust'],
+                'days_since_activity' => $row['days_since_activity'],
+                'at_risk' => $row['at_risk'],
+                'emails_sent' => $logs->count() + $providers->count(),
+                'ever_opened' => $logs->contains(fn ($r) => $r->opened_at !== null) || $providers->contains(fn ($r) => $r->opened_at !== null),
+                'ever_clicked' => $logs->contains(fn ($r) => $r->clicked_at !== null),
+                'ever_unsubscribed' => $logs->contains(fn ($r) => $r->unsubscribed_at !== null) || $providers->contains(fn ($r) => $r->unsubscribed_at !== null),
+            ];
+        })->values()->all();
     }
 
-    /**
-     * @return array<int, string>
-     */
-    private function normWords(string $text): array
+    private function askOpenAi(OpenAiClient $client, string $question, array $dataset): string
     {
-        $lower = mb_strtolower($text);
-        $stripped = preg_replace('/[^a-z0-9 ]/', ' ', $lower);
-        $words = preg_split('/\s+/', trim((string) $stripped));
+        $system = 'You are the Marketing copilot inside a B2B analytics platform. Answer the question using ONLY '
+            . 'the JSON data provided — never invent a name, number or fact that is not in it. If the data cannot '
+            . "answer the question, say so plainly instead of guessing. Output PLAIN TEXT only, never JSON or "
+            . 'markdown — a short, direct paragraph, in plain English, under 150 words.';
 
-        return array_values(array_filter($words, fn ($w) => mb_strlen($w) > 3));
+        $prompt = "Question: {$question}\n\n"
+            . "Data — one row per synced account, from crm_contacts + crm_deals joined to email_logs / "
+            . "email_logs_providers by email address:\n" . json_encode($dataset, JSON_PRETTY_PRINT);
+
+        return $client->chat($system, $prompt, ['max_tokens' => 400]);
     }
 }

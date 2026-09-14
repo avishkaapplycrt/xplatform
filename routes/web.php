@@ -479,11 +479,11 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return response()->json(app(\App\Services\MarketingLiftService::class)->worstUnsubscribeAudience());
     })->name('business-helpers.marketing.worst-unsub-audience');
 
-    // Marketing · "Ask anything" free-text box — matches the typed question
-    // against the same real, data-grounded questions answered above (all
-    // ultimately backed by crm_contacts, crm_deals, email_logs and
-    // email_logs_providers) and returns that real answer, or matched:false
-    // when nothing on file covers it yet. See App\Services\MarketingAskService.
+    // Marketing · "Ask anything" free-text box — genuinely open-ended:
+    // hands the typed question plus a real snapshot of crm_contacts +
+    // crm_deals joined to email_logs / email_logs_providers to the LLM,
+    // which must answer using only that data. Needs OPENAI_API_KEY
+    // configured. See App\Services\MarketingAskService.
     Route::post('business-helpers/marketing/ask', function (\Illuminate\Http\Request $request) {
         return response()->json(app(\App\Services\MarketingAskService::class)->answer((string) $request->input('question', '')));
     })->name('business-helpers.marketing.ask');

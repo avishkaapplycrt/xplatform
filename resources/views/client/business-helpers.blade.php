@@ -2053,10 +2053,7 @@ function dashSend(){
   collapseDashQuicks();
 
   if (dashState.agent === 'mk') {
-    askMarketingData(text).then(function (result) {
-      if (result.matched) { dashPushMsg('bot', renderMarketingAskAnswer(result)); return; }
-      dashFallbackPlaybookMatch(text);
-    });
+    askMarketingData(text).then(function (result) { dashPushMsg('bot', renderMarketingAskAnswer(result)); });
     return;
   }
 
@@ -2151,11 +2148,13 @@ function askMarketingData(text) {
             'X-CSRF-TOKEN': tokenInput ? tokenInput.value : ''
         },
         body: JSON.stringify({ question: text })
-    }).then(function (r) { return r.json(); }).catch(function () { return { matched: false }; });
+    }).then(function (r) { return r.json(); }).catch(function () {
+        return { answer: "Couldn't reach the server to answer that just now — try again in a moment.", ranked: [], ai_used: false };
+    });
 }
 
 function renderMarketingAskAnswer(result) {
-    return '<div class="tag">Marketing · ' + escapeHtml(result.question) + '</div>' + renderRiskAiAnswer(result);
+    return '<div class="tag">Marketing</div>' + renderRiskAiAnswer(result);
 }
 
 function matchPlaybook(text) {
@@ -2177,12 +2176,7 @@ function sendMsg() {
     input.value = '';
 
     if (state.agent === 'mk') {
-        askMarketingData(text).then(function (result) {
-            if (result.matched) { pushMsg('bot', renderMarketingAskAnswer(result)); return; }
-            var pb = matchPlaybook(text);
-            if (pb) { pushPlaybook(pb); return; }
-            pushMsg('bot', "I don't have a data-backed answer for that yet — try rephrasing, or use one of the buttons above.");
-        });
+        askMarketingData(text).then(function (result) { pushMsg('bot', renderMarketingAskAnswer(result)); });
         return;
     }
 
