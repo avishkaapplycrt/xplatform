@@ -228,7 +228,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('company/overview', [ClientOverviewController::class, 'show'])->name('company.overview');
 
     // Layer pages
-    Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('layer.l1');
+    Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), \App\Models\InstagramMedia::socialStats())))->name('layer.l1');
     Route::get('layers/l2',      [DecisionCentreController::class, 'l2'])->name('layer.l2');
     Route::get('layers/l3',      [DecisionCentreController::class, 'l3'])->name('layer.l3');
     Route::get('layers/l4',      [DecisionCentreController::class, 'index'])->name('layer.l4');

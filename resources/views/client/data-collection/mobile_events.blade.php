@@ -2340,31 +2340,111 @@
     </div>
 
     {{-- ═══════════════════════════════════════
-         SOCIAL SIGNALS PANELS
+         SOCIAL SIGNALS PANELS (real Instagram data —
+         see InstagramMedia::socialStats())
          ═══════════════════════════════════════ --}}
 
-    @foreach([
-      ['brand-mentions',   'Social Signals – Brand Mentions'],
-      ['hashtag-tracking', 'Social Signals – Hashtag Tracking'],
-      ['sentiment',        'Social Signals – Sentiment Analysis'],
-    ] as [$tid, $title])
-    <div id="panel-social-{{ $tid }}" class="panel p-5">
-      <div class="globe-panel" style="max-width:560px;margin:0 auto;padding:48px 40px">
-        <div style="width:72px;height:72px;border-radius:16px;background:#fce7f3;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
-          <svg width="36" height="36" fill="none" stroke="#ec4899" stroke-width="1.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
-          </svg>
-        </div>
-        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">{{ $title }}</h3>
-        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics pannel for this micro signal</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
-          <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
-          <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
-          <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+    @if(!$socialConnected)
+      @foreach(['brand-mentions', 'hashtag-tracking', 'sentiment'] as $tid)
+      <div id="panel-social-{{ $tid }}" class="panel p-5">
+        <div class="globe-panel" style="max-width:480px;margin:0 auto;padding:48px 40px">
+          <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:8px">No Instagram account connected</h3>
+          <p style="font-size:13px;color:#9ca3af">Connect Instagram from Social Connections to populate this panel with real post and engagement data.</p>
         </div>
       </div>
+      @endforeach
+    @else
+
+    {{-- Brand Mentions → we only have your own account's posts, not real
+         external mention tracking (needs a scope/model we haven't built) —
+         say so plainly and show what's real: your own recent post performance. --}}
+    <div id="panel-social-brand-mentions" class="panel p-6">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ec4899"></div>
+        <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:.3px">Social Signals – Recent Post Performance</span>
+        <div style="flex:1;height:1px;background:#fbcfe8;margin-left:8px"></div>
+        <span style="font-size:12px;font-weight:600;color:#ec4899;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:12px;padding:2px 10px">Live</span>
+      </div>
+      <p style="font-size:12px;color:#9ca3af;margin-bottom:20px">Mentions from other accounts aren't synced yet (Instagram's mentions API isn't wired up) — this shows your own connected account's real post performance instead.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#ec4899;line-height:1">{{ $socialFollowers }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Followers</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#3b82f6;line-height:1">{{ $socialTotalPosts }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Posts Synced</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#10b981;line-height:1">{{ $socialTotalLikes + $socialTotalComments }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Total Engagement</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#8b5cf6;line-height:1">{{ $socialAvgEngagement }}%</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Avg Engagement Rate</p>
+        </div>
+      </div>
+
+      <div class="panel-card" style="padding:16px 20px">
+        <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:12px">Top Posts by Engagement</p>
+        @forelse($socialTopPosts as $p)
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;{{ !$loop->last ? 'border-bottom:1px solid #f1f5f9' : '' }}">
+            <div style="min-width:0">
+              <a href="{{ $p['permalink'] }}" target="_blank" rel="noopener" style="font-size:13px;color:#111827;font-weight:500;text-decoration:none">{{ $p['caption'] }}</a>
+              <p style="font-size:11px;color:#9ca3af;margin-top:2px">{{ $p['posted_at'] }}</p>
+            </div>
+            <div style="display:flex;gap:14px;flex-shrink:0;margin-left:16px">
+              <span style="font-size:12px;color:#6b7280">❤ {{ $p['likes'] }}</span>
+              <span style="font-size:12px;color:#6b7280">💬 {{ $p['comments'] }}</span>
+              <span style="font-size:12px;font-weight:600;color:#10b981">{{ $p['engagement'] }}%</span>
+            </div>
+          </div>
+        @empty
+          <p style="font-size:12px;color:#9ca3af">No posts synced yet — click Sync on the Instagram connection.</p>
+        @endforelse
+      </div>
     </div>
-    @endforeach
+
+    {{-- Hashtag Tracking → genuinely real: extracted from synced caption text --}}
+    <div id="panel-social-hashtag-tracking" class="panel p-6">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ec4899"></div>
+        <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:.3px">Social Signals – Hashtag Tracking</span>
+        <div style="flex:1;height:1px;background:#fbcfe8;margin-left:8px"></div>
+        <span style="font-size:12px;font-weight:600;color:#ec4899;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:12px;padding:2px 10px">Live</span>
+      </div>
+
+      <div class="panel-card" style="padding:20px">
+        <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:2px">Most-used hashtags</p>
+        <p style="font-size:11px;color:#9ca3af;margin-bottom:16px">Counted from the caption text of your {{ $socialTotalPosts }} synced {{ Str::plural('post', $socialTotalPosts) }}</p>
+        @forelse($socialTopHashtags as $h)
+          @php $pct = round($h['count'] / max(1, $socialTopHashtags[0]['count']) * 100); @endphp
+          <div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+              <span style="font-size:13px;color:#374151;font-weight:500">#{{ $h['tag'] }}</span>
+              <span style="font-size:12px;color:#6b7280">{{ $h['count'] }}</span>
+            </div>
+            <div style="height:6px;background:#f1f5f9;border-radius:4px;overflow:hidden">
+              <div style="height:100%;width:{{ $pct }}%;background:#ec4899;border-radius:4px"></div>
+            </div>
+          </div>
+        @empty
+          <p style="font-size:12px;color:#9ca3af">No hashtags found in your synced captions yet — post with hashtags and sync again.</p>
+        @endforelse
+      </div>
+    </div>
+
+    {{-- Sentiment Analysis → honestly not built: no comment-level model exists,
+         so this stays a plain "not available" state rather than a fake score. --}}
+    <div id="panel-social-sentiment" class="panel p-5">
+      <div class="globe-panel" style="max-width:480px;margin:0 auto;padding:48px 40px">
+        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:8px">Sentiment analysis isn't wired up yet</h3>
+        <p style="font-size:13px;color:#9ca3af">Comment-level sentiment scoring needs a model this build doesn't have — the {{ $socialTotalComments }} comment{{ $socialTotalComments === 1 ? '' : 's' }} synced from your posts are counted, but not scored for tone. This will populate once sentiment scoring is built.</p>
+      </div>
+    </div>
+
+    @endif
 
     {{-- ═══════════════════════════════════════
          CALL CENTER PANELS
