@@ -1,0 +1,38 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('instagram_media', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('social_integration_id')->constrained()->cascadeOnDelete();
+            $table->string('media_id')->unique(); // Instagram's own media id
+            $table->string('media_type', 20)->nullable(); // IMAGE, VIDEO, CAROUSEL_ALBUM
+            $table->text('caption')->nullable();
+            $table->string('permalink')->nullable();
+            $table->timestamp('posted_at')->nullable();
+            $table->unsignedInteger('like_count')->default(0);
+            $table->unsignedInteger('comments_count')->default(0);
+            $table->unsignedInteger('reach')->default(0);
+            $table->unsignedInteger('saved')->default(0);
+            $table->timestamp('synced_at')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('instagram_media');
+    }
+};

@@ -249,8 +249,11 @@ class SocialConnectionController extends Controller
                 'code'          => $request->input('code'),
             ]);
 
-            $shortLivedToken = $tokenResponse->json('data.0.access_token');
-            $igUserId        = $tokenResponse->json('data.0.user_id');
+            // The Instagram API with Instagram Login token endpoint returns a
+            // flat object ({access_token, user_id, permissions}), not the old
+            // Basic Display API's {data: [{access_token, user_id}]} shape.
+            $shortLivedToken = $tokenResponse->json('access_token');
+            $igUserId        = $tokenResponse->json('user_id');
 
             if ($tokenResponse->failed() || empty($shortLivedToken)) {
                 throw new \Exception(
@@ -915,20 +918,18 @@ class SocialConnectionController extends Controller
                     break;
 
                 case 'instagram':
-                    $token = $connection->access_token ? Crypt::decryptString($connection->access_token) : null;
-                    if ($token) {
-                        $res = Http::get('https://graph.instagram.com/v21.0/me', [
-                            'fields'       => 'followers_count,media_count',
-                            'access_token' => $token,
-                        ]);
-                        if ($res->successful()) {
-                            $metrics = $connection->metrics ?? [];
-                            $metrics['followers']   = $res->json('followers_count') ?? ($metrics['followers'] ?? 0);
-                            $metrics['posts_count'] = $res->json('media_count') ?? ($metrics['posts_count'] ?? 0);
-                            $connection->update(['metrics' => $metrics]);
-                        }
-                    }
-                    break;
+                    // Real post/insight pulls paginate and can run long, so this
+                    // is queued (same shape as SyncHubSpotContacts) rather than
+                    // run inline — see App\Jobs\SyncInstagramPosts and
+                    // App\Services\InstagramService. Requires a queue worker
+                    // (`php artisan queue:work`) since QUEUE_CONNECTION=database.
+                    \App\Jobs\SyncInstagramPosts::dispatch($connection->id);
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Instagram sync queued.',
+                        'status'  => 'syncing',
+                    ]);
 
                 case 'tiktok':
                     $token = $this->getValidTikTokToken($connection);

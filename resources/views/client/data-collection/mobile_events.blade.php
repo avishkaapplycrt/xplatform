@@ -494,6 +494,198 @@
     </div>
   </div>
 
+  {{-- WEBSITE PROVIDER OVERVIEW (from website_events_provider_header / _detail) --}}
+  <div id="website-provider-overview" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="be-header">
+      <div class="be-header-title">
+        <div class="be-header-icon" style="background:#e9f5e1;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L2 6l2 12 8 4 8-4 2-12-10-4z" fill="#95bf47" opacity="0.9"/>
+            <path d="M12 5L5 7.5l1.5 9L12 19l5.5-2.5 1.5-9L12 5z" fill="#fff"/>
+            <path d="M12 8l-3 1 .5 6L12 17l2.5-2 .5-6L12 8z" fill="#95bf47"/>
+          </svg>
+        </div>
+        <span style="font-size:13px; font-weight:700; color:#111827;">SHOPIFY</span>
+      </div>
+    </div>
+
+    {{-- Overview sub-tab bar --}}
+    <div id="wep-tabs" class="border-b border-gray-200 overflow-x-auto" style="display:flex;">
+      @foreach([
+        ['summary','Summary'],['status','Order Status'],
+        ['insights','Customer Insights'],['products','Top Products'],
+        ['payments','Payment Methods'],['countries','Top Countries'],
+      ] as [$wtid,$wtlabel])
+      <button type="button" class="tab-btn {{ $wtid==='summary' ? 'active' : '' }}"
+              onclick="selectWepTab('{{ $wtid }}')">{{ $wtlabel }}</button>
+      @endforeach
+    </div>
+
+    {{-- Summary --}}
+    <div id="wep-panel-summary" class="panel active">
+      <div class="grid grid-cols-4 gap-4 p-5">
+        <div class="bg-gray-50 rounded-lg p-3.5">
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Customers</p>
+          <p class="text-[22px] font-bold text-gray-900 leading-tight mt-1">{{ number_format($wepCustomerTotal) }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3.5">
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Total Spent</p>
+          <p class="text-[22px] font-bold text-emerald-600 leading-tight mt-1">${{ number_format($wepTotalSpent, 2) }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3.5">
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Avg Order Value</p>
+          <p class="text-[22px] font-bold text-gray-900 leading-tight mt-1">${{ number_format($wepAvgOrderValue, 2) }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3.5">
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Marketing Opt-in</p>
+          <p class="text-[22px] font-bold text-gray-900 leading-tight mt-1">{{ $wepOptInRate }}%</p>
+          <p class="text-[11px] text-gray-400 mt-1">{{ number_format($wepOptInCount) }} customers</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3.5">
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Orders</p>
+          <p class="text-[22px] font-bold text-gray-900 leading-tight mt-1">{{ number_format($wepOrderTotal) }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3.5">
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Order Revenue</p>
+          <p class="text-[22px] font-bold text-emerald-600 leading-tight mt-1">{{ $wepCurrency }} {{ number_format($wepOrderRevenue, 2) }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3.5">
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Avg Days Since Last Order</p>
+          <p class="text-[22px] font-bold text-gray-900 leading-tight mt-1">{{ $wepAvgDaysSinceLastOrder }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3.5 col-span-2">
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Revenue Breakdown</p>
+          <div class="flex items-center justify-between text-[12px] text-gray-600 py-0.5">
+            <span>Discount</span>
+            <span class="font-semibold text-gray-800">{{ $wepCurrency }} {{ number_format($wepTotalDiscount, 2) }}</span>
+          </div>
+          <div class="flex items-center justify-between text-[12px] text-gray-600 py-0.5">
+            <span>Tax</span>
+            <span class="font-semibold text-gray-800">{{ $wepCurrency }} {{ number_format($wepTotalTax, 2) }}</span>
+          </div>
+          <div class="flex items-center justify-between text-[12px] text-gray-600 py-0.5">
+            <span>Shipping</span>
+            <span class="font-semibold text-gray-800">{{ $wepCurrency }} {{ number_format($wepTotalShipping, 2) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{-- Order Status --}}
+    <div id="wep-panel-status" class="panel">
+      <div class="grid grid-cols-3 gap-4 p-5">
+        <div>
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Fulfillment Status</p>
+          @forelse($wepFulfillmentBreakdown as $row)
+            <div class="flex items-center justify-between text-[12px] text-gray-600 py-1 border-b border-gray-100">
+              <span>{{ $row['status'] }}</span>
+              <span class="font-semibold text-gray-800">{{ number_format($row['total']) }}</span>
+            </div>
+          @empty
+            <p class="text-[11px] text-gray-400">No order data yet</p>
+          @endforelse
+        </div>
+        <div>
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Order Status</p>
+          @forelse($wepOrderStatusBreakdown as $row)
+            <div class="flex items-center justify-between text-[12px] text-gray-600 py-1 border-b border-gray-100">
+              <span>{{ $row['status'] }}</span>
+              <span class="font-semibold text-gray-800">{{ number_format($row['total']) }}</span>
+            </div>
+          @empty
+            <p class="text-[11px] text-gray-400">No order data yet</p>
+          @endforelse
+        </div>
+        <div>
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Financial Status</p>
+          @forelse($wepFinancialStatusBreakdown as $row)
+            <div class="flex items-center justify-between text-[12px] text-gray-600 py-1 border-b border-gray-100">
+              <span>{{ $row['status'] }}</span>
+              <span class="font-semibold text-gray-800">{{ number_format($row['total']) }}</span>
+            </div>
+          @empty
+            <p class="text-[11px] text-gray-400">No order data yet</p>
+          @endforelse
+        </div>
+      </div>
+    </div>
+
+    {{-- Customer Insights --}}
+    <div id="wep-panel-insights" class="panel">
+      <div class="grid grid-cols-2 gap-4 p-5">
+        <div>
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Risk Level Breakdown</p>
+          @forelse($wepRiskBreakdown as $row)
+            <div class="flex items-center justify-between text-[12px] text-gray-600 py-1 border-b border-gray-100">
+              <span>{{ $row['level'] }}</span>
+              <span class="font-semibold text-gray-800">{{ number_format($row['total']) }}</span>
+            </div>
+          @empty
+            <p class="text-[11px] text-gray-400">No risk data yet</p>
+          @endforelse
+        </div>
+        <div>
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Customer Lifecycle Status</p>
+          @forelse($wepCustomerStatusBreakdown as $row)
+            <div class="flex items-center justify-between text-[12px] text-gray-600 py-1 border-b border-gray-100">
+              <span>{{ $row['status'] }}</span>
+              <span class="font-semibold text-gray-800">{{ number_format($row['total']) }}</span>
+            </div>
+          @empty
+            <p class="text-[11px] text-gray-400">No customer data yet</p>
+          @endforelse
+        </div>
+      </div>
+    </div>
+
+    {{-- Top Products --}}
+    <div id="wep-panel-products" class="panel">
+      <div class="p-5">
+        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Top Products by Revenue</p>
+        @forelse($wepTopProducts as $row)
+          <div class="flex items-center justify-between text-[12px] text-gray-600 py-1 border-b border-gray-100">
+            <span class="truncate pr-2">{{ $row['product'] }} <span class="text-gray-400">×{{ $row['units'] }}</span></span>
+            <span class="font-semibold text-gray-800 flex-shrink-0">{{ $wepCurrency }} {{ number_format($row['revenue'], 2) }}</span>
+          </div>
+        @empty
+          <p class="text-[11px] text-gray-400">No product data yet</p>
+        @endforelse
+      </div>
+    </div>
+
+    {{-- Payment Methods --}}
+    <div id="wep-panel-payments" class="panel">
+      <div class="p-5">
+        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Top Payment Methods</p>
+        @forelse($wepPaymentMethods as $row)
+          <div class="flex items-center justify-between text-[12px] text-gray-600 py-1 border-b border-gray-100">
+            <span>{{ $row['method'] }}</span>
+            <span class="font-semibold text-gray-800">{{ number_format($row['total']) }}</span>
+          </div>
+        @empty
+          <p class="text-[11px] text-gray-400">No payment data yet</p>
+        @endforelse
+      </div>
+    </div>
+
+    {{-- Top Countries --}}
+    <div id="wep-panel-countries" class="panel">
+      <div class="p-5">
+        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Top Customer Countries</p>
+        <div class="grid grid-cols-5 gap-3">
+          @forelse($wepTopCountries as $row)
+            <div class="bg-gray-50 rounded-lg p-2.5 text-center">
+              <p class="text-[13px] font-bold text-gray-900">{{ number_format($row['total']) }}</p>
+              <p class="text-[11px] text-gray-500 truncate">{{ $row['country'] }}</p>
+            </div>
+          @empty
+            <p class="text-[11px] text-gray-400">No location data yet</p>
+          @endforelse
+        </div>
+      </div>
+    </div>
+  </div>
+
   {{-- TAB BAR + PANELS --}}
   <div id="tabs-panels-card" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
@@ -2340,31 +2532,111 @@
     </div>
 
     {{-- ═══════════════════════════════════════
-         SOCIAL SIGNALS PANELS
+         SOCIAL SIGNALS PANELS (real Instagram data —
+         see InstagramMedia::socialStats())
          ═══════════════════════════════════════ --}}
 
-    @foreach([
-      ['brand-mentions',   'Social Signals – Brand Mentions'],
-      ['hashtag-tracking', 'Social Signals – Hashtag Tracking'],
-      ['sentiment',        'Social Signals – Sentiment Analysis'],
-    ] as [$tid, $title])
-    <div id="panel-social-{{ $tid }}" class="panel p-5">
-      <div class="globe-panel" style="max-width:560px;margin:0 auto;padding:48px 40px">
-        <div style="width:72px;height:72px;border-radius:16px;background:#fce7f3;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
-          <svg width="36" height="36" fill="none" stroke="#ec4899" stroke-width="1.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
-          </svg>
-        </div>
-        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">{{ $title }}</h3>
-        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics pannel for this micro signal</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
-          <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
-          <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
-          <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+    @if(!$socialConnected)
+      @foreach(['brand-mentions', 'hashtag-tracking', 'sentiment'] as $tid)
+      <div id="panel-social-{{ $tid }}" class="panel p-5">
+        <div class="globe-panel" style="max-width:480px;margin:0 auto;padding:48px 40px">
+          <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:8px">No Instagram account connected</h3>
+          <p style="font-size:13px;color:#9ca3af">Connect Instagram from Social Connections to populate this panel with real post and engagement data.</p>
         </div>
       </div>
+      @endforeach
+    @else
+
+    {{-- Brand Mentions → we only have your own account's posts, not real
+         external mention tracking (needs a scope/model we haven't built) —
+         say so plainly and show what's real: your own recent post performance. --}}
+    <div id="panel-social-brand-mentions" class="panel p-6">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ec4899"></div>
+        <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:.3px">Social Signals – Recent Post Performance</span>
+        <div style="flex:1;height:1px;background:#fbcfe8;margin-left:8px"></div>
+        <span style="font-size:12px;font-weight:600;color:#ec4899;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:12px;padding:2px 10px">Live</span>
+      </div>
+      <p style="font-size:12px;color:#9ca3af;margin-bottom:20px">Mentions from other accounts aren't synced yet (Instagram's mentions API isn't wired up) — this shows your own connected account's real post performance instead.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#ec4899;line-height:1">{{ $socialFollowers }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Followers</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#3b82f6;line-height:1">{{ $socialTotalPosts }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Posts Synced</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#10b981;line-height:1">{{ $socialTotalLikes + $socialTotalComments }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Total Engagement</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#8b5cf6;line-height:1">{{ $socialAvgEngagement }}%</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Avg Engagement Rate</p>
+        </div>
+      </div>
+
+      <div class="panel-card" style="padding:16px 20px">
+        <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:12px">Top Posts by Engagement</p>
+        @forelse($socialTopPosts as $p)
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;{{ !$loop->last ? 'border-bottom:1px solid #f1f5f9' : '' }}">
+            <div style="min-width:0">
+              <a href="{{ $p['permalink'] }}" target="_blank" rel="noopener" style="font-size:13px;color:#111827;font-weight:500;text-decoration:none">{{ $p['caption'] }}</a>
+              <p style="font-size:11px;color:#9ca3af;margin-top:2px">{{ $p['posted_at'] }}</p>
+            </div>
+            <div style="display:flex;gap:14px;flex-shrink:0;margin-left:16px">
+              <span style="font-size:12px;color:#6b7280">❤ {{ $p['likes'] }}</span>
+              <span style="font-size:12px;color:#6b7280">💬 {{ $p['comments'] }}</span>
+              <span style="font-size:12px;font-weight:600;color:#10b981">{{ $p['engagement'] }}%</span>
+            </div>
+          </div>
+        @empty
+          <p style="font-size:12px;color:#9ca3af">No posts synced yet — click Sync on the Instagram connection.</p>
+        @endforelse
+      </div>
     </div>
-    @endforeach
+
+    {{-- Hashtag Tracking → genuinely real: extracted from synced caption text --}}
+    <div id="panel-social-hashtag-tracking" class="panel p-6">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ec4899"></div>
+        <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:.3px">Social Signals – Hashtag Tracking</span>
+        <div style="flex:1;height:1px;background:#fbcfe8;margin-left:8px"></div>
+        <span style="font-size:12px;font-weight:600;color:#ec4899;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:12px;padding:2px 10px">Live</span>
+      </div>
+
+      <div class="panel-card" style="padding:20px">
+        <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:2px">Most-used hashtags</p>
+        <p style="font-size:11px;color:#9ca3af;margin-bottom:16px">Counted from the caption text of your {{ $socialTotalPosts }} synced {{ Str::plural('post', $socialTotalPosts) }}</p>
+        @forelse($socialTopHashtags as $h)
+          @php $pct = round($h['count'] / max(1, $socialTopHashtags[0]['count']) * 100); @endphp
+          <div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+              <span style="font-size:13px;color:#374151;font-weight:500">#{{ $h['tag'] }}</span>
+              <span style="font-size:12px;color:#6b7280">{{ $h['count'] }}</span>
+            </div>
+            <div style="height:6px;background:#f1f5f9;border-radius:4px;overflow:hidden">
+              <div style="height:100%;width:{{ $pct }}%;background:#ec4899;border-radius:4px"></div>
+            </div>
+          </div>
+        @empty
+          <p style="font-size:12px;color:#9ca3af">No hashtags found in your synced captions yet — post with hashtags and sync again.</p>
+        @endforelse
+      </div>
+    </div>
+
+    {{-- Sentiment Analysis → honestly not built: no comment-level model exists,
+         so this stays a plain "not available" state rather than a fake score. --}}
+    <div id="panel-social-sentiment" class="panel p-5">
+      <div class="globe-panel" style="max-width:480px;margin:0 auto;padding:48px 40px">
+        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:8px">Sentiment analysis isn't wired up yet</h3>
+        <p style="font-size:13px;color:#9ca3af">Comment-level sentiment scoring needs a model this build doesn't have — the {{ $socialTotalComments }} comment{{ $socialTotalComments === 1 ? '' : 's' }} synced from your posts are counted, but not scored for tone. This will populate once sentiment scoring is built.</p>
+      </div>
+    </div>
+
+    @endif
 
     {{-- ═══════════════════════════════════════
          CALL CENTER PANELS
@@ -2637,6 +2909,7 @@ function selectSource(id) {
   currentSrc = id;
 
   document.getElementById('tabs-panels-card').style.display = '';
+  document.getElementById('website-provider-overview').style.display = (id === 'website') ? '' : 'none';
 
   if (id === 'email') {
     // Panel stays hidden until loadBrevoEngagementStats confirms a provider
@@ -3038,6 +3311,13 @@ function closeBrevoTopModal() {
   clearTimeout(beContactsPollTimer);
   beContactsCurrentMetric = null;
   document.getElementById('be-modal-overlay').style.display = 'none';
+}
+
+function selectWepTab(tabId) {
+  document.querySelectorAll('#website-provider-overview [id^="wep-panel-"]').forEach(p => p.classList.remove('active'));
+  document.getElementById('wep-panel-' + tabId).classList.add('active');
+  document.querySelectorAll('#wep-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
 }
 
 function selectTab(src, tabId) {
