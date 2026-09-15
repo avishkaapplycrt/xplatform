@@ -18,7 +18,6 @@ use App\Http\Controllers\AnalyticsDashboardViewController;
 use App\Models\EmailLog;
 use App\Models\CallLog;
 use App\Models\BehavioralProfile;
-use App\Models\WebsiteEventsProviderHeader;
 use App\Http\Controllers\Analytics\LaravelSiteManagementController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\WebsiteConnectionController;
@@ -229,7 +228,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('company/overview', [ClientOverviewController::class, 'show'])->name('company.overview');
 
     // Layer pages
-    Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), WebsiteEventsProviderHeader::providerOverviewStats(), \App\Models\InstagramMedia::socialStats())))->name('layer.l1');
+    Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), \App\Models\InstagramMedia::socialStats())))->name('layer.l1');
     Route::get('layers/l2',      [DecisionCentreController::class, 'l2'])->name('layer.l2');
     Route::get('layers/l3',      [DecisionCentreController::class, 'l3'])->name('layer.l3');
     Route::get('layers/l4',      [DecisionCentreController::class, 'index'])->name('layer.l4');
@@ -239,7 +238,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('layers/l8',      [DecisionCentreController::class, 'l8'])->name('layer.l8');
     Route::get('layers/rl',      fn() => view('client.layers.rl'))->name('layer.rl');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
-    Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), WebsiteEventsProviderHeader::providerOverviewStats())))->name('data-collection');
+    Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), \App\Models\InstagramMedia::socialStats())))->name('data-collection');
     Route::get('business-helpers', function () {
         $groupPrompts = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
             ->ordered()

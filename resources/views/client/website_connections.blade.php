@@ -200,11 +200,12 @@
   </div>
 
   {{-- Platform Cards Grid --}}
+  @php $connectedMap = collect($platforms)->pluck('connected', 'id'); @endphp
   <div class="grid grid-cols-5 gap-4">
 
     {{-- WordPress --}}
-    <a href="{{ route('client.website-connections.wordpress') }}" class="platform-card" style="text-decoration:none; display:block;">
-      <span class="status-badge">Not Connected</span>
+    <a href="{{ route('client.website-connections.wordpress') }}" class="platform-card {{ $connectedMap['wordpress'] ? 'connected' : '' }}" style="text-decoration:none; display:block;">
+      <span class="status-badge">{{ $connectedMap['wordpress'] ? 'Connected' : 'Not Connected' }}</span>
       <div class="icon-wrap">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
           <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2z" fill="#21759b"/>
@@ -217,13 +218,13 @@
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
         </svg>
-        Connect
+        {{ $connectedMap['wordpress'] ? 'Manage' : 'Connect' }}
       </span>
     </a>
 
     {{-- Wix --}}
-    <a href="{{ route('client.website-connections.wix') }}" class="platform-card" style="text-decoration:none; display:block;">
-      <span class="status-badge">Not Connected</span>
+    <a href="{{ route('client.website-connections.wix') }}" class="platform-card {{ $connectedMap['wix'] ? 'connected' : '' }}" style="text-decoration:none; display:block;">
+      <span class="status-badge">{{ $connectedMap['wix'] ? 'Connected' : 'Not Connected' }}</span>
       <div class="icon-wrap">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
           <rect x="2" y="4" width="20" height="16" rx="3" fill="#0c0c0c"/>
@@ -236,13 +237,13 @@
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
         </svg>
-        Connect
+        {{ $connectedMap['wix'] ? 'Manage' : 'Connect' }}
       </span>
     </a>
 
     {{-- Shopify --}}
-    <a href="{{ route('client.website-connections.shopify') }}" class="platform-card" style="text-decoration:none; display:block;">
-      <span class="status-badge">Not Connected</span>
+    <a href="{{ route('client.website-connections.shopify') }}" class="platform-card {{ $connectedMap['shopify'] ? 'connected' : '' }}" style="text-decoration:none; display:block;">
+      <span class="status-badge">{{ $connectedMap['shopify'] ? 'Connected' : 'Not Connected' }}</span>
       <div class="icon-wrap">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
           <path d="M15.337 3.415c-.066 0-.132.013-.198.026-.066.013-.132.04-.185.066l-.132.092c-.053.04-.106.092-.146.146l-.092.132-.092.132-.066.185-.026.198v.264l.026.198.066.185.092.132.092.132.146.146.132.092.185.066.198.026h.264l.198-.026.185-.066.132-.092.146-.146.092-.132.092-.132.066-.185.026-.198v-.264l-.026-.198-.066-.185-.092-.132-.092-.132-.146-.146-.132-.092-.185-.066-.198-.026h-.264z" fill="#95bf47"/>
@@ -257,13 +258,13 @@
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
         </svg>
-        Connect
+        {{ $connectedMap['shopify'] ? 'Manage' : 'Connect' }}
       </span>
     </a>
 
     {{-- Webflow --}}
-    <a href="{{ route('client.website-connections.webflow') }}" class="platform-card" style="text-decoration:none; display:block;">
-      <span class="status-badge">Not Connected</span>
+    <a href="{{ route('client.website-connections.webflow') }}" class="platform-card {{ $connectedMap['webflow'] ? 'connected' : '' }}" style="text-decoration:none; display:block;">
+      <span class="status-badge">{{ $connectedMap['webflow'] ? 'Connected' : 'Not Connected' }}</span>
       <div class="icon-wrap">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
           <rect x="3" y="3" width="18" height="18" rx="4" fill="#4353ff"/>
@@ -277,13 +278,13 @@
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
         </svg>
-        Connect
+        {{ $connectedMap['webflow'] ? 'Manage' : 'Connect' }}
       </span>
     </a>
 
     {{-- Squarespace --}}
-    <a href="{{ route('client.website-connections.squarespace') }}" class="platform-card" style="text-decoration:none; display:block;">
-      <span class="status-badge">Not Connected</span>
+    <a href="{{ route('client.website-connections.squarespace') }}" class="platform-card {{ $connectedMap['squarespace'] ? 'connected' : '' }}" style="text-decoration:none; display:block;">
+      <span class="status-badge">{{ $connectedMap['squarespace'] ? 'Connected' : 'Not Connected' }}</span>
       <div class="icon-wrap">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
           <rect x="3" y="3" width="18" height="18" rx="3" fill="#000"/>
@@ -297,7 +298,7 @@
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
         </svg>
-        Connect
+        {{ $connectedMap['squarespace'] ? 'Manage' : 'Connect' }}
       </span>
     </a>
 
@@ -342,20 +343,57 @@
       <span class="section-title" style="color:#10b981">Connected Websites</span>
       <div class="section-line" style="background:#a7f3d0"></div>
     </div>
+    @php
+      $platformRoutes = [
+        'wordpress'   => 'client.website-connections.wordpress',
+        'wix'         => 'client.website-connections.wix',
+        'shopify'     => 'client.website-connections.shopify',
+        'webflow'     => 'client.website-connections.webflow',
+        'squarespace' => 'client.website-connections.squarespace',
+      ];
+      $statusColors = [
+        'active' => ['bg' => '#dcfce7', 'text' => '#16a34a'],
+        'error'  => ['bg' => '#fef2f2', 'text' => '#dc2626'],
+        'pause'  => ['bg' => '#fef3c7', 'text' => '#d97706'],
+      ];
+    @endphp
     <div id="connected-sites-list" style="display:flex; flex-direction:column; gap:8px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#f9fafb; border-radius:8px;">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-            </svg>
+      @forelse($connections as $c)
+        @php $sc = $statusColors[$c->status] ?? $statusColors['active']; @endphp
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#f9fafb; border-radius:8px;">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-[13px] font-semibold text-gray-900">{{ $c->site_name ?: $c->site_url }} <span style="font-weight:500; color:#9ca3af; text-transform:capitalize;">· {{ $c->platform }}</span></p>
+              <p class="text-[11px] text-gray-500">{{ $c->site_url }}</p>
+            </div>
           </div>
-          <div>
-            <p class="text-[13px] font-semibold text-gray-900">No websites connected yet</p>
-            <p class="text-[11px] text-gray-500">Select a platform above to connect your first site.</p>
+          <div class="flex items-center gap-3">
+            <span style="font-size:10px; font-weight:600; padding:3px 10px; border-radius:20px; background:{{ $sc['bg'] }}; color:{{ $sc['text'] }}; text-transform:capitalize;">{{ $c->status }}</span>
+            @if(isset($platformRoutes[$c->platform]))
+              <a href="{{ route($platformRoutes[$c->platform]) }}" style="font-size:11px; font-weight:600; color:#3b82f6; text-decoration:none;">Manage</a>
+            @endif
           </div>
         </div>
-      </div>
+      @empty
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#f9fafb; border-radius:8px;">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-[13px] font-semibold text-gray-900">No websites connected yet</p>
+              <p class="text-[11px] text-gray-500">Select a platform above to connect your first site.</p>
+            </div>
+          </div>
+        </div>
+      @endforelse
     </div>
   </div>
 
