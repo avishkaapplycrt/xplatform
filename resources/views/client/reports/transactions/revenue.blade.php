@@ -26,13 +26,13 @@
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{ request()->url() }?period='+this.value">
-        <option value="7d" { $period == '7d' ? 'selected' : '' }>Last 7 Days</option>
-        <option value="30d" { $period == '30d' ? 'selected' : '' }>Last 30 Days</option>
-        <option value="90d" { $period == '90d' ? 'selected' : '' }>Last 90 Days</option>
-        <option value="1y" { $period == '1y' ? 'selected' : '' }>Last Year</option>
+      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{{ request()->url() }}?period='+this.value">
+        <option value="7d" {{ $period == '7d' ? 'selected' : '' }}>Last 7 Days</option>
+        <option value="30d" {{ $period == '30d' ? 'selected' : '' }}>Last 30 Days</option>
+        <option value="90d" {{ $period == '90d' ? 'selected' : '' }}>Last 90 Days</option>
+        <option value="1y" {{ $period == '1y' ? 'selected' : '' }}>Last Year</option>
       </select>
-      <a href="{ request()->url() }/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+      <a href="{{ request()->url() }}/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
@@ -98,8 +98,47 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">Revenue analytics coming soon.</p>
+    <div class="grid grid-cols-2 gap-4 mb-5">
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-semibold uppercase tracking-wide mb-1">Revenue This Period</p>
+        <p class="text-[24px] font-bold text-gray-900">${{ number_format($data['total_revenue'], 2) }}</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-semibold uppercase tracking-wide mb-1">Vs Previous Period</p>
+        <p class="text-[24px] font-bold {{ $data['change_pct'] >= 0 ? 'text-emerald-600' : 'text-red-600' }}">
+          {{ $data['change_pct'] >= 0 ? '+' : '' }}{{ $data['change_pct'] }}%
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-xl p-5 mb-5">
+      <p class="text-[12px] font-semibold text-gray-700 mb-3">Daily Revenue</p>
+      <div style="height:260px">
+        <canvas id="revenueChart"></canvas>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <table class="w-full text-[12px]">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-200">
+            <th class="text-left px-4 py-2.5 font-semibold text-gray-500 uppercase text-[10px] tracking-wide">Date</th>
+            <th class="text-right px-4 py-2.5 font-semibold text-gray-500 uppercase text-[10px] tracking-wide">Orders</th>
+            <th class="text-right px-4 py-2.5 font-semibold text-gray-500 uppercase text-[10px] tracking-wide">Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+          @forelse(array_reverse($data['by_day']) as $day)
+          <tr class="border-b border-gray-100 last:border-0">
+            <td class="px-4 py-2.5 text-gray-700">{{ \Carbon\Carbon::parse($day['date'])->format('M j, Y') }}</td>
+            <td class="px-4 py-2.5 text-right text-gray-700">{{ $day['orders'] }}</td>
+            <td class="px-4 py-2.5 text-right font-semibold text-gray-900">${{ number_format($day['revenue'], 2) }}</td>
+          </tr>
+          @empty
+          <tr><td colspan="3" class="px-4 py-6 text-center text-gray-400">No revenue in this period.</td></tr>
+          @endforelse
+        </tbody>
+      </table>
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -123,12 +162,43 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
   var drop = document.getElementById('l1Dropdown');
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
+
+var revenueByDay = @json($data['by_day'] ?? []);
+var revenueCanvas = document.getElementById('revenueChart');
+if (revenueCanvas && revenueByDay.length) {
+  new Chart(revenueCanvas, {
+    type: 'line',
+    data: {
+      labels: revenueByDay.map(function(d) {
+        var parts = d.date.split('-');
+        return parts[1] + '/' + parts[2];
+      }),
+      datasets: [{
+        label: 'Revenue',
+        data: revenueByDay.map(function(d) { return d.revenue; }),
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59,130,246,.08)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: function(v) { return '$' + Number(v).toLocaleString(); } } }
+      }
+    }
+  });
+}
 </script>
-@endsection
+@endpush

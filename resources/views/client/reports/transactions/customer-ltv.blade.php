@@ -22,17 +22,11 @@
       </a>
       <div>
         <h1 class="text-[16px] font-semibold text-gray-900">Customer Lifetime Value</h1>
-        <p class="text-[11px] text-gray-500 mt-0.5">Analyze customer value and retention</p>
+        <p class="text-[11px] text-gray-500 mt-0.5">Total spend per customer, all-time</p>
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{ request()->url() }?period='+this.value">
-        <option value="7d" { $period == '7d' ? 'selected' : '' }>Last 7 Days</option>
-        <option value="30d" { $period == '30d' ? 'selected' : '' }>Last 30 Days</option>
-        <option value="90d" { $period == '90d' ? 'selected' : '' }>Last 90 Days</option>
-        <option value="1y" { $period == '1y' ? 'selected' : '' }>Last Year</option>
-      </select>
-      <a href="{ request()->url() }/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+      <a href="{{ request()->url() }}/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
@@ -98,8 +92,42 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">Customer LTV analytics coming soon.</p>
+    <div class="grid grid-cols-2 gap-4 mb-5">
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-semibold uppercase tracking-wide mb-1">Customers (with a completed order)</p>
+        <p class="text-[22px] font-bold text-gray-900">{{ number_format($data['customer_count']) }}</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-semibold uppercase tracking-wide mb-1">Average Lifetime Value</p>
+        <p class="text-[22px] font-bold text-gray-900">${{ number_format($data['avg_ltv'], 2) }}</p>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <table class="w-full text-[12px]">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-200">
+            <th class="text-left px-4 py-2.5 font-semibold text-gray-500 uppercase text-[10px] tracking-wide">Customer</th>
+            <th class="text-right px-4 py-2.5 font-semibold text-gray-500 uppercase text-[10px] tracking-wide">Orders</th>
+            <th class="text-right px-4 py-2.5 font-semibold text-gray-500 uppercase text-[10px] tracking-wide">Avg Order</th>
+            <th class="text-left px-4 py-2.5 font-semibold text-gray-500 uppercase text-[10px] tracking-wide">Last Purchase</th>
+            <th class="text-right px-4 py-2.5 font-semibold text-gray-500 uppercase text-[10px] tracking-wide">Lifetime Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          @forelse($data['customers'] as $c)
+          <tr class="border-b border-gray-100 last:border-0">
+            <td class="px-4 py-2.5 text-gray-700">{{ $c['email'] }}</td>
+            <td class="px-4 py-2.5 text-right text-gray-700">{{ $c['orders'] }}</td>
+            <td class="px-4 py-2.5 text-right text-gray-700">${{ number_format($c['avg_order'], 2) }}</td>
+            <td class="px-4 py-2.5 text-gray-700">{{ \Carbon\Carbon::parse($c['last_seen'])->format('M j, Y') }}</td>
+            <td class="px-4 py-2.5 text-right font-semibold text-gray-900">${{ number_format($c['ltv'], 2) }}</td>
+          </tr>
+          @empty
+          <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400">No completed orders with a known customer email yet.</td></tr>
+          @endforelse
+        </tbody>
+      </table>
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -123,7 +151,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -131,4 +159,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush

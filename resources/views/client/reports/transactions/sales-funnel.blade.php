@@ -22,17 +22,17 @@
       </a>
       <div>
         <h1 class="text-[16px] font-semibold text-gray-900">Sales Funnel</h1>
-        <p class="text-[11px] text-gray-500 mt-0.5">Track cart abandonment and checkout flow</p>
+        <p class="text-[11px] text-gray-500 mt-0.5">Where payments succeed and where they drop off</p>
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{ request()->url() }?period='+this.value">
-        <option value="7d" { $period == '7d' ? 'selected' : '' }>Last 7 Days</option>
-        <option value="30d" { $period == '30d' ? 'selected' : '' }>Last 30 Days</option>
-        <option value="90d" { $period == '90d' ? 'selected' : '' }>Last 90 Days</option>
-        <option value="1y" { $period == '1y' ? 'selected' : '' }>Last Year</option>
+      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{{ request()->url() }}?period='+this.value">
+        <option value="7d" {{ $period == '7d' ? 'selected' : '' }}>Last 7 Days</option>
+        <option value="30d" {{ $period == '30d' ? 'selected' : '' }}>Last 30 Days</option>
+        <option value="90d" {{ $period == '90d' ? 'selected' : '' }}>Last 90 Days</option>
+        <option value="1y" {{ $period == '1y' ? 'selected' : '' }}>Last Year</option>
       </select>
-      <a href="{ request()->url() }/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+      <a href="{{ request()->url() }}/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
@@ -98,8 +98,30 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">Sales funnel analytics coming soon.</p>
+    <div class="bg-white border border-gray-200 rounded-xl p-5 mb-5">
+      <p class="text-[12px] font-semibold text-gray-700 mb-1">Payment Funnel</p>
+      <p class="text-[11px] text-gray-500 mb-4">Every payment attempt that reached your gateway, and how many made it all the way through without being refunded.</p>
+      @php $maxCount = max(array_column($data['funnel'], 'count') ?: [1]); @endphp
+      <div class="space-y-3">
+        @foreach($data['funnel'] as $i => $stage)
+        @php $widthPct = $maxCount > 0 ? max(4, round($stage['count'] / $maxCount * 100)) : 0; @endphp
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[12px] font-medium text-gray-700">{{ $stage['stage'] }}</span>
+            <span class="text-[12px] text-gray-500">{{ number_format($stage['count']) }} <span class="text-gray-400">({{ $stage['pct'] }}%)</span></span>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-6 overflow-hidden">
+            <div class="h-6 rounded-full flex items-center" style="width:{{ $widthPct }}%;background:{{ ['#3b82f6','#7c3aed','#059669'][$i] ?? '#6b7280' }}"></div>
+          </div>
+        </div>
+        @endforeach
+      </div>
+    </div>
+
+    <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
+      <p class="text-[11px] text-blue-700">
+        This funnel is built entirely from real payment outcomes — there's no separate visit/cart tracking connected yet, so "attempted" starts from the first moment a payment reaches Stripe.
+      </p>
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -123,7 +145,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -131,4 +153,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush

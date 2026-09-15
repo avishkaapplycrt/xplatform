@@ -820,6 +820,9 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::post('/payment-gateway-connections/{gateway}/test', [PaymentGatewayConnectionController::class, 'testConnection'])
         ->name('payment-gateway-connections.test');
 
+    Route::post('/payment-gateway-connections/{gateway}/sync', [PaymentGatewayConnectionController::class, 'sync'])
+        ->name('payment-gateway-connections.sync');
+
     Route::delete('/payment-gateway-connections/{gateway}', [PaymentGatewayConnectionController::class, 'destroy'])
         ->name('payment-gateway-connections.destroy');
 
