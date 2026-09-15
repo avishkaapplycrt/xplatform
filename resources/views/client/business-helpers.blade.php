@@ -145,13 +145,13 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
                 <div class="dm-quick-hd" id="dashQuickHd">
                     <span id="dashQuickHdText"></span>
                     <button type="button" class="dm-quick-min" onclick="collapseDashQuicks()" title="Hide suggestions" aria-label="Hide suggestions">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="18 15 12 9 6 15"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="6 9 12 15 18 9"/></svg>
                     </button>
                 </div>
                 <div class="dm-quick" id="dashQuick"></div>
                 <div class="dm-quick-reopen" id="dashQuickReopen" onclick="expandDashQuicks()" title="Show suggestions" aria-label="Show suggestions">
                     <span>Suggestions</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="18 15 12 9 6 15"/></svg>
                 </div>
                 <div class="dm-inbar">
                     <input class="in" id="dashInput" type="text" placeholder="Ask anything — plain answers, no jargon..." autocomplete="off">
@@ -297,12 +297,16 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 
 #bhRoot .dash-main{background:#fff;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 #bhRoot .dash-vtabs{display:flex;gap:1px;background:var(--ln);border-bottom:1px solid var(--ln);flex-shrink:0;flex-wrap:wrap}
-#bhRoot .dvt{flex:1;min-width:110px;font-family:var(--fm);font-size:10.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--g2);padding:13px 8px;background:#fff;border:none;cursor:pointer;text-align:center;transition:all .15s}
+#bhRoot .dvt{flex:1;min-width:78px;font-family:var(--fm);font-size:10.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--g2);padding:13px 6px;background:#fff;border:none;cursor:pointer;text-align:center;transition:all .15s}
 #bhRoot .dvt.on{background:var(--ac);color:#fff}
 #bhRoot .dvt:hover:not(.on){background:var(--p1);color:var(--ink)}
 #bhRoot .dash-view{flex:1;overflow-y:auto}
 
 #bhRoot .stkrow{display:grid;grid-template-columns:30px 108px 1.2fr 1.2fr auto;gap:18px;padding:22px 20px;border-bottom:1px solid var(--p2);align-items:center}
+#bhRoot .stkrow.no-actions{grid-template-columns:30px 1.3fr 1.5fr}
+#bhRoot .stkrow-close{display:grid;grid-template-columns:30px 130px 1.2fr 1.3fr;gap:18px;padding:22px 20px;border-bottom:1px solid var(--p2);align-items:center}
+#bhRoot .stkrow-growth{display:grid;grid-template-columns:1fr 1.4fr;gap:18px;padding:22px 20px;border-bottom:1px solid var(--p2);align-items:center}
+@media(max-width:900px){#bhRoot .stkrow-close,#bhRoot .stkrow-growth{grid-template-columns:1fr 1fr;grid-auto-flow:row}}
 #bhRoot .stkrow:last-child{border-bottom:none}
 #bhRoot .stk-n{font-family:var(--fm);font-size:17px;font-weight:600;color:var(--g4)}
 #bhRoot .stk-call{font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:10px 10px;border:1px solid var(--ac);background:var(--ac);color:#fff;cursor:pointer;border-radius:7px;white-space:nowrap;width:100%}
@@ -380,7 +384,7 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .mg-kpi small{font-size:10px;color:var(--g3);font-weight:500;margin-left:4px}
 @media(max-width:900px){#bhRoot .mg-grid{grid-template-columns:1fr}}
 
-#bhRoot .dash-mira{background:#fff;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#bhRoot .dash-mira{background:#fff;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;min-height:0}
 #bhRoot .dm-hd{display:flex;align-items:center;gap:11px;padding:16px 18px;border-bottom:1px solid var(--ln);background:var(--p1);flex-shrink:0}
 #bhRoot .dm-dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0;animation:bhblink 1.8s infinite}
 #bhRoot .dm-t{font-size:13px;font-weight:700;letter-spacing:.2px;color:var(--ink)}
@@ -397,7 +401,7 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .dm-quick-reopen{display:none;align-items:center;justify-content:center;gap:5px;padding:7px 16px;border-top:1px solid var(--ln);font-family:var(--fm);font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--g3);cursor:pointer;flex-shrink:0;background:#fff}
 #bhRoot .dm-quick-reopen:hover{color:var(--ac-d);background:var(--ac-l)}
 #bhRoot .dm-quick-reopen.dm-quick-reopen-show{display:flex}
-#bhRoot .dm-inbar{display:flex;gap:1px;border-top:1px solid var(--ln);background:var(--ln);flex-shrink:0}
+#bhRoot .dm-inbar{display:flex;gap:1px;border-top:1px solid var(--ln);background:var(--ln);flex-shrink:0;position:sticky;bottom:0;z-index:2}
 
 /* ══ Helper panel (right) — drag-resize · minimise · maximise ══
    Applies to the "<agent> helper" panel shared by Marketing, Sales and
@@ -449,6 +453,13 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .nmin:focus{border-color:var(--ac-m);box-shadow:0 0 0 3px var(--ac-l)}
 #bhRoot .nmin:disabled{background:var(--p2);color:var(--g3)}
 #bhRoot .nmform .qk{flex-shrink:0;align-self:center}
+
+/* Sales · Overcome — client picker above the objection playbook */
+#bhRoot .ov-client-row{padding:16px 20px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--p2)}
+#bhRoot .ov-client-label{font-family:var(--fm);font-size:10.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--g3)}
+#bhRoot .ov-client-sel{border:1px solid var(--ln2);border-radius:8px;padding:9px 14px;font-family:var(--f1);font-size:13px;font-weight:600;color:var(--ink);background:#fff;cursor:pointer;outline:none;min-width:220px;transition:border-color .15s}
+#bhRoot .ov-client-sel:hover{border-color:var(--ac-m)}
+#bhRoot .ov-client-sel:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac-l)}
 </style>
 
 <script>
@@ -477,6 +488,15 @@ var RETENTION_AI_ENDPOINTS = {
   ab_holdout_big_enough: @json(route('client.business-helpers.retention.ab.holdout-big-enough')),
   ab_all_test_ideas: @json(route('client.business-helpers.retention.ab.all-test-ideas'))
 };
+var SALES_ASK_ENDPOINT = @json(route('client.business-helpers.sales.ask'));
+var SALES_PROMPT_AI_ENDPOINT = @json(route('client.business-helpers.sales.prompt-insight'));
+var SALES_OBJECTION_PLAYBOOK_ENDPOINT = @json(route('client.business-helpers.sales.objection-playbook'));
+var SALES_PROMPT_AI_KEYS = [
+  'understand:priority_changed',
+  'craft:not_ready_response', 'craft:too_expensive_response', 'craft:competitor_response',
+  'handle:not_interested', 'handle:not_right_now', 'handle:why_need_this',
+  'handle:use_competitor', 'handle:too_expensive'
+];
 var MARKETING_AI_ENDPOINTS = {
   exclude_from_every_send: @json(route('client.business-helpers.marketing.exclude-from-send')),
   in_live_sales_cycle: @json(route('client.business-helpers.marketing.live-sales-cycle')),
@@ -878,9 +898,42 @@ function dashPromptClick(stepKey, promptKey, label){
   }
 
   var name = topPrimaryName(agent);
+
+  if (agent === 'sl' && SALES_PROMPT_AI_KEYS.indexOf(stepKey + ':' + promptKey) !== -1) {
+    return dashSalesPromptAi(stepKey, promptKey, name, label);
+  }
+
   var account = ACCOUNTS.filter(function(x){ return x.name === name; })[0];
   var c = account ? classifyFor(agent, account) : null;
   dashPushMsg('bot', dashPromptAnswer(agent, stepKey, promptKey, name, account, c));
+}
+/* Sales predefined-prompt questions that need real crm_contacts/crm_deals/
+   crm_integrations/email_logs_providers row detail rather than the
+   precomputed scores dashPromptAnswer() uses for every other prompt — see
+   App\Services\Llm\SalesPromptInsightsService. Same idea as
+   dashRetentionAiAnswer() above, applied to Sales's weaker prompts. */
+function dashSalesPromptAi(stepKey, promptKey, name, label){
+  var stepIdx = PROMPT_STEP_ORDER.indexOf(stepKey);
+  var stepTitle = DASH_FLOW.sl.steps[stepIdx === -1 ? 0 : stepIdx].t;
+  var tagHtml = '<div class="tag">Sales · ' + escapeHtml(stepTitle) + '</div>';
+  var el = dashPushMsg('bot', tagHtml + '<p style="color:var(--g3)">Thinking…</p>');
+
+  fetch(SALES_PROMPT_AI_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+    },
+    body: JSON.stringify({ step: stepKey, prompt: promptKey, name: name, label: label })
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    el.innerHTML = tagHtml + '<p>' + escapeHtml(data.answer || "I couldn't get an answer just now.").replace(/\n/g, '<br>') + '</p>';
+  })
+  .catch(function () {
+    el.innerHTML = tagHtml + "<p>I couldn't reach the AI just now — try again in a moment.</p>";
+  });
 }
 function chStepTag(stepKey){
   var stepIdx = RETENTION_STEP_KEYS.indexOf(stepKey);
@@ -1194,69 +1247,45 @@ function dashPromptAnswer(agent, stepKey, promptKey, name, account, c){
       return head + '<p>' + (primary.length ? primary.map(function(x,i){ return '<b>'+(i+1)+'. '+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'Nothing urgent right now — check Accounts for the full list.') + '</p>';
     case 'prioritise:top5_hour':
       var top5 = r.slice(0, 5);
-      return head + '<p><strong>Top 5 by priority right now:</strong></p><ul style="margin:4px 0 0 16px">' + top5.map(function(x){ return '<li>'+escapeHtml(x.a.name)+' — priority '+x.c.priority+' ('+PLAY_LABEL[x.c.play]+')</li>'; }).join('') + '</ul>';
+      return head + '<p><strong>Highest priority right now:</strong></p><ul style="margin:4px 0 0 16px">' + top5.map(function(x){ return '<li>'+escapeHtml(x.a.name)+' — priority '+x.c.priority+' ('+PLAY_LABEL[x.c.play]+')</li>'; }).join('') + '</ul>';
     case 'prioritise:buying_window':
-      return head + '<p>' + (primary.length ? primary.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b>: '+x.c.why[0]; }).join('</p><p>') : 'No one is in the buying window right now.') + '</p>';
+      return head + '<p>' + (primary.length ? primary.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b>: '+x.c.why[0]; }).join('</p><p>') : 'No one looks likely to buy soon right now.') + '</p>';
     case 'prioritise:not_call':
       return head + '<p>' + (hold.length ? hold.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'Nobody is on hold right now — the whole stack is safe to work.') + '</p>';
-    case 'prioritise:changed_yesterday':
-      return head + '<p>The stack re-ranks every time a score or contact outcome changes. Right now <b>'+escapeHtml((primary[0]&&primary[0].a.name)||'the top account')+'</b> leads with priority '+((primary[0]&&primary[0].c.priority)||'—')+'. Log outcomes as you work the list so tomorrow\'s ranking reflects today\'s calls.</p>';
+    case 'prioritise:immediate_attention':
+      var urgent = r.filter(function(x){ return x.a.mrr > 0 && (x.c.play === 'hold' || x.a.scores.churn >= 40); })
+        .sort(function(x,y){ return y.a.mrr - x.a.mrr; }).slice(0, 5);
+      return head + '<p>' + (urgent.length ? '<strong>Dollars at stake, ranked by size:</strong></p><p>'+urgent.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+money(x.a.mrr)+'/mo, churn '+x.a.scores.churn+'.'; }).join('</p><p>') : 'No deals are showing urgent risk signals right now.') + '</p>';
 
     case 'understand:why_ranked':
       return head + (c ? '<p><b>'+escapeHtml(name)+'</b> — '+c.why.join(' ')+'</p>' : '<p>Pick an account to see why it ranks where it does.</p>');
-    case 'understand:been_doing':
-      var sig = account && account.l1 ? Object.keys(account.l1).map(function(k){ return escapeHtml(k)+': '+escapeHtml(account.l1[k]); }) : [];
-      return head + '<p><b>'+escapeHtml(name)+'</b> — ' + (sig.length ? sig.join('. ') : 'no recent activity on file.') + '</p>';
-    case 'understand:holding_back':
-      return head + '<p>' + (s ? 'Trust is '+s.trust+' against a readiness of '+s.buying_readiness+' — '+(s.buying_readiness-s.trust>=20 ? 'they believe the problem is real, not yet that '+escapeHtml(name)+' has the answer.' : 'the gap is small; hesitation is more likely price or timing than trust.') : 'Select an account to see what\'s holding them back.') + '</p>';
+    case 'understand:last_active':
+      return head + '<p>' + (account ? '<b>'+escapeHtml(name)+'</b> was last active '+escapeHtml(account.last_activity_label || (account.last_activity_days + ' day(s) ago'))+'.' : 'Select an account first.') + '</p>';
+    case 'understand:deal_status':
+      return head + '<p>' + (account ? '<b>'+escapeHtml(name)+'</b>\'s current deal: '+escapeHtml(account.deal_stage_label || 'No active deal')+(account.deal_status ? ' ('+escapeHtml(account.deal_status)+')' : '')+', worth '+money(account.mrr)+'/mo.' : 'Select an account first.') + '</p>';
     case 'understand:ready_or_researching':
-      return head + '<p>' + (s ? (s.buying_readiness>=DTH.ready && s.intent>=DTH.intent ? '<b>'+escapeHtml(name)+'</b> is ready — readiness '+s.buying_readiness+' and intent '+s.intent+' both clear the bar.' : '<b>'+escapeHtml(name)+'</b> is still researching — readiness '+s.buying_readiness+', intent '+s.intent+'. One useful touch, no hard ask yet.') : 'Select an account first.') + '</p>';
-    case 'understand:cares_about':
-      var lead = account && account.l1 ? Object.values(account.l1)[0] : null;
-      return head + '<p><b>'+escapeHtml(name)+'</b> — ' + (lead ? 'their own activity points to it: '+escapeHtml(lead) : 'no strong signal yet — ask directly on the next touch.') + '</p>';
+      return head + '<p>' + (s ? (s.buying_readiness>=DTH.ready && s.intent>=DTH.intent ? '<b>'+escapeHtml(name)+'</b> is close — readiness '+s.buying_readiness+' and intent '+s.intent+' both clear the bar.' : '<b>'+escapeHtml(name)+'</b> is still researching — readiness '+s.buying_readiness+', intent '+s.intent+'. One useful touch, no hard ask yet.') : 'Select an account first.') + '</p>';
 
-    case 'craft:script_for':
-      var beats = scriptBeats(agent, account || {scores:{trust:60,buying_readiness:60}, name:name}, c || {play: isSl ? 'call' : 'winback'}, 'call');
-      return head + '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+'</div>' + beats.map(function(b){ return '<div class="ss-beat"><div class="ss-beat-l">'+b[0]+'</div>'+b[1]+'</div>'; }).join('') + '</div>';
     case 'craft:opener_30s':
-      return head + '<p><em>"'+escapeHtml(name)+' — quick one. I noticed you\'ve been active on this lately, and most people at that stage are weighing up whether it\'s worth solving now. Is that where you\'re at?"</em></p><p style="color:var(--g3);font-size:11.5px">Under 30 seconds, ends in a question — keeps them talking.</p>';
-    case 'craft:whatsapp_version':
-      return head + '<p><em>"Hi '+escapeHtml(name)+' 👋 saw you\'ve been looking into this — happy to answer anything directly here, no pressure. What\'s the main thing you\'re weighing up?"</em></p>';
-    case 'craft:email_version':
-      return head + '<p><strong>Subject:</strong> Quick question about {'+escapeHtml(name)+'}\'s next step</p><p><em>"Hi — noticed the recent activity on your end and wanted to check in directly rather than let it go quiet. What would need to be true for this to be a clear yes?"</em></p>';
-    case 'craft:proof_to_show':
-      return head + '<p>' + (s && s.trust < DTH.trust ? 'Trust is the gap here (score '+s.trust+') — lead with one concrete result from a similar customer, not a feature list.' : 'Trust is solid — a quick reference or case study is a nice-to-have, not a requirement. A direct ask works.') + '</p>';
+      return head + '<p><em>"'+escapeHtml(name)+' — quick one, do you have 15 minutes this week to talk through what you\'ve been looking at? I can work around your schedule."</em></p><p style="color:var(--g3);font-size:11.5px">Direct meeting ask, low commitment, ends in a question — keeps them talking.</p>';
     case 'craft:shorter_less_salesy':
-      return head + '<p><em>"'+escapeHtml(name)+' — worth a 10-minute call this week?"</em></p><p style="color:var(--g3);font-size:11.5px">Strip it back to one line and one question — the shorter version usually gets a faster reply.</p>';
+      return head + '<p><em>"'+escapeHtml(name)+' — worth a 10-minute call this week? No pitch, just answering whatever\'s useful."</em></p><p style="color:var(--g3);font-size:11.5px">Strip it back to one line and one low-pressure question — the shorter version usually gets a faster reply.</p>';
 
-    case 'handle:too_expensive':
-      return head + '<p><em>"Compared to what this is costing you today, what would make the number feel fair?"</em> Reframe to value before touching the price. Offer a low-risk start before a discount.</p>';
-    case 'handle:not_right_now':
-      return head + '<p><em>"Understood — what would need to change for the timing to be right?"</em> Get a real reason and a real date, then set a callback for that date rather than a vague follow-up.</p>';
-    case 'handle:use_competitor':
-      return head + '<p><em>"Good to know — what\'s working well with them, and what would you change if you could?"</em> Listen for the gap, then show only the part of your offer that closes it.</p>';
-    case 'handle:send_info':
-      return head + '<p>"Send me some info" is often a polite no. Send one short, specific thing (not a brochure) and set a defined follow-up date rather than waiting for them to reply.</p>';
-    case 'handle:no_budget':
-      return head + '<p>Separate "no budget" from "not a priority yet." Ask what it would need to deliver to justify finding the budget — if the answer is vague, it\'s priority, not price.</p>';
-    case 'handle:need_boss':
-      return head + '<p>Ask to join that conversation, or arm them with a one-page summary of the case for their boss. Deals that go dark after "I\'ll check" usually needed that help and didn\'t get it.</p>';
-    case 'handle:something_else':
-      return head + '<p>Type the objection into the chat box below and I\'ll match it against similar accounts and give you a specific response.</p>';
-
-    case 'launch:how_close':
-      return head + '<p>' + (s && s.trust < DTH.trust ? 'Trust is still behind readiness for '+escapeHtml(name)+' — close on a low-risk start, not the full commitment.' : '<b>'+escapeHtml(name)+'</b> has the trust to support a direct ask — propose the plan and a start date.') + '</p>';
-    case 'launch:smallest_ask':
-      return head + '<p>The smallest reasonable next step for <b>'+escapeHtml(name)+'</b>: a 30-day pilot or a single-team rollout — small enough to say yes to this week, big enough to prove the case.</p>';
+    case 'launch:renewal_approach':
+      var renewalPool = r.filter(function(x){ return (x.a.seg === 'champion' || x.a.seg === 'loyal') && x.a.mrr > 0; })
+        .sort(function(x,y){ return y.a.mrr - x.a.mrr; }).slice(0, 5);
+      return head + '<p>' + (renewalPool.length ? renewalPool.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+money(x.a.mrr)+'/mo, '+escapeHtml(SEG_LABEL[x.a.seg])+'.'; }).join('</p><p>') : 'No existing customers are due a renewal check-in right now.') + '</p>';
     case 'launch:ready_upgrade':
-      return head + '<p>' + (secondary.length ? secondary.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'No accounts are upgrade-ready right now.') + '</p>';
-    case 'launch:offer_discount':
-      return head + '<p>' + (s && s.trust >= DTH.trust ? 'No — trust is already high; a discount here signals the price was inflated. Ask directly instead.' : 'Only as a last resort, and only after the value case has been made — lead with a low-risk start first.') + '</p>';
-    case 'launch:weighted_pipeline':
-      var weighted = r.reduce(function(sum,x){ return sum + (x.a.mrr * x.a.scores.buying_readiness / 100); }, 0);
-      return head + '<p>Weighted pipeline across the current stack: <b>'+money(Math.round(weighted))+'</b> (each account\'s MRR weighted by its readiness score).</p>';
+      return head + '<p>' + (secondary.length ? secondary.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+x.c.why[0]; }).join('</p><p>') : 'No accounts currently clear the upsell bar.') + '</p>';
     case 'launch:at_risk_no_touch':
-      return head + '<p>' + (hold.length ? hold.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> ('+money(x.a.mrr)+') — '+x.c.why[0]; }).join('</p><p>') : 'Nothing currently flagged as at-risk in the stack.') + '</p>';
+      return head + '<p>' + (hold.length ? hold.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> ('+money(x.a.mrr)+'/mo) — '+x.c.why[0]; }).join('</p><p>') : 'Nothing currently flagged as at-risk in the stack.') + '</p>';
+    case 'launch:close_this_month':
+      var closing = r.filter(function(x){ return x.c.play === 'call' || x.c.play === 'upsell'; }).slice(0, 5);
+      return head + '<p>' + (closing.length ? closing.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — '+money(x.a.mrr)+'/mo, priority '+x.c.priority+' ('+PLAY_LABEL[x.c.play]+').'; }).join('</p><p>') : 'Nothing is close enough to call likely to close this month.') + '</p>';
+    case 'launch:growth_potential':
+      var growthPool = r.filter(function(x){ return (x.a.seg === 'champion' || x.a.seg === 'loyal') && x.a.mrr > 0; })
+        .sort(function(x,y){ return y.a.scores.engagement - x.a.scores.engagement; }).slice(0, 5);
+      return head + '<p>' + (growthPool.length ? growthPool.map(function(x){ return '<b>'+escapeHtml(x.a.name)+'</b> — engagement '+x.a.scores.engagement+', trust '+x.a.scores.trust+', potential expansion +'+money(Math.round(x.a.mrr*0.3))+'/mo.'; }).join('</p><p>') : 'No existing customers currently show strong growth signal.') + '</p>';
 
     default:
       return head + '<p>I don\'t have a ready-made answer for that yet — try rephrasing in the chat box below.</p>';
@@ -1387,11 +1416,11 @@ function rankedFor(agent){
 
 var AGENT_TABS = {
   sl: [
-    {k:'today', label:"Today's stack"},
-    {k:'accounts', label:'Accounts'},
-    {k:'scripts', label:'Script studio'},
-    {k:'forecast', label:'Forecast'},
-    {k:'manager', label:'Manager'}
+    {k:'today', label:'Prioritise'},
+    {k:'accounts', label:'Understand'},
+    {k:'scripts', label:'Pitch'},
+    {k:'forecast', label:'Overcome'},
+    {k:'manager', label:'Close & grow'}
   ],
   mk: FLOW_TABS_BY_AGENT.mk.map(function(viewKey, i){
     return {k: viewKey, label: (MARKETING_STEPS_DB[i] && MARKETING_STEPS_DB[i].title) || MARKETING_STEP_KEYS[i]};
@@ -1438,8 +1467,17 @@ function showDashView(v){
   if (v==='scripts' && dashState.agent!=='mk') selectScriptAccount(rankedFor(dashState.agent)[0].a.name, 'call');
 }
 var STACK_INTRO = {
-  sl: {h:'RANKED STACK — WHO, IN ORDER', p:'Sorted by <b>readiness × intent</b>, trust-adjusted, then <b>time</b> (deadlines, callbacks due), <b>contact memory</b> (a cool-off after a touch) and <b>contact rules</b> (hours, do-not-call). Click any score to see what moved it — log the outcome after each call and I\'ll re-rank for tomorrow.'},
   ch: {h:'RANKED STACK — WHO TO SAVE, IN ORDER', p:'Sorted by <b>churn risk × value at stake</b>, then how long they\'ve been going quiet and how frustrated they are. Click any score to see what moved it — log the rescue after each save attempt and I\'ll re-rank for tomorrow.'}
+};
+/* One "WHAT YOU'RE LOOKING AT" description per Sales category, shown at the
+   top of that category's view (today=Prioritise, accounts=Understand,
+   scripts=Pitch, forecast=Overcome, manager=Close & grow). */
+var SALES_STEP_INTRO = {
+  today: {h:"WHAT YOU'RE LOOKING AT", p:"See the customers and prospects that need your attention right now, ranked by their buying readiness, intent, engagement, and overall sales opportunity. Use this list to quickly identify who to contact first, who is ready to buy, who needs nurturing, and who should be left alone for now."},
+  accounts: {h:"WHAT YOU'RE LOOKING AT", p:"This view gives you a detailed picture of every customer and prospect, showing their segment, MRR, buying readiness, intent, trust, churn risk, and recommended sales action. Use it to understand each account before deciding how to engage."},
+  scripts: {h:"WHAT YOU'RE LOOKING AT", p:"Get personalized call, email, and LinkedIn pitches for each customer based on their needs, interests, and buying signals, so you know what to say and how to approach them."},
+  forecast: {h:"WHAT YOU'RE LOOKING AT", p:"Get personalized responses to common customer objections, helping you address concerns around price, timing, competitors, budget, and decision-making while keeping the conversation moving forward."},
+  manager: {h:"WHAT YOU'RE LOOKING AT", p:"Find the opportunities most likely to close and discover where you can upsell, expand, or grow existing accounts. Get practical guidance on the next step to move deals forward and turn opportunities into revenue."}
 };
 function metaLine(a, c){
   var bits = [money(a.mrr)+' MRR', 'Priority '+c.priority];
@@ -1462,6 +1500,21 @@ function renderTodayStack(){
   function row(x, i){
     var a=x.a, c=x.c, s=a.scores, key=agent+':'+a.name;
     var logged = dashDone[key];
+    // Sales' Today's Contact Stack is read-only here — no call/script/log
+    // actions on the row itself; those live in Script Studio instead.
+    if (agent === 'sl') {
+      return '<div class="stkrow no-actions">'+
+        '<div class="stk-n">'+String(i+1).padStart(2,'0')+'</div>'+
+        '<div><div class="stk-acct">'+escapeHtml(a.name)+(a.seg==='new'?'<span class="badge-new">NEW</span>':'')+'</div>'+
+        '<div class="stk-mrr">'+metaLine(a,c)+'</div>'+
+        '<div class="stk-scores">'+
+          '<div class="sc"><div class="sc-v" style="color:'+scoreCol(s.buying_readiness)+'">'+s.buying_readiness+'</div><div class="sc-l">Ready</div></div>'+
+          '<div class="sc"><div class="sc-v" style="color:'+scoreCol(s.intent)+'">'+s.intent+'</div><div class="sc-l">Intent</div></div>'+
+          '<div class="sc"><div class="sc-v" style="color:'+scoreCol(s.trust)+'">'+s.trust+'</div><div class="sc-l">Trust</div></div>'+
+        '</div></div>'+
+        '<div class="stk-why">'+c.why.join(' ')+'</div>'+
+        '</div>';
+    }
     var callBtn = logged
       ? '<button type="button" class="stk-call done" disabled>&check; Logged</button>'
       : '<button type="button" class="stk-call" onclick="logOutcome(\''+nameAttr(a.name)+'\')">'+PLAY_BTN[c.play]+'</button>';
@@ -1481,7 +1534,7 @@ function renderTodayStack(){
         (logged?'':'<button type="button" class="stkbtn ghost" onclick="logOutcome(\''+nameAttr(a.name)+'\')">Log outcome</button>')+
       '</div></div>';
   }
-  var intro = STACK_INTRO[agent];
+  var intro = agent==='sl' ? SALES_STEP_INTRO.today : STACK_INTRO[agent];
   var html = agent==='mk' ? '' : '<div class="stack-intro"><div class="si-h">'+intro.h+'</div><div class="si-p">'+intro.p+'</div></div>';
   html += '<div class="sectionh">'+(agent==='sl'?"TODAY'S CONTACT STACK":agent==='ch'?"TODAY'S RESCUE STACK":"TODAY'S CAMPAIGN STACK")+'<span>'+shown.length+' of '+primary.length+' shown</span></div>';
   html += shown.length ? shown.map(row).join('') : '<div style="padding:20px;color:var(--g3);font-size:12.5px">Nothing urgent right now — check Accounts for the full list.</div>';
@@ -1544,7 +1597,8 @@ function renderAccountsTable(){
       '<td>'+money(a.mrr)+'</td><td>'+s.buying_readiness+'</td><td>'+s.intent+'</td><td>'+s.trust+'</td><td>'+s.churn+'</td>'+
       '<td><span class="stk-play '+x.c.play+'">'+PLAY_LABEL[x.c.play]+'</span></td></tr>';
   }).join('');
-  return '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>MRR</th><th>Ready</th><th>Intent</th><th>Trust</th><th>Churn</th><th>Play</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  var intro = agent==='sl' ? '<div class="stack-intro"><div class="si-h">'+SALES_STEP_INTRO.accounts.h+'</div><div class="si-p">'+SALES_STEP_INTRO.accounts.p+'</div></div>' : '';
+  return intro + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>MRR</th><th>Ready</th><th>Intent</th><th>Trust</th><th>Churn</th><th>Play</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 /* Marketing · Performance tab — real crm_contacts/crm_deals accounts, not the
    fictional ACCOUNTS list. See MarketingPerformanceService::accountsSnapshot(). */
@@ -1641,7 +1695,11 @@ function renderScriptStudio(){
   var list = r.map(function(x){
     return '<div class="ss-item" data-name="'+nameAttr(x.a.name)+'" onclick="selectScriptAccount(\''+nameAttr(x.a.name)+'\')"><div class="n">'+escapeHtml(x.a.name)+'</div><div class="m">'+PLAY_LABEL[x.c.play]+' · '+money(x.a.mrr)+'</div></div>';
   }).join('');
-  return '<div class="ss-grid"><div class="ss-list">'+list+'</div><div class="ss-out" id="ssOut"></div></div>';
+  var grid = '<div class="ss-grid" style="flex:1;min-height:0"><div class="ss-list">'+list+'</div><div class="ss-out" id="ssOut"></div></div>';
+  if (dashState.agent!=='sl') return '<div class="ss-grid"><div class="ss-list">'+list+'</div><div class="ss-out" id="ssOut"></div></div>';
+  return '<div style="display:flex;flex-direction:column;height:100%;min-height:0">'
+    + '<div class="stack-intro"><div class="si-h">'+SALES_STEP_INTRO.scripts.h+'</div><div class="si-p">'+SALES_STEP_INTRO.scripts.p+'</div></div>'
+    + grid + '</div>';
 }
 function selectScriptAccount(name, chan){
   scriptAcct = name; scriptChan = chan || 'call';
@@ -1654,22 +1712,47 @@ function selectScriptAccount(name, chan){
   var beats = scriptBeats(agent, a, c, scriptChan);
   document.getElementById('ssOut').innerHTML =
     '<div class="ss-chan">'+chanBtns+'</div>'+
-    '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+' · '+PLAY_LABEL[c.play].toUpperCase()+'</div>'+
+    '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+' · '+escapeHtml(scriptChan.toUpperCase())+'</div>'+
     beats.map(function(b){ return '<div class="ss-beat"><div class="ss-beat-l">'+b[0]+'</div>'+b[1]+'</div>'; }).join('') +
     '</div>';
   dashState.lead = name;
+  // Quick-question buttons show [name] substituted from dashState.lead —
+  // refresh them so they reflect whichever client was just selected here,
+  // instead of staying stuck on whoever was the default when the tab opened.
+  renderDashQuicks();
 }
 function openScriptFor(name){ showDashView('scripts'); selectScriptAccount(name); }
 function scriptBeats(agent, a, c, chan){
   var s = a.scores;
   if (c.play==='hold') return [['DO NOT PITCH','<em>Churn '+s.churn+'.</em> Route to Retention — this account needs a fix, not an offer.']];
   if (agent==='sl'){
+    var firstName = (a.name || '').split(' ')[0];
     if (s.trust < DTH.trust){
+      if (chan === 'email') {
+        return [['EMAIL','<em>"Hi '+escapeHtml(firstName)+',<br><br>'
+          + 'I noticed your team\'s been checking us out a few times lately — usually a sign the problem\'s real, but something\'s still holding the decision back.<br><br>'
+          + 'Companies in a similar spot to [Company] typically see [specific result] within the first [30–60 days], which is often what makes the case internally.<br><br>'
+          + 'Happy to walk you through how that would look for your situation — would a quick 15-minute call this week work?<br><br>'
+          + 'Best,<br>[Your name]"</em>']];
+      }
+      if (chan === 'linkedin') {
+        return [['LINKEDIN MESSAGE','<em>"Hi '+escapeHtml(firstName)+' — noticed you\'ve been checking us out a bit recently. Usually means there\'s a real problem worth solving, just something in the way of moving on it. Curious what that is for you — happy to share how similar teams got past it (most see [result] within [30-60 days]). Worth a quick chat?"</em>']];
+      }
       return [
         ['OPENER','<em>"I noticed your team\'s been looking at us a few times recently — that usually means the problem\'s real but something\'s holding the decision back. Can I ask what it is?"</em>'],
         ['PROOF','<em>"Businesses like yours typically see results within the first couple of months — happy to walk you through the numbers."</em>'],
         ['LOW-RISK CLOSE','<em>"Start on the smaller plan. If it doesn\'t move the numbers in 30 days, walk away and keep everything we found."</em>']
       ];
+    }
+    if (chan === 'email') {
+      return [['EMAIL','<em>"Hi '+escapeHtml(firstName)+',<br><br>'
+        + 'You\'ve clearly gotten real value out of this already, and I think you\'re in a great position to get even more from it.<br><br>'
+        + 'Based on where things stand, the next plan up would likely pay for itself quickly for a team like [Company]\'s.<br><br>'
+        + 'Want me to put together what that would look like and jump on a quick call this week?<br><br>'
+        + 'Best,<br>[Your name]"</em>']];
+    }
+    if (chan === 'linkedin') {
+      return [['LINKEDIN MESSAGE','<em>"Hi '+escapeHtml(firstName)+' — you\'ve clearly gotten real value out of this so far. Given where things stand, the next tier would likely pay for itself quickly. Worth a quick chat about what that could look like for you?"</em>']];
     }
     return [
       ['OPENER','<em>"You\'ve clearly found value already — I\'d like to talk about what\'s next."</em>'],
@@ -1702,20 +1785,7 @@ function renderForecast(){
   var agent = dashState.agent;
   var r = rankedFor(agent);
   if (agent==='sl'){
-    var call = r.filter(function(x){return x.c.play==='call';});
-    var up = r.filter(function(x){return x.c.play==='upsell';});
-    var newBiz = call.reduce(function(s,x){return s+x.a.mrr;},0);
-    var newW = Math.round(call.reduce(function(s,x){return s+x.a.mrr*x.a.scores.buying_readiness/100;},0));
-    var upV = up.reduce(function(s,x){return s+Math.round(x.a.mrr*0.3);},0);
-    var upW = Math.round(up.reduce(function(s,x){return s+Math.round(x.a.mrr*0.3)*x.a.scores.buying_readiness/100;},0));
-    return '<div class="fc-grid">'+
-      '<div class="fc-cell"><div class="fc-h">NEW BUSINESS IN PLAY</div>'+
-      call.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
-      '<div class="fc-row fc-tot"><span>Weighted total</span><span>'+money(newW)+' <small>of '+money(newBiz)+'</small></span></div></div>'+
-      '<div class="fc-cell"><div class="fc-h">UPSELL IN PLAY</div>'+
-      up.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(Math.round(x.a.mrr*0.3))+'</span></div>';}).join('')+
-      '<div class="fc-row fc-tot"><span>Weighted total</span><span>'+money(upW)+' <small>of '+money(upV)+'</small></span></div></div>'+
-      '</div>';
+    return renderOvercomePlaybook();
   }
   if (agent==='ch'){
     var resc = r.filter(function(x){return x.c.play==='rescue';});
@@ -1743,6 +1813,47 @@ function renderForecast(){
     ob.map(function(x){return '<div class="fc-row"><span><b>'+escapeHtml(x.a.name)+'</b></span><span>'+money(x.a.mrr)+'</span></div>';}).join('')+
     '<div class="fc-row fc-tot"><span>Total</span><span>'+money(obV)+'</span></div></div>'+
     '</div>';
+}
+/* Sales · Overcome playbook — "when the salesperson selects a client" show
+   the 4-part objection diagnosis (Current Objection, What's Really Holding
+   Them Back, Recommended Response, Proof to Use), computed from real
+   crm_contacts/crm_deals/email_logs_providers data and the same scores
+   every other Sales view reads, written up by OpenAI with a deterministic
+   fallback — see App\Services\Llm\SalesPromptInsightsService::objectionPlaybook(). */
+function renderOvercomePlaybook(){
+  var r = rankedFor('sl');
+  var opts = r.map(function(x){ return '<option value="'+nameAttr(x.a.name)+'">'+escapeHtml(x.a.name)+'</option>'; }).join('');
+  var defaultName = (r[0] && r[0].a.name) || '';
+  setTimeout(function(){ loadOvercomePlaybook(defaultName); }, 0);
+  return '<div class="stack-intro"><div class="si-h">'+SALES_STEP_INTRO.forecast.h+'</div><div class="si-p">'+SALES_STEP_INTRO.forecast.p+'</div></div>'
+    + '<div class="ov-client-row">'
+    + '<label class="ov-client-label" for="ovClientSel">Client</label>'
+    + '<select id="ovClientSel" class="ov-client-sel" onchange="loadOvercomePlaybook(this.value)">'+opts+'</select>'
+    + '</div>'
+    + '<div id="ovBody"><div style="padding:20px;color:var(--g3);font-size:12.5px">Loading…</div></div>';
+}
+function loadOvercomePlaybook(name){
+  var body = document.getElementById('ovBody');
+  if (!body || !name) return;
+  body.innerHTML = '<div style="padding:20px;color:var(--g3);font-size:12.5px">Thinking…</div>';
+  fetch(SALES_OBJECTION_PLAYBOOK_ENDPOINT + '?name=' + encodeURIComponent(name))
+    .then(function(r){ return r.json(); })
+    .then(function(data){ body.innerHTML = renderOvercomeBody(data); })
+    .catch(function(){ body.innerHTML = '<div style="padding:20px;color:var(--g3);font-size:12.5px">Could not load — try again in a moment.</div>'; });
+}
+function renderOvercomeBody(data){
+  if (!data || !data.objection) return '<div style="padding:20px;color:var(--g3);font-size:12.5px">No account data available yet.</div>';
+  return '<div class="mg-grid" style="grid-template-columns:1fr">'
+    + '<div class="mg-cell"><div class="mg-h">1. CURRENT OBJECTION</div>'
+    + '<div style="font-size:14px;font-weight:600;margin:6px 0">'+escapeHtml(data.objection)+' <span style="font-size:11px;font-weight:500;color:var(--g3)">— Confidence: '+escapeHtml(data.confidence||'')+'</span></div>'
+    + '<div style="font-size:12.5px;color:var(--g2);line-height:1.6">'+escapeHtml(data.why||'')+'</div></div>'
+    + '<div class="mg-cell"><div class="mg-h">2. WHAT\'S REALLY HOLDING THEM BACK?</div>'
+    + '<div style="font-size:12.5px;color:var(--g2);line-height:1.6">'+escapeHtml(data.barrier||'')+'</div></div>'
+    + '<div class="mg-cell"><div class="mg-h">3. RECOMMENDED RESPONSE</div>'
+    + '<div style="font-size:13px;font-style:italic;line-height:1.6">'+escapeHtml(data.response||'')+'</div></div>'
+    + '<div class="mg-cell"><div class="mg-h">4. PROOF / EVIDENCE TO USE</div>'
+    + '<div style="font-size:12.5px;color:var(--g2);line-height:1.6">'+escapeHtml(data.proof||'')+'</div></div>'
+    + '</div>';
 }
 /* Marketing · Insights tab — real crm_contacts/crm_deals data, shown as
    charts instead of the fictional win-back/onboarding $0 tiles. Reuses the
@@ -1823,17 +1934,72 @@ function renderMarketingInsightsBody(proofData, leverData, recentData){
 }
 function renderManager(){
   var agent = dashState.agent;
+  if (agent === 'sl') return renderCloseGrowPlaybook();
   var r = rankedFor(agent);
   var loggedCount = Object.keys(dashDone).filter(function(k){return k.indexOf(agent+':')===0;}).length;
   var active = r.filter(function(x){ return ['call','upsell','winback','onboarding','referral','rescue'].indexOf(x.c.play)!==-1; });
   return '<div class="mg-grid">'+
     '<div class="mg-cell"><div class="mg-h">STACK ADHERENCE TODAY</div>'+
     '<div class="mg-kpi">'+loggedCount+' <small>of '+active.length+' actioned</small></div>'+
-    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Every "'+(agent==='sl'?'Call now':agent==='ch'?'Rescue now':'Launch')+'" pressed on Today\'s Stack counts here — it\'s how you tell whether the stack is actually being worked.</div></div>'+
+    '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Every "Rescue now" pressed on Today\'s Stack counts here — it\'s how you tell whether the stack is actually being worked.</div></div>'+
     '<div class="mg-cell"><div class="mg-h">VALUE IN THE STACK</div>'+
     '<div class="mg-kpi">'+money(active.reduce(function(s,x){return s+x.a.mrr;},0))+'</div>'+
     '<div style="font-size:11.5px;color:var(--g2);margin-top:8px;line-height:1.6">Total MRR represented by accounts currently ranked as an active play.</div></div>'+
     '</div>';
+}
+/* Sales · Close & grow playbook — real crm_contacts/crm_deals accounts,
+   scored the same way as every other Sales view (rankedFor/classifySales),
+   just aggregated into the 4 sections this category is about: which
+   opportunities to close, what to do next for each, how much revenue is on
+   the table, and which existing customers are ready to grow. No AI call —
+   every number here already exists in ACCOUNTS, this just reshapes it. */
+function nextBestAction(x){
+  var stage = x.a.deal_stage, play = x.c.play;
+  if (play === 'upsell') return {action:'Send Proposal', detail:'Send the upgrade proposal and a start date.'};
+  if (stage === 'decisionmakerboughtin' || stage === 'presentationscheduled') return {action:'Call', detail:'Call the decision-maker today — confirm approval and contract timeline.'};
+  if (stage === 'qualifiedtobuy' || stage === 'appointmentscheduled') return {action:'Schedule Meeting', detail:'Get a meeting on the calendar to move the deal to the next stage.'};
+  if (!stage) return {action:'Follow Up', detail:'No deal open yet — a follow-up touch is the next step.'};
+  return {action:'Email', detail:'Send a check-in — confirm they\'re still moving and ask what\'s next.'};
+}
+function renderCloseGrowPlaybook(){
+  var r = rankedFor('sl');
+  var closing = r.filter(function(x){ return (x.c.play === 'call' || x.c.play === 'upsell') && x.a.mrr > 0; }).slice(0, 5);
+  var growth = r.filter(function(x){ return (x.a.seg === 'champion' || x.a.seg === 'loyal') && x.a.mrr > 0; })
+    .sort(function(x,y){ return y.a.scores.engagement - x.a.scores.engagement; }).slice(0, 5);
+
+  var potentialRevenue = closing.reduce(function(s,x){ return s + x.a.mrr; }, 0);
+  var weightedPipeline = Math.round(r.reduce(function(s,x){ return s + (x.a.mrr * x.a.scores.buying_readiness / 100); }, 0));
+  var highest = closing[0];
+
+  var html = '<div class="stack-intro"><div class="si-h">'+SALES_STEP_INTRO.manager.h+'</div><div class="si-p">'+SALES_STEP_INTRO.manager.p+'</div></div>';
+
+  html += '<div class="sectionh">TOP OPPORTUNITIES TO CLOSE<span>'+closing.length+' shown</span></div>';
+  html += closing.length ? closing.map(function(x,i){
+    var nba = nextBestAction(x);
+    return '<div class="stkrow-close"><div class="stk-n">'+String(i+1).padStart(2,'0')+'</div>'
+      + '<button type="button" class="stkbtn" onclick="openScriptFor(\''+nameAttr(x.a.name)+'\')">'+escapeHtml(nba.action)+'</button>'
+      + '<div><div class="stk-acct">'+escapeHtml(x.a.name)+'</div>'
+      + '<div class="stk-mrr">'+money(x.a.mrr)+' MRR · '+x.a.scores.buying_readiness+'% ready · '+x.a.scores.intent+'% intent · '+escapeHtml(x.a.deal_stage_label)+'</div></div>'
+      + '<div class="stk-why">'+escapeHtml(nba.detail)+'</div></div>';
+  }).join('') : '<div style="padding:20px;color:var(--g3);font-size:12.5px">Nothing close enough to call a near-term opportunity right now.</div>';
+
+  html += '<div class="sectionh">REVENUE AT STAKE</div>';
+  html += '<div class="mg-grid">'
+    + '<div class="mg-cell"><div class="mg-h">POTENTIAL REVENUE</div><div class="mg-kpi">'+money(potentialRevenue)+' <small>MRR</small></div>'
+    + '<div style="font-size:11.5px;color:var(--g2);margin-top:8px">'+closing.length+' high-probability opportunit'+(closing.length===1?'y':'ies')+' · '+money(potentialRevenue*12)+' potential ARR</div></div>'
+    + '<div class="mg-cell"><div class="mg-h">WEIGHTED PIPELINE</div><div class="mg-kpi">'+money(weightedPipeline)+'</div>'
+    + '<div style="font-size:11.5px;color:var(--g2);margin-top:8px">'+(highest ? 'Highest-value opportunity: '+escapeHtml(highest.a.name)+' — '+money(highest.a.mrr)+' MRR' : 'Every account\'s MRR weighted by its readiness score.')+'</div></div>'
+    + '</div>';
+
+  html += '<div class="sectionh">UPSELL &amp; EXPANSION OPPORTUNITIES</div>';
+  html += growth.length ? growth.map(function(x){
+    var expansion = Math.round(x.a.mrr * 0.3);
+    return '<div class="stkrow-growth"><div><div class="stk-acct">'+escapeHtml(x.a.name)+'</div>'
+      + '<div class="stk-mrr">Current MRR '+money(x.a.mrr)+' · Engagement '+x.a.scores.engagement+' · Trust '+x.a.scores.trust+'</div></div>'
+      + '<div class="stk-why">Recommended: upgrade conversation — potential expansion +'+money(expansion)+'/mo.</div></div>';
+  }).join('') : '<div style="padding:20px;color:var(--g3);font-size:12.5px">No existing customers currently show strong growth signal.</div>';
+
+  return html;
 }
 function renderRetentionAbTest(){
   var pool = RETENTION_AB_POOL || {count:0, value:0, breakdown:{}};
@@ -2067,7 +2233,33 @@ function dashFallbackPlaybookMatch(text){
     if (score>bestScore){ bestScore=score; best=k; }
   });
   if (bestScore>=2){ var pb=PLAYBOOKS[best]; dashPushMsg('bot', '<div class="tag">'+pb.tag+'</div>'+pb.html + (pb.how?renderHow(pb.how):'') + (pb.acts?renderActs(pb.acts):'')); return; }
+  if (dashState.agent === 'sl') { return dashAskAi(dashState.agent, text); }
   dashPushMsg('bot', "I don't have a ready-made playbook for that yet — try a customer's name, or use one of the buttons above.");
+}
+
+/* Sales dashboard free-text fallback — anything the PLAYBOOKS keyword
+   matcher above doesn't recognize is handed to OpenAI, grounded in the same
+   real crm_contacts/crm_deals/email_logs_providers-derived account data the
+   page renders from (see App\Services\SalesChatService). Falls back to a
+   plain message if OPENAI_API_KEY isn't set or the call fails. */
+function dashAskAi(agent, question){
+  var el = dashPushMsg('bot', '<p style="color:var(--g3)">Thinking…</p>');
+  fetch(SALES_ASK_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+    },
+    body: JSON.stringify({ question: question })
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    el.innerHTML = '<p>' + escapeHtml(data.answer || "I couldn't get an answer just now.").replace(/\n/g, '<br>') + '</p>';
+  })
+  .catch(function () {
+    el.innerHTML = "<p>I couldn't reach the AI just now — try again in a moment.</p>";
+  });
 }
 document.getElementById('dashInput') && document.getElementById('dashInput').addEventListener('keydown', function(e){
   if (e.key === 'Enter') { e.preventDefault(); dashSend(); }
@@ -2116,6 +2308,7 @@ function pushMsg(role, html) {
     el.innerHTML = html;
     chat.appendChild(el);
     chat.scrollTop = chat.scrollHeight;
+    return el;
 }
 
 function resetChat() {
@@ -2182,7 +2375,33 @@ function sendMsg() {
 
     var pb = matchPlaybook(text);
     if (pb) { pushPlaybook(pb); return; }
+    if (state.agent === 'sl') { askSalesAi(text); return; }
     pushMsg('bot', "I don't have a ready-made playbook for that yet — try rephrasing with a customer's name, or use one of the buttons above.");
+}
+
+/* Sales agent free-text fallback — anything the PLAYBOOKS keyword matcher
+   above doesn't recognize is handed to OpenAI, grounded in the same real
+   crm_contacts/crm_deals/email_logs_providers-derived account data the page
+   renders from (see App\Services\SalesChatService). Falls back to a plain
+   message if OPENAI_API_KEY isn't set or the call fails. */
+function askSalesAi(question) {
+    var el = pushMsg('bot', '<p style="color:var(--g3)">Thinking…</p>');
+    fetch(SALES_ASK_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ question: question })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        el.innerHTML = '<p>' + escapeHtml(data.answer || "I couldn't get an answer just now.").replace(/\n/g, '<br>') + '</p>';
+    })
+    .catch(function () {
+        el.innerHTML = "<p>I couldn't reach the AI just now — try again in a moment.</p>";
+    });
 }
 
 document.getElementById('bhInput').addEventListener('keydown', function (e) {

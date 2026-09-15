@@ -75,12 +75,14 @@ class MarketingAskService
 
         [$answer, $companiesUsed] = $this->parseModelResponse($raw);
 
-        // Narrow "view accounts behind this" down to only the companies the
-        // answer actually named — without this, every answer (even "who is
-        // our single best account") would show all ~150 synced accounts
-        // handed to the model, which is misleading busywork for the user.
+        // "View accounts behind this" only appears when the answer actually
+        // named specific accounts. An answer that names none — because the
+        // question has nothing to do with this data, or because it was a
+        // pure count with no specific account worth pointing at — gets no
+        // button at all, rather than misleadingly listing every synced
+        // account regardless of whether any of them were actually relevant.
         $ranked = empty($companiesUsed)
-            ? $dataset
+            ? []
             : array_values(array_filter($dataset, fn (array $row) => in_array($row['company'], $companiesUsed, true)));
 
         return ['answer' => $answer, 'ranked' => $ranked, 'ai_used' => true];

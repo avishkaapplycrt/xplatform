@@ -18,6 +18,7 @@ use App\Http\Controllers\AnalyticsDashboardViewController;
 use App\Models\EmailLog;
 use App\Models\CallLog;
 use App\Models\BehavioralProfile;
+use App\Models\WebsiteEventsProviderHeader;
 use App\Http\Controllers\Analytics\LaravelSiteManagementController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\WebsiteConnectionController;
@@ -228,7 +229,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('company/overview', [ClientOverviewController::class, 'show'])->name('company.overview');
 
     // Layer pages
-    Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), \App\Models\InstagramMedia::socialStats())))->name('layer.l1');
+    Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), WebsiteEventsProviderHeader::providerOverviewStats(), \App\Models\InstagramMedia::socialStats())))->name('layer.l1');
     Route::get('layers/l2',      [DecisionCentreController::class, 'l2'])->name('layer.l2');
     Route::get('layers/l3',      [DecisionCentreController::class, 'l3'])->name('layer.l3');
     Route::get('layers/l4',      [DecisionCentreController::class, 'index'])->name('layer.l4');
@@ -238,7 +239,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('layers/l8',      [DecisionCentreController::class, 'l8'])->name('layer.l8');
     Route::get('layers/rl',      fn() => view('client.layers.rl'))->name('layer.rl');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
-    Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('data-collection');
+    Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), WebsiteEventsProviderHeader::providerOverviewStats())))->name('data-collection');
     Route::get('business-helpers', function () {
         $groupPrompts = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
             ->ordered()
@@ -274,83 +275,10 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         // set of fictional companies (Kite Travel, Trellis Insurance, etc.).
         // This builds the same shape of data (name + a play-relevant score
         // set) from the client's real synced CRM contacts and deals, plus
-        // real Brevo delivery signal, instead of fabricated numbers.
-        $stageReadiness = [
-            'closedwon' => 92,
-            'decisionmakerboughtin' => 78,
-            'presentationscheduled' => 68,
-            'qualifiedtobuy' => 58,
-            'appointmentscheduled' => 50,
-        ];
-
-        $deals = \App\Models\CrmDeal::all();
-        $brevoByEmail = \App\Models\BrevoDeliveredRecipient::query()
-            ->orderByDesc('updated_at')
-            ->get()
-            ->keyBy(fn ($r) => strtolower($r->email));
-
-        $realAccounts = \App\Models\CrmContact::whereNotNull('company')
-            ->orderByDesc('last_activity_at')
-            ->get()
-            ->unique('company')
-            ->take(14)
-            ->map(function ($contact) use ($deals, $brevoByEmail, $stageReadiness) {
-                $deal = $deals->first(fn ($d) => str_starts_with((string) $d->name, (string) $contact->company));
-
-                $daysAgo = $contact->last_activity_at
-                    ? $contact->last_activity_at->diffInDays(now())
-                    : 120;
-
-                $engagement = max(8, min(95, (int) round(100 - $daysAgo * 2)));
-                $buyingReadiness = $deal ? ($stageReadiness[$deal->stage] ?? 45) : 35;
-                $intent = (int) round($buyingReadiness * 0.55 + $engagement * 0.45);
-                $won = $deal && $deal->status === 'won';
-
-                if ($daysAgo > 90 && $deal) {
-                    $seg = 'at_risk';
-                } elseif ($won && $daysAgo <= 45) {
-                    $seg = 'champion';
-                } elseif ($won) {
-                    $seg = 'loyal';
-                } elseif ($daysAgo > 60) {
-                    $seg = 'dormant';
-                } else {
-                    $seg = 'new';
-                }
-
-                $churn = match (true) {
-                    $seg === 'at_risk' => min(95, 70 + max(0, $daysAgo - 90)),
-                    $seg === 'dormant' => 55,
-                    default => max(10, min(50, (int) round((100 - $engagement) * 0.5))),
-                };
-                $loyalty = $won ? 85 : ($engagement > 60 ? 60 : 40);
-
-                $brevo = $brevoByEmail->get(strtolower((string) $contact->email));
-                $trust = $brevo
-                    ? ($brevo->unsubscribed_at ? 25 : ($brevo->opened_at ? 80 : 60))
-                    : 55;
-                $frustration = $brevo && $brevo->unsubscribed_at ? 72 : 15;
-
-                $name = trim($contact->first_name . ' ' . $contact->last_name);
-
-                return [
-                    'name' => $name !== '' ? $name : $contact->company,
-                    'company' => $contact->company,
-                    'email' => $contact->email,
-                    'seg' => $seg,
-                    'mrr' => $deal ? (int) round($deal->value) : 800,
-                    'scores' => [
-                        'intent' => $intent,
-                        'engagement' => $engagement,
-                        'buying_readiness' => $buyingReadiness,
-                        'churn' => $churn,
-                        'loyalty' => $loyalty,
-                        'trust' => $trust,
-                        'frustration' => $frustration,
-                    ],
-                ];
-            })
-            ->values();
+        // real Brevo delivery signal, instead of fabricated numbers. See
+        // App\Services\RealAccountsService — also used by the Sales agent's
+        // AI chat endpoint below, so both read the same numbers.
+        $realAccounts = app(\App\Services\RealAccountsService::class)->build();
 
         // Names offered in the "Which customer?" input for the Root cause
         // questions (Why is [name] leaving? / price vs product).
@@ -365,6 +293,45 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'retentionPrompts', 'retentionSteps', 'retentionContactNames', 'retentionAbPool'
         ));
     })->name('business-helpers');
+
+    // Sales agent AI chat — answers arbitrary free-typed questions using the
+    // same real CRM/Brevo-derived account data as the page itself (see
+    // App\Services\RealAccountsService), written up by OpenAI. Falls back to
+    // a plain "not available" message when OPENAI_API_KEY isn't configured
+    // or the API call fails — the static PLAYBOOKS matcher in the Blade view
+    // still handles quick-action buttons and any close keyword match first.
+    Route::post('business-helpers/sales/ask', function (\Illuminate\Http\Request $request) {
+        return response()->json(
+            app(\App\Services\Llm\SalesChatService::class)->answer((string) $request->input('question', ''))
+        );
+    })->name('business-helpers.sales.ask');
+
+    // Sales agent predefined-prompt AI answers — for the handful of prompts
+    // (see SalesPromptInsightsService::HANDLED_KEYS) that need real
+    // crm_contacts/crm_deals/crm_integrations/email_logs_providers row detail
+    // rather than the precomputed scores rankedFor()/classifySales() already
+    // use for every other predefined Sales prompt.
+    Route::post('business-helpers/sales/prompt-insight', function (\Illuminate\Http\Request $request) {
+        return response()->json(
+            app(\App\Services\Llm\SalesPromptInsightsService::class)->answer(
+                (string) $request->input('step', ''),
+                (string) $request->input('prompt', ''),
+                $request->input('name'),
+                (string) $request->input('label', '')
+            )
+        );
+    })->name('business-helpers.sales.prompt-insight');
+
+    // Sales agent · Overcome category playbook — diagnoses the single most
+    // likely objection for the selected client from real crm_contacts/
+    // crm_deals/email_logs_providers data + the same scores every other
+    // Sales view reads, written up by OpenAI with a deterministic
+    // rule-based fallback (see SalesPromptInsightsService::objectionPlaybook).
+    Route::get('business-helpers/sales/objection-playbook', function (\Illuminate\Http\Request $request) {
+        return response()->json(
+            app(\App\Services\Llm\SalesPromptInsightsService::class)->objectionPlaybook($request->query('name'))
+        );
+    })->name('business-helpers.sales.objection-playbook');
 
     // Customer Retention · Risk radar AI answers (crm_contacts + crm_deals +
     // email_logs_providers, written up by OpenAI when OPENAI_API_KEY is set —

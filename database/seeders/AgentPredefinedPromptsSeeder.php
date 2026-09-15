@@ -12,42 +12,38 @@ class AgentPredefinedPromptsSeeder extends Seeder
         $rows = [
             // Sales · Prioritise
             ['sales', 'prioritise', 'contact_today', 'Who should I contact today?', 1],
-            ['sales', 'prioritise', 'top5_hour', 'Give me my top 5 for this hour', 2],
-            ['sales', 'prioritise', 'buying_window', "Who's in the buying window right now?", 3],
+            ['sales', 'prioritise', 'top5_hour', 'Which prospects are the highest priority right now?', 2],
+            ['sales', 'prioritise', 'buying_window', 'Who is most likely to buy soon?', 3],
             ['sales', 'prioritise', 'not_call', 'Who should I NOT call this week, and why?', 4],
-            ['sales', 'prioritise', 'changed_yesterday', 'What changed since yesterday?', 5],
+            ['sales', 'prioritise', 'immediate_attention', 'Which deals need immediate attention?', 5],
 
             // Sales · Understand
             ['sales', 'understand', 'why_ranked', 'Why is [name] ranked here?', 1],
-            ['sales', 'understand', 'been_doing', 'What has [name] been doing?', 2],
-            ['sales', 'understand', 'holding_back', "What's holding [name] back?", 3],
-            ['sales', 'understand', 'ready_or_researching', 'Is [name] ready or just researching?', 4],
-            ['sales', 'understand', 'cares_about', 'What does [name] care about most?', 5],
+            ['sales', 'understand', 'last_active', 'When was [name] last active?', 2],
+            ['sales', 'understand', 'deal_status', "What is [name]'s current deal status?", 3],
+            ['sales', 'understand', 'ready_or_researching', 'How close is [name] to making a purchase?', 4],
+            ['sales', 'understand', 'priority_changed', "Has [name]'s priority changed recently?", 5],
 
             // Sales · Craft (Pitch)
-            ['sales', 'craft', 'script_for', 'Script for [name]', 1],
-            ['sales', 'craft', 'opener_30s', '30-second opener for [name]', 2],
-            ['sales', 'craft', 'whatsapp_version', 'WhatsApp / DM version', 3],
-            ['sales', 'craft', 'email_version', 'Email version', 4],
-            ['sales', 'craft', 'proof_to_show', 'What proof should I show [name]?', 5],
-            ['sales', 'craft', 'shorter_less_salesy', 'Make it shorter / less salesy', 6],
+            ['sales', 'craft', 'opener_30s', 'How should I ask [name] for a meeting?', 1],
+            ['sales', 'craft', 'shorter_less_salesy', "What's a low-pressure way to move [name] forward?", 2],
+            ['sales', 'craft', 'not_ready_response', "How should I respond if [name] says they're not ready?", 3],
+            ['sales', 'craft', 'too_expensive_response', "How do I respond if [name] says it's too expensive?", 4],
+            ['sales', 'craft', 'competitor_response', 'What should I say if [name] is comparing competitors?', 5],
 
             // Sales · Handle (Overcome)
-            ['sales', 'handle', 'too_expensive', 'Too expensive', 1],
-            ['sales', 'handle', 'not_right_now', 'Not right now', 2],
-            ['sales', 'handle', 'use_competitor', 'We use a competitor', 3],
-            ['sales', 'handle', 'send_info', 'Send me some info', 4],
-            ['sales', 'handle', 'no_budget', 'No budget', 5],
-            ['sales', 'handle', 'need_boss', 'Need my boss', 6],
-            ['sales', 'handle', 'something_else', 'They said something else…', 7],
+            ['sales', 'handle', 'not_interested', "I'm not interested", 1],
+            ['sales', 'handle', 'not_right_now', 'Contact me later', 2],
+            ['sales', 'handle', 'why_need_this', 'Why do we need this?', 3],
+            ['sales', 'handle', 'use_competitor', "We're happy with our current provider", 4],
+            ['sales', 'handle', 'too_expensive', "It's too expensive compared to other options", 5],
 
             // Sales · Launch (Close & grow)
-            ['sales', 'launch', 'how_close', 'How do I close [name]?', 1],
-            ['sales', 'launch', 'smallest_ask', 'Smallest ask I can make to [name]?', 2],
-            ['sales', 'launch', 'ready_upgrade', "Who's ready for an upgrade?", 3],
-            ['sales', 'launch', 'offer_discount', 'Should I offer a discount?', 4],
-            ['sales', 'launch', 'weighted_pipeline', "What's my weighted pipeline?", 5],
-            ['sales', 'launch', 'at_risk_no_touch', "What's at risk that I shouldn't touch?", 6],
+            ['sales', 'launch', 'renewal_approach', 'Who should I approach for renewal?', 1],
+            ['sales', 'launch', 'ready_upgrade', 'Who has the strongest upsell opportunity?', 2],
+            ['sales', 'launch', 'at_risk_no_touch', 'What deals need attention to protect revenue?', 3],
+            ['sales', 'launch', 'close_this_month', 'Which deals are most likely to close this month?', 4],
+            ['sales', 'launch', 'growth_potential', 'Which existing customers have the highest growth potential?', 5],
 
             // Marketing · Audience
             ['marketing', 'Audience', 'winback_sequence_this_week', 'Who should get the win-back sequence this week?', 1],
@@ -137,7 +133,7 @@ class AgentPredefinedPromptsSeeder extends Seeder
         ];
 
         $rowsBySlug = collect($rows)->keyBy(fn ($row) => $row[0] . '|' . $row[2]);
-        AgentPredefinedPrompt::whereIn('agent', ['marketing', 'retention'])
+        AgentPredefinedPrompt::whereIn('agent', ['sales', 'marketing', 'retention'])
             ->get(['id', 'agent', 'slug'])
             ->each(function ($existing) use ($rowsBySlug) {
                 if (!$rowsBySlug->has($existing->agent . '|' . $existing->slug)) {
