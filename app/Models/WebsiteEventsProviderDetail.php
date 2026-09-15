@@ -42,6 +42,6 @@ class WebsiteEventsProviderDetail extends Model
 
     public function header()
     {
-        return $this->belongsTo(WebsiteEventsProviderHeader::class);
+        return $this->belongsTo(WebsiteEventsProviderHeader::class, 'header_id');
     }
 }
