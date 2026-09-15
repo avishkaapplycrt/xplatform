@@ -1,6 +1,6 @@
 @extends('layouts.platform')
 
-@section('title', 'Transaction Analytics - Payment Methods')
+@section('title', 'Transaction Analytics - Payments')
 
 @section('content')
 @php
@@ -22,17 +22,17 @@
       </a>
       <div>
         <h1 class="text-[16px] font-semibold text-gray-900">Payment Methods</h1>
-        <p class="text-[11px] text-gray-500 mt-0.5">Analyze payment gateway performance</p>
+        <p class="text-[11px] text-gray-500 mt-0.5">How customers are paying you</p>
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{ request()->url() }?period='+this.value">
-        <option value="7d" { $period == '7d' ? 'selected' : '' }>Last 7 Days</option>
-        <option value="30d" { $period == '30d' ? 'selected' : '' }>Last 30 Days</option>
-        <option value="90d" { $period == '90d' ? 'selected' : '' }>Last 90 Days</option>
-        <option value="1y" { $period == '1y' ? 'selected' : '' }>Last Year</option>
+      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{{ request()->url() }}?period='+this.value">
+        <option value="7d" {{ $period == '7d' ? 'selected' : '' }}>Last 7 Days</option>
+        <option value="30d" {{ $period == '30d' ? 'selected' : '' }}>Last 30 Days</option>
+        <option value="90d" {{ $period == '90d' ? 'selected' : '' }}>Last 90 Days</option>
+        <option value="1y" {{ $period == '1y' ? 'selected' : '' }}>Last Year</option>
       </select>
-      <a href="{ request()->url() }/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+      <a href="{{ request()->url() }}/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
@@ -98,8 +98,35 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">Payment method analytics coming soon.</p>
+    <div class="grid grid-cols-3 gap-5">
+      <div class="col-span-1 bg-white border border-gray-200 rounded-xl p-5">
+        <p class="text-[12px] font-semibold text-gray-700 mb-3">By Method</p>
+        <div style="height:220px">
+          <canvas id="methodsChart"></canvas>
+        </div>
+      </div>
+      <div class="col-span-2 bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <table class="w-full text-[12px]">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200">
+              <th class="text-left px-4 py-2.5 font-semibold text-gray-500 uppercase text-[10px] tracking-wide">Method</th>
+              <th class="text-right px-4 py-2.5 font-semibold text-gray-500 uppercase text-[10px] tracking-wide">Transactions</th>
+              <th class="text-right px-4 py-2.5 font-semibold text-gray-500 uppercase text-[10px] tracking-wide">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            @forelse($data['methods'] as $m)
+            <tr class="border-b border-gray-100 last:border-0">
+              <td class="px-4 py-2.5 text-gray-700 capitalize">{{ $m['method'] }}</td>
+              <td class="px-4 py-2.5 text-right text-gray-700">{{ number_format($m['count']) }}</td>
+              <td class="px-4 py-2.5 text-right font-semibold text-gray-900">${{ number_format($m['total'], 2) }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="3" class="px-4 py-6 text-center text-gray-400">No payments in this period.</td></tr>
+            @endforelse
+          </tbody>
+        </table>
+      </div>
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -123,12 +150,32 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
   var drop = document.getElementById('l1Dropdown');
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
+
+var methodsData = @json($data['methods'] ?? []);
+var methodsCanvas = document.getElementById('methodsChart');
+if (methodsCanvas && methodsData.length) {
+  new Chart(methodsCanvas, {
+    type: 'doughnut',
+    data: {
+      labels: methodsData.map(function(m) { return m.method; }),
+      datasets: [{
+        data: methodsData.map(function(m) { return m.total; }),
+        backgroundColor: ['#3b82f6', '#7c3aed', '#db2777', '#059669', '#d97706', '#6b7280'],
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } }
+    }
+  });
+}
 </script>
-@endsection
+@endpush

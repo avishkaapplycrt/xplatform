@@ -369,10 +369,10 @@
           <div class="pg-form-group">
             <label class="pg-form-label">Activate Connection</label>
             <div class="pg-toggle-wrap">
-              <div class="pg-toggle {{ $connection && $connection->is_active ? 'active' : '' }}" id="activeToggle" onclick="toggleActive()"></div>
-              <span style="font-size:12px;color:#6b7280" id="activeLabel">{{ $connection && $connection->is_active ? 'Active' : 'Inactive' }}</span>
+              <div class="pg-toggle {{ !$connection || $connection->is_active ? 'active' : '' }}" id="activeToggle" onclick="toggleActive()"></div>
+              <span style="font-size:12px;color:#6b7280" id="activeLabel">{{ !$connection || $connection->is_active ? 'Active' : 'Inactive' }}</span>
             </div>
-            <input type="hidden" name="is_active" id="isActiveInput" value="{{ $connection && $connection->is_active ? '1' : '0' }}">
+            <input type="hidden" name="is_active" id="isActiveInput" value="{{ !$connection || $connection->is_active ? '1' : '0' }}">
           </div>
 
           {{-- Webhook Section --}}
@@ -401,6 +401,12 @@
               <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               Test Connection
             </button>
+            @if($gateway === 'stripe' && $connection && $connection->is_connected)
+            <button type="button" class="pg-btn pg-btn-secondary" onclick="syncNow()">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Sync Now
+            </button>
+            @endif
             <a href="{{ route('client.payment-gateway-connections.index') }}" class="pg-btn pg-btn-secondary" style="margin-left:auto">
               Cancel
             </a>
@@ -493,6 +499,30 @@ function testConnection() {
   .catch(function() {
     resultDiv.className = 'pg-test-result error';
     resultDiv.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Connection test failed. Please check your credentials.';
+  });
+}
+
+function syncNow() {
+  const resultDiv = document.getElementById('testResult');
+  resultDiv.className = 'pg-test-result';
+  resultDiv.textContent = 'Syncing transactions from Stripe…';
+  resultDiv.style.display = 'block';
+
+  fetch('{{ route('client.payment-gateway-connections.sync', $gateway) }}', {
+    method: 'POST',
+    headers: {
+      'X-CSRF-TOKEN': '{{ csrf_token() }}',
+      'Accept': 'application/json'
+    }
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    resultDiv.className = 'pg-test-result ' + (data.success ? 'success' : 'error');
+    resultDiv.textContent = data.message;
+  })
+  .catch(function() {
+    resultDiv.className = 'pg-test-result error';
+    resultDiv.textContent = 'Sync failed — please try again.';
   });
 }
 

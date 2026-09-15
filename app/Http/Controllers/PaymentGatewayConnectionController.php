@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\PaymentGatewayConnection;
+use App\Services\StripeSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -264,9 +265,27 @@ class PaymentGatewayConnectionController extends Controller
             return response()->json(['success' => false, 'message' => 'Gateway not configured.']);
         }
 
-        // Simulate connection test (implement actual API test per gateway)
+        if ($gateway === 'stripe') {
+            if (empty($connection->api_secret)) {
+                return response()->json(['success' => false, 'message' => 'No Stripe secret key configured.']);
+            }
+
+            try {
+                $stripe = new \Stripe\StripeClient(Crypt::decryptString($connection->api_secret));
+                $stripe->balance->retrieve();
+            } catch (\Stripe\Exception\ApiErrorException $e) {
+                return response()->json(['success' => false, 'message' => 'Stripe rejected the credentials: ' . $e->getMessage()]);
+            } catch (\Exception $e) {
+                return response()->json(['success' => false, 'message' => 'Could not verify the Stripe credentials.']);
+            }
+
+            $connection->update(['last_synced_at' => now()]);
+
+            return response()->json(['success' => true, 'message' => 'Connection test successful — Stripe accepted the credentials.']);
+        }
+
+        // Other gateways don't have a real API client wired up yet.
         $testResults = [
-            'stripe' => true,
             'shopify' => true,
             'zapier' => true,
             'webhooks' => true,
@@ -286,6 +305,31 @@ class PaymentGatewayConnectionController extends Controller
             'success' => $success,
             'message' => $success ? 'Connection test successful!' : 'Connection test failed. Please check your credentials.',
         ]);
+    }
+
+    /**
+     * Pulls real transaction data in from the gateway right now. Currently
+     * only implemented for Stripe — see StripeSyncService.
+     */
+    public function sync($gateway)
+    {
+        $client = Auth::guard('client')->user();
+
+        $connection = PaymentGatewayConnection::where('client_id', $client->id)
+            ->where('gateway_name', $gateway)
+            ->first();
+
+        if (!$connection) {
+            return response()->json(['success' => false, 'message' => 'Gateway not configured.']);
+        }
+
+        if ($gateway !== 'stripe') {
+            return response()->json(['success' => false, 'message' => 'Syncing isn\'t built for this gateway yet.']);
+        }
+
+        $result = app(StripeSyncService::class)->sync($connection);
+
+        return response()->json($result);
     }
 
     public function destroy($gateway)
