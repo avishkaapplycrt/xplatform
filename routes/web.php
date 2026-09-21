@@ -107,7 +107,7 @@ Route::get('/api/tracking/script', [WebsiteConnectionController::class, 'getTrac
 Route::post('/api/events/collect', function (Illuminate\Http\Request $request) {
     // Validate tracking code
     $request->validate([
-        'tracking_code' => 'required|string|size:32',
+        'tracking_code' => ['required', 'string', 'max:64', 'regex:/^[A-Z]+_\d+_[a-f0-9]{24}$/'],
         'event_type'    => 'required|string|max:50',
         'data'          => 'nullable|array',
         'url'           => 'nullable|url',

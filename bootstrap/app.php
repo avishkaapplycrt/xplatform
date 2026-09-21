@@ -18,6 +18,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'analytics.token' => \App\Http\Middleware\AnalyticsApiToken::class,
         ]);
 
+        // Called via fetch/sendBeacon from third-party sites (Shopify, WordPress,
+        // etc.) running our tracking script — those pages can never carry a CSRF
+        // token for this app, so this endpoint must stay exempt.
+        $middleware->validateCsrfTokens(except: [
+            'api/events/collect',
+        ]);
+
         $middleware->redirectGuestsTo(function ($request) {
             if ($request->is('admin/*')) {
                 return route('admin.login');

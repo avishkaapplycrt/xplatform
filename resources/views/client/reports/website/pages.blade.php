@@ -26,13 +26,13 @@
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{ request()->url() }?period='+this.value">
-        <option value="7d" { $period == '7d' ? 'selected' : '' }>Last 7 Days</option>
-        <option value="30d" { $period == '30d' ? 'selected' : '' }>Last 30 Days</option>
-        <option value="90d" { $period == '90d' ? 'selected' : '' }>Last 90 Days</option>
-        <option value="1y" { $period == '1y' ? 'selected' : '' }>Last Year</option>
+      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{{ request()->url() }}?period='+this.value">
+        <option value="7d" {{ $period == '7d' ? 'selected' : '' }}>Last 7 Days</option>
+        <option value="30d" {{ $period == '30d' ? 'selected' : '' }}>Last 30 Days</option>
+        <option value="90d" {{ $period == '90d' ? 'selected' : '' }}>Last 90 Days</option>
+        <option value="1y" {{ $period == '1y' ? 'selected' : '' }}>Last Year</option>
       </select>
-      <a href="{ request()->url() }/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+      <a href="{{ request()->url() }}/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
@@ -106,13 +106,46 @@
         @forelse($data['top_pages'] ?? [] as $page)
         <div class="px-4 py-3 flex items-center justify-between">
           <div class="min-w-0 flex-1">
-            <p class="text-[12px] font-medium text-gray-800 truncate">{ $page->page_url }</p>
+            <p class="text-[12px] font-medium text-gray-800 truncate">{{ $page->page_url }}</p>
           </div>
-          <span class="text-[12px] font-semibold text-gray-600 flex-shrink-0 ml-4">{ number_format($page->views) } views</span>
+          <span class="text-[12px] font-semibold text-gray-600 flex-shrink-0 ml-4">{{ number_format($page->views) }} views</span>
         </div>
         @empty
         <div class="px-4 py-8 text-center text-gray-500 text-[12px]">No page data available</div>
         @endforelse
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100">
+          <h6 class="text-[13px] font-semibold text-gray-800">Entry Pages</h6>
+        </div>
+        <div class="divide-y divide-gray-100">
+          @forelse($data['entry_pages'] ?? [] as $page)
+          <div class="px-4 py-3 flex items-center justify-between">
+            <p class="text-[12px] font-medium text-gray-800 truncate">{{ $page->page_url }}</p>
+            <span class="text-[12px] font-semibold text-gray-600 flex-shrink-0 ml-4">{{ number_format($page->views) }} sessions</span>
+          </div>
+          @empty
+          <div class="px-4 py-8 text-center text-gray-500 text-[12px]">No entry page data available</div>
+          @endforelse
+        </div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100">
+          <h6 class="text-[13px] font-semibold text-gray-800">Exit Pages</h6>
+        </div>
+        <div class="divide-y divide-gray-100">
+          @forelse($data['exit_pages'] ?? [] as $page)
+          <div class="px-4 py-3 flex items-center justify-between">
+            <p class="text-[12px] font-medium text-gray-800 truncate">{{ $page->page_url }}</p>
+            <span class="text-[12px] font-semibold text-gray-600 flex-shrink-0 ml-4">{{ number_format($page->views) }} sessions</span>
+          </div>
+          @empty
+          <div class="px-4 py-8 text-center text-gray-500 text-[12px]">No exit page data available</div>
+          @endforelse
+        </div>
       </div>
     </div>
     @else

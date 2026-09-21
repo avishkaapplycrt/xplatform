@@ -26,13 +26,13 @@
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{ request()->url() }?period='+this.value">
-        <option value="7d" { $period == '7d' ? 'selected' : '' }>Last 7 Days</option>
-        <option value="30d" { $period == '30d' ? 'selected' : '' }>Last 30 Days</option>
-        <option value="90d" { $period == '90d' ? 'selected' : '' }>Last 90 Days</option>
-        <option value="1y" { $period == '1y' ? 'selected' : '' }>Last Year</option>
+      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{{ request()->url() }}?period='+this.value">
+        <option value="7d" {{ $period == '7d' ? 'selected' : '' }}>Last 7 Days</option>
+        <option value="30d" {{ $period == '30d' ? 'selected' : '' }}>Last 30 Days</option>
+        <option value="90d" {{ $period == '90d' ? 'selected' : '' }}>Last 90 Days</option>
+        <option value="1y" {{ $period == '1y' ? 'selected' : '' }}>Last Year</option>
       </select>
-      <a href="{ request()->url() }/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+      <a href="{{ request()->url() }}/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
