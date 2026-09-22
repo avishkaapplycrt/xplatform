@@ -5,18 +5,22 @@ namespace App\Services\MockMaster;
 use App\Services\Llm\OpenAiClient;
 use App\Services\Llm\OpenAiException;
 use App\Services\MockMaster\Concerns\AnswersWithAi;
+use App\Services\MockMaster\Concerns\BuildsMockMasterSnapshot;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Marketing questions answered from the real, imported MockMaster PTE Portal
- * tables (mm_studentuser, mm_payments, mm_purchases, mm_packages) — the same
- * mm_* import the user loaded directly into analytics_platform. Every number
- * here is a live SQL aggregate against those tables; OpenAI (when
- * OPENAI_API_KEY is set) only turns the aggregate into readable copy.
+ * tables — the same mm_* import the user loaded directly into
+ * analytics_platform. Every number here is a live SQL aggregate against
+ * those tables; OpenAI (when OPENAI_API_KEY is set) only turns the aggregate
+ * into readable copy. The free-text ask() box draws on all fourteen mm_*
+ * tables via BuildsMockMasterSnapshot, not just the four this agent's own
+ * quick-prompt methods touch.
  */
 class MmMarketingService
 {
     use AnswersWithAi;
+    use BuildsMockMasterSnapshot;
 
     private string $systemRole = 'You are the Marketing copilot for a PTE exam-prep platform (MockMaster), reading its real signup and payment data.';
 
@@ -146,25 +150,16 @@ class MmMarketingService
     {
         $question = trim($question);
         if ($question === '') {
-            return ['answer' => 'Ask me something about MockMaster signups, payments or packages.', 'rows' => [], 'ai_used' => false];
+            return ['answer' => 'Ask me anything about MockMaster signups, payments, packages, mock-test activity, logins, feedback, meetings or notifications.', 'rows' => [], 'ai_used' => false];
         }
 
-        $snapshot = [
-            'total_students' => DB::table('mm_studentuser')->count(),
-            'signups_last_30_days' => DB::table('mm_studentuser')->where('create_date', '>=', now()->subDays(30))->count(),
-            'completed_payments_last_30_days' => DB::table('mm_payments')->where('status', 1)->where('create_date', '>=', now()->subDays(30))->count(),
-            'failed_payments_last_30_days' => DB::table('mm_payments')->where('status', 0)->where('create_date', '>=', now()->subDays(30))->count(),
-            'top_plans_this_month' => DB::table('mm_payments')->where('status', 1)->where('create_date', '>=', now()->startOfMonth())
-                ->select('product', DB::raw('COUNT(*) as conversions'))->groupBy('product')->orderByDesc('conversions')->limit(5)->get(),
-            'active_packages' => DB::table('mm_purchases as p')->join('mm_packages as k', 'p.productid', '=', 'k.packageid')
-                ->where('p.is_expired', 0)->select('k.package_name', DB::raw('COUNT(*) as active_count'))
-                ->groupBy('k.package_name')->orderByDesc('active_count')->limit(8)->get(),
-        ];
+        $snapshot = $this->mockMasterSnapshot();
+        $matches = $this->mockMasterSearchStudents($question);
 
         $client = app(OpenAiClient::class);
         if (!$client->isConfigured()) {
             return [
-                'answer' => 'Free-text answers need an OpenAI key configured (OPENAI_API_KEY). Until then, try one of the buttons above.',
+                'answer' => 'Free-text answers need an OpenAI key configured (OPENAI_API_KEY).',
                 'rows' => [],
                 'ai_used' => false,
             ];
@@ -172,10 +167,15 @@ class MmMarketingService
 
         try {
             $answer = $client->chat(
-                $this->systemRole . ' Answer using ONLY the JSON snapshot provided — never invent a name, number or fact. '
-                    . 'If the data cannot answer the question, say so plainly. Output plain text only, under 150 words.',
-                "Question: {$question}\n\nSnapshot:\n" . json_encode($snapshot, JSON_PRETTY_PRINT),
-                ['max_tokens' => 400]
+                $this->systemRole . ' The JSON payload below has two parts: "snapshot" (aggregate real stats covering every '
+                    . 'MockMaster table — students, payments, purchases, packages, coupons, login activity, mock-test attempts '
+                    . 'and results, feedback, meetings, scheduled emails and notifications) and "matching_students" (specific '
+                    . 'real student rows whose name or email matched a word in the question, if any — use these to answer a '
+                    . 'lookup like "what is the last name / email / phone of <name>"). Answer using ONLY this data — never '
+                    . 'invent a name, number or fact. If matching_students is empty and the question asks about a specific '
+                    . 'person, say no student matching that name was found — do not guess. Output plain text only, under 180 words.',
+                "Question: {$question}\n\nData:\n" . json_encode(['snapshot' => $snapshot, 'matching_students' => $matches], JSON_PRETTY_PRINT),
+                ['max_tokens' => 500]
             );
         } catch (OpenAiException $e) {
             report($e);

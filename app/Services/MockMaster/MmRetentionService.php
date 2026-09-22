@@ -5,6 +5,7 @@ namespace App\Services\MockMaster;
 use App\Services\Llm\OpenAiClient;
 use App\Services\Llm\OpenAiException;
 use App\Services\MockMaster\Concerns\AnswersWithAi;
+use App\Services\MockMaster\Concerns\BuildsMockMasterSnapshot;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -12,11 +13,13 @@ use Illuminate\Support\Facades\DB;
  * (last_login), mm_purchases (expire_date), mm_feedbacks and mm_notifications
  * tables — "which students are inactive since 7 days" and "call the customer
  * one day before subscription end" are the literal examples the user asked
- * for when requesting this build.
+ * for when requesting this build. The free-text ask() box draws on all
+ * fourteen mm_* tables via BuildsMockMasterSnapshot, not just these four.
  */
 class MmRetentionService
 {
     use AnswersWithAi;
+    use BuildsMockMasterSnapshot;
 
     private string $systemRole = 'You are the Customer Retention copilot for a PTE exam-prep platform (MockMaster), reading its real activity and subscription data.';
 
@@ -197,21 +200,16 @@ class MmRetentionService
     {
         $question = trim($question);
         if ($question === '') {
-            return ['answer' => 'Ask me something about MockMaster student activity or retention.', 'rows' => [], 'ai_used' => false];
+            return ['answer' => 'Ask me anything about MockMaster student activity, retention, mock-test performance, logins, feedback, meetings or notifications.', 'rows' => [], 'ai_used' => false];
         }
 
-        $snapshot = [
-            'inactive_7_plus_days' => DB::table('mm_studentuser')->whereNotNull('last_login')->where('status', 1)->where('last_login', '<', now()->subDays(7))->count(),
-            'expiring_tomorrow' => DB::table('mm_purchases')->where('is_expired', 0)->whereBetween('expire_date', [now()->addDay()->startOfDay(), now()->addDay()->endOfDay()])->count(),
-            'unread_notifications_3_plus_days' => DB::table('mm_notifications')->where('is_read', 0)->where('created_at', '<', now()->subDays(3))->count(),
-            'feedback_total' => DB::table('mm_feedbacks')->count(),
-            'active_subscriptions' => DB::table('mm_purchases')->where('is_expired', 0)->count(),
-        ];
+        $snapshot = $this->mockMasterSnapshot();
+        $matches = $this->mockMasterSearchStudents($question);
 
         $client = app(OpenAiClient::class);
         if (!$client->isConfigured()) {
             return [
-                'answer' => 'Free-text answers need an OpenAI key configured (OPENAI_API_KEY). Until then, try one of the buttons above.',
+                'answer' => 'Free-text answers need an OpenAI key configured (OPENAI_API_KEY).',
                 'rows' => [],
                 'ai_used' => false,
             ];
@@ -219,10 +217,15 @@ class MmRetentionService
 
         try {
             $answer = $client->chat(
-                $this->systemRole . ' Answer using ONLY the JSON snapshot provided — never invent a name, number or fact. '
-                    . 'If the data cannot answer the question, say so plainly. Output plain text only, under 150 words.',
-                "Question: {$question}\n\nSnapshot:\n" . json_encode($snapshot, JSON_PRETTY_PRINT),
-                ['max_tokens' => 400]
+                $this->systemRole . ' The JSON payload below has two parts: "snapshot" (aggregate real stats covering every '
+                    . 'MockMaster table — students, payments, purchases, packages, coupons, login activity, mock-test attempts '
+                    . 'and results, feedback, meetings, scheduled emails and notifications) and "matching_students" (specific '
+                    . 'real student rows whose name or email matched a word in the question, if any — use these to answer a '
+                    . 'lookup like "what is the last name / email / phone of <name>"). Answer using ONLY this data — never '
+                    . 'invent a name, number or fact. If matching_students is empty and the question asks about a specific '
+                    . 'person, say no student matching that name was found — do not guess. Output plain text only, under 180 words.',
+                "Question: {$question}\n\nData:\n" . json_encode(['snapshot' => $snapshot, 'matching_students' => $matches], JSON_PRETTY_PRINT),
+                ['max_tokens' => 500]
             );
         } catch (OpenAiException $e) {
             report($e);
