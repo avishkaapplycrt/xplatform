@@ -683,6 +683,20 @@ class ChatSupportConnectionController extends Controller
             }
         }
 
+        // Real sync for Slack — pulls channels + message history. Queued
+        // (same shape as SyncInstagramPosts/SyncHubSpotContacts) since a
+        // full workspace history pull can run long. Requires a queue worker
+        // (`php artisan queue:work`) since QUEUE_CONNECTION=database.
+        if ($provider === 'slack') {
+            \App\Jobs\SyncSlackMessages::dispatch($connection->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Slack sync queued.',
+                'status'  => 'syncing',
+            ]);
+        }
+
         // Default sync for other providers
         $connection->update([
             'last_sync_at' => now(),

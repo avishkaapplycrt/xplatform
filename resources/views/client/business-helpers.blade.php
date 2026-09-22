@@ -116,6 +116,15 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
         {{-- DASHBOARD: step guide + KPI strip/stack/accounts/scripts/forecast/manager + Mira — used by Marketing & Sales --}}
         <div class="dash" id="bhDash">
             <aside class="dash-left">
+                <div class="left-resize" id="bhLeftResize" role="separator" aria-orientation="vertical" aria-label="Resize steps panel (arrow keys)" tabindex="0" title="Drag to resize — drag left to hide">
+                    <span class="mira-grip" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                    </span>
+                </div>
+                <div class="col-rail">
+                    <button type="button" class="col-toggle" onclick="bhLeft('restore')" title="Expand steps" aria-label="Expand steps panel">&raquo;</button>
+                    <span class="col-rail-label">Steps</span>
+                </div>
                 <div class="g-body" id="dashGBody"></div>
             </aside>
             <div class="dash-main">
@@ -123,7 +132,7 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
                 <div class="dash-view" id="dashView"></div>
             </div>
             <aside class="dash-mira" id="bhMira">
-                <div class="mira-resize" id="bhMiraResize" role="separator" aria-orientation="vertical" aria-label="Resize helper panel (arrow keys)" tabindex="0" title="Drag to resize">
+                <div class="mira-resize" id="bhMiraResize" role="separator" aria-orientation="vertical" aria-label="Resize helper panel (arrow keys)" tabindex="0" title="Drag to resize — drag right to hide">
                     <span class="mira-grip" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
                     </span>
@@ -142,6 +151,11 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
                     <span class="col-rail-label">Helper</span>
                 </div>
                 <div class="dm-chat" id="dashChat"></div>
+                <div class="row-resize" id="bhQuickResize" role="separator" aria-orientation="horizontal" aria-label="Resize suggestions panel (arrow keys)" tabindex="0" title="Drag to resize — drag down to hide">
+                    <span class="row-grip" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                    </span>
+                </div>
                 <div class="dm-quick-hd" id="dashQuickHd">
                     <span id="dashQuickHdText"></span>
                     <button type="button" class="dm-quick-min" onclick="collapseDashQuicks()" title="Hide suggestions" aria-label="Hide suggestions">
@@ -280,7 +294,7 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .send svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:2.5;stroke-linecap:round}
 
 /* ══ DASHBOARD (Marketing / Sales) ══ */
-#bhRoot .dash{display:none;grid-template-columns:minmax(190px,220px) 1fr var(--bh-mira-w,320px);gap:1px;background:var(--ln);flex:1;min-height:0;overflow:hidden}
+#bhRoot .dash{display:none;grid-template-columns:var(--bh-left-w,220px) 1fr var(--bh-mira-w,320px);gap:1px;background:var(--ln);flex:1;min-height:0;overflow:hidden}
 #bhRoot .dash.on{display:grid}
 @media(max-width:1180px){#bhRoot .dash{grid-template-columns:190px 1fr}}
 @media(max-width:820px){#bhRoot .dash{grid-template-columns:1fr;overflow-y:auto}}
@@ -394,7 +408,7 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .dm-quick-hd{padding:10px 16px 4px;border-top:1px solid var(--ln);font-family:var(--fm);font-size:9.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--g3);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:8px}
 #bhRoot .dm-quick-min{width:20px;height:20px;padding:0;border:1px solid var(--ln2);background:#fff;border-radius:6px;cursor:pointer;display:grid;place-items:center;color:var(--g3);flex-shrink:0}
 #bhRoot .dm-quick-min:hover{color:var(--ac-d);border-color:var(--ac-m);background:var(--ac-l)}
-#bhRoot .dm-quick{padding:6px 16px 14px;display:flex;flex-direction:column;gap:7px;flex-shrink:0;max-height:220px;overflow-y:auto}
+#bhRoot .dm-quick{padding:6px 16px 14px;display:flex;flex-direction:column;gap:7px;flex-shrink:0;max-height:var(--bh-quick-h,220px);overflow-y:auto}
 #bhRoot .dm-quick .qk{width:100%;text-align:left;padding:10px 12px;font-size:12px;white-space:normal;line-height:1.35;border-radius:8px;background:#fff;border:1px solid var(--ln)}
 #bhRoot .dm-quick .qk:hover{border-color:var(--ac-m);background:var(--ac-l);color:var(--ac-d)}
 #bhRoot .dm-quick-hd.dm-quick-collapsed,#bhRoot .dm-quick.dm-quick-collapsed{display:none}
@@ -427,14 +441,65 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .col-rail .col-toggle{width:26px;height:26px;flex-shrink:0;border:1px solid var(--ln2);background:#fff;border-radius:7px;cursor:pointer;display:grid;place-items:center;font-size:13px;line-height:1;color:var(--g2);font-family:var(--fm);transition:all .15s;padding:0}
 #bhRoot .col-rail .col-toggle:hover{color:var(--ac-d);border-color:var(--ac-m);background:var(--ac-l)}
 #bhRoot .col-rail-label{writing-mode:vertical-rl;font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g3)}
-#bhRoot.bh-mira-min .dash-mira > *:not(.col-rail){display:none}
+/* the resize handle itself stays visible+draggable even when collapsed
+   (.mira-resize/.left-resize are excluded from the hide rule) so a panel
+   can be dragged back open the same way it was dragged shut — same idea
+   as VS Code's sidebar border. */
+#bhRoot.bh-mira-min .dash-mira > *:not(.col-rail):not(.mira-resize){display:none}
 #bhRoot.bh-mira-min .dash-mira > .col-rail{display:flex}
+#bhRoot.bh-left-min .dash-left > *:not(.col-rail):not(.left-resize){display:none}
+#bhRoot.bh-left-min .dash-left > .col-rail{display:flex}
 @media(min-width:1181px){
-  #bhRoot.bh-mira-min .dash{grid-template-columns:minmax(190px,220px) 1fr 40px}
+  #bhRoot.bh-mira-min .dash{grid-template-columns:var(--bh-left-w,220px) 1fr 40px}
+  #bhRoot.bh-left-min .dash{grid-template-columns:40px 1fr var(--bh-mira-w,320px)}
+  #bhRoot.bh-left-min.bh-mira-min .dash{grid-template-columns:40px 1fr 40px}
 }
 @media(max-width:1180px){
   #bhRoot .mira-resize{display:none}
+  #bhRoot .left-resize{display:none}
 }
+
+/* ══ Steps panel (left) — drag-resize, mirrors the helper panel's handle ══
+   Purely a width control; the step list's own render logic is untouched. */
+#bhRoot .dash-left{position:relative}
+#bhRoot .left-resize{position:absolute;right:0;top:0;bottom:0;width:12px;z-index:20;cursor:col-resize;display:flex;align-items:center;justify-content:center;touch-action:none;transform:translateX(50%)}
+#bhRoot .left-resize::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--ln2);transition:background .15s}
+#bhRoot .left-resize:hover::before,#bhRoot .left-resize.dragging::before{background:var(--ac)}
+#bhRoot .left-resize:focus-visible{outline:2px solid var(--ac);outline-offset:-1px}
+
+/* ══ Suggestions panel (below chat) — drag-resize horizontally as a row,
+   same threshold-collapse idea as the two column handles: drag down far
+   enough and it fully hides (reusing the app's own existing
+   collapseDashQuicks()/expandDashQuicks(), not a new hide mechanism). ══ */
+#bhRoot .row-resize{height:10px;flex-shrink:0;cursor:row-resize;display:flex;align-items:center;justify-content:center;touch-action:none;position:relative}
+#bhRoot .row-resize::before{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:var(--ln2);transition:background .15s}
+#bhRoot .row-resize:hover::before,#bhRoot .row-resize.dragging::before{background:var(--ac)}
+#bhRoot .row-resize:focus-visible{outline:2px solid var(--ac);outline-offset:-1px}
+#bhRoot .row-grip{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:22px;height:12px;border:1px solid var(--ln2);border-radius:4px;background:#fff;color:var(--g3);transition:all .15s}
+#bhRoot .row-resize:hover .row-grip,#bhRoot .row-resize.dragging .row-grip{color:var(--ac-d);border-color:var(--ac-m)}
+#bhRoot .row-grip svg{width:12px;height:12px;display:block;transform:rotate(90deg)}
+
+/* ══ Sliding active-tab indicator — a thin bar that glides between
+   whichever agent/step tab is active. Positioned by JS from each button's
+   own bounding box; never calls or edits any tab-switching logic. ══ */
+#bhRoot .atabs,#bhRoot .dash-vtabs{position:relative}
+#bhRoot .bh-slide-ind{position:absolute;bottom:0;height:3px;border-radius:3px 3px 0 0;background:var(--ac);pointer-events:none;z-index:2;opacity:0;
+  transition:left .3s cubic-bezier(.4,0,.2,1),width .3s cubic-bezier(.4,0,.2,1),opacity .2s}
+
+/* ══ Smooth content swap — a light fade+rise applied whenever the middle
+   panel, the step guide, or chat gets new content, replayed by JS toggling
+   this class; no render function is touched to do it. ══ */
+@keyframes bhFadeSlide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+#bhRoot .bh-fade-in{animation:bhFadeSlide .3s cubic-bezier(.4,0,.2,1)}
+@media (prefers-reduced-motion: reduce){
+  #bhRoot .bh-slide-ind{transition:none}
+  #bhRoot .bh-fade-in{animation:none}
+}
+
+/* ══ General motion polish — same properties/durations, smoother easing ══ */
+#bhRoot .atab,#bhRoot .dvt,#bhRoot .stkrow,#bhRoot .qk,#bhRoot .mira-btn,#bhRoot .act-btn,#bhRoot .st-dot,#bhRoot .st-txt{transition-timing-function:cubic-bezier(.4,0,.2,1)}
+#bhRoot .stkrow{transition:background .2s cubic-bezier(.4,0,.2,1),transform .2s cubic-bezier(.4,0,.2,1)}
+#bhRoot .stkrow:hover{transform:translateX(2px)}
 
 .risk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:200;align-items:center;justify-content:center;padding:24px}
 .risk-modal-overlay.show{display:flex}
@@ -2495,7 +2560,6 @@ function bhMira(action){
     var dragging = false, startX = 0, startW = 0;
 
     h.addEventListener('pointerdown', function (e){
-        if (bhMiraState.min) return;
         dragging = true;
         startX = e.clientX;
         startW = parseFloat(getComputedStyle(root).getPropertyValue('--bh-mira-w')) || BH_MIRA_DEFAULT;
@@ -2506,9 +2570,20 @@ function bhMira(action){
     });
     h.addEventListener('pointermove', function (e){
         if (!dragging) return;
-        bhMiraState.w = Math.min(Math.max(startW + (startX - e.clientX), BH_MIRA_MIN), bhMiraCap());
+        var w = startW + (startX - e.clientX);
         bhMiraState.maxed = false;
-        root.style.setProperty('--bh-mira-w', bhMiraState.w + 'px');
+        // Drag past a "collapse zone" near the minimum and the panel fully
+        // hides — the same gesture as VS Code's sidebar; drag back out past
+        // the same line and it reopens.
+        if (w < BH_MIRA_MIN){
+            bhMiraState.min = true;
+            root.classList.add('bh-mira-min');
+        } else {
+            bhMiraState.min = false;
+            bhMiraState.w = Math.min(Math.max(w, BH_MIRA_MIN), bhMiraCap());
+            root.classList.remove('bh-mira-min');
+            root.style.setProperty('--bh-mira-w', bhMiraState.w + 'px');
+        }
     });
     function stop(e){
         if (!dragging) return;
@@ -2533,15 +2608,220 @@ function bhMira(action){
 
 window.addEventListener('resize', function (){ bhMiraApply(); });
 
+/* ── Steps panel (left): drag-resize — same pattern as the helper panel's,
+   just the other column. Width lives in --bh-left-w; purely layout, no
+   agent/step logic is read or changed here. ── */
+var BH_LEFT_MIN = 170;
+var BH_LEFT_DEFAULT = 220;
+var bhLeftState = { w: BH_LEFT_DEFAULT, min: false };
+
+function bhLeftCap(){
+    var dash = document.getElementById('bhDash');
+    var total = dash ? dash.clientWidth : 1200;
+    return Math.max(BH_LEFT_MIN + 40, total - 460); // leave room for content + helper panel
+}
+function bhLeftApply(){
+    var w = Math.min(Math.max(bhLeftState.w, BH_LEFT_MIN), bhLeftCap());
+    root.style.setProperty('--bh-left-w', w + 'px');
+    root.classList.toggle('bh-left-min', bhLeftState.min);
+}
+function bhLeftSave(){
+    try { localStorage.setItem('bhLeft', JSON.stringify({ w: bhLeftState.w, min: bhLeftState.min })); } catch (e) {}
+}
+function bhLeftLoad(){
+    try {
+        var s = JSON.parse(localStorage.getItem('bhLeft') || '{}') || {};
+        if (typeof s.w === 'number' && isFinite(s.w)) bhLeftState.w = s.w;
+        bhLeftState.min = !!s.min;
+    } catch (e) {}
+    bhLeftApply();
+}
+function bhLeft(action){
+    if (action === 'min') bhLeftState.min = true;
+    else if (action === 'restore') bhLeftState.min = false;
+    bhLeftApply(); bhLeftSave();
+}
+(function bhLeftDrag(){
+    var h = document.getElementById('bhLeftResize');
+    if (!h) return;
+    var dragging = false, startX = 0, startW = 0;
+
+    h.addEventListener('pointerdown', function (e){
+        dragging = true;
+        startX = e.clientX;
+        startW = parseFloat(getComputedStyle(root).getPropertyValue('--bh-left-w')) || BH_LEFT_DEFAULT;
+        h.classList.add('dragging');
+        try { h.setPointerCapture(e.pointerId); } catch (_) {}
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+    h.addEventListener('pointermove', function (e){
+        if (!dragging) return;
+        var w = startW + (e.clientX - startX);
+        // Same collapse-zone idea as the helper panel: drag it thin enough
+        // and it fully hides; drag back out past the same line to reopen.
+        if (w < BH_LEFT_MIN){
+            bhLeftState.min = true;
+            root.classList.add('bh-left-min');
+        } else {
+            bhLeftState.min = false;
+            bhLeftState.w = Math.min(Math.max(w, BH_LEFT_MIN), bhLeftCap());
+            root.classList.remove('bh-left-min');
+            root.style.setProperty('--bh-left-w', bhLeftState.w + 'px');
+        }
+    });
+    function stop(e){
+        if (!dragging) return;
+        dragging = false;
+        h.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        try { h.releasePointerCapture(e.pointerId); } catch (_) {}
+        bhLeftApply(); bhLeftSave();
+    }
+    h.addEventListener('pointerup', stop);
+    h.addEventListener('pointercancel', stop);
+    h.addEventListener('dblclick', function (){ bhLeftState.w = BH_LEFT_DEFAULT; bhLeftState.min = false; bhLeftApply(); bhLeftSave(); });
+    h.addEventListener('keydown', function (e){
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        e.preventDefault();
+        var step = (e.shiftKey ? 48 : 16) * (e.key === 'ArrowLeft' ? -1 : 1);
+        bhLeftState.w = Math.min(Math.max(bhLeftState.w + step, BH_LEFT_MIN), bhLeftCap());
+        bhLeftApply(); bhLeftSave();
+    });
+})();
+window.addEventListener('resize', function (){ bhLeftApply(); });
+
+/* ── Suggestions row (below the dashboard chat): drag-resize its height,
+   with the same collapse-past-threshold gesture — reusing the app's own
+   existing collapseDashQuicks()/expandDashQuicks() rather than a new hide
+   mechanism, so the "hidden" state is exactly what the chevron button
+   already produces. ── */
+var BH_QUICK_MIN = 90;
+var BH_QUICK_DEFAULT = 220;
+var bhQuickState = { h: BH_QUICK_DEFAULT };
+
+function bhQuickApply(){
+    var h = Math.max(bhQuickState.h, BH_QUICK_MIN);
+    root.style.setProperty('--bh-quick-h', h + 'px');
+}
+function bhQuickSave(){
+    try { localStorage.setItem('bhQuick', JSON.stringify({ h: bhQuickState.h })); } catch (e) {}
+}
+function bhQuickLoad(){
+    try {
+        var s = JSON.parse(localStorage.getItem('bhQuick') || '{}') || {};
+        if (typeof s.h === 'number' && isFinite(s.h)) bhQuickState.h = s.h;
+    } catch (e) {}
+    bhQuickApply();
+}
+(function bhQuickDrag(){
+    var h = document.getElementById('bhQuickResize');
+    if (!h) return;
+    var dragging = false, startY = 0, startH = 0, wasCollapsed = false;
+
+    function isCollapsed(){
+        var q = document.getElementById('dashQuick');
+        return !q || q.classList.contains('dm-quick-collapsed');
+    }
+    h.addEventListener('pointerdown', function (e){
+        dragging = true;
+        startY = e.clientY;
+        wasCollapsed = isCollapsed();
+        startH = wasCollapsed ? BH_QUICK_MIN : Math.max((document.getElementById('dashQuick') || {}).offsetHeight || BH_QUICK_DEFAULT, BH_QUICK_MIN);
+        h.classList.add('dragging');
+        try { h.setPointerCapture(e.pointerId); } catch (_) {}
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+    h.addEventListener('pointermove', function (e){
+        if (!dragging) return;
+        var newH = startH + (startY - e.clientY); // drag up = taller
+        if (newH < BH_QUICK_MIN){
+            if (typeof collapseDashQuicks === 'function') collapseDashQuicks();
+        } else {
+            if (typeof expandDashQuicks === 'function') expandDashQuicks();
+            bhQuickState.h = Math.max(newH, BH_QUICK_MIN);
+            root.style.setProperty('--bh-quick-h', bhQuickState.h + 'px');
+        }
+    });
+    function stop(e){
+        if (!dragging) return;
+        dragging = false;
+        h.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        try { h.releasePointerCapture(e.pointerId); } catch (_) {}
+        if (!isCollapsed()) { bhQuickApply(); bhQuickSave(); }
+    }
+    h.addEventListener('pointerup', stop);
+    h.addEventListener('pointercancel', stop);
+    h.addEventListener('dblclick', function (){
+        if (typeof expandDashQuicks === 'function') expandDashQuicks();
+        bhQuickState.h = BH_QUICK_DEFAULT; bhQuickApply(); bhQuickSave();
+    });
+    h.addEventListener('keydown', function (e){
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        e.preventDefault();
+        if (typeof expandDashQuicks === 'function') expandDashQuicks();
+        var step = (e.shiftKey ? 48 : 16) * (e.key === 'ArrowUp' ? 1 : -1);
+        bhQuickState.h = Math.max(bhQuickState.h + step, BH_QUICK_MIN);
+        bhQuickApply(); bhQuickSave();
+    });
+})();
+
+/* ── Sliding tab indicator — watches the existing agent tabs / step tabs
+   for their ".on" active class and glides a bar under whichever is active.
+   Read-only observer: it never calls setAgent/showDashView or touches
+   dashState — purely reacts to DOM the existing code already produces. ── */
+function bhMountSlideIndicator(container){
+    if (!container || container.__bhSlide) return;
+    container.__bhSlide = true;
+    var ind = document.createElement('span');
+    ind.className = 'bh-slide-ind';
+    container.appendChild(ind);
+    function place(){
+        var active = container.querySelector('.on');
+        if (!active) { ind.style.opacity = '0'; return; }
+        ind.style.opacity = '1';
+        ind.style.left = active.offsetLeft + 'px';
+        ind.style.width = active.offsetWidth + 'px';
+    }
+    new MutationObserver(function (){
+        if (!container.contains(ind)) container.appendChild(ind);
+        requestAnimationFrame(place);
+    }).observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('resize', place);
+    requestAnimationFrame(place);
+}
+bhMountSlideIndicator(document.querySelector('.atabs'));
+bhMountSlideIndicator(document.getElementById('dashVtabs'));
+
+/* ── Fade-in on content swap — replays a short fade+rise every time one of
+   these containers gets new content, by toggling a CSS class after the
+   fact. It observes childList mutations only; it never wraps, calls, or
+   changes the functions that actually render each panel. ── */
+function bhAnimateOnChange(el){
+    if (!el || el.__bhAnim) return;
+    el.__bhAnim = true;
+    new MutationObserver(function (){
+        el.classList.remove('bh-fade-in');
+        void el.offsetWidth; // reflow so the animation restarts
+        el.classList.add('bh-fade-in');
+    }).observe(el, { childList: true });
+}
+['dashView', 'dashGBody', 'bhChat', 'dashChat'].forEach(function (id){ bhAnimateOnChange(document.getElementById(id)); });
+
 window.setAgent = setAgent;
 window.toggleStep = toggleStep;
 window.handleQuick = handleQuick;
 window.sendMsg = sendMsg;
 window.toggleSidebarCollapse = toggleSidebarCollapse;
 window.bhMira = bhMira;
+window.bhLeft = bhLeft;
 
 setAgent('mk');
 bhMiraLoad();
+bhLeftLoad();
+bhQuickLoad();
 
 })();
 </script>
