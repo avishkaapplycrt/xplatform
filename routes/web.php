@@ -339,6 +339,21 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return response()->json(app(\App\Services\RetentionSaveFirstService::class)->answer());
     })->name('business-helpers.retention.save-first');
 
+    // Customer Retention · Risk radar AI answers backed by real Stripe
+    // transaction data cross-referenced with the CRM — see
+    // App\Services\TransactionInsightsService.
+    Route::get('business-helpers/retention/payment-failures', function () {
+        return response()->json(app(\App\Services\TransactionInsightsService::class)->failedPaymentsRecent());
+    })->name('business-helpers.retention.payment-failures');
+
+    Route::get('business-helpers/retention/declining-value', function () {
+        return response()->json(app(\App\Services\TransactionInsightsService::class)->decliningTransactionValue());
+    })->name('business-helpers.retention.declining-value');
+
+    Route::get('business-helpers/retention/high-value-quiet', function () {
+        return response()->json(app(\App\Services\TransactionInsightsService::class)->highValueCustomersQuiet());
+    })->name('business-helpers.retention.high-value-quiet');
+
     // Marketing · Audience AI answers (crm_contacts + crm_deals, written up by
     // OpenAI when OPENAI_API_KEY is set — see App\Services\MarketingAudienceService).
     Route::get('business-helpers/marketing/exclude-from-send', function () {
@@ -444,6 +459,20 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('business-helpers/marketing/worst-unsub-audience', function () {
         return response()->json(app(\App\Services\MarketingLiftService::class)->worstUnsubscribeAudience());
     })->name('business-helpers.marketing.worst-unsub-audience');
+
+    // Marketing AI answers backed by real Stripe transaction data
+    // cross-referenced with the CRM — see App\Services\TransactionInsightsService.
+    Route::get('business-helpers/marketing/ltv-by-segment', function () {
+        return response()->json(app(\App\Services\TransactionInsightsService::class)->ltvBySegment());
+    })->name('business-helpers.marketing.ltv-by-segment');
+
+    Route::get('business-helpers/marketing/first-to-second-purchase', function () {
+        return response()->json(app(\App\Services\TransactionInsightsService::class)->avgTimeBetweenFirstSecondPurchase());
+    })->name('business-helpers.marketing.first-to-second-purchase');
+
+    Route::get('business-helpers/marketing/onetime-buyers-quiet', function () {
+        return response()->json(app(\App\Services\TransactionInsightsService::class)->oneTimeBuyersQuiet());
+    })->name('business-helpers.marketing.onetime-buyers-quiet');
 
     // Marketing · "Ask anything" free-text box — genuinely open-ended:
     // hands the typed question plus a real snapshot of crm_contacts +
@@ -975,6 +1004,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
                 ->name('payment-methods');
             Route::get('/refunds', [TransactionAnalyticsController::class, 'refunds'])
                 ->name('refunds');
+            Route::get('/customers', [TransactionAnalyticsController::class, 'customers'])
+                ->name('customers');
             Route::get('/customer-ltv', [TransactionAnalyticsController::class, 'customerLtv'])
                 ->name('customer-ltv');
             Route::get('/export/{format}', [TransactionAnalyticsController::class, 'export'])

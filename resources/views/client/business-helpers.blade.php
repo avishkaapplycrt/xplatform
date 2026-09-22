@@ -551,7 +551,10 @@ var RETENTION_AI_ENDPOINTS = {
   ab_accounts_per_arm: @json(route('client.business-helpers.retention.ab.accounts-per-arm')),
   ab_call_first_or_email_first: @json(route('client.business-helpers.retention.ab.call-first-or-email-first')),
   ab_holdout_big_enough: @json(route('client.business-helpers.retention.ab.holdout-big-enough')),
-  ab_all_test_ideas: @json(route('client.business-helpers.retention.ab.all-test-ideas'))
+  ab_all_test_ideas: @json(route('client.business-helpers.retention.ab.all-test-ideas')),
+  payment_failures_today: @json(route('client.business-helpers.retention.payment-failures')),
+  declining_transaction_value: @json(route('client.business-helpers.retention.declining-value')),
+  high_value_quiet_60d: @json(route('client.business-helpers.retention.high-value-quiet'))
 };
 var SALES_ASK_ENDPOINT = @json(route('client.business-helpers.sales.ask'));
 var SALES_PROMPT_AI_ENDPOINT = @json(route('client.business-helpers.sales.prompt-insight'));
@@ -560,7 +563,9 @@ var SALES_PROMPT_AI_KEYS = [
   'understand:priority_changed',
   'craft:not_ready_response', 'craft:too_expensive_response', 'craft:competitor_response',
   'handle:not_interested', 'handle:not_right_now', 'handle:why_need_this',
-  'handle:use_competitor', 'handle:too_expensive'
+  'handle:use_competitor', 'handle:too_expensive',
+  'launch:pitched_converted', 'launch:quoted_vs_actual',
+  'prioritise:stalled_after_failed_payment', 'understand:purchased_without_contact'
 ];
 var MARKETING_AI_ENDPOINTS = {
   exclude_from_every_send: @json(route('client.business-helpers.marketing.exclude-from-send')),
@@ -583,7 +588,10 @@ var MARKETING_AI_ENDPOINTS = {
   when_receive_touch1_mql_sales: @json(route('client.business-helpers.marketing.touch1-send-time')),
   all_test_ideas_mql_sales: @json(route('client.business-helpers.marketing.all-test-ideas')),
   lift_vs_holdout_mql_sales: @json(route('client.business-helpers.marketing.lift-vs-holdout')),
-  audience_worst_unsub_rate: @json(route('client.business-helpers.marketing.worst-unsub-audience'))
+  audience_worst_unsub_rate: @json(route('client.business-helpers.marketing.worst-unsub-audience')),
+  ltv_by_segment: @json(route('client.business-helpers.marketing.ltv-by-segment')),
+  first_to_second_purchase: @json(route('client.business-helpers.marketing.first-to-second-purchase')),
+  onetime_buyers_quiet_90d: @json(route('client.business-helpers.marketing.onetime-buyers-quiet'))
 };
 var MARKETING_ACCOUNTS_ENDPOINT = @json(route('client.business-helpers.marketing.accounts-snapshot'));
 var MARKETING_ASK_ENDPOINT = @json(route('client.business-helpers.marketing.ask'));
