@@ -44,6 +44,52 @@
             </a>
         </div>
 
+        {{-- MockMaster Group --}}
+        <div class="px-3 pt-1">
+            @php
+            $isMockmasterActive = request()->routeIs('client.mockmaster');
+            $mockmasterAgent = request()->query('agent', 'marketing');
+            @endphp
+            <div class="space-y-1">
+                <button onclick="toggleMockmasterMenu()"
+                        class="w-full flex items-center justify-between px-3 py-2 text-xs rounded-md transition
+                               {{ $isMockmasterActive ? 'bg-amber-50 text-amber-700 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0 {{ $isMockmasterActive ? 'text-amber-500' : 'text-gray-400' }}"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <span class="truncate">MockMaster</span>
+                    </div>
+                    <svg id="mockmasterChevron" class="w-3 h-3 transition-transform {{ $isMockmasterActive ? 'rotate-180' : '' }}"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div id="mockmasterSubmenu" class="{{ $isMockmasterActive ? '' : 'hidden' }} pl-7 space-y-1">
+                    <a href="{{ route('client.mockmaster', ['agent' => 'marketing']) }}"
+                       class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                              {{ $isMockmasterActive && $mockmasterAgent === 'marketing' ? 'text-amber-700 font-medium' : 'text-gray-500 hover:text-gray-700' }}">
+                        <span class="w-1 h-1 rounded-full {{ $isMockmasterActive && $mockmasterAgent === 'marketing' ? 'bg-amber-500' : 'bg-gray-300' }}"></span>
+                        <span class="truncate">Marketing</span>
+                    </a>
+                    <a href="{{ route('client.mockmaster', ['agent' => 'sales']) }}"
+                       class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                              {{ $isMockmasterActive && $mockmasterAgent === 'sales' ? 'text-amber-700 font-medium' : 'text-gray-500 hover:text-gray-700' }}">
+                        <span class="w-1 h-1 rounded-full {{ $isMockmasterActive && $mockmasterAgent === 'sales' ? 'bg-amber-500' : 'bg-gray-300' }}"></span>
+                        <span class="truncate">Sales</span>
+                    </a>
+                    <a href="{{ route('client.mockmaster', ['agent' => 'retention']) }}"
+                       class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                              {{ $isMockmasterActive && $mockmasterAgent === 'retention' ? 'text-amber-700 font-medium' : 'text-gray-500 hover:text-gray-700' }}">
+                        <span class="w-1 h-1 rounded-full {{ $isMockmasterActive && $mockmasterAgent === 'retention' ? 'bg-amber-500' : 'bg-gray-300' }}"></span>
+                        <span class="truncate">Customer Retention</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
         {{-- Platform Layers Navigation --}}
         <div class="px-3 pt-3 flex-1 overflow-y-auto">
             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Platform Layers</p>
@@ -473,6 +519,18 @@
     function toggleRevenueMenu() {
         var submenu = document.getElementById('revenueSubmenu');
         var chevron = document.getElementById('revenueChevron');
+        if (submenu.classList.contains('hidden')) {
+            submenu.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            submenu.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+
+    function toggleMockmasterMenu() {
+        var submenu = document.getElementById('mockmasterSubmenu');
+        var chevron = document.getElementById('mockmasterChevron');
         if (submenu.classList.contains('hidden')) {
             submenu.classList.remove('hidden');
             chevron.classList.add('rotate-180');

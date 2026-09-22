@@ -532,6 +532,14 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return response()->json(app(\App\Services\RetentionAbTestService::class)->allTestIdeas());
     })->name('business-helpers.retention.ab.all-test-ideas');
 
+    // MockMaster subsection — same three-agent framing as Business Helpers
+    // above, but backed by the real, imported mm_* MockMaster PTE Portal
+    // tables instead of this client's own CRM/email data. See
+    // App\Http\Controllers\Client\MockMasterController.
+    Route::get('mockmaster', [\App\Http\Controllers\Client\MockMasterController::class, 'index'])->name('mockmaster');
+    Route::post('mockmaster/prompt', [\App\Http\Controllers\Client\MockMasterController::class, 'prompt'])->name('mockmaster.prompt');
+    Route::post('mockmaster/ask', [\App\Http\Controllers\Client\MockMasterController::class, 'ask'])->name('mockmaster.ask');
+
     // Chat Bot
     Route::get('chatbot',        [ChatBotController::class, 'index'])->name('chatbot');
     Route::post('chatbot/send',  [ChatBotController::class, 'send'])->name('chatbot.send');
