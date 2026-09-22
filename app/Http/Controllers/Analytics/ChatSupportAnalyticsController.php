@@ -15,12 +15,16 @@ class ChatSupportAnalyticsController extends Controller
     {
         $client = Auth::guard('client')->user();
         $period = request('period', '30d');
+
+        $slack = app(\App\Services\SlackAnalysisService::class)->report($client->id);
+
         $data = [
-            'has_data' => $this->hasChatData($client),
+            'has_data' => $this->hasChatData($client) || $slack['connected'],
             'total_conversations' => $this->getTotalConversations($client),
             'avg_response_time' => '4m 12s',
             'csat_score' => 4.2,
             'connected_count' => $this->getConnectedCount($client),
+            'slack' => $slack, // real payload: answer, message_count, top_channels, top_contributors, busiest_hour
         ];
         return view('client.reports.chat-support.overview', compact('data', 'period'));
     }

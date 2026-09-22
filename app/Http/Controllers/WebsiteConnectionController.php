@@ -363,7 +363,7 @@ class WebsiteConnectionController extends Controller
     public function getTrackingScript(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'tracking_code' => 'required|string|size:32',
+            'tracking_code' => ['required', 'string', 'max:64', 'regex:/^[A-Z]+_\d+_[a-f0-9]{24}$/'],
         ]);
 
         if ($validator->fails()) {
@@ -410,7 +410,10 @@ class WebsiteConnectionController extends Controller
 
     private function generateEmbedCode($connection): string
     {
-        $trackingUrl = url('/api/tracking/script?tracking_code=' . $connection->tracking_code);
+        // Storefronts are served over https, so an http:// script tag gets
+        // silently blocked as mixed content — force https regardless of
+        // APP_URL's scheme.
+        $trackingUrl = preg_replace('#^http://#', 'https://', url('/api/tracking/script?tracking_code=' . $connection->tracking_code));
 
         switch ($connection->platform) {
             case 'wordpress':
@@ -444,7 +447,7 @@ class WebsiteConnectionController extends Controller
 
     private function generateTrackingScript($connection): string
     {
-        $apiEndpoint = url('/api/events/collect');
+        $apiEndpoint = preg_replace('#^http://#', 'https://', url('/api/events/collect'));
 
         return <<<JS
 (function() {
