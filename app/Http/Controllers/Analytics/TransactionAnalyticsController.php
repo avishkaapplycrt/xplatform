@@ -88,6 +88,20 @@ class TransactionAnalyticsController extends Controller
         return view('client.reports.transactions.refunds', compact('data', 'period'));
     }
 
+    public function customers()
+    {
+        $client = Auth::guard('client')->user();
+        $hasData = $this->hasTransactionData($client);
+        $customers = $hasData ? $this->customerRows($client) : [];
+
+        $data = [
+            'has_data' => $hasData,
+            'customers' => $customers,
+            'total' => count($customers),
+        ];
+        return view('client.reports.transactions.customers', compact('data'));
+    }
+
     public function customerLtv()
     {
         $client = Auth::guard('client')->user();
@@ -301,28 +315,57 @@ class TransactionAnalyticsController extends Controller
      * Groups by customer identity straight out of Stripe's own metadata,
      * since this table has no populated customer_id/customers relation to
      * join against. Falls back to the Stripe customer ID when no email was
-     * captured on the charge (common for API/test-created charges that
-     * never collected billing details) — grouping is still correct, the
-     * display label just isn't a human email in that case.
+     * The dedicated `transactions_customers` table, synced from Stripe's own
+     * Customer objects (see StripeSyncService::syncCustomers) — actual
+     * names/emails/phones, kept separate from the general `customers` table
+     * used by unrelated features (Customer Success, onboarding, etc).
+     */
+    private function customerRows($client): array
+    {
+        try {
+            if (!DB::getSchemaBuilder()->hasTable('transactions_customers')) return [];
+
+            return DB::table('transactions_customers')->where('client_id', $client->id)
+                ->orderByDesc('lifetime_value')
+                ->limit(100)
+                ->get(['name', 'email', 'phone', 'lifetime_value', 'orders_count', 'gateway_created_at'])
+                ->map(fn ($c) => [
+                    'name' => $c->name,
+                    'email' => $c->email,
+                    'phone' => $c->phone,
+                    'lifetime_value' => (float) $c->lifetime_value,
+                    'orders' => (int) $c->orders_count,
+                    'since' => $c->gateway_created_at,
+                ])
+                ->all();
+        } catch (\Exception $e) { return []; }
+    }
+
+    /**
+     * Same table as customerRows(), narrowed to customers who've actually
+     * completed an order, with real first/last purchase dates pulled from
+     * their transactions.
      */
     private function customerLtvRows($client): array
     {
         try {
-            // MariaDB (unlike MySQL) has no `->>` shorthand — JSON_UNQUOTE(JSON_EXTRACT(...)) is the portable form.
-            $emailExpr = "JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.customer_email'))";
-            $custIdExpr = "JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.stripe_customer_id'))";
+            if (!DB::getSchemaBuilder()->hasTable('transactions_customers')) return [];
 
-            return DB::table('transactions')->where('client_id', $client->id)
-                ->where('status', 'completed')
-                ->whereNotNull('metadata')
-                ->selectRaw("COALESCE(NULLIF($emailExpr, 'null'), NULLIF($custIdExpr, 'null')) as customer_key, MAX(NULLIF($emailExpr, 'null')) as email, COUNT(*) as orders, SUM(amount) as ltv, MIN(created_at) as first_seen, MAX(created_at) as last_seen")
-                ->groupBy('customer_key')
-                ->havingRaw("customer_key IS NOT NULL")
-                ->orderByDesc('ltv')
+            return DB::table('transactions_customers as tc')
+                ->join('transactions as t', function ($join) use ($client) {
+                    $join->on('t.customer_id', '=', 'tc.id')
+                        ->where('t.client_id', $client->id)
+                        ->where('t.status', 'completed');
+                })
+                ->where('tc.client_id', $client->id)
+                ->where('tc.orders_count', '>', 0)
+                ->groupBy('tc.id', 'tc.email', 'tc.name', 'tc.lifetime_value', 'tc.orders_count')
+                ->selectRaw('tc.email, tc.name, tc.lifetime_value as ltv, tc.orders_count as orders, MIN(t.created_at) as first_seen, MAX(t.created_at) as last_seen')
+                ->orderByDesc('tc.lifetime_value')
                 ->limit(50)
                 ->get()
                 ->map(fn ($r) => [
-                    'email' => $r->email ?: $r->customer_key,
+                    'email' => $r->email ?: $r->name,
                     'orders' => (int) $r->orders,
                     'ltv' => (float) $r->ltv,
                     'avg_order' => $r->orders > 0 ? round($r->ltv / $r->orders, 2) : 0,

@@ -44,6 +44,14 @@ class AgentPredefinedPromptsSeeder extends Seeder
             ['sales', 'launch', 'at_risk_no_touch', 'What deals need attention to protect revenue?', 3],
             ['sales', 'launch', 'close_this_month', 'Which deals are most likely to close this month?', 4],
             ['sales', 'launch', 'growth_potential', 'Which existing customers have the highest growth potential?', 5],
+            ['sales', 'launch', 'pitched_converted', 'Which pitched prospects converted to a paid transaction?', 6],
+            ['sales', 'launch', 'quoted_vs_actual', 'Where does closed deal size differ from what was quoted?', 7],
+
+            // Sales · Prioritise (transaction-backed)
+            ['sales', 'prioritise', 'stalled_after_failed_payment', 'Which deals stalled right after a failed first payment attempt?', 6],
+
+            // Sales · Understand (transaction-backed)
+            ['sales', 'understand', 'purchased_without_contact', 'Which customers made a purchase without ever being contacted by sales?', 6],
 
             // Marketing · Audience
             ['marketing', 'Audience', 'winback_sequence_this_week', 'Who should get the win-back sequence this week?', 1],
@@ -52,6 +60,7 @@ class AgentPredefinedPromptsSeeder extends Seeder
             ['marketing', 'Audience', 'who_would_refer_us', 'Who would refer us if I asked?', 4],
             ['marketing', 'Audience', 'exclude_from_every_send', 'Who must be excluded from every send, and why?', 5],
             ['marketing', 'Audience', 'in_live_sales_cycle', 'Who is in a live sales cycle — leave them alone?', 6],
+            ['marketing', 'Audience', 'onetime_buyers_quiet_90d', "Which one-time buyers haven't returned in 90+ days?", 7],
 
             // Marketing · Insights
             ['marketing', 'Insights', 'top_shared_signal_mql_sales', 'What is the top shared signal in MQL → Sales right now?', 1],
@@ -60,6 +69,8 @@ class AgentPredefinedPromptsSeeder extends Seeder
             ['marketing', 'Insights', 'why_name_here_not_sales', 'Why is [name] here and not with Sales?', 4],
             ['marketing', 'Insights', 'rule_put_people_mql_sales', 'What rule put people into MQL → Sales?', 5],
             ['marketing', 'Insights', 'changed_last_7_days', 'What changed in the last 7 days?', 6],
+            ['marketing', 'Insights', 'ltv_by_segment', 'Which customer segment has the highest lifetime value?', 7],
+            ['marketing', 'Insights', 'first_to_second_purchase', "What's the average time between a customer's first and second purchase, by segment?", 8],
 
             // Marketing · Campaign
             ['marketing', 'Campaign', 'email_sequence_mql_sales', 'Write the 3-touch email sequence for MQL → Sales', 1],
@@ -92,6 +103,8 @@ class AgentPredefinedPromptsSeeder extends Seeder
             ['retention', 'Risk radar', 'payment_failures_today', 'Any payment failures to fix today?', 3],
             ['retention', 'Risk radar', 'drifting_watchlist', 'Who is drifting onto the watchlist?', 4],
             ['retention', 'Risk radar', 'value_at_risk', 'How much value is at risk right now?', 5],
+            ['retention', 'Risk radar', 'declining_transaction_value', "Who's at risk of churn based on declining transaction value?", 6],
+            ['retention', 'Risk radar', 'high_value_quiet_60d', "Which high-value customers haven't transacted in over 60 days?", 7],
 
             // Retention · Root cause
             ['retention', 'Root cause', 'why_leaving', 'Why is [Name] leaving?', 1],

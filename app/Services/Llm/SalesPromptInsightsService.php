@@ -7,6 +7,7 @@ use App\Models\CrmContact;
 use App\Models\CrmDeal;
 use App\Models\CrmIntegration;
 use App\Services\RealAccountsService;
+use App\Services\TransactionInsightsService;
 use Illuminate\Support\Collection;
 
 /**
@@ -55,6 +56,18 @@ class SalesPromptInsightsService
             . 'Reframe to value before touching the price. Offer a low-risk start before a discount.',
     ];
 
+    /**
+     * Sales prompts backed by real Stripe transaction data cross-referenced
+     * with the CRM (see TransactionInsightsService) rather than CRM/email
+     * activity alone.
+     */
+    private const TRANSACTION_KEYS = [
+        'launch:pitched_converted',
+        'launch:quoted_vs_actual',
+        'prioritise:stalled_after_failed_payment',
+        'understand:purchased_without_contact',
+    ];
+
     public const HANDLED_KEYS = [
         'understand:priority_changed',
         'craft:not_ready_response',
@@ -65,11 +78,16 @@ class SalesPromptInsightsService
         'handle:why_need_this',
         'handle:use_competitor',
         'handle:too_expensive',
+        'launch:pitched_converted',
+        'launch:quoted_vs_actual',
+        'prioritise:stalled_after_failed_payment',
+        'understand:purchased_without_contact',
     ];
 
     public function __construct(
         private readonly OpenAiClient $client,
         private readonly RealAccountsService $accounts,
+        private readonly TransactionInsightsService $transactions,
     ) {
     }
 
@@ -89,6 +107,10 @@ class SalesPromptInsightsService
             return ['answer' => "I don't have a ready-made answer for that yet.", 'ai_used' => false];
         }
 
+        if (in_array($key, self::TRANSACTION_KEYS, true)) {
+            return $this->answerTransactionKey($key, $label);
+        }
+
         $context = $this->gatherContext($key, $name, $label);
 
         if (!$this->client->isConfigured()) {
@@ -103,6 +125,79 @@ class SalesPromptInsightsService
             // data behind it — surface the same grounded fallback answer.
             return ['answer' => $this->fallback($key, $context), 'ai_used' => false];
         }
+    }
+
+    /**
+     * @return array{answer: string, ai_used: bool}
+     */
+    private function answerTransactionKey(string $key, string $label): array
+    {
+        $rows = match ($key) {
+            'launch:pitched_converted' => $this->transactions->pitchedProspectsConverted(),
+            'launch:quoted_vs_actual' => $this->transactions->quotedVsActualDifference(),
+            'prioritise:stalled_after_failed_payment' => $this->transactions->stalledAfterFailedPayment(),
+            'understand:purchased_without_contact' => $this->transactions->purchasedWithoutContact(),
+            default => [],
+        };
+
+        if (empty($rows)) {
+            return ['answer' => $this->transactionEmptyMessage($key), 'ai_used' => false];
+        }
+
+        if ($this->client->isConfigured()) {
+            try {
+                return ['answer' => $this->askTransactionQuestion($label, $rows), 'ai_used' => true];
+            } catch (OpenAiException $e) {
+                report($e);
+            }
+        }
+
+        return ['answer' => $this->transactionFallback($key, $rows), 'ai_used' => false];
+    }
+
+    private function transactionEmptyMessage(string $key): string
+    {
+        return match ($key) {
+            'launch:pitched_converted' => 'No pitched prospect (a CRM contact with a matched deal) has a completed Stripe transaction yet.',
+            'launch:quoted_vs_actual' => 'No won deal has a matching paying customer with a different transaction total yet.',
+            'prioritise:stalled_after_failed_payment' => 'No open deal currently has a failed-payment attempt on file.',
+            'understand:purchased_without_contact' => 'Every paying customer synced from Stripe is already matched to a CRM contact.',
+            default => 'No data available for that yet.',
+        };
+    }
+
+    private function askTransactionQuestion(string $question, array $rows): string
+    {
+        $system = 'You are the Sales copilot inside a B2B analytics platform, answering a question using real '
+            . 'Stripe transaction data cross-referenced with the CRM. Answer using ONLY the data provided as JSON — '
+            . 'never invent a name, number, or fact that isn\'t in the data. Be brief, concrete, and practical — '
+            . 'under 130 words, plain English, no headers or markdown.';
+
+        $prompt = $question . "\n\nData:\n" . json_encode($rows, JSON_PRETTY_PRINT);
+
+        return $this->client->chat($system, $prompt, ['max_tokens' => 320]);
+    }
+
+    private function transactionFallback(string $key, array $rows): string
+    {
+        $lines = array_map(function ($row, $i) use ($key) {
+            $n = $i + 1;
+
+            return match ($key) {
+                'launch:pitched_converted' => "{$n}. {$row['name']} ({$row['company']}) — \${$this->fmt($row['transaction_total'])} paid across {$row['orders']} order(s), deal at {$row['deal_stage']}",
+                'launch:quoted_vs_actual' => "{$n}. {$row['name']} ({$row['company']}) — quoted \${$this->fmt($row['quoted'])}, actually paid \${$this->fmt($row['actual'])} (" . ($row['difference'] >= 0 ? '+' : '') . "\${$this->fmt($row['difference'])})",
+                'prioritise:stalled_after_failed_payment' => "{$n}. {$row['name']} ({$row['company']}) — \${$this->fmt($row['failed_amount'])} payment failed {$row['failed_days_ago']} days ago, deal stuck at {$row['deal_stage']}",
+                'understand:purchased_without_contact' => "{$n}. {$row['name']} ({$row['email']}) — \${$this->fmt($row['lifetime_value'])} across {$row['orders']} order(s), never in the CRM",
+                default => "{$n}. {$row['name']}",
+            };
+        }, $rows, array_keys($rows));
+
+        return implode("\n", $lines);
+    }
+
+    private function fmt(float $n): string
+    {
+        return number_format($n, 2);
     }
 
     private function gatherContext(string $key, ?string $name, string $label): array

@@ -356,6 +356,21 @@
                      placeholder="Enter your Zoho Client Secret" required>
               <p class="form-hint">Keep this secure - never share your client secret</p>
             </div>
+            @php $zohoDc = $existing?->settings['data_center'] ?? 'com'; @endphp
+            <div class="form-group">
+              <label class="form-label">Data Center</label>
+              <select name="data_center" class="form-input">
+                <option value="com" @selected($zohoDc === 'com')>United States (.com)</option>
+                <option value="eu" @selected($zohoDc === 'eu')>Europe (.eu)</option>
+                <option value="in" @selected($zohoDc === 'in')>India (.in)</option>
+                <option value="com.au" @selected($zohoDc === 'com.au')>Australia (.com.au)</option>
+                <option value="jp" @selected($zohoDc === 'jp')>Japan (.jp)</option>
+                <option value="ca" @selected($zohoDc === 'ca')>Canada (.ca)</option>
+                <option value="com.cn" @selected($zohoDc === 'com.cn')>China (.com.cn)</option>
+                <option value="sa" @selected($zohoDc === 'sa')>Saudi Arabia (.sa)</option>
+              </select>
+              <p class="form-hint">Check which domain you sign in at (e.g. accounts.zoho.eu) — the wrong data center will fail to connect</p>
+            </div>
             @break
 
           @case('pipedrive')
