@@ -15,10 +15,12 @@ class AgentPredefinedPrompt extends Model
         'label',
         'sort_order',
         'is_active',
+        'is_mock_master',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_mock_master' => 'boolean',
         'sort_order' => 'integer',
     ];
 
@@ -30,5 +32,10 @@ class AgentPredefinedPrompt extends Model
     public function scopeOrdered($query)
     {
         return $query->orderBy('step_title')->orderBy('sort_order');
+    }
+
+    public function scopeMockMaster($query)
+    {
+        return $query->where('is_mock_master', true);
     }
 }

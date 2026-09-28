@@ -241,6 +241,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), \App\Models\InstagramMedia::socialStats())))->name('data-collection');
     Route::get('business-helpers', function () {
         $groupPrompts = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
+            ->where('is_mock_master', false)
             ->ordered()
             ->get()
             ->groupBy('step_title')
@@ -292,6 +293,27 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'retentionPrompts', 'retentionSteps', 'retentionContactNames', 'retentionAbPool'
         ));
     })->name('business-helpers');
+
+    // Mock Master Helper — same visual shell as Business Helpers' Marketing
+    // tab (Campaign/Performance/Audience/Insights/A-B test), but for the
+    // separate Mock Master student platform. Sample data only for now; no
+    // live DB connection or AI wiring yet (see resources/views/client/mock-master-helper.blade.php).
+    // Suggested "Ask Mira" prompts come from agents_pre_defined_prompts where
+    // is_mock_master = 1 — rows with is_mock_master = 0 (the real Business
+    // Helpers prompts) are excluded from this page.
+    Route::get('mock-master-helper', function () {
+        $promptsFor = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
+            ->mockMaster()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->pluck('label');
+
+        $mkPrompts = $promptsFor('marketing');
+        $slPrompts = $promptsFor('sales');
+        $chPrompts = $promptsFor('retention');
+
+        return view('client.mock-master-helper', compact('mkPrompts', 'slPrompts', 'chPrompts'));
+    })->name('mock-master-helper');
 
     // Sales agent AI chat — answers arbitrary free-typed questions using the
     // same real CRM/Brevo-derived account data as the page itself (see
