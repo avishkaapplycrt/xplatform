@@ -94,6 +94,14 @@
                     <span class="truncate">Data Collection</span>
                 </div>
 
+                {{-- Mockmasters --}}
+                <a href="{{ route('client.business-helpers') }}"
+                   class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border-l-2 border-indigo-400
+                          bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-50 transition">
+                    <span class="text-[10px] font-bold w-5 text-center flex-shrink-0 text-indigo-500">MM</span>
+                    <span class="truncate">Mockmasters</span>
+                </a>
+
                 {{-- L2–L8 --}}
                 @foreach($allLayers as $layer)
                     @if($layer['code'] === 'L1') @continue @endif
