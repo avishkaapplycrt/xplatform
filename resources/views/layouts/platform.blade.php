@@ -498,6 +498,18 @@
         }
     }
 
+    function toggleMockmasterMenu() {
+        var submenu = document.getElementById('mockmasterSubmenu');
+        var chevron = document.getElementById('mockmasterChevron');
+        if (submenu.classList.contains('hidden')) {
+            submenu.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            submenu.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+
     function toggleSuccessMenu() {
         var submenu = document.getElementById('successSubmenu');
         var chevron = document.getElementById('successChevron');
