@@ -43,6 +43,15 @@ class MockMasterSyncService
      */
     public function sync(): array
     {
+        // This copies ~1M+ rows across 14 tables from a remote production
+        // database over the network — it's a legitimate multi-minute
+        // operation, not a typical web request, so PHP's default 30s cap
+        // (and its query log, which would otherwise grow unbounded across
+        // hundreds of chunked inserts) both need to be lifted for it.
+        set_time_limit(0);
+        DB::connection('mockmaster_live')->disableQueryLog();
+        DB::connection()->disableQueryLog();
+
         $results = [];
         $totalRows = 0;
 
