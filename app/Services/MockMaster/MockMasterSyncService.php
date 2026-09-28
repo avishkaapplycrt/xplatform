@@ -43,6 +43,10 @@ class MockMasterSyncService
      */
     public function sync(): array
     {
+        // Copying all 14 remote tables easily exceeds the default 60s
+        // max_execution_time, so allow up to 5 minutes for a full sync.
+        set_time_limit(300);
+
         $results = [];
         $totalRows = 0;
 
