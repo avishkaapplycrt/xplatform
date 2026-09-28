@@ -146,7 +146,10 @@ class AgentPredefinedPromptsSeeder extends Seeder
         ];
 
         $rowsBySlug = collect($rows)->keyBy(fn ($row) => $row[0] . '|' . $row[2]);
+        // Scoped to is_mock_master = false so this cleanup never touches the
+        // separate Mock Master Helper prompt set (see MockMasterPredefinedPromptsSeeder).
         AgentPredefinedPrompt::whereIn('agent', ['sales', 'marketing', 'retention'])
+            ->where('is_mock_master', false)
             ->get(['id', 'agent', 'slug'])
             ->each(function ($existing) use ($rowsBySlug) {
                 if (!$rowsBySlug->has($existing->agent . '|' . $existing->slug)) {
