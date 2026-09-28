@@ -369,6 +369,31 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return response()->json($service->answer($data['agent'], (string) ($data['question'] ?? '')));
     })->name('mock-master-helper.ask');
 
+    // Pulls the 14 live Mock Master source tables (coupon_usage,
+    // deleted_students, feedbacks, login_history, meetings, mock_test_logs,
+    // mock_test_results, notifications, notifications_seen, packages,
+    // payments, purchases, scheduled_emails, studentuser) from the remote
+    // PTE Portal database into their local mm_* mirrors. See
+    // App\Services\MockMaster\MockMasterSyncService.
+    Route::post('mock-master-helper/sync', function () {
+        try {
+            $result = (new \App\Services\MockMaster\MockMasterSyncService())->sync();
+
+            return response()->json([
+                'ok' => true,
+                'total_rows' => $result['total_rows'],
+                'tables' => $result['tables'],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Sync failed — the live database may be unreachable. Please try again shortly.',
+            ], 500);
+        }
+    })->name('mock-master-helper.sync');
+
     // Sales agent AI chat — answers arbitrary free-typed questions using the
     // same real CRM/Brevo-derived account data as the page itself (see
     // App\Services\RealAccountsService), written up by OpenAI. Falls back to
