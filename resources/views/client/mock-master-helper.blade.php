@@ -16,7 +16,12 @@ $client     = auth('client')->user();
 $clientName = $client?->company_name ?? 'Acme Retail';
 $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(explode(' ', $clientName), 0, 2))));
 
-// Sample/placeholder data — no live DB connection or AI wiring yet (per scope decision).
+// Real data (mkStudents/mkKpis/mkSegments/mkInsights/slProspects/slClose/
+// chAtRisk/chWatchlist/chRootCauses) is computed by MockMasterDataService
+// and passed in from the route, querying only the mm_* tables. A/B test
+// tabs stay an honest "no data source yet" placeholder — there is no A/B
+// test table in the mm_* schema, so nothing is fabricated there. Scripts/
+// objections/offers below are advisory copy (not data claims), kept static.
 
 // ── Marketing ──────────────────────────────────────────────────────────
 $mkSteps = [
@@ -25,42 +30,6 @@ $mkSteps = [
     ['key' => 'audience',    'label' => 'Audience'],
     ['key' => 'insights',    'label' => 'Insights'],
     ['key' => 'abtest',      'label' => 'A/B test'],
-];
-
-$mkStudents = [
-    ['name' => 'Ravi Kumar',   'sub' => 'IELTS Pro Package', 'value' => '$249', 'stage' => 'Renewal Due',   'readiness' => 88, 'trust' => 91, 'lastActive' => 'This week'],
-    ['name' => 'Amina Yusuf',  'sub' => 'PTE Core Package',  'value' => '$179', 'stage' => 'Trial',         'readiness' => 64, 'trust' => 58, 'lastActive' => '2d ago'],
-    ['name' => 'Daniel Cho',   'sub' => 'TOEFL Package',     'value' => '$199', 'stage' => 'Purchased',     'readiness' => 92, 'trust' => 95, 'lastActive' => 'This week'],
-    ['name' => 'Priya Nair',   'sub' => 'CELPIP Package',    'value' => '$159', 'stage' => 'Expiring Soon', 'readiness' => 51, 'trust' => 60, 'lastActive' => '9d ago'],
-    ['name' => 'Michael Osei', 'sub' => 'GRE Package',       'value' => '$299', 'stage' => 'Purchased',     'readiness' => 77, 'trust' => 82, 'lastActive' => 'This week'],
-];
-foreach ($mkStudents as &$s) { $s['approach'] = $s['trust'] < 65 ? 'Proof-led' : 'Offer-led'; }
-unset($s);
-
-$mkKpis = [
-    ['label' => 'Active Students',   'value' => '1,248', 'sub' => '+6.2% this month'],
-    ['label' => 'Mock Tests Taken',  'value' => '3,902',  'sub' => 'last 30 days'],
-    ['label' => 'Avg Overall Score', 'value' => '6.7',    'sub' => 'band average'],
-    ['label' => 'Renewal Rate',      'value' => '58%',    'sub' => 'trailing 90 days'],
-];
-
-$mkSegments = [
-    ['name' => 'High Scorers',         'meta' => '312 students · band 7.5+'],
-    ['name' => 'At Risk of Churn',     'meta' => '96 students · low engagement'],
-    ['name' => 'New Trial',            'meta' => '184 students · < 14 days'],
-    ['name' => 'Package Expiring Soon', 'meta' => '221 students · next 7 days'],
-];
-
-$mkInsights = [
-    'Students who take 3+ mock tests in their first week are 2.4x more likely to renew.',
-    'Writing scores plateau after week 3 without new question sets — worth a nudge campaign.',
-    'Trial students who book a coaching meeting convert at nearly double the rate of those who don\'t.',
-];
-
-$mkAbTests = [
-    ['name' => 'Renewal reminder: email vs WhatsApp',    'status' => 'Running',  'lift' => '+11% (WhatsApp)'],
-    ['name' => '10% discount vs free mock test add-on',  'status' => 'Draft',    'lift' => '—'],
-    ['name' => 'Onboarding call: day 1 vs day 3',         'status' => 'Complete', 'lift' => '+7% (day 1)'],
 ];
 
 // $mkPrompts is passed in from the route — sourced from agents_pre_defined_prompts
@@ -75,14 +44,6 @@ $slSteps = [
     ['key' => 'close',      'label' => 'Close & grow'],
 ];
 
-$slProspects = [
-    ['name' => 'Aarav Mehta',       'sub' => 'Interested in IELTS Pro', 'readiness' => 82, 'intent' => 76, 'trust' => 70, 'play' => 'Call'],
-    ['name' => 'Sofia Lindqvist',   'sub' => 'Interested in PTE Core',  'readiness' => 55, 'intent' => 40, 'trust' => 58, 'play' => 'Nurture'],
-    ['name' => 'Wei Zhang',         'sub' => 'Interested in TOEFL',     'readiness' => 91, 'intent' => 88, 'trust' => 85, 'play' => 'Call'],
-    ['name' => 'Grace Owusu',       'sub' => 'Interested in CELPIP',    'readiness' => 68, 'intent' => 60, 'trust' => 66, 'play' => 'Call'],
-    ['name' => 'Tom Fitzgerald',    'sub' => 'Interested in GRE',       'readiness' => 45, 'intent' => 30, 'trust' => 50, 'play' => 'Nurture'],
-];
-
 $slScripts = [
     ['label' => 'Call script',     'text' => 'Open by asking which exam they\'re preparing for and their target date — then map our mock test package directly to that deadline.'],
     ['label' => 'Email script',    'text' => 'Lead with a free diagnostic mock test offer, then follow up with their score and a recommended package 48 hours later.'],
@@ -93,11 +54,6 @@ $slObjections = [
     ['q' => '"It\'s too expensive."',            'a' => 'Break the package cost down per mock test versus a private tutor session — usually 5-10x cheaper per attempt.'],
     ['q' => '"I want to try free resources first."', 'a' => 'Offer one free diagnostic mock test with a real band score, then show how paid packages unlock full feedback.'],
     ['q' => '"My exam date isn\'t confirmed yet."',  'a' => 'Recommend the flexible/monthly package instead of the fixed-term one so they aren\'t locked in early.'],
-];
-
-$slClose = [
-    ['name' => 'Wei Zhang',  'detail' => 'Ready to close — asked about payment plans twice this week.'],
-    ['name' => 'Aarav Mehta', 'detail' => 'High intent — completed 2 free mock tests, hasn\'t purchased yet.'],
 ];
 
 // $slPrompts is passed in from the route — sourced from agents_pre_defined_prompts
@@ -112,32 +68,10 @@ $chSteps = [
     ['key' => 'abtest',    'label' => 'A/B test'],
 ];
 
-$chAtRisk = [
-    ['name' => 'Priya Nair',   'sub' => 'CELPIP Package', 'inactiveDays' => 21, 'valueAtRisk' => '$159', 'risk' => 88],
-    ['name' => 'Liam O\'Brien', 'sub' => 'TOEFL Package',  'inactiveDays' => 34, 'valueAtRisk' => '$199', 'risk' => 92],
-    ['name' => 'Hana Suzuki',  'sub' => 'PTE Core Package', 'inactiveDays' => 15, 'valueAtRisk' => '$179', 'risk' => 74],
-];
-
-$chRootCauses = [
-    ['name' => 'Payment failed on renewal',       'meta' => '38 students affected this month'],
-    ['name' => 'Declining mock test engagement',  'meta' => '61 students — no test in 14+ days'],
-    ['name' => 'Low score, low confidence',        'meta' => '27 students — flat or dropping scores'],
-];
-
 $chOffers = [
     ['name' => 'One free extra mock test',        'meta' => 'For students inactive 10-20 days'],
     ['name' => '15% renewal discount',              'meta' => 'For high-value students at risk'],
     ['name' => 'Free 15-min coaching call',          'meta' => 'For students with declining scores'],
-];
-
-$chWatchlist = [
-    ['name' => 'Grace Owusu',   'sub' => 'CELPIP Package', 'inactiveDays' => 9,  'valueAtRisk' => '$159', 'risk' => 55],
-    ['name' => 'Tom Fitzgerald', 'sub' => 'GRE Package',    'inactiveDays' => 6,  'valueAtRisk' => '$299', 'risk' => 48],
-];
-
-$chAbTests = [
-    ['name' => 'Win-back: discount vs free mock test', 'status' => 'Running',  'lift' => '+9% (free mock test)'],
-    ['name' => 'Save call: day 1 vs day 3 of inactivity', 'status' => 'Draft', 'lift' => '—'],
 ];
 
 // $chPrompts is passed in from the route — sourced from agents_pre_defined_prompts
@@ -254,7 +188,7 @@ $agents = [
                         <table class="dtbl">
                             <thead><tr><th>Student</th><th>Package value</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead>
                             <tbody>
-                                @foreach($mkStudents as $s)
+                                @forelse($mkStudents as $s)
                                 <tr>
                                     <td class="acctn">{{ $s['name'] }} <span style="color:var(--g3);font-weight:400">({{ $s['sub'] }})</span></td>
                                     <td>{{ $s['value'] }}</td>
@@ -264,7 +198,9 @@ $agents = [
                                     <td>@if($s['approach'] === 'Offer-led')<span style="color:#0e7a35;font-weight:600">Offer-led</span>@else<span style="color:var(--warn);font-weight:600">Proof-led</span>@endif</td>
                                     <td>{{ $s['lastActive'] }}</td>
                                 </tr>
-                                @endforeach
+                                @empty
+                                <tr><td colspan="7" style="color:var(--g3);padding:20px">No renewal-ready students found right now.</td></tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
@@ -280,28 +216,27 @@ $agents = [
 
                     <div class="mm-panel" data-panel="mk-audience" style="display:none">
                         <div class="stack-intro"><div class="si-h">STUDENT SEGMENTS</div><div class="si-p">Grouped by behavior and lifecycle stage.</div></div>
-                        @foreach($mkSegments as $seg)
+                        @forelse($mkSegments as $seg)
                         <div class="act"><div><div class="act-t">{{ $seg['name'] }}</div><div class="act-d">{{ $seg['meta'] }}</div></div></div>
-                        @endforeach
+                        @empty
+                        <div class="act"><div class="act-t" style="color:var(--g3)">No segment data available.</div></div>
+                        @endforelse
                     </div>
 
                     <div class="mm-panel" data-panel="mk-insights" style="display:none">
                         <div class="stack-intro"><div class="si-h">KEY INSIGHTS</div><div class="si-p">Patterns worth acting on.</div></div>
-                        @foreach($mkInsights as $ins)
+                        @forelse($mkInsights as $ins)
                         <div class="act"><div class="act-t">{{ $ins }}</div></div>
-                        @endforeach
+                        @empty
+                        <div class="act"><div class="act-t" style="color:var(--g3)">Not enough data yet to compute insights.</div></div>
+                        @endforelse
                     </div>
 
                     <div class="mm-panel" data-panel="mk-abtest" style="display:none">
-                        <div class="stack-intro"><div class="si-h">A/B TESTS</div><div class="si-p">Experiments running across the student lifecycle.</div></div>
-                        <table class="dtbl">
-                            <thead><tr><th>Test</th><th>Status</th><th>Result</th></tr></thead>
-                            <tbody>
-                                @foreach($mkAbTests as $t)
-                                <tr><td>{{ $t['name'] }}</td><td>{{ $t['status'] }}</td><td>{{ $t['lift'] }}</td></tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                        <div class="stack-intro">
+                            <div class="si-h">A/B TESTS</div>
+                            <div class="si-p">Not available yet — there is no experiment/results table in the Mock Master data source, so no numbers are shown here rather than inventing them.</div>
+                        </div>
                     </div>
 
                 </div>
@@ -387,7 +322,7 @@ $agents = [
                         <table class="dtbl">
                             <thead><tr><th>Prospect</th><th>Readiness</th><th>Intent</th><th>Trust</th><th>Play</th></tr></thead>
                             <tbody>
-                                @foreach($slProspects as $p)
+                                @forelse($slProspects as $p)
                                 <tr>
                                     <td class="acctn">{{ $p['name'] }} <span style="color:var(--g3);font-weight:400">({{ $p['sub'] }})</span></td>
                                     <td>{{ $p['readiness'] }}</td>
@@ -395,7 +330,9 @@ $agents = [
                                     <td>{{ $p['trust'] }}</td>
                                     <td><span class="stk-play {{ $p['play'] === 'Call' ? 'call' : 'onboarding' }}">{{ $p['play'] }}</span></td>
                                 </tr>
-                                @endforeach
+                                @empty
+                                <tr><td colspan="5" style="color:var(--g3);padding:20px">No trial-only prospects found right now.</td></tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
@@ -405,9 +342,11 @@ $agents = [
                         <table class="dtbl">
                             <thead><tr><th>Prospect</th><th>Readiness</th><th>Intent</th><th>Trust</th><th>Play</th></tr></thead>
                             <tbody>
-                                @foreach($slProspects as $p)
+                                @forelse($slProspects as $p)
                                 <tr><td class="acctn">{{ $p['name'] }}</td><td>{{ $p['readiness'] }}</td><td>{{ $p['intent'] }}</td><td>{{ $p['trust'] }}</td><td>{{ $p['play'] }}</td></tr>
-                                @endforeach
+                                @empty
+                                <tr><td colspan="5" style="color:var(--g3);padding:20px">No prospects found right now.</td></tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
@@ -428,9 +367,11 @@ $agents = [
 
                     <div class="mm-panel" data-panel="sl-close" style="display:none">
                         <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Prospects most likely to close this week.</div></div>
-                        @foreach($slClose as $c)
+                        @forelse($slClose as $c)
                         <div class="act"><div><div class="act-t">{{ $c['name'] }}</div><div class="act-d">{{ $c['detail'] }}</div></div></div>
-                        @endforeach
+                        @empty
+                        <div class="act"><div class="act-t" style="color:var(--g3)">No close-ready candidates found right now.</div></div>
+                        @endforelse
                     </div>
 
                 </div>
@@ -516,23 +457,27 @@ $agents = [
                         <table class="dtbl">
                             <thead><tr><th>Student</th><th>Inactive for</th><th>Value at risk</th><th>Risk score</th></tr></thead>
                             <tbody>
-                                @foreach($chAtRisk as $r)
+                                @forelse($chAtRisk as $r)
                                 <tr>
                                     <td class="acctn">{{ $r['name'] }} <span style="color:var(--g3);font-weight:400">({{ $r['sub'] }})</span></td>
                                     <td>{{ $r['inactiveDays'] }}d</td>
                                     <td>{{ $r['valueAtRisk'] }}</td>
                                     <td><span style="color:var(--crit);font-weight:600">{{ $r['risk'] }}</span></td>
                                 </tr>
-                                @endforeach
+                                @empty
+                                <tr><td colspan="4" style="color:var(--g3);padding:20px">Nothing urgent right now — no packages expiring in the next 7 days.</td></tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
 
                     <div class="mm-panel" data-panel="ch-rootcause" style="display:none">
                         <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Why students are actually leaving, ranked by how many it affects.</div></div>
-                        @foreach($chRootCauses as $rc)
+                        @forelse($chRootCauses as $rc)
                         <div class="act"><div><div class="act-t">{{ $rc['name'] }}</div><div class="act-d">{{ $rc['meta'] }}</div></div></div>
-                        @endforeach
+                        @empty
+                        <div class="act"><div class="act-t" style="color:var(--g3)">No root-cause data available.</div></div>
+                        @endforelse
                     </div>
 
                     <div class="mm-panel" data-panel="ch-offers" style="display:none">
@@ -547,23 +492,20 @@ $agents = [
                         <table class="dtbl">
                             <thead><tr><th>Student</th><th>Inactive for</th><th>Value at risk</th><th>Risk score</th></tr></thead>
                             <tbody>
-                                @foreach($chWatchlist as $r)
+                                @forelse($chWatchlist as $r)
                                 <tr><td class="acctn">{{ $r['name'] }}</td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
-                                @endforeach
+                                @empty
+                                <tr><td colspan="4" style="color:var(--g3);padding:20px">Nothing trending toward churn right now.</td></tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
 
                     <div class="mm-panel" data-panel="ch-abtest" style="display:none">
-                        <div class="stack-intro"><div class="si-h">A/B TESTS</div><div class="si-p">Save-play experiments running now.</div></div>
-                        <table class="dtbl">
-                            <thead><tr><th>Test</th><th>Status</th><th>Result</th></tr></thead>
-                            <tbody>
-                                @foreach($chAbTests as $t)
-                                <tr><td>{{ $t['name'] }}</td><td>{{ $t['status'] }}</td><td>{{ $t['lift'] }}</td></tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                        <div class="stack-intro">
+                            <div class="si-h">A/B TESTS</div>
+                            <div class="si-p">Not available yet — there is no experiment/results table in the Mock Master data source, so no numbers are shown here rather than inventing them.</div>
+                        </div>
                     </div>
 
                 </div>

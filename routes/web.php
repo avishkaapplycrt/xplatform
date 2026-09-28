@@ -296,8 +296,10 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
     // Mock Master Helper — same visual shell as Business Helpers' Marketing
     // tab (Campaign/Performance/Audience/Insights/A-B test), but for the
-    // separate Mock Master student platform. Sample data only for now; no
-    // live DB connection or AI wiring yet (see resources/views/client/mock-master-helper.blade.php).
+    // separate Mock Master student platform. Data is computed only from the
+    // mm_* tables (see App\Services\MockMaster\MockMasterDataService) — never
+    // from this client's own crm_contacts/crm_deals/email data. AI chat is
+    // still a static preview panel (no live LLM wiring yet).
     // Suggested "Ask Mira" prompts come from agents_pre_defined_prompts where
     // is_mock_master = 1 — rows with is_mock_master = 0 (the real Business
     // Helpers prompts) are excluded from this page.
@@ -312,7 +314,23 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         $slPrompts = $promptsFor('sales');
         $chPrompts = $promptsFor('retention');
 
-        return view('client.mock-master-helper', compact('mkPrompts', 'slPrompts', 'chPrompts'));
+        $mm = new \App\Services\MockMaster\MockMasterDataService();
+        $mkStudents = $mm->campaignStudents();
+        $mkKpis = $mm->performanceKpis();
+        $mkSegments = $mm->audienceSegments();
+        $mkInsights = $mm->insights();
+        $slProspects = $mm->salesProspects();
+        $slClose = $mm->salesCloseCandidates();
+        $chAtRisk = $mm->retentionAtRisk();
+        $chWatchlist = $mm->retentionWatchlist();
+        $chRootCauses = $mm->retentionRootCauses();
+
+        return view('client.mock-master-helper', compact(
+            'mkPrompts', 'slPrompts', 'chPrompts',
+            'mkStudents', 'mkKpis', 'mkSegments', 'mkInsights',
+            'slProspects', 'slClose',
+            'chAtRisk', 'chWatchlist', 'chRootCauses'
+        ));
     })->name('mock-master-helper');
 
     // Sales agent AI chat — answers arbitrary free-typed questions using the
