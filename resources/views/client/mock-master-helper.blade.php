@@ -94,6 +94,11 @@ $agents = [
         </div>
 
         <div class="flex items-center gap-3">
+            <button type="button" onclick="mmSyncData(this)" id="mmSyncBtn" title="Re-fetch the latest Mock Master data"
+               class="flex items-center gap-2 px-3 h-8 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors text-xs font-medium">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.64-6.36M21 4v6h-6"/></svg>
+                <span>Sync Data</span>
+            </button>
             <button type="button" onclick="toggleSidebarCollapse()" id="mmFullBtn" title="Collapse sidebar"
                class="flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
@@ -633,6 +638,7 @@ $agents = [
 #bhRoot .dm-hd{display:flex;align-items:center;gap:11px;padding:16px 18px;border-bottom:1px solid var(--ln);background:var(--p1);flex-shrink:0}
 #bhRoot .dm-dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0;animation:mmblink 1.8s infinite}
 @keyframes mmblink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes mmspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 #bhRoot .dm-t{font-size:13px;font-weight:700;letter-spacing:.2px;color:var(--ink)}
 #bhRoot .dm-s{font-family:var(--fm);font-size:8.5px;letter-spacing:.5px;color:var(--g3);margin-top:3px}
 #bhRoot .dm-ready{margin-left:auto;font-family:var(--fm);font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--sig);background:#ecfdf5;border:1px solid #a7f3d0;border-radius:99px;padding:3px 10px;flex-shrink:0}
@@ -762,6 +768,45 @@ function mmAsk(agent, text) {
     .catch(function () {
         botBubble.textContent = "I couldn't reach the AI just now — try again in a moment.";
         chat.scrollTop = chat.scrollHeight;
+    });
+}
+
+/* ── Sync Data — pulls the 14 live Mock Master source tables from the
+   remote PTE Portal database into their local mm_* mirrors (see
+   App\Services\MockMaster\MockMasterSyncService), then reloads the page
+   so every panel reflects the freshly-synced data. ── */
+function mmSyncData(btn) {
+    btn.disabled = true;
+    var label = btn.querySelector('span');
+    var icon = btn.querySelector('svg');
+    if (label) label.textContent = 'Syncing…';
+    if (icon) icon.style.animation = 'mmspin 0.8s linear infinite';
+
+    fetch('{{ route('client.mock-master-helper.sync') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        }
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.ok) {
+            if (label) label.textContent = 'Synced';
+            window.location.reload();
+        } else {
+            if (label) label.textContent = 'Sync failed';
+            if (icon) icon.style.animation = '';
+            btn.disabled = false;
+            alert(data.message || 'Sync failed — please try again.');
+        }
+    })
+    .catch(function () {
+        if (label) label.textContent = 'Sync failed';
+        if (icon) icon.style.animation = '';
+        btn.disabled = false;
+        alert("Couldn't reach the server — please try again.");
     });
 }
 
