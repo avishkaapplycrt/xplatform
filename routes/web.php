@@ -356,6 +356,10 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     // PTE Portal database into their local mm_* mirrors. See
     // App\Services\MockMaster\MockMasterSyncService.
     Route::post('mock-master-helper/sync', function () {
+        // Copying ~1.1M rows from the live server takes several minutes —
+        // well past PHP's default 120s script timeout.
+        set_time_limit(600);
+
         try {
             $result = (new \App\Services\MockMaster\MockMasterSyncService())->sync();
 
