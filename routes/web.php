@@ -298,8 +298,10 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     // tab (Campaign/Performance/Audience/Insights/A-B test), but for the
     // separate Mock Master student platform. Data is computed only from the
     // mm_* tables (see App\Services\MockMaster\MockMasterDataService) — never
-    // from this client's own crm_contacts/crm_deals/email data. AI chat is
-    // still a static preview panel (no live LLM wiring yet).
+    // from this client's own crm_contacts/crm_deals/email data. The "Ask
+    // Mira" free-text chat is answered by OpenAI, grounded in that same
+    // real mm_* data snapshot (see App\Services\MockMaster\MockMasterChatService)
+    // — never invented, and never this client's own CRM data.
     // Suggested "Ask Mira" prompts come from agents_pre_defined_prompts where
     // is_mock_master = 1 — rows with is_mock_master = 0 (the real Business
     // Helpers prompts) are excluded from this page.
@@ -332,6 +334,20 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'chAtRisk', 'chWatchlist', 'chRootCauses'
         ));
     })->name('mock-master-helper');
+
+    Route::post('mock-master-helper/ask', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'agent' => 'required|in:marketing,sales,retention',
+            'question' => 'nullable|string|max:1000',
+        ]);
+
+        $service = new \App\Services\MockMaster\MockMasterChatService(
+            new \App\Services\MockMaster\MockMasterDataService(),
+            new \App\Services\Llm\OpenAiClient(),
+        );
+
+        return response()->json($service->answer($data['agent'], (string) ($data['question'] ?? '')));
+    })->name('mock-master-helper.ask');
 
     // Sales agent AI chat — answers arbitrary free-typed questions using the
     // same real CRM/Brevo-derived account data as the page itself (see

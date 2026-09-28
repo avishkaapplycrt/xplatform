@@ -249,7 +249,7 @@ $agents = [
                 </div>
                 <div class="dm-hd">
                     <span class="dm-dot"></span>
-                    <div><div class="dm-t">Marketing helper</div><div class="dm-s">ENGINE + AI · SAMPLE DATA (not yet live)</div></div>
+                    <div><div class="dm-t">Marketing helper</div><div class="dm-s">ENGINE + AI · GROUNDED IN LIVE DATA</div></div>
                     <span class="dm-ready">Ready</span>
                     <div class="mira-tools">
                         <button type="button" class="mira-btn" onclick="mmMira('min')" title="Minimise" aria-label="Minimise helper panel">&minus;</button>
@@ -384,7 +384,7 @@ $agents = [
                 </div>
                 <div class="dm-hd">
                     <span class="dm-dot"></span>
-                    <div><div class="dm-t">Sales helper</div><div class="dm-s">ENGINE + AI · SAMPLE DATA (not yet live)</div></div>
+                    <div><div class="dm-t">Sales helper</div><div class="dm-s">ENGINE + AI · GROUNDED IN LIVE DATA</div></div>
                     <span class="dm-ready">Ready</span>
                     <div class="mira-tools">
                         <button type="button" class="mira-btn" onclick="mmMira('min')" title="Minimise" aria-label="Minimise helper panel">&minus;</button>
@@ -518,7 +518,7 @@ $agents = [
                 </div>
                 <div class="dm-hd">
                     <span class="dm-dot"></span>
-                    <div><div class="dm-t">Retention helper</div><div class="dm-s">ENGINE + AI · SAMPLE DATA (not yet live)</div></div>
+                    <div><div class="dm-t">Retention helper</div><div class="dm-s">ENGINE + AI · GROUNDED IN LIVE DATA</div></div>
                     <span class="dm-ready">Ready</span>
                     <div class="mira-tools">
                         <button type="button" class="mira-btn" onclick="mmMira('min')" title="Minimise" aria-label="Minimise helper panel">&minus;</button>
@@ -727,10 +727,13 @@ function mmSelectStep(agent, key) {
     if (hd) hd.textContent = 'ASK MIRA · ' + (MM_STEP_LABELS[full] || key.toUpperCase());
 }
 
+var MM_AGENT_KEY = { mk: 'marketing', sl: 'sales', ch: 'retention' };
+
 function mmAsk(agent, text) {
     text = (text || '').trim();
     if (!text) return;
     var chat = document.getElementById('mmChat-' + agent);
+
     var userBubble = document.createElement('div');
     userBubble.className = 'msg user';
     userBubble.textContent = text;
@@ -738,10 +741,28 @@ function mmAsk(agent, text) {
 
     var botBubble = document.createElement('div');
     botBubble.className = 'msg bot';
-    botBubble.textContent = "This is a preview panel — Mock Master helper isn't connected to live AI or data yet. Once it is, this is where a grounded answer about your students would appear.";
+    botBubble.innerHTML = '<span style="color:var(--g3)">Thinking…</span>';
     chat.appendChild(botBubble);
-
     chat.scrollTop = chat.scrollHeight;
+
+    fetch('{{ route('client.mock-master-helper.ask') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ agent: MM_AGENT_KEY[agent], question: text })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        botBubble.textContent = data.answer || "I couldn't get an answer just now.";
+        chat.scrollTop = chat.scrollHeight;
+    })
+    .catch(function () {
+        botBubble.textContent = "I couldn't reach the AI just now — try again in a moment.";
+        chat.scrollTop = chat.scrollHeight;
+    });
 }
 
 /* ── Collapse the whole left sidebar (same icon/behavior as Business Helpers) ── */

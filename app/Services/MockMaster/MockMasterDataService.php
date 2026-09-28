@@ -287,4 +287,178 @@ class MockMasterDataService
         $days = Carbon::parse($lastLogin)->diffInDays(now());
         return $days <= 7 ? 'This week' : $days . 'd ago';
     }
+
+    /**
+     * A single, compact, real-data snapshot drawn from all 14 mm_* tables,
+     * for the "Ask Mira" free-text chat to ground its answer in. Large
+     * tables (mm_mock_test_logs: ~770k rows, mm_login_history: ~185k rows)
+     * are aggregated into counts rather than dumped row-by-row, to keep the
+     * prompt a reasonable size — every number here is still real, just
+     * summarised instead of enumerated.
+     */
+    /**
+     * A real, targeted lookup for a specific student named or emailed in a
+     * chat question — the aggregated chatSnapshot() deliberately excludes
+     * the full 58k+ student directory (too large to send every time), so a
+     * question like "what's Samina's email" has nothing to match against
+     * unless we search for that name directly.
+     */
+    public function searchStudents(array $terms, int $limit = 8): array
+    {
+        if (empty($terms)) {
+            return [];
+        }
+
+        $query = DB::table('mm_studentuser')->whereNull('deleted_at');
+        $query->where(function ($q) use ($terms) {
+            foreach ($terms as $term) {
+                $q->orWhere('first_name', 'like', "%{$term}%")
+                  ->orWhere('last_name', 'like', "%{$term}%")
+                  ->orWhere('email', 'like', "%{$term}%");
+            }
+        });
+
+        $students = $query->limit($limit)->get([
+            'studentId', 'first_name', 'last_name', 'email', 'phone',
+            'student_course_type', 'desired_band', 'status', 'last_login', 'create_date',
+        ]);
+
+        if ($students->isEmpty()) {
+            return [];
+        }
+
+        $ids = $students->pluck('studentId')->all();
+        $avgScores = $this->avgScoresByStudent($ids);
+
+        $activePurchases = DB::table('mm_purchases')
+            ->whereIn('studentid', $ids)
+            ->where('is_expired', 0)
+            ->select('studentid', 'product', 'expire_date')
+            ->get()
+            ->groupBy('studentid');
+
+        return $students->map(function ($s) use ($avgScores, $activePurchases) {
+            return [
+                'name' => trim($s->first_name . ' ' . $s->last_name),
+                'email' => $s->email,
+                'phone' => $s->phone,
+                'course_type' => $s->student_course_type,
+                'desired_band' => $s->desired_band,
+                'avg_mock_test_score' => isset($avgScores[$s->studentId]) ? round($avgScores[$s->studentId], 1) : null,
+                'last_login' => $s->last_login,
+                'registered_on' => $s->create_date,
+                'active_packages' => ($activePurchases[$s->studentId] ?? collect())->pluck('product')->all(),
+            ];
+        })->values()->all();
+    }
+
+    /** Most recent real login record, for "who last logged in" style questions. */
+    public function mostRecentLogins(int $limit = 5): array
+    {
+        return DB::table('mm_login_history as l')
+            ->join('mm_studentuser as s', 's.studentId', '=', 'l.user_id')
+            ->select('s.first_name', 's.last_name', 'l.email', 'l.login_time', 'l.ip_address')
+            ->orderByDesc('l.login_time')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => trim($r->first_name . ' ' . $r->last_name),
+                'email' => $r->email,
+                'login_time' => $r->login_time,
+                'ip_address' => $r->ip_address,
+            ])->values()->all();
+    }
+
+    public function chatSnapshot(): array
+    {
+        return [
+            'kpis' => $this->performanceKpis(),
+            'segments' => $this->audienceSegments(),
+            'insights' => $this->insights(),
+            'top_students_at_risk' => $this->retentionAtRisk(10),
+            'watchlist' => $this->retentionWatchlist(10),
+            'root_causes' => $this->retentionRootCauses(),
+            'top_prospects' => $this->salesProspects(10),
+            'close_candidates' => $this->salesCloseCandidates(10),
+
+            'students' => [
+                'total_registered' => DB::table('mm_studentuser')->whereNull('deleted_at')->count(),
+                'deleted_count' => DB::table('mm_deleted_students')->count(),
+            ],
+
+            'purchases' => [
+                'total' => DB::table('mm_purchases')->count(),
+                'active' => DB::table('mm_purchases')->where('is_expired', 0)->count(),
+                'expired' => DB::table('mm_purchases')->where('is_expired', 1)->count(),
+            ],
+
+            'payments' => [
+                'total' => DB::table('mm_payments')->count(),
+                'paid' => DB::table('mm_payments')->where('status', 1)->count(),
+                'unpaid_or_failed' => DB::table('mm_payments')->where('status', 0)->count(),
+                'total_revenue' => (int) DB::table('mm_payments')->where('status', 1)->sum('amount'),
+            ],
+
+            'packages' => DB::table('mm_packages')
+                ->select('package_name', 'cost', 'usage_type', 'package_category')
+                ->where('status', 1)
+                ->limit(25)
+                ->get(),
+
+            'coupon_usage' => [
+                'total_redemptions' => DB::table('mm_coupon_usage')->count(),
+            ],
+
+            'mock_tests' => [
+                'total_results' => DB::table('mm_mock_test_results')->count(),
+                'last_7_days' => DB::table('mm_mock_test_results')->where('create_date', '>=', now()->subDays(7))->count(),
+                'last_30_days' => DB::table('mm_mock_test_results')->where('create_date', '>=', now()->subDays(30))->count(),
+                'avg_overall_score' => round((float) DB::table('mm_mock_test_results')->whereNotNull('overall_score')->avg('overall_score'), 1),
+                'activity_log_total' => DB::table('mm_mock_test_logs')->count(),
+                'activity_log_last_7_days' => DB::table('mm_mock_test_logs')->where('create_date', '>=', now()->subDays(7))->count(),
+            ],
+
+            'logins' => [
+                'total_recorded' => DB::table('mm_login_history')->count(),
+                'unique_students_last_7_days' => DB::table('mm_login_history')->where('login_time', '>=', now()->subDays(7))->distinct('user_id')->count('user_id'),
+                'unique_students_last_30_days' => DB::table('mm_login_history')->where('login_time', '>=', now()->subDays(30))->distinct('user_id')->count('user_id'),
+                'most_recent_logins' => $this->mostRecentLogins(5),
+            ],
+
+            'meetings' => [
+                'total' => DB::table('mm_meetings')->count(),
+                'upcoming' => DB::table('mm_meetings')
+                    ->select('name', 'from_date', 'to_date', 'course', 'language')
+                    ->where('from_date', '>=', now())
+                    ->orderBy('from_date')
+                    ->limit(10)
+                    ->get(),
+            ],
+
+            'feedbacks' => [
+                'total' => DB::table('mm_feedbacks')->count(),
+                'recent' => DB::table('mm_feedbacks')
+                    ->select('question_type', 'feedback', 'create_date')
+                    ->orderByDesc('create_date')
+                    ->limit(10)
+                    ->get(),
+            ],
+
+            'notifications' => [
+                'total' => DB::table('mm_notifications')->count(),
+                'unread' => DB::table('mm_notifications')->where('is_read', 0)->count(),
+                'total_seen_records' => DB::table('mm_notifications_seen')->count(),
+            ],
+
+            'scheduled_emails' => [
+                'total' => DB::table('mm_scheduled_emails')->count(),
+                'upcoming' => DB::table('mm_scheduled_emails')
+                    ->select('template', 'scheduled_at')
+                    ->where('scheduled_at', '>=', now())
+                    ->orderBy('scheduled_at')
+                    ->limit(10)
+                    ->get(),
+            ],
+        ];
+    }
 }
