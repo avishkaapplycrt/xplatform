@@ -304,34 +304,54 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     // — never invented, and never this client's own CRM data.
     // Suggested "Ask Mira" prompts come from agents_pre_defined_prompts where
     // is_mock_master = 1 — rows with is_mock_master = 0 (the real Business
-    // Helpers prompts) are excluded from this page.
+    // Helpers prompts) are excluded from this page. Grouped by step_title
+    // (same shape as Business Helpers' $groupPrompts below) so each of the
+    // five steps per agent shows only its own questions — the Marketing and
+    // Retention "A/B test" steps have no rows on purpose (no A/B-testing
+    // data source exists for Mock Master), so they render an empty state.
     Route::get('mock-master-helper', function () {
-        $promptsFor = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
+        $groupPrompts = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
             ->mockMaster()
             ->where('is_active', true)
             ->orderBy('sort_order')
-            ->pluck('label');
+            ->get()
+            ->groupBy('step_title')
+            ->map(fn ($rows) => $rows->map(fn ($r) => [
+                'slug' => $r->slug,
+                'label' => $r->label,
+            ])->values());
 
-        $mkPrompts = $promptsFor('marketing');
-        $slPrompts = $promptsFor('sales');
-        $chPrompts = $promptsFor('retention');
+        $mkPrompts = $groupPrompts('marketing');
+        $slPrompts = $groupPrompts('sales');
+        $chPrompts = $groupPrompts('retention');
 
         $mm = new \App\Services\MockMaster\MockMasterDataService();
         $mkStudents = $mm->campaignStudents();
         $mkKpis = $mm->performanceKpis();
         $mkSegments = $mm->audienceSegments();
         $mkInsights = $mm->insights();
+        $mkTopScorers = $mm->topScorers(15);
+        $mkNewStudents = $mm->newStudents(15);
         $slProspects = $mm->salesProspects();
-        $slClose = $mm->salesCloseCandidates();
-        $chAtRisk = $mm->retentionAtRisk();
-        $chWatchlist = $mm->retentionWatchlist();
+        $slClose = $mm->salesCloseCandidates(10);
+        // Raised from the panel's original default (6) — the "Package
+        // Expiring Soon" / "Renewal Watch" audience counts run into the
+        // dozens, so a 6-row list looked broken next to them once the
+        // "view list" popup (below) started reusing this same data.
+        $chAtRisk = $mm->retentionAtRisk(20);
+        $chWatchlist = $mm->retentionWatchlist(20);
         $chRootCauses = $mm->retentionRootCauses();
+        // Real names offered in the "Which student?" picker for the Sales ·
+        // Accounts prompts — replaces a free-text prompt() so the rep always
+        // asks about a student who actually exists.
+        $mmContactNames = $mm->candidateStudentNames(60);
 
         return view('client.mock-master-helper', compact(
             'mkPrompts', 'slPrompts', 'chPrompts',
-            'mkStudents', 'mkKpis', 'mkSegments', 'mkInsights',
+            'mkStudents', 'mkKpis', 'mkSegments', 'mkInsights', 'mkTopScorers', 'mkNewStudents',
             'slProspects', 'slClose',
-            'chAtRisk', 'chWatchlist', 'chRootCauses'
+            'chAtRisk', 'chWatchlist', 'chRootCauses',
+            'mmContactNames'
         ));
     })->name('mock-master-helper');
 

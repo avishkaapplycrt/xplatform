@@ -41,7 +41,7 @@ class MockMasterDataService
         return $rows->map(function ($r) use ($avgScores, $paymentHealth) {
             $readiness = (int) round($avgScores[$r->studentid] ?? 0);
             $trust = (int) round($paymentHealth[$r->studentid] ?? 50);
-            $daysToExpire = $r->expire_date ? Carbon::parse($r->expire_date)->diffInDays(now(), false) : null;
+            $daysToExpire = $r->expire_date ? (int) Carbon::parse($r->expire_date)->diffInDays(now(), false) : null;
 
             $stage = $r->is_expired
                 ? 'Expired'
@@ -111,6 +111,69 @@ class MockMasterDataService
             ['name' => 'Renewal Watch',         'meta' => number_format($expiringWatch) . ' students · next 8-30 days'],
             ['name' => 'New Students',          'meta' => number_format($newStudents) . ' students · last 14 days'],
         ];
+    }
+
+    /** Audience · named list backing "Who are our high-scoring students?" (avg overall_score >= 75). */
+    public function topScorers(int $limit = 10): array
+    {
+        $rows = DB::table('mm_mock_test_results')
+            ->select('studentId')
+            ->selectRaw('AVG(overall_score) as avg_score')
+            ->whereNotNull('overall_score')
+            ->groupBy('studentId')
+            ->havingRaw('AVG(overall_score) >= 75')
+            ->orderByDesc('avg_score')
+            ->limit($limit)
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        $students = DB::table('mm_studentuser')->whereIn('studentId', $rows->pluck('studentId'))->get()->keyBy('studentId');
+
+        return $rows->map(function ($r) use ($students) {
+            $s = $students[$r->studentId] ?? null;
+            return [
+                'name' => $s ? (trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $r->studentId) : 'Student #' . $r->studentId,
+                'avg_score' => round((float) $r->avg_score, 1),
+                'lastActive' => $s ? $this->relativeLogin($s->last_login) : '—',
+            ];
+        })->values()->all();
+    }
+
+    /** Audience · named list backing "Which students joined in the last 14 days?" */
+    public function newStudents(int $limit = 10): array
+    {
+        $rows = DB::table('mm_studentuser')
+            ->whereNotNull('create_date')
+            ->where('create_date', '>=', now()->subDays(14)->toDateString())
+            ->orderByDesc('create_date')
+            ->limit($limit)
+            ->get();
+
+        return $rows->map(fn ($s) => [
+            'name' => trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $s->studentId,
+            'sub' => $s->student_course_type ?: '—',
+            'joined' => $s->create_date,
+        ])->values()->all();
+    }
+
+    /** Real student names offered in the "Which student?" picker for the Sales · Accounts prompts. */
+    public function candidateStudentNames(int $limit = 60): array
+    {
+        return DB::table('mm_studentuser')
+            ->whereNull('deleted_at')
+            ->whereNotNull('first_name')
+            ->where('first_name', '!=', '')
+            ->orderByDesc('last_login')
+            ->limit($limit)
+            ->get(['first_name', 'last_name'])
+            ->map(fn ($s) => trim($s->first_name . ' ' . $s->last_name))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /** Insights step — real computed findings, not fabricated claims. */
@@ -223,7 +286,7 @@ class MockMasterDataService
             ->get();
 
         return $rows->map(function ($r) {
-            $inactiveDays = $r->last_login ? Carbon::parse($r->last_login)->diffInDays(now()) : 999;
+            $inactiveDays = $r->last_login ? (int) Carbon::parse($r->last_login)->diffInDays(now()) : 999;
             $risk = min(100, max(10, $inactiveDays + (int) Carbon::parse($r->expire_date)->diffInDays(now(), true)));
 
             return [
@@ -284,7 +347,7 @@ class MockMasterDataService
         if (!$lastLogin) {
             return 'Never';
         }
-        $days = Carbon::parse($lastLogin)->diffInDays(now());
+        $days = (int) Carbon::parse($lastLogin)->diffInDays(now());
         return $days <= 7 ? 'This week' : $days . 'd ago';
     }
 

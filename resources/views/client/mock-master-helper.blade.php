@@ -270,11 +270,7 @@ $agents = [
                     <span id="mmQuickHd-mk">ASK MIRA · CAMPAIGN</span>
                     <button type="button" class="dm-quick-min" onclick="mmCollapseQuick()" title="Hide suggestions" aria-label="Hide suggestions">&#9660;</button>
                 </div>
-                <div class="dm-quick" id="mmQuick-mk">
-                    @foreach($mkPrompts as $p)
-                    <button type="button" class="qk" onclick="mmAsk('mk', {{ Js::from($p) }})">{{ $p }}</button>
-                    @endforeach
-                </div>
+                <div class="dm-quick" id="mmQuick-mk"></div>
                 <div class="dm-quick-reopen" onclick="mmExpandQuick()" title="Show suggestions" aria-label="Show suggestions">&#9650; Show suggestions</div>
                 <div class="dm-inbar">
                     <input class="in" id="mmInput-mk" type="text" placeholder="Ask anything — plain answers, no jargon..." autocomplete="off" onkeydown="if(event.key==='Enter'){mmAsk('mk', this.value); this.value='';}">
@@ -405,11 +401,7 @@ $agents = [
                     <span id="mmQuickHd-sl">ASK MIRA · TODAY</span>
                     <button type="button" class="dm-quick-min" onclick="mmCollapseQuick()" title="Hide suggestions" aria-label="Hide suggestions">&#9660;</button>
                 </div>
-                <div class="dm-quick" id="mmQuick-sl">
-                    @foreach($slPrompts as $p)
-                    <button type="button" class="qk" onclick="mmAsk('sl', {{ Js::from($p) }})">{{ $p }}</button>
-                    @endforeach
-                </div>
+                <div class="dm-quick" id="mmQuick-sl"></div>
                 <div class="dm-quick-reopen" onclick="mmExpandQuick()" title="Show suggestions" aria-label="Show suggestions">&#9650; Show suggestions</div>
                 <div class="dm-inbar">
                     <input class="in" id="mmInput-sl" type="text" placeholder="Ask anything — plain answers, no jargon..." autocomplete="off" onkeydown="if(event.key==='Enter'){mmAsk('sl', this.value); this.value='';}">
@@ -539,11 +531,7 @@ $agents = [
                     <span id="mmQuickHd-ch">ASK MIRA · SAVE FIRST</span>
                     <button type="button" class="dm-quick-min" onclick="mmCollapseQuick()" title="Hide suggestions" aria-label="Hide suggestions">&#9660;</button>
                 </div>
-                <div class="dm-quick" id="mmQuick-ch">
-                    @foreach($chPrompts as $p)
-                    <button type="button" class="qk" onclick="mmAsk('ch', {{ Js::from($p) }})">{{ $p }}</button>
-                    @endforeach
-                </div>
+                <div class="dm-quick" id="mmQuick-ch"></div>
                 <div class="dm-quick-reopen" onclick="mmExpandQuick()" title="Show suggestions" aria-label="Show suggestions">&#9650; Show suggestions</div>
                 <div class="dm-inbar">
                     <input class="in" id="mmInput-ch" type="text" placeholder="Ask anything — plain answers, no jargon..." autocomplete="off" onkeydown="if(event.key==='Enter'){mmAsk('ch', this.value); this.value='';}">
@@ -552,6 +540,18 @@ $agents = [
                     </button>
                 </div>
             </aside>
+        </div>
+
+        {{-- Popup for "which/who" style answers — a clean table of the real
+             students behind the answer, instead of a run-on paragraph. --}}
+        <div class="mm-list-modal-overlay" id="mmListModalOverlay" onclick="if(event.target===this) closeMmListModal()">
+            <div class="mm-list-modal">
+                <div class="mm-list-modal-hd">
+                    <span id="mmListModalTitle"></span>
+                    <button type="button" onclick="closeMmListModal()" aria-label="Close">✕</button>
+                </div>
+                <div class="mm-list-modal-body" id="mmListModalBody"></div>
+            </div>
         </div>
 
     </div>
@@ -696,14 +696,232 @@ $agents = [
 #bhRoot .msg{max-width:94%;padding:11px 13px;font-size:12.5px;line-height:1.65;border-radius:10px}
 #bhRoot .msg.user{background:var(--ink);color:#fff;align-self:flex-end}
 #bhRoot .msg.bot{background:var(--p1);border:1px solid var(--ln);align-self:flex-start;color:var(--ink)}
+#bhRoot .msg.bot p{margin:0 0 8px}
+#bhRoot .msg.bot p:last-child{margin-bottom:0}
+
+/* "View list" popup — same pattern as Business Helpers' risk modal, so a
+   list-shaped answer (who/which questions) is a clean table, not a run-on
+   paragraph. */
+.mm-list-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:200;align-items:center;justify-content:center;padding:24px}
+.mm-list-modal-overlay.show{display:flex}
+.mm-list-modal{background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.mm-list-modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;color:#111827}
+.mm-list-modal-hd button{border:none;background:none;font-size:16px;color:#9ca3af;cursor:pointer;line-height:1;padding:4px}
+.mm-list-modal-hd button:hover{color:#111827}
+.mm-list-modal-body{overflow:auto;padding:12px 18px 18px}
+.mm-list-modal-body table{width:100%;border-collapse:collapse;font-size:12px}
+.mm-list-modal-body th,.mm-list-modal-body td{padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:left;white-space:nowrap}
+.mm-list-modal-body th{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;background:#f9fafb}
+
+/* Student picker for the Sales · Accounts prompts — a real name list via
+   <datalist>, same pattern as Business Helpers' Retention name form. */
+#bhRoot .nmform{display:flex;gap:6px;margin-top:8px;align-items:stretch}
+#bhRoot .nmin{flex:1;min-width:0;border:1px solid var(--ln2);border-radius:8px;padding:8px 10px;font-family:var(--f1);font-size:12px;color:var(--ink);outline:none;background:#fff}
+#bhRoot .nmin:focus{border-color:var(--ac-m);box-shadow:0 0 0 3px var(--ac-l)}
+#bhRoot .nmin:disabled{background:var(--p2);color:var(--g3)}
+#bhRoot .nmform .qk{flex-shrink:0;align-self:center}
 </style>
 
 <script>
+function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = String(s == null ? '' : s);
+    return d.innerHTML;
+}
+
 var MM_STEP_LABELS = {
     'mk-campaign':'CAMPAIGN','mk-performance':'PERFORMANCE','mk-audience':'AUDIENCE','mk-insights':'INSIGHTS','mk-abtest':'A/B TEST',
     'sl-today':'TODAY','sl-accounts':'ACCOUNTS','sl-scripts':'SCRIPTS','sl-objections':'OBJECTIONS','sl-close':'CLOSE & GROW',
     'ch-savefirst':'SAVE FIRST','ch-rootcause':'ROOT CAUSE','ch-offers':'OFFERS','ch-watchlist':'WATCHLIST','ch-abtest':'A/B TEST'
 };
+
+/* Real, step-grouped "Ask Mira" prompts from agents_pre_defined_prompts
+   (is_mock_master = 1) — see routes/web.php's mock-master-helper route and
+   database/seeders/MockMasterPredefinedPromptsSeeder. Keyed by the exact
+   step_title stored in the DB, which is why MM_STEP_TITLE below must match
+   those titles precisely (not the uppercase header labels). A/B test has no
+   rows on purpose — no A/B-testing data source exists for Mock Master. */
+var MM_PROMPTS_BY_AGENT = {
+    mk: @json($mkPrompts),
+    sl: @json($slPrompts),
+    ch: @json($chPrompts)
+};
+var MM_STEP_TITLE = {
+    'mk-campaign':'Campaign','mk-performance':'Performance','mk-audience':'Audience','mk-insights':'Insights','mk-abtest':'A/B test',
+    'sl-today':'Today','sl-accounts':'Accounts','sl-scripts':'Scripts','sl-objections':'Objections','sl-close':'Close & grow',
+    'ch-savefirst':'Save first','ch-rootcause':'Root cause','ch-offers':'Offers','ch-watchlist':'Watchlist','ch-abtest':'A/B test'
+};
+/* Prompts that name a specific student — a real name is picked from a
+   list (see MM_CONTACT_NAMES) via mmNameForm(), then substituted for the
+   literal "[name]" placeholder before the question is sent. */
+var MM_NAME_PROMPT_SLUGS = {
+    'mm-sl-acct-lookup-status': 1, 'mm-sl-acct-lookup-lastactive': 1, 'mm-sl-acct-lookup-contact': 1
+};
+var MM_CONTACT_NAMES = @json($mmContactNames ?? []);
+
+/* Prompts that are answerable straight from data we've already computed
+   server-side (see routes/web.php) — clicking these opens the "view list"
+   popup with the real rows instantly, no AI round-trip and nothing
+   paraphrased into a paragraph. Every other prompt still goes through
+   mmAsk() (the free-text AI chat, grounded in MockMasterChatService). */
+var MM_LISTS = {
+    chAtRisk: @json($chAtRisk),
+    chWatchlist: @json($chWatchlist),
+    slProspects: @json($slProspects),
+    slClose: @json($slClose),
+    mkTopScorers: @json($mkTopScorers),
+    mkNewStudents: @json($mkNewStudents)
+};
+var MM_LIST_SLUGS = {
+    'mm-mk-aud-highscorers':        { list: 'mkTopScorers', noun: 'student' },
+    'mm-mk-aud-expiring-7d':        { list: 'chAtRisk',     noun: 'student' },
+    'mm-mk-aud-renewal-watch-30d':  { list: 'chWatchlist',  noun: 'student' },
+    'mm-mk-aud-new-14d':            { list: 'mkNewStudents',noun: 'student' },
+    'mm-sl-today-who-call':         { list: 'slProspects',  noun: 'prospect' },
+    'mm-sl-today-ready-upgrade':    { list: 'slClose',       noun: 'student' },
+    'mm-sl-today-active-no-package':{ list: 'slClose',       noun: 'student' },
+    'mm-sl-close-trial-convert':    { list: 'slClose',       noun: 'student' },
+    'mm-sl-close-most-tests-no-upgrade': { list: 'slClose',  noun: 'student' },
+    'mm-sl-close-renewal-upsell':   { list: 'chWatchlist',  noun: 'student' },
+    'mm-ch-save-who-churn':         { list: 'chAtRisk',     noun: 'student' },
+    'mm-ch-save-inactive-highrisk': { list: 'chAtRisk',     noun: 'student' },
+    'mm-ch-watch-drifting':         { list: 'chWatchlist',  noun: 'student' },
+    'mm-ch-watch-highvalue':        { list: 'chWatchlist',  noun: 'student' }
+};
+/* Column labels for the "view list" popup — only keys actually present on
+   the rows are shown, so one table works for every dataset above. */
+var MM_LIST_COL_LABELS = {
+    name: 'Student', sub: 'Package / interest', value: 'Package value', stage: 'Stage',
+    readiness: 'Readiness', trust: 'Trust', approach: 'Approach', lastActive: 'Last active',
+    intent: 'Intent', play: 'Play', detail: 'Detail', avg_score: 'Avg score', joined: 'Joined',
+    inactiveDays: 'Days inactive', valueAtRisk: 'Value at risk', risk: 'Risk'
+};
+
+function mmRenderQuick(agent, key) {
+    var full = agent + '-' + key;
+    var title = MM_STEP_TITLE[full];
+    var list = (MM_PROMPTS_BY_AGENT[agent] && MM_PROMPTS_BY_AGENT[agent][title]) || [];
+    var box = document.getElementById('mmQuick-' + agent);
+    if (!box) return;
+    if (!list.length) {
+        box.innerHTML = '<div style="padding:14px 4px;color:var(--g3);font-size:12px">No suggested questions for this step yet.</div>';
+        return;
+    }
+    box.innerHTML = list.map(function (p) {
+        return '<button type="button" class="qk" onclick="mmAskPrompt(\'' + agent + '\',\'' + p.slug + '\')">' + p.label.replace(/</g, '&lt;') + '</button>';
+    }).join('');
+}
+
+function mmFindPrompt(agent, slug) {
+    var list = [].concat.apply([], Object.values(MM_PROMPTS_BY_AGENT[agent] || {}));
+    return list.find(function (p) { return p.slug === slug; });
+}
+
+function mmAskPrompt(agent, slug) {
+    var prompt_ = mmFindPrompt(agent, slug);
+    if (!prompt_) return;
+
+    if (MM_NAME_PROMPT_SLUGS[slug]) {
+        return mmNameForm(agent, slug, prompt_.label);
+    }
+    if (MM_LIST_SLUGS[slug]) {
+        return mmShowList(agent, slug, prompt_.label);
+    }
+    mmAsk(agent, prompt_.label);
+}
+
+/* "Which student?" picker — a real name list (MM_CONTACT_NAMES) via
+   <datalist>, same pattern as Business Helpers' Retention name form.
+   Replaces a free-text prompt() dialog with a pick-from-list input right
+   inside the chat. */
+function mmNameForm(agent, slug, label) {
+    var chat = document.getElementById('mmChat-' + agent);
+    var fid = 'mmnm' + Math.random().toString(36).slice(2, 8);
+    var opts = MM_CONTACT_NAMES.map(function (n) { return '<option value="' + n.replace(/"/g, '&quot;') + '"></option>'; }).join('');
+
+    var wrap = document.createElement('div');
+    wrap.className = 'msg bot';
+    wrap.innerHTML = '<p>Which student?</p>' +
+        '<div class="nmform">' +
+            '<input class="nmin" id="' + fid + '" list="' + fid + '-l" placeholder="Start typing a student name…" autocomplete="off">' +
+            '<datalist id="' + fid + '-l">' + opts + '</datalist>' +
+            '<button type="button" class="qk" onclick="mmNameSubmit(\'' + agent + '\',\'' + fid + '\',\'' + slug + '\')">Ask</button>' +
+        '</div>';
+    chat.appendChild(wrap);
+    chat.scrollTop = chat.scrollHeight;
+
+    var input = document.getElementById(fid);
+    input.focus();
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); mmNameSubmit(agent, fid, slug); }
+    });
+}
+
+function mmNameSubmit(agent, fid, slug) {
+    var input = document.getElementById(fid);
+    var name = input ? input.value.trim() : '';
+    if (!name) { if (input) input.focus(); return; }
+    if (input) input.disabled = true;
+    var prompt_ = mmFindPrompt(agent, slug);
+    var label = (prompt_ ? prompt_.label : '').replace(/\[name\]/i, name);
+    mmAsk(agent, label);
+}
+
+/* "View list" popup — the real rows behind a who/which question, shown as
+   a clean table instead of a paragraph. No AI call: this data is already
+   computed server-side (see routes/web.php's mock-master-helper route). */
+function mmShowList(agent, slug, label) {
+    var chat = document.getElementById('mmChat-' + agent);
+    var cfg = MM_LIST_SLUGS[slug];
+    var rows = MM_LISTS[cfg.list] || [];
+
+    var userBubble = document.createElement('div');
+    userBubble.className = 'msg user';
+    userBubble.textContent = label;
+    chat.appendChild(userBubble);
+
+    var botBubble = document.createElement('div');
+    botBubble.className = 'msg bot';
+    if (!rows.length) {
+        botBubble.innerHTML = '<p>No ' + cfg.noun + 's match this right now.</p>';
+    } else {
+        var id = 'mmlist' + Math.random().toString(36).slice(2, 9);
+        MM_LIST_CACHE[id] = { rows: rows, noun: cfg.noun, label: label };
+        botBubble.innerHTML = '<p>' + rows.length + ' ' + cfg.noun + (rows.length === 1 ? '' : 's') + ' found.</p>' +
+            '<button type="button" class="qk" onclick="openMmListModal(\'' + id + '\')">View the list →</button>';
+    }
+    chat.appendChild(botBubble);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+var MM_LIST_CACHE = {};
+function openMmListModal(id) {
+    var entry = MM_LIST_CACHE[id];
+    if (!entry || !entry.rows.length) return;
+    var rows = entry.rows;
+
+    var cols = Object.keys(MM_LIST_COL_LABELS).filter(function (k) { return k in rows[0]; });
+    if (!cols.length) cols = Object.keys(rows[0]);
+
+    var head = '<tr><th>#</th>' + cols.map(function (k) {
+        var label = MM_LIST_COL_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+        return '<th>' + label + '</th>';
+    }).join('') + '</tr>';
+    var body = rows.map(function (r, i) {
+        return '<tr><td>' + (i + 1) + '</td>' + cols.map(function (k) {
+            var v = r[k];
+            return '<td>' + (v === null || v === undefined || v === '' ? '—' : String(v)) + '</td>';
+        }).join('') + '</tr>';
+    }).join('');
+
+    document.getElementById('mmListModalTitle').textContent = entry.label;
+    document.getElementById('mmListModalBody').innerHTML = '<table>' + head + body + '</table>';
+    document.getElementById('mmListModalOverlay').classList.add('show');
+}
+function closeMmListModal() {
+    var overlay = document.getElementById('mmListModalOverlay');
+    if (overlay) overlay.classList.remove('show');
+}
 
 function mmSetAgent(agent) {
     document.getElementById('bhRoot').setAttribute('data-agent', agent);
@@ -725,6 +943,7 @@ function mmSelectStep(agent, key) {
     if (panel) panel.style.display = '';
     var hd = document.getElementById('mmQuickHd-' + agent);
     if (hd) hd.textContent = 'ASK MIRA · ' + (MM_STEP_LABELS[full] || key.toUpperCase());
+    mmRenderQuick(agent, key);
 }
 
 var MM_AGENT_KEY = { mk: 'marketing', sl: 'sales', ch: 'retention' };
@@ -756,11 +975,12 @@ function mmAsk(agent, text) {
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
-        botBubble.textContent = data.answer || "I couldn't get an answer just now.";
+        var answer = data.answer || "I couldn't get an answer just now.";
+        botBubble.innerHTML = '<p>' + escapeHtml(answer).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
         chat.scrollTop = chat.scrollHeight;
     })
     .catch(function () {
-        botBubble.textContent = "I couldn't reach the AI just now — try again in a moment.";
+        botBubble.innerHTML = '<p>I couldn\'t reach the AI just now — try again in a moment.</p>';
         chat.scrollTop = chat.scrollHeight;
     });
 }
@@ -960,6 +1180,9 @@ document.querySelectorAll('#bhRoot .row-resize').forEach(function (h) {
     h.addEventListener('dblclick', function (){ mmExpandQuick(); bhQuickState.h = BH_QUICK_DEFAULT; bhQuickApply(); });
 });
 
+mmRenderQuick('mk', 'campaign');
+mmRenderQuick('sl', 'today');
+mmRenderQuick('ch', 'savefirst');
 bhMiraApply(); bhLeftApply(); bhQuickApply();
 </script>
 
