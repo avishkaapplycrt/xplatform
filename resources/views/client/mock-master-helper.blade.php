@@ -766,7 +766,6 @@ body.mm-syncing #mmSyncOverlay{display:flex}
 .bh-page{background:#f5f7fb}
 
 #bhRoot{--ln:#e6e9f0;--ln2:#d9dee8;--p1:#f7f8fb;--p2:#f1f3f8;--g2:#5b6475;--card-r:14px;--card-sh:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.04)}
-#bhRoot,#bhRoot[data-agent="mk"]{--ac:#3552e6;--ac-l:#eef1fe;--ac-m:#c9d3fb;--ac-d:#2a43c4}
 
 /* Agent tabs — one white strip, the active agent is a solid accent block */
 #bhRoot .bar{background:transparent;border:none;gap:0;margin-bottom:16px}
@@ -881,6 +880,68 @@ body.mm-syncing #mmSyncOverlay{display:flex}
 #bhRoot .dm-inbar .send{width:42px;border-radius:10px;box-shadow:0 4px 12px rgba(16,24,40,.18)}
 #bhRoot .dm-inbar .send svg{width:14px;height:14px;fill:#fff;stroke:#fff;stroke-width:1.5}
 
+/* ══ Compact tiers for laptops ══
+   At 100% browser zoom, laptops with Windows display scaling (125% / 150%)
+   have a narrower CSS viewport (~1536px / ~1280px), so everything looks
+   bigger. These tiers step the sizes down as the viewport narrows; wide
+   screens keep the sizes above. Visual only. */
+@media (max-width:1600px){
+  .bh-page > .p-6{padding:16px}
+  #bhRoot .bar{margin-bottom:12px}
+  #bhRoot .dash{gap:12px}
+  #bhRoot .atab{min-height:44px;gap:8px}
+  #bhRoot .amono svg{width:16px;height:16px}
+  #bhRoot .atab .a2{font-size:12.5px}
+  #bhRoot .dash-left{padding:8px 0}
+  #bhRoot .flowst{margin:1px 8px;padding:8px 8px;gap:10px}
+  #bhRoot .flowst.cur{padding-left:8px}
+  #bhRoot .flowst-dot{width:24px;height:24px;font-size:10.5px}
+  #bhRoot .flowst-t{font-size:12.5px}
+  #bhRoot .dvt{font-size:10px;letter-spacing:1.2px;padding:10px 4px;min-width:64px}
+  #bhRoot .stack-intro{padding:16px 16px 12px}
+  #bhRoot .si-h{font-size:10.5px;letter-spacing:1.6px;margin-bottom:6px}
+  #bhRoot .si-p{font-size:12px;line-height:1.65}
+  #bhRoot .dtbl{width:calc(100% - 32px);margin:0 16px 16px;font-size:11.5px}
+  #bhRoot .dtbl th{font-size:9.5px;padding:8px 10px}
+  #bhRoot .dtbl td{padding:7px 10px}
+  #bhRoot .bh-acct{gap:8px;min-width:140px}
+  #bhRoot .bh-av{width:24px;height:24px;font-size:11px;border-radius:6px}
+  #bhRoot .bh-acct-c{font-size:10.5px}
+  #bhRoot .bh-pill{font-size:10.5px;padding:2px 7px}
+  #bhRoot .act{padding:10px 14px;margin:0 16px 8px}
+  #bhRoot .act-t{font-size:12px}
+  #bhRoot .mg-grid{gap:10px;padding:0 16px 16px}
+  #bhRoot .mg-kpi{font-size:18px}
+  #bhRoot .dm-hd{padding:12px 14px;gap:8px}
+  #bhRoot .dm-t{font-size:12.5px}
+  #bhRoot .dm-chat{padding:14px}
+  #bhRoot .dm-chat .msg{font-size:12px;padding:10px 12px}
+  #bhRoot .dm-chat:empty::after{font-size:12px;padding:10px 12px}
+  #bhRoot .dm-quick-hd{padding:8px 14px 4px}
+  #bhRoot .dm-quick{padding:4px 14px 10px;gap:6px}
+  #bhRoot .dm-quick .qk{font-size:11.5px;padding:8px 26px 8px 10px}
+  #bhRoot .dm-inbar{padding:8px 14px 12px}
+  #bhRoot .dm-inbar .in{min-height:38px;font-size:12px;padding:0 12px}
+  #bhRoot .dm-inbar .send{width:38px}
+}
+@media (max-width:1366px){
+  .bh-page > .p-6{padding:12px}
+  #bhRoot .dash{gap:10px}
+  #bhRoot .atab{min-height:40px}
+  #bhRoot .atab .a2{font-size:12px}
+  #bhRoot .flowst-t{font-size:12px}
+  #bhRoot .flowst-dot{width:22px;height:22px;font-size:10px}
+  #bhRoot .dvt{font-size:9.5px;letter-spacing:1px;padding:9px 3px;min-width:56px}
+  #bhRoot .si-p{font-size:11.5px}
+  #bhRoot .dtbl{font-size:11px}
+  #bhRoot .dtbl th{font-size:9px}
+  #bhRoot .dm-t{font-size:12px}
+  #bhRoot .dm-chat .msg{font-size:11.5px}
+  #bhRoot .dm-chat:empty::after{font-size:11.5px}
+  #bhRoot .dm-quick .qk{font-size:11px}
+  #bhRoot .dm-inbar .in{min-height:36px;font-size:11.5px}
+  #bhRoot .dm-inbar .send{width:36px}
+}
 @media(max-width:1180px){#bhRoot .dash{gap:12px}}
 </style>
 
