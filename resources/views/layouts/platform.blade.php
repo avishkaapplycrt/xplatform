@@ -543,10 +543,6 @@
         @yield('content')
     </div>
 
-    @auth('client')
-        @include('partials.ask-mira-widget')
-    @endauth
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     @stack('scripts')
     <script>

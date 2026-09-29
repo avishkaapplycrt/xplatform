@@ -227,24 +227,6 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('dashboard',  [ClientDashboardController::class, 'index'])->name('dashboard');
     Route::get('company/overview', [ClientOverviewController::class, 'show'])->name('company.overview');
 
-    // Floating "Ask Mira" widget — available from every /app page (see the
-    // "ask-mira-widget" partial included in layouts/platform.blade.php),
-    // answered from the client's overall real account/transaction data.
-    // See App\Services\Llm\PlatformChatService.
-    Route::post('ask-mira', function (\Illuminate\Http\Request $request) {
-        $data = $request->validate([
-            'question' => 'nullable|string|max:1000',
-        ]);
-
-        $service = new \App\Services\Llm\PlatformChatService(
-            new \App\Services\RealAccountsService(),
-            new \App\Services\TransactionInsightsService(),
-            new \App\Services\Llm\OpenAiClient(),
-        );
-
-        return response()->json($service->answer((string) ($data['question'] ?? '')));
-    })->name('ask-mira');
-
     // Layer pages
     Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), \App\Models\InstagramMedia::socialStats())))->name('layer.l1');
     Route::get('layers/l2',      [DecisionCentreController::class, 'l2'])->name('layer.l2');
