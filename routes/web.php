@@ -369,6 +369,41 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return response()->json($service->answer($data['agent'], (string) ($data['question'] ?? '')));
     })->name('mock-master-helper.ask');
 
+    // Backs the "Load more" button in the Mock Master Helper "view list"
+    // popup — the initial page load only embeds the first ~10-20 rows of
+    // each list (so the page itself stays light); this fetches further
+    // pages straight from the database on demand. {dataset} must be one of
+    // the keys below, matching MM_LIST_SLUGS' `list` values in
+    // mock-master-helper.blade.php.
+    Route::get('mock-master-helper/more/{dataset}', function (\Illuminate\Http\Request $request, string $dataset) {
+        $mm = new \App\Services\MockMaster\MockMasterDataService();
+        $fetchers = [
+            'chAtRisk'      => fn (int $l, int $o) => $mm->retentionAtRisk($l, $o),
+            'chWatchlist'   => fn (int $l, int $o) => $mm->retentionWatchlist($l, $o),
+            'slProspects'   => fn (int $l, int $o) => $mm->salesProspects($l, $o),
+            'slClose'       => fn (int $l, int $o) => $mm->salesCloseCandidates($l, $o),
+            'mkTopScorers'  => fn (int $l, int $o) => $mm->topScorers($l, $o),
+            'mkNewStudents' => fn (int $l, int $o) => $mm->newStudents($l, $o),
+        ];
+
+        if (!isset($fetchers[$dataset])) {
+            abort(404);
+        }
+
+        $offset = max(0, (int) $request->query('offset', 0));
+        $pageSize = 20;
+
+        // Fetch one extra row so we know whether another page exists,
+        // without a second COUNT query.
+        $rows = $fetchers[$dataset]($pageSize + 1, $offset);
+        $hasMore = count($rows) > $pageSize;
+        if ($hasMore) {
+            array_pop($rows);
+        }
+
+        return response()->json(['rows' => $rows, 'hasMore' => $hasMore]);
+    })->name('mock-master-helper.more');
+
     // Pulls the 14 live Mock Master source tables (coupon_usage,
     // deleted_students, feedbacks, login_history, meetings, mock_test_logs,
     // mock_test_results, notifications, notifications_seen, packages,

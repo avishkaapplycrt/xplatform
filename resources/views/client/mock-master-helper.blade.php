@@ -647,6 +647,9 @@ $agents = [
 #bhRoot .dm-quick-min{width:20px;height:20px;padding:0;border:1px solid var(--ln2);background:#fff;border-radius:6px;cursor:pointer;display:grid;place-items:center;color:var(--g3);flex-shrink:0}
 #bhRoot .dm-quick-min:hover{color:var(--ac-d);border-color:var(--ac-m);background:var(--ac-l)}
 #bhRoot .dm-quick{padding:6px 16px 14px;display:flex;flex-direction:column;gap:7px;flex-shrink:0;max-height:var(--bh-quick-h,220px);overflow-y:auto}
+#bhRoot .qk{font-size:11px;font-weight:600;color:var(--g2);padding:7px 12px;border:1px solid var(--ln);cursor:pointer;background:#fff;transition:all .15s;border-radius:99px}
+#bhRoot .qk:hover{border-color:var(--ac-m);background:var(--ac-l);color:var(--ac-d)}
+#bhRoot .qk:disabled{opacity:.6;cursor:default}
 #bhRoot .dm-quick .qk{width:100%;text-align:left;padding:10px 12px;font-size:12px;white-space:normal;line-height:1.35;border-radius:8px;background:#fff;border:1px solid var(--ln);cursor:pointer}
 #bhRoot .dm-quick .qk:hover{border-color:var(--ac-m);background:var(--ac-l);color:var(--ac-d)}
 #bhRoot .dm-quick-hd.dm-quick-collapsed,#bhRoot .dm-quick.dm-quick-collapsed{display:none}
@@ -718,6 +721,7 @@ $agents = [
 .mm-list-modal-body table{width:100%;border-collapse:collapse;font-size:12px}
 .mm-list-modal-body th,.mm-list-modal-body td{padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:left;white-space:nowrap}
 .mm-list-modal-body th{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;background:#f9fafb}
+.mm-list-modal-body #mmListMoreBtn{margin-top:14px}
 
 /* Student picker for the Sales · Accounts prompts — a real name list via
    <datalist>, same pattern as Business Helpers' Retention name form. */
@@ -800,8 +804,15 @@ var MM_LIST_COL_LABELS = {
     name: 'Student', sub: 'Package / interest', value: 'Package value', stage: 'Stage',
     readiness: 'Readiness', trust: 'Trust', approach: 'Approach', lastActive: 'Last active',
     intent: 'Intent', play: 'Play', detail: 'Detail', avg_score: 'Avg score', joined: 'Joined',
-    inactiveDays: 'Days inactive', valueAtRisk: 'Value at risk', risk: 'Risk'
+    inactiveDays: 'Days inactive', valueAtRisk: 'Value at risk', risk: 'Risk',
+    email: 'Email', phone: 'Mobile number'
 };
+/* Columns always shown first (contact info), regardless of where they fall
+   in MM_LIST_COL_LABELS above — every list here is a list of people to
+   actually reach out to, so email/phone should never be scrolled out of
+   view in a wide table. */
+var MM_LIST_COL_PRIORITY = ['name', 'email', 'phone'];
+var MM_LIST_MORE_BASE = '{{ url('/app/mock-master-helper/more') }}';
 
 function mmRenderQuick(agent, key) {
     var full = agent + '-' + key;
@@ -892,7 +903,9 @@ function mmShowList(agent, slug, label) {
         botBubble.innerHTML = '<p>No ' + cfg.noun + 's match this right now.</p>';
     } else {
         var id = 'mmlist' + Math.random().toString(36).slice(2, 9);
-        MM_LIST_CACHE[id] = { rows: rows, noun: cfg.noun, label: label };
+        // offset picks up where the page's initial embed left off — the
+        // "Load more" button fetches from here onward, straight from the DB.
+        MM_LIST_CACHE[id] = { rows: rows.slice(), noun: cfg.noun, label: label, dataset: cfg.list, offset: rows.length, hasMore: true };
         botBubble.innerHTML = '<p>' + rows.length + ' ' + cfg.noun + (rows.length === 1 ? '' : 's') + ' found.</p>' +
             '<button type="button" class="qk" onclick="openMmListModal(\'' + id + '\')">View the list →</button>';
     }
@@ -901,14 +914,16 @@ function mmShowList(agent, slug, label) {
 }
 
 var MM_LIST_CACHE = {};
-function openMmListModal(id) {
-    var entry = MM_LIST_CACHE[id];
-    if (!entry || !entry.rows.length) return;
+function mmListCols(rows) {
+    var present = Object.keys(MM_LIST_COL_LABELS).filter(function (k) { return k in rows[0]; });
+    if (!present.length) present = Object.keys(rows[0]);
+    var priority = MM_LIST_COL_PRIORITY.filter(function (k) { return present.indexOf(k) > -1; });
+    var rest = present.filter(function (k) { return priority.indexOf(k) === -1; });
+    return priority.concat(rest);
+}
+function mmRenderListTable(entry) {
     var rows = entry.rows;
-
-    var cols = Object.keys(MM_LIST_COL_LABELS).filter(function (k) { return k in rows[0]; });
-    if (!cols.length) cols = Object.keys(rows[0]);
-
+    var cols = mmListCols(rows);
     var head = '<tr><th>#</th>' + cols.map(function (k) {
         var label = MM_LIST_COL_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
         return '<th>' + label + '</th>';
@@ -916,13 +931,43 @@ function openMmListModal(id) {
     var body = rows.map(function (r, i) {
         return '<tr><td>' + (i + 1) + '</td>' + cols.map(function (k) {
             var v = r[k];
-            return '<td>' + (v === null || v === undefined || v === '' ? '—' : String(v)) + '</td>';
+            return '<td>' + (v === null || v === undefined || v === '' ? '—' : escapeHtml(v)) + '</td>';
         }).join('') + '</tr>';
     }).join('');
 
+    var footer = entry.hasMore
+        ? '<button type="button" class="qk" id="mmListMoreBtn" onclick="loadMoreMmList(\'' + entry._id + '\')">Load more →</button>'
+        : '<p style="color:var(--g3);font-size:11.5px;margin-top:10px">That\'s everyone — no more results.</p>';
+
+    document.getElementById('mmListModalBody').innerHTML = '<table>' + head + body + '</table>' + footer;
+}
+function openMmListModal(id) {
+    var entry = MM_LIST_CACHE[id];
+    if (!entry || !entry.rows.length) return;
+    entry._id = id;
+
     document.getElementById('mmListModalTitle').textContent = entry.label;
-    document.getElementById('mmListModalBody').innerHTML = '<table>' + head + body + '</table>';
+    mmRenderListTable(entry);
     document.getElementById('mmListModalOverlay').classList.add('show');
+}
+function loadMoreMmList(id) {
+    var entry = MM_LIST_CACHE[id];
+    if (!entry) return;
+    var btn = document.getElementById('mmListMoreBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+
+    fetch(MM_LIST_MORE_BASE + '/' + encodeURIComponent(entry.dataset) + '?offset=' + entry.offset)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            var newRows = data.rows || [];
+            entry.rows = entry.rows.concat(newRows);
+            entry.offset += newRows.length;
+            entry.hasMore = !!data.hasMore;
+            mmRenderListTable(entry);
+        })
+        .catch(function () {
+            if (btn) { btn.disabled = false; btn.textContent = 'Load more → (try again)'; }
+        });
 }
 function closeMmListModal() {
     var overlay = document.getElementById('mmListModalOverlay');

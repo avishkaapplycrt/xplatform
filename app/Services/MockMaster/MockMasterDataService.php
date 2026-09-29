@@ -17,18 +17,18 @@ use Illuminate\Support\Facades\DB;
 class MockMasterDataService
 {
     /** Campaign step — renewal-ready students, ranked by package value. */
-    public function campaignStudents(int $limit = 10): array
+    public function campaignStudents(int $limit = 10, int $offset = 0): array
     {
         $rows = DB::table('mm_purchases as p')
             ->join('mm_studentuser as s', 's.studentId', '=', 'p.studentid')
-            ->select('p.studentid', 'p.product', 'p.expire_date', 'p.is_expired', 's.first_name', 's.last_name', 's.last_login')
+            ->select('p.studentid', 'p.product', 'p.expire_date', 'p.is_expired', 's.first_name', 's.last_name', 's.last_login', 's.email', 's.phone', 's.country_code')
             ->selectRaw('(select max(pay.amount) from mm_payments pay where pay.id = p.paymentid) as amount')
             ->whereNotNull('s.first_name')
             ->orderByDesc('p.create_date')
-            ->limit(400)
+            ->limit(2000)
             ->get()
             ->unique('studentid')
-            ->take($limit);
+            ->slice($offset, $limit);
 
         if ($rows->isEmpty()) {
             return [];
@@ -56,6 +56,8 @@ class MockMasterDataService
                 'trust' => $trust,
                 'approach' => $trust < 65 ? 'Proof-led' : 'Offer-led',
                 'lastActive' => $this->relativeLogin($r->last_login),
+                'email' => $r->email ?: null,
+                'phone' => $this->formatPhone($r->country_code, $r->phone),
             ];
         })->values()->all();
     }
@@ -114,7 +116,7 @@ class MockMasterDataService
     }
 
     /** Audience · named list backing "Who are our high-scoring students?" (avg overall_score >= 75). */
-    public function topScorers(int $limit = 10): array
+    public function topScorers(int $limit = 10, int $offset = 0): array
     {
         $rows = DB::table('mm_mock_test_results')
             ->select('studentId')
@@ -123,6 +125,7 @@ class MockMasterDataService
             ->groupBy('studentId')
             ->havingRaw('AVG(overall_score) >= 75')
             ->orderByDesc('avg_score')
+            ->offset($offset)
             ->limit($limit)
             ->get();
 
@@ -138,17 +141,20 @@ class MockMasterDataService
                 'name' => $s ? (trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $r->studentId) : 'Student #' . $r->studentId,
                 'avg_score' => round((float) $r->avg_score, 1),
                 'lastActive' => $s ? $this->relativeLogin($s->last_login) : '—',
+                'email' => $s->email ?? null,
+                'phone' => $s ? $this->formatPhone($s->country_code, $s->phone) : null,
             ];
         })->values()->all();
     }
 
     /** Audience · named list backing "Which students joined in the last 14 days?" */
-    public function newStudents(int $limit = 10): array
+    public function newStudents(int $limit = 10, int $offset = 0): array
     {
         $rows = DB::table('mm_studentuser')
             ->whereNotNull('create_date')
             ->where('create_date', '>=', now()->subDays(14)->toDateString())
             ->orderByDesc('create_date')
+            ->offset($offset)
             ->limit($limit)
             ->get();
 
@@ -156,6 +162,8 @@ class MockMasterDataService
             'name' => trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $s->studentId,
             'sub' => $s->student_course_type ?: '—',
             'joined' => $s->create_date,
+            'email' => $s->email ?: null,
+            'phone' => $this->formatPhone($s->country_code, $s->phone),
         ])->values()->all();
     }
 
@@ -197,7 +205,7 @@ class MockMasterDataService
     }
 
     /** Sales — students with no active paid package yet (prospects). */
-    public function salesProspects(int $limit = 10): array
+    public function salesProspects(int $limit = 10, int $offset = 0): array
     {
         $freePackageIds = DB::table('mm_packages')->where('cost', 0)->pluck('packageid');
 
@@ -206,13 +214,13 @@ class MockMasterDataService
             ->whereNotIn('studentid', function ($q) use ($freePackageIds) {
                 $q->select('studentid')->from('mm_purchases')->whereNotIn('productid', $freePackageIds);
             })
-            ->distinct()->pluck('studentid')->take(400);
+            ->distinct()->orderBy('studentid')->pluck('studentid')->take(2000);
 
         if ($studentIds->isEmpty()) {
             return [];
         }
 
-        $students = DB::table('mm_studentuser')->whereIn('studentId', $studentIds)->limit($limit)->get();
+        $students = DB::table('mm_studentuser')->whereIn('studentId', $studentIds)->orderBy('studentId')->offset($offset)->limit($limit)->get();
         $avgScores = $this->avgScoresByStudent($students->pluck('studentId')->all());
 
         return $students->map(function ($s) use ($avgScores) {
@@ -227,24 +235,31 @@ class MockMasterDataService
                 'intent' => $intent,
                 'trust' => $trust,
                 'play' => $readiness >= 50 ? 'Call' : 'Nurture',
+                'email' => $s->email ?: null,
+                'phone' => $this->formatPhone($s->country_code, $s->phone),
             ];
         })->values()->all();
     }
 
     /** Sales — students on a free/trial package who show real recent activity (upsell candidates). */
-    public function salesCloseCandidates(int $limit = 5): array
+    public function salesCloseCandidates(int $limit = 5, int $offset = 0): array
     {
         $activeStudentIds = DB::table('mm_mock_test_results')
             ->where('create_date', '>=', now()->subDays(14))
-            ->distinct('studentId')->pluck('studentId')->take(500);
+            ->distinct('studentId')->pluck('studentId')->take(2000);
 
         $freePackageIds = DB::table('mm_packages')->where('cost', 0)->pluck('packageid');
 
         $candidates = DB::table('mm_purchases')
             ->whereIn('studentid', $activeStudentIds)
             ->whereIn('productid', $freePackageIds)
-            ->distinct('studentid')->pluck('studentid')->take($limit);
+            ->distinct('studentid')->orderBy('studentid')->pluck('studentid');
 
+        if ($candidates->isEmpty()) {
+            return [];
+        }
+
+        $candidates = $candidates->slice($offset, $limit)->values();
         if ($candidates->isEmpty()) {
             return [];
         }
@@ -259,29 +274,32 @@ class MockMasterDataService
         return $students->map(fn ($s) => [
             'name' => trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $s->studentId,
             'detail' => ($testCounts[$s->studentId] ?? 0) . ' free mock tests in the last 14 days — hasn\'t purchased a paid package yet.',
+            'email' => $s->email ?: null,
+            'phone' => $this->formatPhone($s->country_code, $s->phone),
         ])->values()->all();
     }
 
     /** Retention — students whose active package expires soonest (highest value at risk first). */
-    public function retentionAtRisk(int $limit = 6): array
+    public function retentionAtRisk(int $limit = 6, int $offset = 0): array
     {
-        return $this->retentionByExpiryWindow(now(), now()->addDays(7), $limit);
+        return $this->retentionByExpiryWindow(now(), now()->addDays(7), $limit, $offset);
     }
 
-    public function retentionWatchlist(int $limit = 6): array
+    public function retentionWatchlist(int $limit = 6, int $offset = 0): array
     {
-        return $this->retentionByExpiryWindow(now()->addDays(8), now()->addDays(30), $limit);
+        return $this->retentionByExpiryWindow(now()->addDays(8), now()->addDays(30), $limit, $offset);
     }
 
-    private function retentionByExpiryWindow($from, $to, int $limit): array
+    private function retentionByExpiryWindow($from, $to, int $limit, int $offset = 0): array
     {
         $rows = DB::table('mm_purchases as p')
             ->join('mm_studentuser as s', 's.studentId', '=', 'p.studentid')
-            ->select('p.studentid', 'p.product', 'p.expire_date', 's.first_name', 's.last_name', 's.last_login')
+            ->select('p.studentid', 'p.product', 'p.expire_date', 's.first_name', 's.last_name', 's.last_login', 's.email', 's.phone', 's.country_code')
             ->selectRaw('(select max(pay.amount) from mm_payments pay where pay.id = p.paymentid) as amount')
             ->where('p.is_expired', 0)
             ->whereBetween('p.expire_date', [$from, $to])
             ->orderBy('p.expire_date')
+            ->offset($offset)
             ->limit($limit)
             ->get();
 
@@ -295,6 +313,8 @@ class MockMasterDataService
                 'inactiveDays' => min($inactiveDays, 999),
                 'valueAtRisk' => '$' . number_format((float) ($r->amount ?? 0), 0),
                 'risk' => (int) $risk,
+                'email' => $r->email ?: null,
+                'phone' => $this->formatPhone($r->country_code, $r->phone),
             ];
         })->values()->all();
     }
@@ -349,6 +369,15 @@ class MockMasterDataService
         }
         $days = (int) Carbon::parse($lastLogin)->diffInDays(now());
         return $days <= 7 ? 'This week' : $days . 'd ago';
+    }
+
+    /** Real contact number for the "who to call" style answers — country code + number, or null if none on file. */
+    private function formatPhone(?string $countryCode, $phone): ?string
+    {
+        if (!$phone) {
+            return null;
+        }
+        return trim(($countryCode ? $countryCode . ' ' : '') . $phone);
     }
 
     /**
