@@ -639,6 +639,17 @@ $agents = [
 #bhRoot .dm-dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0;animation:mmblink 1.8s infinite}
 @keyframes mmblink{0%,100%{opacity:1}50%{opacity:.2}}
 @keyframes mmspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* ── Sync overlay — blurs the whole interface while a sync is running so
+   nothing looks interactive mid-copy, and lifts the moment it finishes. ── */
+body.mm-syncing > *:not(#mmSyncOverlay){filter:blur(5px);pointer-events:none;user-select:none;transition:filter .25s ease}
+#mmSyncOverlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(15,15,20,.22)}
+body.mm-syncing #mmSyncOverlay{display:flex}
+#mmSyncOverlay .mm-sync-card{background:#fff;border-radius:14px;padding:26px 40px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 20px 60px rgba(0,0,0,.28)}
+#mmSyncOverlay .mm-sync-spinner{width:32px;height:32px;border:3px solid #e5e7eb;border-top-color:#4f46e5;border-radius:50%;animation:mmspin .8s linear infinite}
+#mmSyncOverlay .mm-sync-spinner.done{border:none;animation:none}
+#mmSyncOverlay .mm-sync-text{font-size:13px;font-weight:700;color:#111827}
+#mmSyncOverlay .mm-sync-sub{font-size:11.5px;color:#6b7280}
 #bhRoot .dm-t{font-size:13px;font-weight:700;letter-spacing:.2px;color:var(--ink)}
 #bhRoot .dm-s{font-family:var(--fm);font-size:8.5px;letter-spacing:.5px;color:var(--g3);margin-top:3px}
 #bhRoot .dm-ready{margin-left:auto;font-family:var(--fm);font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--sig);background:#ecfdf5;border:1px solid #a7f3d0;border-radius:99px;padding:3px 10px;flex-shrink:0}
@@ -1039,13 +1050,34 @@ function mmAsk(agent, text) {
 /* ── Sync Data — pulls the 14 live Mock Master source tables from the
    remote PTE Portal database into their local mm_* mirrors (see
    App\Services\MockMaster\MockMasterSyncService), then reloads the page
-   so every panel reflects the freshly-synced data. ── */
+   so every panel reflects the freshly-synced data. While it runs, the
+   whole interface is blurred out via #mmSyncOverlay so nothing looks
+   clickable mid-copy. ── */
+function mmSyncOverlay() {
+    var el = document.getElementById('mmSyncOverlay');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'mmSyncOverlay';
+        el.innerHTML =
+            '<div class="mm-sync-card">' +
+                '<div class="mm-sync-spinner" id="mmSyncSpinner"></div>' +
+                '<div class="mm-sync-text" id="mmSyncText">Syncing Mock Master data…</div>' +
+                '<div class="mm-sync-sub" id="mmSyncSub">Pulling the latest 14 tables from the live server</div>' +
+            '</div>';
+        document.body.appendChild(el);
+    }
+    return el;
+}
+
 function mmSyncData(btn) {
     btn.disabled = true;
     var label = btn.querySelector('span');
     var icon = btn.querySelector('svg');
     if (label) label.textContent = 'Syncing…';
     if (icon) icon.style.animation = 'mmspin 0.8s linear infinite';
+
+    mmSyncOverlay();
+    document.body.classList.add('mm-syncing');
 
     fetch('{{ route('client.mock-master-helper.sync') }}', {
         method: 'POST',
@@ -1059,8 +1091,17 @@ function mmSyncData(btn) {
     .then(function (data) {
         if (data.ok) {
             if (label) label.textContent = 'Synced';
-            window.location.reload();
+            var spinner = document.getElementById('mmSyncSpinner');
+            var text = document.getElementById('mmSyncText');
+            var sub = document.getElementById('mmSyncSub');
+            if (spinner) { spinner.classList.add('done'); spinner.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'; }
+            if (text) text.textContent = 'Sync complete';
+            if (sub) sub.textContent = data.total_rows ? data.total_rows.toLocaleString() + ' rows updated' : 'Reloading…';
+            // Brief pause so the "complete" state is actually visible before
+            // the reload clears it, rather than blur-to-blank in one frame.
+            setTimeout(function () { window.location.reload(); }, 700);
         } else {
+            document.body.classList.remove('mm-syncing');
             if (label) label.textContent = 'Sync failed';
             if (icon) icon.style.animation = '';
             btn.disabled = false;
@@ -1068,6 +1109,7 @@ function mmSyncData(btn) {
         }
     })
     .catch(function () {
+        document.body.classList.remove('mm-syncing');
         if (label) label.textContent = 'Sync failed';
         if (icon) icon.style.animation = '';
         btn.disabled = false;

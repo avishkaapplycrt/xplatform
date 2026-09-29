@@ -36,7 +36,14 @@ class MockMasterSyncService
         ['source' => 'studentuser', 'target' => 'mm_studentuser', 'pk' => 'studentId'],
     ];
 
-    private const CHUNK_SIZE = 1000;
+    // Rows fetched from the remote server per round trip.
+    private const FETCH_CHUNK_SIZE = 5000;
+
+    // Rows per local INSERT — kept smaller than the fetch chunk so a single
+    // statement never risks exceeding MySQL's max_allowed_packet (the
+    // "MySQL server has gone away" error), even for wide tables like
+    // mock_test_logs.
+    private const INSERT_CHUNK_SIZE = 1000;
 
     /**
      * @return array{tables: array<int, array{table: string, rows: int}>, total_rows: int}
@@ -78,16 +85,23 @@ class MockMasterSyncService
 
         $rowCount = 0;
 
-        DB::connection('mockmaster_live')
-            ->table($source)
-            ->orderBy($pk)
-            ->chunkById(self::CHUNK_SIZE, function ($chunk) use ($target, &$rowCount) {
-                $rows = $chunk->map(fn ($row) => (array) $row)->all();
-                if (!empty($rows)) {
-                    DB::table($target)->insert($rows);
-                    $rowCount += count($rows);
-                }
-            }, $pk, $pk);
+        // Wrapping all the chunk inserts for this table in one transaction
+        // means InnoDB only has to fsync once at commit instead of once per
+        // chunk — a large speedup for the bigger tables (mock_test_logs,
+        // login_history, purchases, studentuser) with no correctness cost,
+        // since nothing else reads mm_* tables mid-sync.
+        DB::transaction(function () use ($source, $target, $pk, &$rowCount) {
+            DB::connection('mockmaster_live')
+                ->table($source)
+                ->orderBy($pk)
+                ->chunkById(self::FETCH_CHUNK_SIZE, function ($chunk) use ($target, &$rowCount) {
+                    $rows = $chunk->map(fn ($row) => (array) $row)->all();
+                    foreach (array_chunk($rows, self::INSERT_CHUNK_SIZE) as $insertBatch) {
+                        DB::table($target)->insert($insertBatch);
+                        $rowCount += count($insertBatch);
+                    }
+                }, $pk, $pk);
+        });
 
         return $rowCount;
     }
