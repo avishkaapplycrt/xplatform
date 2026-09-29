@@ -9,6 +9,17 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
+    <style>
+        /* Sidebar width is drag-resizable via #sidebarResizer; an inline width
+           (e.g. the Business Helpers collapse button) still takes precedence. */
+        #platformSidebar { width: var(--sidebar-w, 200px); }
+        #platformSidebar.is-resizing { transition: none; }
+        #sidebarResizer { width: 10px; margin-left: -5px; margin-right: -5px; height: 100%; align-self: stretch; position: relative; z-index: 40; cursor: col-resize; flex-shrink: 0; touch-action: none; }
+        #sidebarResizer::after { content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: transparent; transition: background .15s; }
+        #sidebarResizer:hover::after, #sidebarResizer:focus-visible::after, #sidebarResizer.is-active::after { background: #34d399; }
+        #sidebarResizer:focus-visible { outline: none; }
+        #platformSidebar.bh-sidebar-collapsed + #sidebarResizer { display: none; }
+    </style>
 </head>
 <body class="h-screen flex overflow-hidden bg-gray-100 font-sans antialiased text-[13px]">
 
@@ -450,6 +461,82 @@
             <p class="text-[10px] text-gray-400 pl-3.5">{{ auth('client')->user()?->company_name ?? 'Acme Retail' }}</p>
         </div>
     </aside>
+
+    {{-- Sidebar resize handle: drag, arrow keys, or double-click to reset --}}
+    <div id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" tabindex="0" title="Drag to resize · double-click to reset"></div>
+    <script>
+    (function () {
+        var MIN = 160, MAX = 420, DEF = 200, KEY = 'xp.sidebarWidth';
+        var sidebar = document.getElementById('platformSidebar');
+        var handle = document.getElementById('sidebarResizer');
+        var root = document.documentElement;
+
+        function clamp(w) { return Math.min(MAX, Math.max(MIN, Math.round(w))); }
+        function apply(w) {
+            w = clamp(w);
+            root.style.setProperty('--sidebar-w', w + 'px');
+            handle.setAttribute('aria-valuenow', w);
+            return w;
+        }
+        function save(w) { try { localStorage.setItem(KEY, w); } catch (e) {} }
+
+        var saved = null;
+        try { saved = parseInt(localStorage.getItem(KEY), 10); } catch (e) {}
+        handle.setAttribute('aria-valuemin', MIN);
+        handle.setAttribute('aria-valuemax', MAX);
+        apply(saved || DEF);
+
+        function done() { window.dispatchEvent(new Event('resize')); }
+
+        handle.addEventListener('pointerdown', function (e) {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            var startX = e.clientX, startW = sidebar.getBoundingClientRect().width, w = startW;
+            var moved = false;
+            handle.setPointerCapture(e.pointerId);
+            sidebar.classList.add('is-resizing');
+            handle.classList.add('is-active');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+
+            function move(ev) {
+                if (!moved && Math.abs(ev.clientX - startX) < 3) return; // ignore jitter so a click stays a click
+                moved = true;
+                w = apply(startW + ev.clientX - startX);
+            }
+            function up() {
+                handle.removeEventListener('pointermove', move);
+                handle.removeEventListener('pointerup', up);
+                handle.removeEventListener('pointercancel', up);
+                sidebar.classList.remove('is-resizing');
+                handle.classList.remove('is-active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                if (!moved) return;
+                save(w);
+                done();
+            }
+            handle.addEventListener('pointermove', move);
+            handle.addEventListener('pointerup', up);
+            handle.addEventListener('pointercancel', up);
+        });
+
+        handle.addEventListener('dblclick', function () { save(apply(DEF)); done(); });
+
+        handle.addEventListener('keydown', function (e) {
+            var step = e.shiftKey ? 40 : 10;
+            var cur = sidebar.getBoundingClientRect().width;
+            if (e.key === 'ArrowLeft') cur -= step;
+            else if (e.key === 'ArrowRight') cur += step;
+            else if (e.key === 'Home') cur = MIN;
+            else if (e.key === 'End') cur = MAX;
+            else return;
+            e.preventDefault();
+            save(apply(cur));
+            done();
+        });
+    })();
+    </script>
 
     {{-- Main Content Area --}}
     <div class="flex-1 flex flex-col overflow-hidden">
