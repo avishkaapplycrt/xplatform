@@ -639,6 +639,17 @@ $agents = [
 #bhRoot .dm-dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0;animation:mmblink 1.8s infinite}
 @keyframes mmblink{0%,100%{opacity:1}50%{opacity:.2}}
 @keyframes mmspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* ── Sync overlay — blurs the whole interface while a sync is running so
+   nothing looks interactive mid-copy, and lifts the moment it finishes. ── */
+body.mm-syncing > *:not(#mmSyncOverlay){filter:blur(5px);pointer-events:none;user-select:none;transition:filter .25s ease}
+#mmSyncOverlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(15,15,20,.22)}
+body.mm-syncing #mmSyncOverlay{display:flex}
+#mmSyncOverlay .mm-sync-card{background:#fff;border-radius:14px;padding:26px 40px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 20px 60px rgba(0,0,0,.28)}
+#mmSyncOverlay .mm-sync-spinner{width:32px;height:32px;border:3px solid #e5e7eb;border-top-color:#4f46e5;border-radius:50%;animation:mmspin .8s linear infinite}
+#mmSyncOverlay .mm-sync-spinner.done{border:none;animation:none}
+#mmSyncOverlay .mm-sync-text{font-size:13px;font-weight:700;color:#111827}
+#mmSyncOverlay .mm-sync-sub{font-size:11.5px;color:#6b7280}
 #bhRoot .dm-t{font-size:13px;font-weight:700;letter-spacing:.2px;color:var(--ink)}
 #bhRoot .dm-s{font-family:var(--fm);font-size:8.5px;letter-spacing:.5px;color:var(--g3);margin-top:3px}
 #bhRoot .dm-ready{margin-left:auto;font-family:var(--fm);font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--sig);background:#ecfdf5;border:1px solid #a7f3d0;border-radius:99px;padding:3px 10px;flex-shrink:0}
@@ -647,6 +658,9 @@ $agents = [
 #bhRoot .dm-quick-min{width:20px;height:20px;padding:0;border:1px solid var(--ln2);background:#fff;border-radius:6px;cursor:pointer;display:grid;place-items:center;color:var(--g3);flex-shrink:0}
 #bhRoot .dm-quick-min:hover{color:var(--ac-d);border-color:var(--ac-m);background:var(--ac-l)}
 #bhRoot .dm-quick{padding:6px 16px 14px;display:flex;flex-direction:column;gap:7px;flex-shrink:0;max-height:var(--bh-quick-h,220px);overflow-y:auto}
+#bhRoot .qk{font-size:11px;font-weight:600;color:var(--g2);padding:7px 12px;border:1px solid var(--ln);cursor:pointer;background:#fff;transition:all .15s;border-radius:99px}
+#bhRoot .qk:hover{border-color:var(--ac-m);background:var(--ac-l);color:var(--ac-d)}
+#bhRoot .qk:disabled{opacity:.6;cursor:default}
 #bhRoot .dm-quick .qk{width:100%;text-align:left;padding:10px 12px;font-size:12px;white-space:normal;line-height:1.35;border-radius:8px;background:#fff;border:1px solid var(--ln);cursor:pointer}
 #bhRoot .dm-quick .qk:hover{border-color:var(--ac-m);background:var(--ac-l);color:var(--ac-d)}
 #bhRoot .dm-quick-hd.dm-quick-collapsed,#bhRoot .dm-quick.dm-quick-collapsed{display:none}
@@ -718,6 +732,7 @@ $agents = [
 .mm-list-modal-body table{width:100%;border-collapse:collapse;font-size:12px}
 .mm-list-modal-body th,.mm-list-modal-body td{padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:left;white-space:nowrap}
 .mm-list-modal-body th{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;background:#f9fafb}
+.mm-list-modal-body #mmListMoreBtn{margin-top:14px}
 
 /* Student picker for the Sales · Accounts prompts — a real name list via
    <datalist>, same pattern as Business Helpers' Retention name form. */
@@ -800,8 +815,15 @@ var MM_LIST_COL_LABELS = {
     name: 'Student', sub: 'Package / interest', value: 'Package value', stage: 'Stage',
     readiness: 'Readiness', trust: 'Trust', approach: 'Approach', lastActive: 'Last active',
     intent: 'Intent', play: 'Play', detail: 'Detail', avg_score: 'Avg score', joined: 'Joined',
-    inactiveDays: 'Days inactive', valueAtRisk: 'Value at risk', risk: 'Risk'
+    inactiveDays: 'Days inactive', valueAtRisk: 'Value at risk', risk: 'Risk',
+    email: 'Email', phone: 'Mobile number'
 };
+/* Columns always shown first (contact info), regardless of where they fall
+   in MM_LIST_COL_LABELS above — every list here is a list of people to
+   actually reach out to, so email/phone should never be scrolled out of
+   view in a wide table. */
+var MM_LIST_COL_PRIORITY = ['name', 'email', 'phone'];
+var MM_LIST_MORE_BASE = '{{ url('/app/mock-master-helper/more') }}';
 
 function mmRenderQuick(agent, key) {
     var full = agent + '-' + key;
@@ -892,7 +914,9 @@ function mmShowList(agent, slug, label) {
         botBubble.innerHTML = '<p>No ' + cfg.noun + 's match this right now.</p>';
     } else {
         var id = 'mmlist' + Math.random().toString(36).slice(2, 9);
-        MM_LIST_CACHE[id] = { rows: rows, noun: cfg.noun, label: label };
+        // offset picks up where the page's initial embed left off — the
+        // "Load more" button fetches from here onward, straight from the DB.
+        MM_LIST_CACHE[id] = { rows: rows.slice(), noun: cfg.noun, label: label, dataset: cfg.list, offset: rows.length, hasMore: true };
         botBubble.innerHTML = '<p>' + rows.length + ' ' + cfg.noun + (rows.length === 1 ? '' : 's') + ' found.</p>' +
             '<button type="button" class="qk" onclick="openMmListModal(\'' + id + '\')">View the list →</button>';
     }
@@ -901,14 +925,16 @@ function mmShowList(agent, slug, label) {
 }
 
 var MM_LIST_CACHE = {};
-function openMmListModal(id) {
-    var entry = MM_LIST_CACHE[id];
-    if (!entry || !entry.rows.length) return;
+function mmListCols(rows) {
+    var present = Object.keys(MM_LIST_COL_LABELS).filter(function (k) { return k in rows[0]; });
+    if (!present.length) present = Object.keys(rows[0]);
+    var priority = MM_LIST_COL_PRIORITY.filter(function (k) { return present.indexOf(k) > -1; });
+    var rest = present.filter(function (k) { return priority.indexOf(k) === -1; });
+    return priority.concat(rest);
+}
+function mmRenderListTable(entry) {
     var rows = entry.rows;
-
-    var cols = Object.keys(MM_LIST_COL_LABELS).filter(function (k) { return k in rows[0]; });
-    if (!cols.length) cols = Object.keys(rows[0]);
-
+    var cols = mmListCols(rows);
     var head = '<tr><th>#</th>' + cols.map(function (k) {
         var label = MM_LIST_COL_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
         return '<th>' + label + '</th>';
@@ -916,13 +942,43 @@ function openMmListModal(id) {
     var body = rows.map(function (r, i) {
         return '<tr><td>' + (i + 1) + '</td>' + cols.map(function (k) {
             var v = r[k];
-            return '<td>' + (v === null || v === undefined || v === '' ? '—' : String(v)) + '</td>';
+            return '<td>' + (v === null || v === undefined || v === '' ? '—' : escapeHtml(v)) + '</td>';
         }).join('') + '</tr>';
     }).join('');
 
+    var footer = entry.hasMore
+        ? '<button type="button" class="qk" id="mmListMoreBtn" onclick="loadMoreMmList(\'' + entry._id + '\')">Load more →</button>'
+        : '<p style="color:var(--g3);font-size:11.5px;margin-top:10px">That\'s everyone — no more results.</p>';
+
+    document.getElementById('mmListModalBody').innerHTML = '<table>' + head + body + '</table>' + footer;
+}
+function openMmListModal(id) {
+    var entry = MM_LIST_CACHE[id];
+    if (!entry || !entry.rows.length) return;
+    entry._id = id;
+
     document.getElementById('mmListModalTitle').textContent = entry.label;
-    document.getElementById('mmListModalBody').innerHTML = '<table>' + head + body + '</table>';
+    mmRenderListTable(entry);
     document.getElementById('mmListModalOverlay').classList.add('show');
+}
+function loadMoreMmList(id) {
+    var entry = MM_LIST_CACHE[id];
+    if (!entry) return;
+    var btn = document.getElementById('mmListMoreBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+
+    fetch(MM_LIST_MORE_BASE + '/' + encodeURIComponent(entry.dataset) + '?offset=' + entry.offset)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            var newRows = data.rows || [];
+            entry.rows = entry.rows.concat(newRows);
+            entry.offset += newRows.length;
+            entry.hasMore = !!data.hasMore;
+            mmRenderListTable(entry);
+        })
+        .catch(function () {
+            if (btn) { btn.disabled = false; btn.textContent = 'Load more → (try again)'; }
+        });
 }
 function closeMmListModal() {
     var overlay = document.getElementById('mmListModalOverlay');
@@ -994,13 +1050,34 @@ function mmAsk(agent, text) {
 /* ── Sync Data — pulls the 14 live Mock Master source tables from the
    remote PTE Portal database into their local mm_* mirrors (see
    App\Services\MockMaster\MockMasterSyncService), then reloads the page
-   so every panel reflects the freshly-synced data. ── */
+   so every panel reflects the freshly-synced data. While it runs, the
+   whole interface is blurred out via #mmSyncOverlay so nothing looks
+   clickable mid-copy. ── */
+function mmSyncOverlay() {
+    var el = document.getElementById('mmSyncOverlay');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'mmSyncOverlay';
+        el.innerHTML =
+            '<div class="mm-sync-card">' +
+                '<div class="mm-sync-spinner" id="mmSyncSpinner"></div>' +
+                '<div class="mm-sync-text" id="mmSyncText">Syncing Mock Master data…</div>' +
+                '<div class="mm-sync-sub" id="mmSyncSub">Pulling the latest 14 tables from the live server</div>' +
+            '</div>';
+        document.body.appendChild(el);
+    }
+    return el;
+}
+
 function mmSyncData(btn) {
     btn.disabled = true;
     var label = btn.querySelector('span');
     var icon = btn.querySelector('svg');
     if (label) label.textContent = 'Syncing…';
     if (icon) icon.style.animation = 'mmspin 0.8s linear infinite';
+
+    mmSyncOverlay();
+    document.body.classList.add('mm-syncing');
 
     fetch('{{ route('client.mock-master-helper.sync') }}', {
         method: 'POST',
@@ -1014,8 +1091,17 @@ function mmSyncData(btn) {
     .then(function (data) {
         if (data.ok) {
             if (label) label.textContent = 'Synced';
-            window.location.reload();
+            var spinner = document.getElementById('mmSyncSpinner');
+            var text = document.getElementById('mmSyncText');
+            var sub = document.getElementById('mmSyncSub');
+            if (spinner) { spinner.classList.add('done'); spinner.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'; }
+            if (text) text.textContent = 'Sync complete';
+            if (sub) sub.textContent = data.total_rows ? data.total_rows.toLocaleString() + ' rows updated' : 'Reloading…';
+            // Brief pause so the "complete" state is actually visible before
+            // the reload clears it, rather than blur-to-blank in one frame.
+            setTimeout(function () { window.location.reload(); }, 700);
         } else {
+            document.body.classList.remove('mm-syncing');
             if (label) label.textContent = 'Sync failed';
             if (icon) icon.style.animation = '';
             btn.disabled = false;
@@ -1023,6 +1109,7 @@ function mmSyncData(btn) {
         }
     })
     .catch(function () {
+        document.body.classList.remove('mm-syncing');
         if (label) label.textContent = 'Sync failed';
         if (icon) icon.style.animation = '';
         btn.disabled = false;
