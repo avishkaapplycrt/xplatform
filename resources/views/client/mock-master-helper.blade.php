@@ -771,16 +771,16 @@ body.mm-syncing #mmSyncOverlay{display:flex}
 /* Agent tabs — one white strip, the active agent is a solid accent block */
 #bhRoot .bar{background:transparent;border:none;gap:0;margin-bottom:16px}
 #bhRoot .atabs{background:#fff;gap:0;border:1px solid var(--ln);border-radius:var(--card-r);box-shadow:var(--card-sh);padding:0;overflow:hidden}
-#bhRoot .atab{min-height:52px;background:#fff;gap:12px;border-radius:0}
+#bhRoot .atab{min-height:48px;background:#fff;gap:10px;border-radius:0}
 #bhRoot .atab + .atab{border-left:1px solid var(--ln)}
 #bhRoot .atab:hover{background:var(--p1)}
 #bhRoot .atab.on,#bhRoot .atab.on:hover{background:var(--ac);border-radius:var(--card-r);border-left-color:transparent}
 #bhRoot .atab.on + .atab{border-left-color:transparent}
 #bhRoot .atab.on::after{display:none}
 #bhRoot .amono{width:auto;height:auto;background:none;border-radius:0;color:#475569}
-#bhRoot .amono svg{width:22px;height:22px;display:block}
+#bhRoot .amono svg{width:17px;height:17px;display:block}
 #bhRoot .atab.on .amono{background:none;color:#fff}
-#bhRoot .atab .a2{font-size:15px;font-weight:600;color:#0f172a}
+#bhRoot .atab .a2{font-size:13px;font-weight:600;color:#0f172a}
 #bhRoot .atab.on .a2{color:#fff}
 
 /* Three floating cards instead of one card split by hairlines */
@@ -792,94 +792,94 @@ body.mm-syncing #mmSyncOverlay{display:flex}
 #bhRoot .mira-grip{height:26px;border-radius:6px;box-shadow:0 1px 2px rgba(16,24,40,.06)}
 
 /* Steps list */
-#bhRoot .dash-left{padding:12px 0}
-#bhRoot .flowst{margin:2px 12px;padding:12px 12px;border-radius:12px;gap:14px;transition:background .15s}
-#bhRoot .flowst.cur{background:var(--ac-l);border-left:none;padding-left:12px}
-#bhRoot .flowst-dot{width:32px;height:32px;border:1.5px solid var(--ln2);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:#64748b}
+#bhRoot .dash-left{padding:10px 0}
+#bhRoot .flowst{margin:2px 10px;padding:10px 10px;border-radius:10px;gap:12px;transition:background .15s}
+#bhRoot .flowst.cur{background:var(--ac-l);border-left:none;padding-left:10px}
+#bhRoot .flowst-dot{width:27px;height:27px;border:1.5px solid var(--ln2);font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:#64748b}
 #bhRoot .flowst.cur .flowst-dot{box-shadow:0 0 0 4px var(--ac-l)}
-#bhRoot .flowst-t{font-size:15px;font-weight:600;color:#0f172a}
+#bhRoot .flowst-t{font-size:13.5px;font-weight:600;color:#0f172a}
 #bhRoot .col-rail{background:transparent}
 
 /* View tabs across the middle card (active tab: tint + underline) */
-#bhRoot .dash-vtabs{gap:0;background:#fff;padding:8px 8px 0}
-#bhRoot .dvt{font-family:'Inter',sans-serif;font-size:11.5px;font-weight:600;letter-spacing:1.6px;color:#475569;padding:14px 8px;background:#fff;border-radius:10px 10px 0 0}
+#bhRoot .dash-vtabs{gap:0;background:#fff;padding:6px 6px 0}
+#bhRoot .dvt{font-family:'Inter',sans-serif;font-size:10.5px;font-weight:600;letter-spacing:1.5px;color:#475569;padding:12px 6px;background:#fff;border-radius:8px 8px 0 0}
 #bhRoot .dvt + .dvt{box-shadow:inset 1px 0 0 var(--ln)}
 #bhRoot .dvt.on{background:var(--ac-l);color:var(--ac-d);box-shadow:inset 0 -2.5px 0 var(--ac)}
 #bhRoot .dvt.on + .dvt{box-shadow:none}
 #bhRoot .dvt:hover:not(.on){background:var(--p1);color:#0f172a}
 
 /* "What you're looking at" intro */
-#bhRoot .stack-intro{padding:22px 24px 18px}
-#bhRoot .si-h{font-family:'Inter',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.8px;color:#0f172a;margin-bottom:8px}
-#bhRoot .si-p{font-size:14px;color:#475569;line-height:1.7;max-width:760px}
+#bhRoot .stack-intro{padding:20px 20px 16px}
+#bhRoot .si-h{font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:#0f172a;margin-bottom:8px}
+#bhRoot .si-p{font-size:12.5px;color:#475569;line-height:1.75;max-width:680px}
 #bhRoot .si-p b{color:#0f172a}
 
 /* Data tables — a rounded inset table inside the card */
-#bhRoot .dtbl{width:calc(100% - 40px);margin:0 20px 20px;border-collapse:separate;border-spacing:0;border:1px solid var(--ln);border-radius:12px;overflow:hidden;font-size:13px}
-#bhRoot .dtbl th{font-size:11px;font-weight:600;letter-spacing:.8px;color:#64748b;background:var(--p1);padding:12px 14px;border-bottom:1px solid var(--ln)}
-#bhRoot .dtbl td{padding:12px 14px;border-bottom:1px solid var(--ln);color:#1e293b;font-variant-numeric:tabular-nums}
+#bhRoot .dtbl{width:calc(100% - 40px);margin:0 20px 20px;border-collapse:separate;border-spacing:0;border:1px solid var(--ln);border-radius:10px;overflow:hidden;font-size:12px}
+#bhRoot .dtbl th{font-size:10px;font-weight:700;letter-spacing:.5px;color:#64748b;background:var(--p1);padding:9px 14px;border-bottom:1px solid var(--ln)}
+#bhRoot .dtbl td{padding:9px 14px;border-bottom:1px solid var(--ln);color:#1e293b;font-variant-numeric:tabular-nums}
 #bhRoot .dtbl tbody tr:last-child td{border-bottom:none}
 #bhRoot .dtbl tr:hover td{background:#fafbfd}
-#bhRoot .bh-acct{display:flex;align-items:center;gap:12px;min-width:180px}
-#bhRoot .bh-av{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:#fff;font-size:14px;font-weight:700;flex-shrink:0}
+#bhRoot .bh-acct{display:flex;align-items:center;gap:10px;min-width:160px}
+#bhRoot .bh-av{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0}
 #bhRoot .bh-acct-n{font-weight:600;color:#0f172a;line-height:1.3}
-#bhRoot .bh-acct-c{font-size:12px;font-weight:400;color:#64748b;line-height:1.35;margin-top:1px}
-#bhRoot .bh-pill{display:inline-block;font-size:12px;font-weight:600;line-height:1.3;padding:5px 10px;border-radius:8px;white-space:normal;max-width:130px}
+#bhRoot .bh-acct-c{font-size:11px;font-weight:400;color:#64748b;line-height:1.35;margin-top:1px}
+#bhRoot .bh-pill{display:inline-block;font-size:11px;font-weight:600;line-height:1.3;padding:3px 8px;border-radius:6px;white-space:normal;max-width:130px}
 #bhRoot .bh-pill.good{background:#e8f7ee;color:#15803d}
 #bhRoot .bh-pill.warn{background:#fff1e6;color:#c2410c}
 #bhRoot .bh-pill.bad{background:#fdecec;color:#b91c1c}
 #bhRoot .bh-pill.info{background:#e8f0fe;color:#1d4ed8}
 #bhRoot .bh-pill.violet{background:#f1ecfe;color:#6d28d9}
-#bhRoot .stk-play{font-size:11px;padding:4px 10px;border-radius:8px;border:none}
+#bhRoot .stk-play{font-size:9.5px;padding:3px 8px;border-radius:6px;border:none}
 
 /* Segment / insight / offer cards and KPI grid */
-#bhRoot .act{border:1px solid var(--ln);border-left:3px solid var(--ac);border-radius:12px;padding:14px 18px;margin:0 20px 10px}
-#bhRoot .act-t{font-size:13.5px}
-#bhRoot .act-d{font-size:12px;margin-top:3px}
+#bhRoot .act{border:1px solid var(--ln);border-left:3px solid var(--ac);border-radius:10px;padding:12px 18px;margin:0 20px 10px}
+#bhRoot .act-t{font-size:12.5px}
+#bhRoot .act-d{font-size:11px;margin-top:2px}
 #bhRoot .mg-grid{gap:12px;background:transparent;padding:0 20px 20px}
 #bhRoot .mg-cell{border:1px solid var(--ln);border-radius:12px;padding:16px 18px}
-#bhRoot .mg-h{font-size:11px;letter-spacing:1px;color:#64748b}
-#bhRoot .mg-kpi{font-size:22px;color:#0f172a}
+#bhRoot .mg-h{font-size:10px;letter-spacing:1px;color:#64748b}
+#bhRoot .mg-kpi{font-size:20px;color:#0f172a}
 
 /* Helper panel (right card) */
-#bhRoot .dm-hd{background:#fff;padding:18px 18px 16px;gap:12px}
-#bhRoot .dm-spark{width:24px;height:24px;color:var(--ac);flex-shrink:0;display:grid;place-items:center}
-#bhRoot .dm-spark svg{width:22px;height:22px}
-#bhRoot .dm-t{font-size:17px;font-weight:700;letter-spacing:-.1px;color:#0f172a}
-#bhRoot .dm-s{font-family:'Inter',sans-serif;font-size:10.5px;font-weight:600;letter-spacing:1px;color:#64748b;margin-top:4px}
-#bhRoot .dm-ready{font-family:'Inter',sans-serif;font-size:12px;letter-spacing:.8px;color:#15803d;background:#e8f7ee;border:none;padding:6px 12px}
-#bhRoot .mira-tools{gap:6px}
-#bhRoot .mira-btn{width:30px;height:30px;border-radius:9px;font-size:14px;color:#334155;border-color:var(--ln2)}
-#bhRoot .dm-chat{padding:20px 18px}
+#bhRoot .dm-hd{background:#fff;padding:14px 16px;gap:10px}
+#bhRoot .dm-spark{width:18px;height:18px;color:var(--ac);flex-shrink:0;display:grid;place-items:center}
+#bhRoot .dm-spark svg{width:17px;height:17px}
+#bhRoot .dm-t{font-size:13px;font-weight:700;letter-spacing:.2px;color:#0f172a}
+#bhRoot .dm-s{font-family:'Inter',sans-serif;font-size:8.5px;font-weight:600;letter-spacing:.5px;color:#64748b;margin-top:3px}
+#bhRoot .dm-ready{font-family:'Inter',sans-serif;font-size:9.5px;letter-spacing:1px;color:#15803d;background:#e8f7ee;border:none;padding:3px 10px}
+#bhRoot .mira-tools{gap:4px}
+#bhRoot .mira-btn{width:24px;height:24px;border-radius:7px;font-size:12px;color:#334155;border-color:var(--ln2)}
+#bhRoot .dm-chat{padding:18px}
 
 /* Friendly greeting while a chat is empty (pure CSS, disappears on first message) */
-#bhRoot .dm-chat:empty{flex-direction:row;align-items:flex-start;gap:14px}
-#bhRoot .dm-chat:empty::before{content:'\1F44B';width:38px;height:38px;flex-shrink:0;border-radius:50%;background:#fff;border:1px solid var(--ln);display:grid;place-items:center;font-size:18px;box-shadow:var(--card-sh)}
-#bhRoot .dm-chat:empty::after{background:var(--p2);border-radius:14px;padding:14px 16px;font-size:13.5px;line-height:1.6;color:#1e293b;white-space:pre-line;max-width:340px}
+#bhRoot .dm-chat:empty{flex-direction:row;align-items:flex-start;gap:10px}
+#bhRoot .dm-chat:empty::before{content:'\1F44B';width:30px;height:30px;flex-shrink:0;border-radius:50%;background:#fff;border:1px solid var(--ln);display:grid;place-items:center;font-size:14px;box-shadow:var(--card-sh)}
+#bhRoot .dm-chat:empty::after{background:var(--p2);border-radius:10px;padding:11px 13px;font-size:12.5px;line-height:1.65;color:#1e293b;white-space:pre-line;max-width:300px}
 #bhRoot #mmChat-mk:empty::after{content:"Hi! I'm your Marketing helper.\A I can help you with campaigns, student segments, renewal copy, and more."}
 #bhRoot #mmChat-sl:empty::after{content:"Hi! I'm your Sales helper.\A I can help you decide which students to contact, what to say, and how to convert them."}
 #bhRoot #mmChat-ch:empty::after{content:"Hi! I'm your Customer Retention helper.\A I can help you spot at-risk students, plan saves, and choose offers."}
 
 /* Chat bubbles */
-#bhRoot .dm-chat .msg{font-size:13px;border-radius:14px;padding:12px 14px}
+#bhRoot .dm-chat .msg{font-size:12.5px;border-radius:10px;padding:11px 13px}
 #bhRoot .dm-chat .msg.bot{background:var(--p2);border:none}
 #bhRoot .dm-chat .msg.user{background:var(--ac);color:#fff}
 
 /* Suggested prompts */
-#bhRoot .dm-quick-hd{font-family:'Inter',sans-serif;font-size:11.5px;font-weight:700;letter-spacing:1.6px;color:#4c5a8a;padding:14px 18px 6px;border-top:1px solid var(--ln)}
-#bhRoot .dm-quick-min{width:30px;height:30px;border-radius:9px;color:#475569;font-size:10px}
-#bhRoot .dm-quick{padding:8px 18px 16px;gap:8px}
-#bhRoot .dm-quick .qk{position:relative;padding:12px 36px 12px 14px;font-size:13.5px;font-weight:500;color:#1e293b;border:1px solid var(--ln2);border-radius:10px}
-#bhRoot .dm-quick .qk::after{content:'';position:absolute;right:15px;top:50%;width:7px;height:7px;border-right:1.8px solid #64748b;border-top:1.8px solid #64748b;transform:translateY(-50%) rotate(45deg)}
+#bhRoot .dm-quick-hd{font-family:'Inter',sans-serif;font-size:9.5px;font-weight:700;letter-spacing:1.5px;color:#4c5a8a;padding:10px 16px 4px;border-top:1px solid var(--ln)}
+#bhRoot .dm-quick-min{width:20px;height:20px;border-radius:6px;color:#475569;font-size:8px}
+#bhRoot .dm-quick{padding:6px 16px 14px;gap:7px}
+#bhRoot .dm-quick .qk{position:relative;padding:10px 30px 10px 12px;font-size:12px;font-weight:500;color:#1e293b;border:1px solid var(--ln2);border-radius:8px}
+#bhRoot .dm-quick .qk::after{content:'';position:absolute;right:12px;top:50%;width:6px;height:6px;border-right:1.8px solid #64748b;border-top:1.8px solid #64748b;transform:translateY(-50%) rotate(45deg)}
 #bhRoot .dm-quick .qk:hover::after{border-color:var(--ac-d)}
-#bhRoot .dm-quick-reopen{font-family:'Inter',sans-serif;font-size:11px;letter-spacing:1px}
+#bhRoot .dm-quick-reopen{font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.5px}
 
 /* Composer — rounded input with a separate square send button */
-#bhRoot .dm-inbar{gap:10px;padding:12px 18px 18px;background:#fff;border-top:none}
-#bhRoot .dm-inbar .in{border:1px solid var(--ln2);border-radius:12px;padding:0 16px;min-height:54px;font-size:13.5px;transition:border-color .15s,box-shadow .15s}
+#bhRoot .dm-inbar{gap:8px;padding:10px 16px 14px;background:#fff;border-top:none}
+#bhRoot .dm-inbar .in{border:1px solid var(--ln2);border-radius:10px;padding:0 14px;min-height:42px;font-size:12.5px;transition:border-color .15s,box-shadow .15s}
 #bhRoot .dm-inbar .in:focus{border-color:var(--ac-m);box-shadow:0 0 0 3px var(--ac-l)}
-#bhRoot .dm-inbar .send{width:54px;border-radius:12px;box-shadow:0 4px 12px rgba(16,24,40,.18)}
-#bhRoot .dm-inbar .send svg{width:18px;height:18px;fill:#fff;stroke:#fff;stroke-width:1.5}
+#bhRoot .dm-inbar .send{width:42px;border-radius:10px;box-shadow:0 4px 12px rgba(16,24,40,.18)}
+#bhRoot .dm-inbar .send svg{width:14px;height:14px;fill:#fff;stroke:#fff;stroke-width:1.5}
 
 @media(max-width:1180px){#bhRoot .dash{gap:12px}}
 </style>
