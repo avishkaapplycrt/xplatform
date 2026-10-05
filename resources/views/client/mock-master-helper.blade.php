@@ -94,10 +94,77 @@ $slScriptLibrary = [
     ],
 ];
 
-$slObjections = [
-    ['q' => '"It\'s too expensive."',            'a' => 'Break the package cost down per mock test versus a private tutor session — usually 5-10x cheaper per attempt.'],
-    ['q' => '"I want to try free resources first."', 'a' => 'Offer one free diagnostic mock test with a real band score, then show how paid packages unlock full feedback.'],
-    ['q' => '"My exam date isn\'t confirmed yet."',  'a' => 'Recommend the flexible/monthly package instead of the fixed-term one so they aren\'t locked in early.'],
+// Sales · Objections — common student objections grouped by theme, each with
+// what it usually means and a ready-to-say response. Advisory copy (not data
+// claims). Words in [square brackets] are placeholders the rep fills in.
+$slObjectionGroups = [
+    'price' => [
+        'label' => 'Price & value',
+        'items' => [
+            ['q' => "It's too expensive.", 'means' => "They don't yet see the value, or the cost of failing the exam isn't top of mind.",
+             'a' => "Acknowledge: \"I understand — exam prep is a real investment, and you want to spend wisely.\"\nReframe: \"The [package name] works out to about [price per test] per full mock test. A PTE re-sit costs [exam fee] plus weeks of waiting.\"\nRespond: \"Each mock shows exactly which section is costing you points, so you only practise what moves your score.\"\nAsk: \"If the price fitted your budget, would this be the right package for your target of [target score]?\""],
+            ['q' => "I can find free mock tests online.", 'means' => "They doubt that paid tests are better than free ones.",
+             'a' => "Acknowledge: \"You're right, there are free materials out there, and some are useful.\"\nReframe: \"The difference is how close the test feels to the real exam, and whether you get a score you can trust.\"\nRespond: \"Our full mock tests follow the PTE format and timing and give you a score report after every test, so you can track real progress instead of guessing.\"\nAsk: \"Your free mock with us scored [score]. Would it help to see how that changes after two or three more full tests?\""],
+            ['q' => "I'll just buy one test, not a package.", 'means' => "They want to limit risk or spend less up front.",
+             'a' => "Acknowledge: \"Starting small makes sense if you're unsure.\"\nReframe: \"One test tells you where you are. Improvement comes from testing, fixing a weak area, and testing again.\"\nRespond: \"Most students need [number] full tests to see a steady rise. A package costs less per test than buying them one by one.\"\nAsk: \"How many weeks do you have before [exam date]? Let's work out how many tests fit that time.\""],
+            ['q' => "Can I get a discount?", 'means' => "They're interested but price-sensitive, or just testing for a better deal.",
+             'a' => "Acknowledge: \"Fair question — everyone likes a good deal.\"\nRespond: \"[If an approved offer is running:] Right now there's [offer details] with code [coupon code] until [end date]. [If not:] Our current price is already the best rate, but the [smaller package] is a lower-cost way to start.\"\nReframe: \"The bigger saving is passing the first time and not paying for a re-sit.\"\nAsk: \"Shall I apply that and send you the link?\""],
+            ['q' => "Is paying for practice tests even worth it?", 'means' => "They're unsure that mock tests make a real difference to the result.",
+             'a' => "Acknowledge: \"It's smart to ask that before spending anything.\"\nReframe: \"The PTE is very timed and format-driven. Students often lose points from pacing and unfamiliar question types, not from lack of English.\"\nRespond: \"Full mock tests let you practise exactly that, and each score report shows what to fix next.\"\nAsk: \"What happened in your free mock — did you run short of time in any section?\""],
+        ],
+    ],
+    'timing' => [
+        'label' => 'Timing & readiness',
+        'items' => [
+            ['q' => "My exam date isn't confirmed yet.", 'means' => "They don't want to pay for something they might not use in time.",
+             'a' => "Acknowledge: \"That's sensible — you don't want a package to run out before your exam.\"\nRespond: \"Taking a mock now shows how much preparation you need, which helps you pick the right exam date.\"\nOption: \"[Package with a longer validity / flexible package] gives you time until [expiry], so you're covered even if the date moves.\"\nAsk: \"Roughly which month are you aiming for? Let's choose the package that covers it.\""],
+            ['q' => "I want to study first, then take mock tests.", 'means' => "They think mocks are only for the end of preparation.",
+             'a' => "Acknowledge: \"Studying first feels natural.\"\nReframe: \"Without a mock, it's hard to know what to study. Many students spend weeks on sections that were already fine.\"\nRespond: \"A mock now gives you a baseline and a focus list. Then you study smarter and test again to see the gain.\"\nAsk: \"Could you take one mock this week, just to set your starting point?\""],
+            ['q' => "My exam is months away — I'll buy later.", 'means' => "They don't feel urgency yet.",
+             'a' => "Acknowledge: \"Great that you're planning ahead — that's an advantage.\"\nReframe: \"The students who improve the most usually test early, so there's time to fix weak areas without cramming.\"\nRespond: \"One mock every [week/two weeks] keeps steady progress and stops last-minute panic.\"\nAsk: \"Would a light plan — one mock every couple of weeks — work for you?\""],
+            ['q' => "My exam is in a few days — it's too late.", 'means' => "They think practice can't help now.",
+             'a' => "Acknowledge: \"With only a few days left, every hour counts.\"\nReframe: \"This is exactly when one or two full mocks help most — they settle your timing and nerves for exam day.\"\nRespond: \"You don't need a big package. [Short package / single test] gets you full exam-condition practice this week.\"\nAsk: \"Can you do a full mock tomorrow, so exam day feels familiar?\""],
+            ['q' => "I don't have time to practise right now.", 'means' => "They're busy with work or study, or overwhelmed.",
+             'a' => "Acknowledge: \"That's completely understandable — balancing everything is hard.\"\nReframe: \"You don't need hours every day. One full mock a week keeps you on track.\"\nRespond: \"You can take tests whenever suits you, [early morning / weekends], and the score report shows where to spend your limited time.\"\nAsk: \"Which day of the week is usually quietest for you?\""],
+        ],
+    ],
+    'trust' => [
+        'label' => 'Trust & results',
+        'items' => [
+            ['q' => "Are your scores accurate compared to the real PTE?", 'means' => "They worry the mock score will mislead them.",
+             'a' => "Acknowledge: \"Good question — a practice score is only useful if you can trust it.\"\nRespond: \"Our mock tests follow the PTE format, timing and scoring scale, so the result gives a realistic picture of where you stand.\"\nReframe: \"The most useful part is the trend: if your mock scores rise test after test, your real readiness is rising too.\"\nAsk: \"Would you like to compare your next mock with your first score of [score]?\""],
+            ['q' => "My free mock score was low — I'm discouraged.", 'means' => "Confidence has dropped, and they may give up.",
+             'a' => "Acknowledge: \"I hear you. A low first score can feel disappointing.\"\nReframe: \"A first mock is a starting point, not a verdict. It shows exactly where the quickest gains are.\"\nRespond: \"Your biggest opportunity is [weakest section]. Students who focus there and test again usually see their score move.\"\nAsk: \"Shall we set a realistic next target — say [next score] — for your next mock?\""],
+            ['q' => "I failed the PTE before — practice didn't help.", 'means' => "Past effort didn't pay off, so they doubt it will now.",
+             'a' => "Acknowledge: \"That's frustrating, and I appreciate you sharing it.\"\nDiscover: \"What score did you get, and which section held you back?\"\nRespond: \"Repeating general practice often isn't enough. What helps is a full mock, fixing the specific weak section, then re-testing to confirm it improved.\"\nAsk: \"Would you try one full mock so we can pinpoint what changed since your last attempt?\""],
+            ['q' => "How do I know it'll actually improve my score?", 'means' => "They want proof before committing.",
+             'a' => "Acknowledge: \"Totally fair — you want to see results, not promises.\"\nRespond: \"Each mock gives you a score, so you'll see your own progress in numbers, not just take our word for it.\"\nReframe: \"No practice can guarantee a score, but regular full tests are how you find and fix the points you're losing.\"\nAsk: \"How about we track your next [number] mocks and review the trend together?\""],
+        ],
+    ],
+    'alternatives' => [
+        'label' => 'Alternatives',
+        'items' => [
+            ['q' => "I already use another platform or coaching.", 'means' => "They don't want to pay twice or switch.",
+             'a' => "Acknowledge: \"That's great — it means you're serious about your preparation.\"\nReframe: \"Many students use us alongside coaching, because extra full-length mocks are where coaching often runs short.\"\nRespond: \"Our tests give you a second, independent score check before exam day.\"\nAsk: \"How many full mock tests does your current option include?\""],
+            ['q' => "I'll practise with YouTube and free material.", 'means' => "They think content alone is enough.",
+             'a' => "Acknowledge: \"There's some great free content, and it's useful for learning techniques.\"\nReframe: \"Videos teach the strategy. A full timed test shows whether you can apply it under pressure.\"\nRespond: \"Use the free material to learn, and our mocks to measure. That combination is what moves the score.\"\nAsk: \"When did you last do a full test under real exam timing?\""],
+            ['q' => "My friend has an account — I'll use theirs.", 'means' => "They want to avoid paying.",
+             'a' => "Acknowledge: \"I get it — saving money matters.\"\nRespond: \"Accounts are personal, so your scores and history would mix with your friend's, and you couldn't track your own progress.\"\nReframe: \"Your own account keeps your results separate, so every report reflects only your preparation.\"\nAsk: \"Shall I find the most affordable package that still covers your exam date?\""],
+        ],
+    ],
+    'decision' => [
+        'label' => 'Decision & logistics',
+        'items' => [
+            ['q' => "I need to ask my parents or partner first.", 'means' => "Someone else shares the decision or the cost.",
+             'a' => "Acknowledge: \"Of course — it makes sense to decide together.\"\nRespond: \"Shall I send you a short summary — your current score, your target, and the package that fits — so it's easy to explain?\"\nReframe: \"The main points are: it targets your weak sections, and it helps avoid paying for a re-sit.\"\nAsk: \"When would be a good time for me to follow up — tomorrow evening?\""],
+            ['q' => "Send me the details — I'll think about it.", 'means' => "Polite delay; there is often an unspoken concern.",
+             'a' => "Acknowledge: \"Happy to send everything over.\"\nDiscover: \"Just so I send the right information — is it more about the price, the timing, or whether it'll help your score?\"\nRespond: Answer that concern directly, then send the follow-up email from the Scripts tab.\nAsk: \"I'll check in on [day]. Does that work?\""],
+            ['q' => "I'm not comfortable paying online.", 'means' => "Concern about payment safety, or a past failed payment.",
+             'a' => "Acknowledge: \"That's a fair concern — you should feel safe paying online.\"\nRespond: \"Payments go through [payment provider], and you'll get a confirmation as soon as it goes through.\"\nHelp: \"If a payment failed before, I can stay on the line while you try again, or share [alternative payment option].\"\nAsk: \"Would you like to do it together now?\""],
+            ['q' => "I'm not sure PTE is the right exam for me.", 'means' => "They're still comparing tests (for example IELTS) or are unsure about the requirement.",
+             'a' => "Acknowledge: \"It's worth getting that right before you start.\"\nDiscover: \"Which university, visa or employer is the score for? Do they accept PTE?\"\nRespond: \"If PTE is accepted, a free mock is the quickest way to see how comfortable you are with the format.\"\nAsk: \"Would you like to take the free mock first, and then decide?\""],
+        ],
+    ],
 ];
 
 // $slPrompts is passed in from the route — sourced from agents_pre_defined_prompts
@@ -270,7 +337,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <button type="button" onclick="mmCampaignReset()" style="padding:7px 14px;border-radius:6px;border:1px solid var(--ln);color:var(--g3);font-size:12px;font-weight:600;cursor:pointer;background:#fff">Reset</button>
                         </form>
                         <table class="dtbl">
-                            <thead><tr><th>Student</th><th title="Amount paid for the selected Course" style="cursor:help">Package value</th><th>Payment date</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead>
+                            <thead><tr><th>Student</th><th title="Amount paid for the selected Course" style="cursor:help">Package value</th><th>Payment date</th><th title="Active, Renewal Due (expired within the last 14 days), or Expired." style="cursor:help">Stage</th><th title="Average score across all mock tests. 0 = no results" style="cursor:help">Readiness</th><th title="Based on the percentage of payments completed. 50 = no payment history." style="cursor:help">Trust</th><th title="Proof-led when Trust is below 65; otherwise Offer-led." style="cursor:help">Approach</th><th>Last active</th></tr></thead>
                             <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
@@ -301,7 +368,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                         <div class="stack-intro"><div class="si-h">PLATFORM PERFORMANCE</div><div class="si-p">Headline numbers across your Mock Master student base.</div></div>
                         <div class="mg-grid">
                             @foreach($mkKpis as $k)
-                            <div class="mg-cell"><div class="mg-h">{{ $k['label'] }}</div><div class="mg-kpi">{{ $k['value'] }} <small>{{ $k['sub'] }}</small></div></div>
+                            <div class="mg-cell" onclick="mmKpiOpen('{{ $k['key'] }}', this.querySelector('.mg-h').textContent)" style="cursor:pointer" title="Click to see the details"><div class="mg-h">{{ $k['label'] }}</div><div class="mg-kpi">{{ $k['value'] }} <small>{{ $k['sub'] }}</small></div></div>
                             @endforeach
                         </div>
                     </div>
@@ -309,7 +376,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="mk-audience" style="display:none">
                         <div class="stack-intro"><div class="si-h">STUDENT SEGMENTS</div><div class="si-p">Grouped by behavior and lifecycle stage.</div></div>
                         @forelse($mkSegments as $seg)
-                        <div class="act"><div><div class="act-t">{{ $seg['name'] }}</div><div class="act-d">{{ $seg['meta'] }}</div></div></div>
+                        <div class="act" onclick="mmKpiOpen('{{ $seg['key'] }}', '{{ $seg['name'] }}')" style="cursor:pointer" title="Click to see the students in this segment"><div><div class="act-t">{{ $seg['name'] }}</div><div class="act-d">{{ $seg['meta'] }}</div></div></div>
                         @empty
                         <div class="act"><div class="act-t" style="color:var(--g3)">No segment data available.</div></div>
                         @endforelse
@@ -318,7 +385,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="mk-insights" style="display:none">
                         <div class="stack-intro"><div class="si-h">KEY INSIGHTS</div><div class="si-p">Patterns worth acting on.</div></div>
                         @forelse($mkInsights as $ins)
-                        <div class="act"><div class="act-t">{{ $ins }}</div></div>
+                        <div class="act" onclick="mmKpiOpen('{{ $ins['key'] }}', '{{ $ins['text'] }}')" style="cursor:pointer" title="Click to see the records behind this insight"><div class="act-t">{{ $ins['text'] }}</div></div>
                         @empty
                         <div class="act"><div class="act-t" style="color:var(--g3)">Not enough data yet to compute insights.</div></div>
                         @endforelse
@@ -470,19 +537,94 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     </div>
 
                     <div class="mm-panel" data-panel="sl-objections" style="display:none">
-                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Common objections and how to answer them.</div></div>
-                        @foreach($slObjections as $o)
-                        <div class="act"><div><div class="act-t">{{ $o['q'] }}</div><div class="act-d">{{ $o['a'] }}</div></div></div>
+                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">The objections students raise most often, grouped by theme. Each one shows what the student usually means and a ready-to-say answer: <b>acknowledge</b> the concern, <b>reframe</b> it, <b>respond</b>, then <b>ask</b> a question to keep the conversation moving. Replace the words in <b>[square brackets]</b> before you use it.</div></div>
+                        <div class="mm-scr-tabs" role="tablist" aria-label="Objection category">
+                            @foreach($slObjectionGroups as $gk => $group)
+                            <button type="button" role="tab" class="mm-scr-tab {{ $loop->first ? 'on' : '' }}" data-ch="{{ $gk }}" aria-selected="{{ $loop->first ? 'true' : 'false' }}" onclick="mmScriptChannel(this)">{{ $group['label'] }} <span class="mm-scr-count">{{ count($group['items']) }}</span></button>
+                            @endforeach
+                        </div>
+                        @foreach($slObjectionGroups as $gk => $group)
+                        <div class="mm-scr-list" data-ch="{{ $gk }}" @if(!$loop->first) style="display:none" @endif>
+                            @foreach($group['items'] as $i => $o)
+                            <div class="mm-scr">
+                                <div class="mm-scr-hd">
+                                    <span class="mm-scr-n">{{ $i + 1 }}</span>
+                                    <div class="mm-scr-meta">
+                                        <div class="mm-scr-t">&ldquo;{{ $o['q'] }}&rdquo;</div>
+                                        <div class="mm-scr-when">What it usually means: {{ $o['means'] }}</div>
+                                    </div>
+                                    <button type="button" class="mm-scr-copy" onclick="mmCopyScript(this)" title="Copy this answer">Copy</button>
+                                </div>
+                                <div class="mm-scr-body">{{ $o['a'] }}</div>
+                            </div>
+                            @endforeach
+                        </div>
                         @endforeach
                     </div>
 
                     <div class="mm-panel" data-panel="sl-close" style="display:none">
-                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Prospects most likely to close this week.</div></div>
-                        @forelse($slClose as $c)
-                        <div class="act"><div><div class="act-t">{{ $c['name'] }}</div><div class="act-d">{{ $c['detail'] }}</div></div></div>
-                        @empty
-                        <div class="act"><div class="act-t" style="color:var(--g3)">No close-ready candidates found right now.</div></div>
-                        @endforelse
+                        @php
+                            $cg = $slCloseSummary ?? ['convert' => 0, 'abandoned' => 0, 'abandoned_value' => 0, 'renewals' => 0, 'renewals_value' => 0, 'winback' => 0, 'winback_value' => 0];
+                            $cgScoreKind = fn ($v) => $v >= 70 ? 'good' : ($v >= 50 ? 'info' : 'warn');
+                            $cgTabs = [
+                                'convert'   => ['label' => 'Ready to convert', 'count' => $cg['convert'],   'rows' => $slClose ?? [],     'dataset' => 'slClose'],
+                                'abandoned' => ['label' => 'Open checkouts',   'count' => $cg['abandoned'], 'rows' => $slAbandoned ?? [], 'dataset' => 'slAbandoned'],
+                                'renewals'  => ['label' => 'Renewals due',     'count' => $cg['renewals'],  'rows' => $slRenewals ?? [],  'dataset' => 'slRenewals'],
+                                'winback'   => ['label' => 'Win-back',         'count' => $cg['winback'],   'rows' => $slWinBack ?? [],   'dataset' => 'slWinBack'],
+                            ];
+                        @endphp
+                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Where revenue can be won this week, from live Mock Master data. <b>Close</b>: free-trial students who are practising now, and students who started a checkout but didn't pay. <b>Grow</b>: paid plans expiring in the next 30 days, and lapsed plans whose students still log in. Each row shows the evidence and a suggested next step.</div></div>
+                        <div class="mg-grid cg-kpis">
+                            <div class="mg-cell"><div class="mg-h">Ready to convert</div><div class="mg-kpi">{{ number_format($cg['convert']) }} <small>free-trial students active in the last 14 days</small></div></div>
+                            <div class="mg-cell"><div class="mg-h">Open checkouts</div><div class="mg-kpi">{{ number_format($cg['abandoned']) }} <small>${{ number_format($cg['abandoned_value']) }} not yet paid (30 days)</small></div></div>
+                            <div class="mg-cell"><div class="mg-h">Renewals due</div><div class="mg-kpi">{{ number_format($cg['renewals']) }} <small>${{ number_format($cg['renewals_value']) }} expiring in 30 days</small></div></div>
+                            <div class="mg-cell"><div class="mg-h">Win-back</div><div class="mg-kpi">{{ number_format($cg['winback']) }} <small>${{ number_format($cg['winback_value']) }} in lapsed plans, still active</small></div></div>
+                        </div>
+                        <div class="mm-scr-tabs" role="tablist" aria-label="Close and grow list">
+                            @foreach($cgTabs as $tk => $tab)
+                            <button type="button" role="tab" class="mm-scr-tab {{ $loop->first ? 'on' : '' }}" data-ch="{{ $tk }}" aria-selected="{{ $loop->first ? 'true' : 'false' }}" onclick="mmScriptChannel(this)">{{ $tab['label'] }} <span class="mm-scr-count">{{ number_format($tab['count']) }}</span></button>
+                            @endforeach
+                        </div>
+
+                        @foreach($cgTabs as $tk => $tab)
+                        <div class="mm-scr-list" data-ch="{{ $tk }}" @if(!$loop->first) style="display:none" @endif>
+                            @if(empty($tab['rows']))
+                            <div class="act"><div class="act-t" style="color:var(--g3)">Nobody matches this right now.</div></div>
+                            @else
+                            <table class="dtbl">
+                                <thead><tr>
+                                    <th>Student</th>
+                                    @if($tk === 'convert')<th>Score</th><th>Why</th><th>Last active</th>
+                                    @elseif($tk === 'abandoned')<th>Package</th><th>Amount</th><th>Attempted</th>
+                                    @elseif($tk === 'renewals')<th>Package</th><th>Expires</th><th>Value</th>
+                                    @else<th>Last package</th><th>Expired</th><th>Value</th>
+                                    @endif
+                                    <th>Next step</th>
+                                </tr></thead>
+                                <tbody>
+                                    @foreach($tab['rows'] as $r)
+                                    <tr>
+                                        <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div>@if($tk !== 'convert')<div class="bh-acct-c">{{ $r['signals'] }}</div>@endif</div></div></td>
+                                        @if($tk === 'convert')
+                                        <td><span class="bh-pill {{ $cgScoreKind($r['score']) }}">{{ $r['score'] }}</span></td>
+                                        <td class="cg-why">{{ $r['signals'] }}</td>
+                                        <td>{{ $r['lastActive'] }}</td>
+                                        @elseif($tk === 'abandoned')
+                                        <td>{{ $r['package'] }}</td><td>{{ $r['amount'] }}</td><td>{{ $r['attempted'] }}</td>
+                                        @elseif($tk === 'renewals')
+                                        <td>{{ $r['package'] }}</td><td>{{ $r['expires'] }}</td><td>{{ $r['amount'] }}</td>
+                                        @else
+                                        <td>{{ $r['package'] }}</td><td>{{ $r['expired'] }}</td><td>{{ $r['amount'] }}</td>
+                                        @endif
+                                        <td class="cg-next">{{ $r['action'] }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                            <button type="button" class="qk cg-all" onclick="mmOpenDataset('{{ $tab['dataset'] }}', '{{ $tab['label'] }}')">{{ $tab['count'] > count($tab['rows']) ? 'View all ' . number_format($tab['count']) . ' with contact details →' : 'View with contact details →' }}</button>
+                            @endif
+                        </div>
+                        @endforeach
                     </div>
 
                 </div>
@@ -733,7 +875,8 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
 #bhRoot .stk-play.call{background:var(--ac-l);color:var(--ac-d);border:1px solid var(--ac-m)}
 #bhRoot .stk-play.onboarding{background:#f3eefc;color:#6d28d9;border:1px solid #e2d5f7}
 
-#bhRoot .act{border:1px solid var(--ln);border-left:3px solid var(--ac);background:#fff;padding:12px 20px;margin:0 20px 10px;display:flex;gap:10px;align-items:center;border-radius:8px}
+#bhRoot .act{border:1px solid var(--ln);border-left:3px solid var(--ac);background:#fff;padding:12px 20px;margin:0 20px 10px;display:flex;gap:10px;align-items:center;border-radius:8px;transition:background .15s,border-color .15s}
+#bhRoot .act[onclick]:hover{background:#f5f3ff;border-color:#c4b5fd;border-left-color:#7c3aed}
 #bhRoot .act-t{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.5}
 #bhRoot .act-d{font-size:11px;color:var(--g2);margin-top:2px}
 
@@ -940,7 +1083,8 @@ body.mm-syncing #mmSyncOverlay{display:flex}
 #bhRoot .act-t{font-size:12.5px}
 #bhRoot .act-d{font-size:11px;margin-top:2px}
 #bhRoot .mg-grid{gap:12px;background:transparent;padding:0 20px 20px}
-#bhRoot .mg-cell{border:1px solid var(--ln);border-radius:12px;padding:16px 18px}
+#bhRoot .mg-cell{border:1px solid var(--ln);border-radius:12px;padding:16px 18px;transition:background .15s,border-color .15s}
+#bhRoot .mg-cell[onclick]:hover{background:#f5f3ff;border-color:#c4b5fd}
 #bhRoot .mg-h{font-size:10px;letter-spacing:1px;color:#64748b}
 #bhRoot .mg-kpi{font-size:20px;color:#0f172a}
 
@@ -1004,6 +1148,16 @@ body.mm-syncing #mmSyncOverlay{display:flex}
 #bhRoot .mm-scr-subject{padding:10px 14px 0;font-size:12.5px;color:var(--ink)}
 #bhRoot .mm-scr-subject b{color:var(--g2);font-weight:600}
 #bhRoot .mm-scr-body{padding:10px 14px 14px;font-size:12.5px;line-height:1.7;color:#1e293b;white-space:pre-line;overflow-wrap:anywhere}
+
+/* Sales · Close & grow — summary strip + list tables */
+#bhRoot .mg-grid.cg-kpis{grid-template-columns:repeat(4,1fr)}
+#bhRoot .cg-kpis .mg-kpi small{display:block;margin:4px 0 0;font-size:10.5px;line-height:1.4}
+@media(max-width:1100px){#bhRoot .mg-grid.cg-kpis{grid-template-columns:1fr 1fr}}
+#bhRoot .mm-scr-list > .dtbl{width:100%;margin:0}
+#bhRoot .mm-scr-list > .act{margin:0}
+#bhRoot .dtbl td.cg-why{font-size:11px;color:var(--g2);line-height:1.5;min-width:180px}
+#bhRoot .dtbl td.cg-next{font-size:11.5px;font-weight:600;color:var(--ac-d);min-width:150px}
+#bhRoot .cg-all{align-self:flex-start;margin-top:4px}
 
 /* ══ Compact tiers for laptops ══
    At 100% browser zoom, laptops with Windows display scaling (125% / 150%)
@@ -1117,6 +1271,9 @@ var MM_LISTS = {
     chWatchlist: @json($chWatchlist),
     slProspects: @json($slProspects),
     slClose: @json($slClose),
+    slAbandoned: @json($slAbandoned ?? []),
+    slRenewals: @json($slRenewals ?? []),
+    slWinBack: @json($slWinBack ?? []),
     mkTopScorers: @json($mkTopScorers),
     mkNewStudents: @json($mkNewStudents)
 };
@@ -1130,7 +1287,7 @@ var MM_LIST_SLUGS = {
     'mm-sl-today-active-no-package':{ list: 'slClose',       noun: 'student' },
     'mm-sl-close-trial-convert':    { list: 'slClose',       noun: 'student' },
     'mm-sl-close-most-tests-no-upgrade': { list: 'slClose',  noun: 'student' },
-    'mm-sl-close-renewal-upsell':   { list: 'chWatchlist',  noun: 'student' },
+    'mm-sl-close-renewal-upsell':   { list: 'slRenewals',   noun: 'student' },
     'mm-ch-save-who-churn':         { list: 'chAtRisk',     noun: 'student' },
     'mm-ch-save-inactive-highrisk': { list: 'chAtRisk',     noun: 'student' },
     'mm-ch-watch-drifting':         { list: 'chWatchlist',  noun: 'student' },
@@ -1143,7 +1300,9 @@ var MM_LIST_COL_LABELS = {
     readiness: 'Readiness', trust: 'Trust', approach: 'Approach', lastActive: 'Last active',
     intent: 'Intent', play: 'Play', detail: 'Detail', avg_score: 'Avg score', joined: 'Joined',
     inactiveDays: 'Days inactive', valueAtRisk: 'Value at risk', risk: 'Risk',
-    email: 'Email', phone: 'Mobile number'
+    email: 'Email', phone: 'Mobile number',
+    score: 'Score', signals: 'Signals', package: 'Package', amount: 'Amount', attempted: 'Attempted',
+    expires: 'Expires', expired: 'Expired', action: 'Next step'
 };
 /* Columns always shown first (contact info), regardless of where they fall
    in MM_LIST_COL_LABELS above — every list here is a list of people to
@@ -1252,6 +1411,15 @@ function mmShowList(agent, slug, label) {
 }
 
 var MM_LIST_CACHE = {};
+/* Sales · Close & grow "View all" — opens the same list popup (with Load
+   more from the database) for one of the Close & grow datasets. */
+function mmOpenDataset(dataset, label) {
+    var rows = MM_LISTS[dataset] || [];
+    if (!rows.length) return;
+    var id = 'mmds-' + dataset;
+    MM_LIST_CACHE[id] = { rows: rows.slice(), noun: 'student', label: label, dataset: dataset, offset: rows.length, hasMore: true };
+    openMmListModal(id);
+}
 function mmListCols(rows) {
     var present = Object.keys(MM_LIST_COL_LABELS).filter(function (k) { return k in rows[0]; });
     if (!present.length) present = Object.keys(rows[0]);
@@ -1415,6 +1583,81 @@ function mmAsk(agent, text) {
         botBubble.innerHTML = '<p>I couldn\'t reach the AI just now — try again in a moment.</p>';
         chat.scrollTop = chat.scrollHeight;
     });
+}
+
+/* ── Performance KPI drill-down — click a headline card to see the real
+   rows its number was counted from. ── */
+var MM_KPI_URL = '{{ route('client.mock-master-helper.kpi', ['key' => '__KEY__']) }}';
+
+function mmKpiOpen(key, label) {
+    var overlay = document.getElementById('mmKpiModal');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'mmKpiModal';
+        overlay.className = 'risk-modal-overlay';
+        overlay.onclick = function (e) { if (e.target === overlay) mmKpiClose(); };
+        overlay.innerHTML =
+            '<div class="risk-modal">' +
+                '<div class="risk-modal-hd"><span id="mmKpiTitle"></span>' +
+                '<button type="button" onclick="mmKpiClose()" aria-label="Close">✕</button></div>' +
+                '<div class="risk-modal-body" id="mmKpiBody"></div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+    }
+
+    document.getElementById('mmKpiTitle').textContent = label || 'Details';
+    document.getElementById('mmKpiBody').innerHTML = '<p style="color:#6b7280;font-size:12px;padding:8px 0">Loading…</p>';
+    overlay.classList.add('show');
+
+    fetch(MM_KPI_URL.replace('__KEY__', encodeURIComponent(key)), { headers: { 'Accept': 'application/json' } })
+    .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
+    .then(function (data) {
+        document.getElementById('mmKpiTitle').textContent = data.title + ' · ' + Number(data.total).toLocaleString() + ' total';
+        mmKpiRender(data, 1);
+    })
+    .catch(function () {
+        document.getElementById('mmKpiBody').innerHTML = '<p style="color:#b91c1c;font-size:12px">Couldn\'t load the details — please try again.</p>';
+    });
+}
+
+var MM_KPI_PAGE_SIZE = 10;
+
+function mmKpiRender(data, page) {
+    var rows = data.rows || [];
+    var pages = Math.max(1, Math.ceil(rows.length / MM_KPI_PAGE_SIZE));
+    page = Math.min(Math.max(1, page), pages);
+    var start = (page - 1) * MM_KPI_PAGE_SIZE;
+    var slice = rows.slice(start, start + MM_KPI_PAGE_SIZE);
+
+    var head = '<tr><th>#</th>' + data.columns.map(function (c) { return '<th>' + escapeHtml(c.label) + '</th>'; }).join('') + '</tr>';
+    var body = slice.map(function (r, i) {
+        return '<tr><td>' + (start + i + 1) + '</td>' + data.columns.map(function (c) {
+            return '<td>' + escapeHtml(r[c.key] === null || r[c.key] === undefined || r[c.key] === '' ? '—' : String(r[c.key])) + '</td>';
+        }).join('') + '</tr>';
+    }).join('');
+
+    var truncated = rows.length < data.total
+        ? ' · first ' + rows.length + ' of ' + Number(data.total).toLocaleString() + ' loaded'
+        : '';
+    var nav = rows.length > MM_KPI_PAGE_SIZE
+        ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;font-size:12px;color:#6b7280">' +
+            '<span>Page ' + page + ' of ' + pages + truncated + '</span>' +
+            '<div style="display:flex;gap:6px">' +
+                '<button type="button" onclick="mmKpiRender(MM_KPI_DATA,' + (page - 1) + ')" ' + (page <= 1 ? 'disabled' : '') + ' style="padding:5px 12px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:12px;font-weight:600;cursor:pointer">Previous</button>' +
+                '<button type="button" onclick="mmKpiRender(MM_KPI_DATA,' + (page + 1) + ')" ' + (page >= pages ? 'disabled' : '') + ' style="padding:5px 12px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:12px;font-weight:600;cursor:pointer">Next</button>' +
+            '</div></div>'
+        : (truncated ? '<p style="font-size:11px;color:#6b7280;margin:8px 0 0">' + truncated.replace(' · ', '') + '</p>' : '');
+
+    MM_KPI_DATA = data;
+    document.getElementById('mmKpiBody').innerHTML =
+        '<table><thead>' + head + '</thead><tbody>' + (body || '<tr><td colspan="' + (data.columns.length + 1) + '">No rows.</td></tr>') + '</tbody></table>' + nav;
+}
+
+var MM_KPI_DATA = null;
+
+function mmKpiClose() {
+    var overlay = document.getElementById('mmKpiModal');
+    if (overlay) overlay.classList.remove('show');
 }
 
 /* ── Chat results — "View results" button under an answer built from a
