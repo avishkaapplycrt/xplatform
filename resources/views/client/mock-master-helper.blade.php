@@ -44,10 +44,54 @@ $slSteps = [
     ['key' => 'close',      'label' => 'Close & grow'],
 ];
 
-$slScripts = [
-    ['label' => 'Call script',     'text' => 'Open by asking which exam they\'re preparing for and their target date — then map our mock test package directly to that deadline.'],
-    ['label' => 'Email script',    'text' => 'Lead with a free diagnostic mock test offer, then follow up with their score and a recommended package 48 hours later.'],
-    ['label' => 'WhatsApp script', 'text' => 'Short and direct: "Hi {name}, saw you started a free mock test — want help picking the right package for your target band?"'],
+// Sales · Scripts — a ready-to-use library the rep can read on a call or
+// copy into an email/WhatsApp. Advisory copy (not data claims). Words in
+// [square brackets] are placeholders the rep fills in before using.
+$slScriptLibrary = [
+    'call' => [
+        ['title' => 'First call after a free mock test', 'when' => 'Student took a free mock test in the last few days',
+         'body' => "Opener: \"Hi [Student name], this is [Your name] from Mock Master. I saw you took a free PTE mock test on [date] — do you have two minutes to go through how it went?\"\nDiscover: \"What overall score are you aiming for, and when is your exam booked?\"\nInsight: \"Your mock scored [score]. The gap to your target of [target score] is mostly in [weakest section].\"\nRecommend: \"The [package name] gives you [number] full mock tests with score reports, so you can practise that section and track progress before [exam date].\"\nClose: \"Shall I send you the link now so you can start your next test today?\""],
+        ['title' => 'Strong free score — ready to convert', 'when' => 'Free mock score is close to or above the target', 'body' => "Opener: \"Hi [Student name], [Your name] from Mock Master. Congratulations — your free mock scored [score], which is really close to your [target score] target.\"\nDiscover: \"How confident are you feeling about exam day?\"\nInsight: \"At this stage, most students lose points through timing and nerves, not knowledge. More full-length practice under exam conditions is what locks the score in.\"\nRecommend: \"The [package name] gives you [number] more full tests before [exam date], so exam day feels familiar.\"\nClose: \"Would you like to start today so you have a buffer before the exam?\""],
+        ['title' => 'Low score — build a practice plan', 'when' => 'Free mock score is well below the target', 'body' => "Opener: \"Hi [Student name], [Your name] from Mock Master. Thanks for taking the free mock — I wanted to help you make sense of the result.\"\nReassure: \"A first score of [score] is a common starting point. The useful part is that it shows exactly where to focus.\"\nInsight: \"Your biggest opportunity is [weakest section]. Improving that alone moves your overall score the most.\"\nRecommend: \"With [package name] you can take a test every [week/few days], see your section scores, and watch the gap close before [exam date].\"\nClose: \"Shall I set you up so you can take your next mock this week?\""],
+        ['title' => 'Registered but never took a test', 'when' => 'Student signed up but has no mock test yet', 'body' => "Opener: \"Hi [Student name], this is [Your name] from Mock Master. You signed up on [date] — I'm calling to make sure you got access to your free mock test.\"\nDiscover: \"Is your PTE exam booked yet? What score do you need?\"\nValue: \"The free test gives you a real score and shows which section needs the most work. It takes about [duration].\"\nHelp: \"Is anything stopping you from starting — time, login, not sure where to begin?\"\nClose: \"Could you take it today or tomorrow? I'll call you after to go through the result.\""],
+        ['title' => 'Exam date coming up soon', 'when' => 'Exam is within the next 2–4 weeks', 'body' => "Opener: \"Hi [Student name], [Your name] from Mock Master. You mentioned your PTE exam is on [exam date] — that's only [number] weeks away.\"\nDiscover: \"How many full mock tests have you done so far?\"\nInsight: \"In the last few weeks, full-length tests under exam timing make the biggest difference, because they build pacing and stamina.\"\nRecommend: \"With [package name] you could fit in [number] full tests before the exam — about [number] a week.\"\nClose: \"Let's get the first one booked for this week. Can I send the link now?\""],
+        ['title' => 'Price-sensitive / comparing options', 'when' => 'Student says it is expensive or is comparing providers', 'body' => "Acknowledge: \"That's completely fair, [Student name] — it's important to spend wisely on exam prep.\"\nReframe: \"The [package name] works out to about [price per test] per mock test. Compare that to the cost of re-sitting the PTE if the score falls short.\"\nDiscover: \"What matters most to you — the number of tests, the score reports, or flexibility on dates?\"\nOption: \"If budget is the concern, [smaller package / current offer] still gives you [number] full tests.\"\nClose: \"Which option feels right for you?\""],
+        ['title' => 'Package expiring — renewal call', 'when' => 'Active package expires in the next 7–14 days', 'body' => "Opener: \"Hi [Student name], [Your name] from Mock Master. A quick call — your [package name] expires on [expiry date] and I didn't want you to lose access before your exam.\"\nDiscover: \"How has your practice been going? Is your exam date still [exam date]?\"\nInsight: \"Your recent mock scores went from [first score] to [latest score] — renewing keeps that momentum going.\"\nRecommend: \"Renewing now keeps your progress and history in one place, and you can continue straight away.\"\nClose: \"Shall I arrange the renewal so there's no gap?\""],
+        ['title' => 'Inactive student — check-in', 'when' => 'No mock test or login for 14+ days', 'body' => "Opener: \"Hi [Student name], [Your name] from Mock Master. I noticed you haven't taken a mock test in a couple of weeks — just checking everything's okay.\"\nDiscover: \"Has your exam date changed, or has it been hard to find the time?\"\nHelp: \"Even one mock test a week keeps your pacing sharp. Would a set day each week help?\"\nOffer: \"You still have [number] tests left on your package until [expiry date].\"\nClose: \"Could you fit one in this week? I'll check your result with you afterwards.\""],
+        ['title' => 'Voicemail / no answer', 'when' => 'Student did not pick up', 'body' => "\"Hi [Student name], this is [Your name] from Mock Master about your PTE preparation. I'd love to help you plan your practice before your exam. I'll send you a WhatsApp as well — or call me back on [your number] whenever suits you. Speak soon!\"\nAfter the call: send the \"Couldn't reach you\" WhatsApp message."],
+    ],
+    'email' => [
+        ['title' => 'Your free mock test result — next steps', 'when' => 'Within 24 hours of a free mock test', 'subject' => 'Your PTE mock result: [score] — here\'s how to reach [target score]',
+         'body' => "Hi [Student name],\n\nThanks for taking your free PTE mock test with Mock Master. Your overall score was [score].\n\nThe good news: your result shows exactly where to focus. Your biggest opportunity is [weakest section], which has the most impact on your overall score.\n\nOur [package name] includes [number] full-length mock tests with score reports, so you can practise, track your section scores and see your progress before [exam date].\n\nStart your next mock here: [link]\n\nAny questions? Just reply to this email.\n\nBest regards,\n[Your name]\nMock Master"],
+        ['title' => 'Welcome — take your first free test', 'when' => 'Registered but no mock test yet', 'subject' => 'Your free PTE mock test is ready, [Student name]',
+         'body' => "Hi [Student name],\n\nWelcome to Mock Master! Your free PTE mock test is ready whenever you are.\n\nIt takes about [duration] and gives you:\n• A real overall score\n• A breakdown of where you're strongest and weakest\n• A clear starting point for your preparation\n\nTake your free test: [link]\n\nIf you'd like help planning your practice, just reply and I'll get in touch.\n\nBest regards,\n[Your name]\nMock Master"],
+        ['title' => 'You\'re close to your target', 'when' => 'Free score is near the target', 'subject' => 'You\'re only [points] points from your target score',
+         'body' => "Hi [Student name],\n\nYour mock test score of [score] puts you just [points] points away from your target of [target score]. That's a great position to be in.\n\nAt this stage, regular full-length practice under exam conditions is what turns \"close\" into \"done\" — it builds timing, confidence and consistency.\n\nThe [package name] gives you [number] more full mock tests before [exam date].\n\nContinue your preparation: [link]\n\nBest regards,\n[Your name]\nMock Master"],
+        ['title' => 'Exam soon — a practice plan', 'when' => 'Exam is within the next few weeks', 'subject' => '[number] weeks to your PTE exam — your practice plan',
+         'body' => "Hi [Student name],\n\nYour PTE exam is on [exam date], about [number] weeks away. Here's a simple plan for the time you have left:\n\n• Week 1: one full mock test, then review your weakest section\n• Week 2: two full mock tests under exam timing\n• Final week: one last full mock, then rest before exam day\n\nThe [package name] covers all of this, with score reports after every test.\n\nGet started: [link]\n\nGood luck — you've got this!\n[Your name]\nMock Master"],
+        ['title' => 'Follow-up after a call', 'when' => 'Same day as a sales call', 'subject' => 'Great speaking with you, [Student name]',
+         'body' => "Hi [Student name],\n\nThanks for your time on the phone today. As promised, here's a quick summary:\n\n• Your target score: [target score]\n• Your exam date: [exam date]\n• Recommended package: [package name] — [number] full mock tests\n\nYou can get started here: [link]\n\nI'll check in after your next mock test to go through the result with you.\n\nBest regards,\n[Your name]\nMock Master\n[your number]"],
+        ['title' => 'Limited-time offer', 'when' => 'Only when an approved offer or coupon is running', 'subject' => 'A special offer on your PTE preparation',
+         'body' => "Hi [Student name],\n\nFor a limited time, you can get [offer details] on [package name] with the code [coupon code]. The offer ends on [end date].\n\nIt's a good moment to lock in your practice before your exam on [exam date].\n\nClaim the offer: [link]\n\nBest regards,\n[Your name]\nMock Master"],
+        ['title' => 'Package expiring in 7 days', 'when' => 'Active package expires within a week', 'subject' => 'Your Mock Master package expires on [expiry date]',
+         'body' => "Hi [Student name],\n\nA quick reminder that your [package name] expires on [expiry date].\n\nYou've made real progress — your mock scores went from [first score] to [latest score]. Renewing keeps your access, score history and momentum going right up to your exam.\n\nRenew in one step: [link]\n\nIf your exam date has changed, reply and I'll suggest the best option.\n\nBest regards,\n[Your name]\nMock Master"],
+        ['title' => 'We miss you — come back', 'when' => 'No activity for 14+ days', 'subject' => 'Is your PTE preparation still on track, [Student name]?',
+         'body' => "Hi [Student name],\n\nWe noticed you haven't taken a mock test in a little while. Life gets busy — that's completely normal.\n\nEven one mock test a week keeps your skills and timing sharp. You still have [number] tests available until [expiry date].\n\nPick up where you left off: [link]\n\nIf something's getting in the way, reply and let me know — I'm happy to help.\n\nBest regards,\n[Your name]\nMock Master"],
+        ['title' => 'Feedback and referral request', 'when' => 'After a good score or a finished package', 'subject' => 'How did your preparation go, [Student name]?',
+         'body' => "Hi [Student name],\n\nCongratulations on your progress with Mock Master! We'd love to hear how your preparation went — your feedback helps us improve: [feedback link]\n\nAnd if you have friends preparing for the PTE, feel free to share Mock Master with them: [referral link]\n\nThank you for practising with us, and best of luck!\n\n[Your name]\nMock Master"],
+    ],
+    'whatsapp' => [
+        ['title' => 'After a free mock test', 'when' => 'Same day or next day after a free test',
+         'body' => "Hi [Student name] 👋 It's [Your name] from Mock Master. Well done on your free PTE mock — you scored [score]! Want me to show you the quickest way to reach [target score]? I can send your next test link here."],
+        ['title' => 'Not started yet', 'when' => 'Registered, no test taken', 'body' => "Hi [Student name], [Your name] from Mock Master here 😊 Your free PTE mock test is ready and takes about [duration]. It'll show your score and what to focus on. Start here: [link]"],
+        ['title' => 'High score — upgrade nudge', 'when' => 'Free score is near the target', 'body' => "Hi [Student name]! Your mock score of [score] is really close to your [target score] target 🎯 A few more full tests before [exam date] can lock it in. Shall I share the [package name] details?"],
+        ['title' => 'Exam coming up', 'when' => 'Exam within 2–4 weeks', 'body' => "Hi [Student name], your PTE exam is on [exam date] — [number] weeks to go! ⏳ Full mock tests now are the best way to build timing and confidence. Want me to set you up with a plan?"],
+        ['title' => 'Couldn\'t reach you', 'when' => 'After a missed call', 'body' => "Hi [Student name], I just tried calling about your PTE preparation 📞 When's a good time for a quick 2-minute chat? Or feel free to message me here."],
+        ['title' => 'Limited-time offer', 'when' => 'Only when an approved offer is running', 'body' => "Hi [Student name]! 🎉 For a limited time, get [offer details] on [package name] with code [coupon code]. Valid until [end date]. Want the link?"],
+        ['title' => 'Renewal reminder', 'when' => 'Package expires within 7 days', 'body' => "Hi [Student name], a quick heads-up: your [package name] expires on [expiry date]. You've improved from [first score] to [latest score] 👏 Want me to renew it so you keep practising without a break?"],
+        ['title' => 'Inactive check-in', 'when' => 'No activity for 14+ days', 'body' => "Hi [Student name], hope you're doing well! It's been a little while since your last mock test. You still have [number] tests until [expiry date] — fancy taking one this week? 💪"],
+        ['title' => 'Referral ask', 'when' => 'After a good score or a finished package', 'body' => "Hi [Student name]! 🎉 Congrats on your progress with Mock Master. If any friends are preparing for the PTE, feel free to share this with them: [referral link]. Thank you!"],
+    ],
 ];
 
 $slObjections = [
@@ -226,7 +270,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <button type="button" onclick="mmCampaignReset()" style="padding:7px 14px;border-radius:6px;border:1px solid var(--ln);color:var(--g3);font-size:12px;font-weight:600;cursor:pointer;background:#fff">Reset</button>
                         </form>
                         <table class="dtbl">
-                            <thead><tr><th>Student</th><th>Package value</th><th>Payment date</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead>
+                            <thead><tr><th>Student</th><th title="Amount paid for the selected Course" style="cursor:help">Package value</th><th>Payment date</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead>
                             <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
@@ -396,9 +440,32 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     </div>
 
                     <div class="mm-panel" data-panel="sl-scripts" style="display:none">
-                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Personalized call, email, and WhatsApp scripts.</div></div>
-                        @foreach($slScripts as $sc)
-                        <div class="act"><div><div class="act-t">{{ $sc['label'] }}</div><div class="act-d">{{ $sc['text'] }}</div></div></div>
+                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Ready-to-use call, email and WhatsApp scripts for each sales situation. Pick a channel, choose the script that fits the student, and replace the words in <b>[square brackets]</b> before you use it.</div></div>
+                        @php $slChannelLabels = ['call' => 'Call', 'email' => 'Email', 'whatsapp' => 'WhatsApp']; @endphp
+                        <div class="mm-scr-tabs" role="tablist" aria-label="Script channel">
+                            @foreach($slChannelLabels as $ch => $chLabel)
+                            <button type="button" role="tab" class="mm-scr-tab {{ $loop->first ? 'on' : '' }}" data-ch="{{ $ch }}" aria-selected="{{ $loop->first ? 'true' : 'false' }}" onclick="mmScriptChannel(this)">{{ $chLabel }} <span class="mm-scr-count">{{ count($slScriptLibrary[$ch]) }}</span></button>
+                            @endforeach
+                        </div>
+                        @foreach($slScriptLibrary as $ch => $scripts)
+                        <div class="mm-scr-list" data-ch="{{ $ch }}" @if(!$loop->first) style="display:none" @endif>
+                            @foreach($scripts as $i => $sc)
+                            <div class="mm-scr">
+                                <div class="mm-scr-hd">
+                                    <span class="mm-scr-n">{{ $i + 1 }}</span>
+                                    <div class="mm-scr-meta">
+                                        <div class="mm-scr-t">{{ $sc['title'] }}</div>
+                                        <div class="mm-scr-when">Use when: {{ $sc['when'] }}</div>
+                                    </div>
+                                    <button type="button" class="mm-scr-copy" onclick="mmCopyScript(this)" title="Copy this script">Copy</button>
+                                </div>
+                                @if(!empty($sc['subject']))
+                                <div class="mm-scr-subject"><b>Subject:</b> <span>{{ $sc['subject'] }}</span></div>
+                                @endif
+                                <div class="mm-scr-body">{{ $sc['body'] }}</div>
+                            </div>
+                            @endforeach
+                        </div>
                         @endforeach
                     </div>
 
@@ -917,6 +984,27 @@ body.mm-syncing #mmSyncOverlay{display:flex}
 #bhRoot .dm-inbar .send{width:42px;border-radius:10px;box-shadow:0 4px 12px rgba(16,24,40,.18)}
 #bhRoot .dm-inbar .send svg{width:14px;height:14px;fill:#fff;stroke:#fff;stroke-width:1.5}
 
+/* Sales · Scripts library — channel switcher + one card per script */
+#bhRoot .mm-scr-tabs{display:flex;gap:6px;padding:0 20px 14px;flex-wrap:wrap}
+#bhRoot .mm-scr-tab{display:inline-flex;align-items:center;gap:7px;font-family:var(--f1);font-size:12px;font-weight:600;color:var(--g2);background:#fff;border:1px solid var(--ln2);border-radius:999px;padding:6px 14px;cursor:pointer;transition:all .15s}
+#bhRoot .mm-scr-tab:hover{border-color:var(--ac-m);color:var(--ac-d)}
+#bhRoot .mm-scr-tab.on{background:var(--ac);border-color:var(--ac);color:#fff}
+#bhRoot .mm-scr-count{font-size:10.5px;font-weight:700;background:var(--p2);color:var(--g2);border-radius:999px;padding:0 7px;line-height:18px}
+#bhRoot .mm-scr-tab.on .mm-scr-count{background:rgba(255,255,255,.22);color:#fff}
+#bhRoot .mm-scr-list{display:flex;flex-direction:column;gap:10px;padding:0 20px 20px}
+#bhRoot .mm-scr{border:1px solid var(--ln);border-radius:10px;background:#fff;overflow:hidden}
+#bhRoot .mm-scr-hd{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-bottom:1px solid var(--ln);background:var(--p1)}
+#bhRoot .mm-scr-n{width:22px;height:22px;flex-shrink:0;border-radius:50%;background:var(--ac-l);color:var(--ac-d);font-size:11px;font-weight:700;display:grid;place-items:center;margin-top:1px}
+#bhRoot .mm-scr-meta{flex:1;min-width:0}
+#bhRoot .mm-scr-t{font-size:13px;font-weight:600;color:var(--ink);line-height:1.4}
+#bhRoot .mm-scr-when{font-size:11px;color:var(--g2);margin-top:2px}
+#bhRoot .mm-scr-copy{flex-shrink:0;font-family:var(--f1);font-size:11px;font-weight:600;color:var(--ac-d);background:#fff;border:1px solid var(--ac-m);border-radius:7px;padding:5px 11px;cursor:pointer;transition:all .15s}
+#bhRoot .mm-scr-copy:hover{background:var(--ac-l)}
+#bhRoot .mm-scr-copy.done{color:#15803d;border-color:#a7f3d0;background:#ecfdf5}
+#bhRoot .mm-scr-subject{padding:10px 14px 0;font-size:12.5px;color:var(--ink)}
+#bhRoot .mm-scr-subject b{color:var(--g2);font-weight:600}
+#bhRoot .mm-scr-body{padding:10px 14px 14px;font-size:12.5px;line-height:1.7;color:#1e293b;white-space:pre-line;overflow-wrap:anywhere}
+
 /* ══ Compact tiers for laptops ══
    At 100% browser zoom, laptops with Windows display scaling (125% / 150%)
    have a narrower CSS viewport (~1536px / ~1280px), so everything looks
@@ -1222,6 +1310,46 @@ function loadMoreMmList(id) {
 function closeMmListModal() {
     var overlay = document.getElementById('mmListModalOverlay');
     if (overlay) overlay.classList.remove('show');
+}
+
+/* Sales · Scripts — switch between the Call / Email / WhatsApp lists, and
+   copy one script (with its email subject) to the clipboard. */
+function mmScriptChannel(btn) {
+    var panel = btn.closest('.mm-panel');
+    var ch = btn.getAttribute('data-ch');
+    panel.querySelectorAll('.mm-scr-tab').forEach(function (t) {
+        var on = t === btn;
+        t.classList.toggle('on', on);
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    panel.querySelectorAll('.mm-scr-list').forEach(function (l) {
+        l.style.display = l.getAttribute('data-ch') === ch ? '' : 'none';
+    });
+}
+function mmCopyScript(btn) {
+    var card = btn.closest('.mm-scr');
+    var subject = card.querySelector('.mm-scr-subject span');
+    var text = (subject ? 'Subject: ' + subject.textContent + '\n\n' : '') + card.querySelector('.mm-scr-body').textContent;
+    function done(ok) {
+        btn.textContent = ok ? 'Copied' : 'Select & copy';
+        btn.classList.toggle('done', ok);
+        setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1800);
+    }
+    function fallback() {
+        var range = document.createRange();
+        range.selectNodeContents(card.querySelector('.mm-scr-body'));
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) {}
+        done(ok);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { done(true); }, fallback);
+    } else {
+        fallback();
+    }
 }
 
 function mmSetAgent(agent) {
