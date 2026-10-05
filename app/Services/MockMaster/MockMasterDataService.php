@@ -17,19 +17,76 @@ use Illuminate\Support\Facades\DB;
 class MockMasterDataService
 {
     /** Campaign step — renewal-ready students, ranked by package value. */
-    public function campaignStudents(int $limit = 10, int $offset = 0): array
+    /** Distinct subscription/package names, for the Campaign tab's subscription filter. */
+    public function subscriptionOptions(): array
     {
-        $rows = DB::table('mm_purchases as p')
+        return DB::table('mm_purchases')
+            ->whereNotNull('product')
+            ->where('product', '!=', '')
+            ->distinct()
+            ->orderBy('product')
+            ->pluck('product')
+            ->all();
+    }
+
+    public function campaignStudents(int $limit = 10, int $offset = 0, ?string $subscription = null, ?string $from = null, ?string $to = null): array
+    {
+        return $this->mapCampaignRows(
+            $this->campaignCandidates($subscription, $from, $to)->slice($offset, $limit)
+        );
+    }
+
+    /**
+     * Paged view of the Campaign tab. Pagination runs over the same
+     * 2,000 most-recent-purchase candidates as campaignStudents(), so
+     * "total" is capped at that candidate pool, not the full student base.
+     *
+     * @return array{students: array, total: int, page: int, last_page: int}
+     */
+    public function campaignStudentsPage(int $page, int $perPage, ?string $subscription = null, ?string $from = null, ?string $to = null): array
+    {
+        $candidates = $this->campaignCandidates($subscription, $from, $to);
+        $total = $candidates->count();
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page = min(max(1, $page), $lastPage);
+
+        return [
+            'students' => $this->mapCampaignRows($candidates->slice(($page - 1) * $perPage, $perPage)),
+            'total' => $total,
+            'page' => $page,
+            'last_page' => $lastPage,
+        ];
+    }
+
+    private function campaignCandidates(?string $subscription, ?string $from, ?string $to)
+    {
+        $query = DB::table('mm_purchases as p')
             ->join('mm_studentuser as s', 's.studentId', '=', 'p.studentid')
+            ->leftJoin('mm_payments as pay', 'pay.id', '=', 'p.paymentid')
             ->select('p.studentid', 'p.product', 'p.expire_date', 'p.is_expired', 's.first_name', 's.last_name', 's.last_login', 's.email', 's.phone', 's.country_code')
-            ->selectRaw('(select max(pay.amount) from mm_payments pay where pay.id = p.paymentid) as amount')
-            ->whereNotNull('s.first_name')
+            ->addSelect('pay.amount as amount', 'pay.create_date as payment_date')
+            ->whereNotNull('s.first_name');
+
+        if ($subscription) {
+            $query->where('p.product', $subscription);
+        }
+        if ($from) {
+            $query->where('pay.create_date', '>=', Carbon::parse($from)->startOfDay());
+        }
+        if ($to) {
+            $query->where('pay.create_date', '<=', Carbon::parse($to)->endOfDay());
+        }
+
+        return $query
             ->orderByDesc('p.create_date')
             ->limit(2000)
             ->get()
             ->unique('studentid')
-            ->slice($offset, $limit);
+            ->values();
+    }
 
+    private function mapCampaignRows($rows): array
+    {
         if ($rows->isEmpty()) {
             return [];
         }
@@ -51,6 +108,7 @@ class MockMasterDataService
                 'name' => trim($r->first_name . ' ' . $r->last_name) ?: 'Student #' . $r->studentid,
                 'sub' => $r->product ?: 'Package',
                 'value' => '$' . number_format((float) ($r->amount ?? 0), 0),
+                'paymentDate' => $r->payment_date ? Carbon::parse($r->payment_date)->format('d M Y') : '—',
                 'stage' => $stage,
                 'readiness' => $readiness,
                 'trust' => $trust,
@@ -395,6 +453,58 @@ class MockMasterDataService
      * question like "what's Samina's email" has nothing to match against
      * unless we search for that name directly.
      */
+    /**
+     * Paid subscriptions (mm_payments.status = 1) whose payment date
+     * (mm_payments.create_date) falls inside [$start, $end]. Used by the
+     * Ask Mira chat for date-range questions like "paid subscriptions last
+     * month" — the aggregated snapshot has no per-period breakdown.
+     */
+    public function paidPaymentsBetween(Carbon $start, Carbon $end, int $listLimit = 200): array
+    {
+        $base = DB::table('mm_payments as pay')
+            ->where('pay.status', 1)
+            ->whereBetween('pay.create_date', [$start, $end]);
+
+        $count = (clone $base)->count();
+        $totalAmount = (float) (clone $base)->sum('pay.amount');
+
+        $byProduct = (clone $base)
+            ->select('pay.product', DB::raw('COUNT(*) as payments'), DB::raw('SUM(pay.amount) as amount'))
+            ->groupBy('pay.product')
+            ->orderByDesc('payments')
+            ->limit(15)
+            ->get()
+            ->map(fn ($r) => ['product' => $r->product, 'payments' => (int) $r->payments, 'amount' => (float) $r->amount])
+            ->values()
+            ->all();
+
+        $payments = (clone $base)
+            ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'pay.buyerid')
+            ->select('pay.create_date', 'pay.product', 'pay.amount', 's.first_name', 's.last_name', 's.email')
+            ->orderByDesc('pay.create_date')
+            ->limit($listLimit)
+            ->get()
+            ->map(fn ($r) => [
+                'paid_on' => Carbon::parse($r->create_date)->format('Y-m-d'),
+                'student' => trim($r->first_name . ' ' . $r->last_name) ?: null,
+                'email' => $r->email ?: null,
+                'product' => $r->product,
+                'amount' => (float) $r->amount,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'from' => $start->toDateString(),
+            'to' => $end->toDateString(),
+            'paid_payments_count' => $count,
+            'total_paid_amount' => round($totalAmount, 2),
+            'by_product' => $byProduct,
+            'payments_list' => $payments,
+            'payments_list_truncated' => $count > $listLimit,
+        ];
+    }
+
     public function searchStudents(array $terms, int $limit = 8): array
     {
         if (empty($terms)) {

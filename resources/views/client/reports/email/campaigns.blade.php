@@ -96,12 +96,45 @@
 
     @if($data['has_data'] ?? false)
     <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div class="px-4 py-3 border-b border-gray-100">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
         <h6 class="text-[13px] font-semibold text-gray-800">Campaigns</h6>
+        <span class="text-[11px] text-gray-500">{{ ($data['campaigns'] ?? collect())->count() }} campaign(s)</span>
       </div>
-      <div class="divide-y divide-gray-100">
-        <div class="px-4 py-8 text-center text-gray-500 text-[12px]">Campaign data will appear here</div>
+
+      @if(($data['campaigns'] ?? collect())->isEmpty())
+      <div class="p-8 text-center">
+        <p class="text-[13px] text-gray-500">No campaigns synced in this period yet.</p>
       </div>
+      @else
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b border-gray-100">
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Campaign</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Provider</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide text-right">Recipients</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide text-right">Delivered</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide text-right">Open Rate</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide text-right">Click Rate</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Last Sent</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach($data['campaigns'] as $c)
+            <tr class="border-b border-gray-50 last:border-b-0">
+              <td class="px-4 py-2.5 text-[13px] text-gray-800 font-medium">Campaign #{{ $c->campaign_id }}</td>
+              <td class="px-4 py-2.5 text-[12px] text-gray-500 capitalize">{{ $c->provider_name }}</td>
+              <td class="px-4 py-2.5 text-[13px] text-gray-600 text-right">{{ number_format($c->recipients) }}</td>
+              <td class="px-4 py-2.5 text-[13px] text-gray-600 text-right">{{ number_format($c->delivered) }}</td>
+              <td class="px-4 py-2.5 text-[13px] text-gray-600 text-right">{{ $c->open_rate }}%</td>
+              <td class="px-4 py-2.5 text-[13px] text-gray-600 text-right">{{ $c->click_rate }}%</td>
+              <td class="px-4 py-2.5 text-[12px] text-gray-500">{{ $c->last_sent_at ? \Carbon\Carbon::parse($c->last_sent_at)->diffForHumans() : '—' }}</td>
+            </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+      @endif
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -125,7 +158,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -133,4 +166,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush

@@ -82,9 +82,18 @@ $agents = [
     ['key' => 'sl', 'letter' => 'S', 'label' => 'Sales'],
     ['key' => 'ch', 'letter' => 'R', 'label' => 'Customer Retention'],
 ];
+
+// Presentation-only helpers for the tables: an initial avatar whose colour
+// comes from the name, and a pill style picked from a stage label.
+$mmAvColors = ['#3b5bdb', '#7c5cfc', '#f97316', '#1e3a8a', '#0284c7', '#334155', '#16a34a', '#db2777', '#0d9488'];
+$mmAvColor  = fn ($name) => $mmAvColors[crc32((string) $name) % count($mmAvColors)];
+$mmInitial  = fn ($name) => mb_strtoupper(mb_substr(trim((string) $name), 0, 1)) ?: '?';
+$mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label) ? 'good'
+    : (preg_match('/lost|expired|fail/i', (string) $label) ? 'bad'
+    : (preg_match('/decision|bought/i', (string) $label) ? 'violet' : 'info'));
 @endphp
 
-<div class="flex flex-col h-full overflow-hidden bg-gray-50">
+<div class="bh-page flex flex-col h-full overflow-hidden">
 
     {{-- Page Header --}}
     <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
@@ -143,14 +152,22 @@ $agents = [
 
     {{-- Helper Interface Card --}}
     <div class="flex-1 overflow-hidden p-6">
-    <div id="bhRoot" class="h-full flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" data-agent="mk">
+    <div id="bhRoot" class="h-full flex flex-col overflow-hidden" data-agent="mk">
 
         {{-- Selector bar: agent tabs --}}
         <div class="bar">
             <div class="atabs">
                 @foreach($agents as $i => $a)
                 <button type="button" class="atab {{ $i === 0 ? 'on' : '' }}" id="mmAgentTab-{{ $a['key'] }}" onclick="mmSetAgent('{{ $a['key'] }}')">
-                    <span class="amono">{{ $a['letter'] }}</span><span class="a2">{{ $a['label'] }}</span>
+                    <span class="amono">
+                        @if($a['key'] === 'mk')
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l15-6v14L3 13z"/><path d="M3 11v2"/><path d="M7.5 13.8V18a2 2 0 0 0 4 0v-3"/><path d="M21 9v6"/></svg>
+                        @elseif($a['key'] === 'sl')
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20v-6"/><path d="M10 20V10"/><path d="M14 20V4"/><path d="M18 20v-9"/></svg>
+                        @else
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></svg>
+                        @endif
+                    </span><span class="a2">{{ $a['label'] }}</span>
                 </button>
                 @endforeach
             </div>
@@ -190,24 +207,50 @@ $agents = [
                             <div class="si-h">WHAT YOU'RE LOOKING AT</div>
                             <div class="si-p">Your real renewal-ready students, each with the outreach call that matters most for them: whether to lead with <b>proof</b> or an <b>offer</b>, based on their own real trust score — not the pool average. Sorted by package value, biggest first.</div>
                         </div>
+                        <form id="mmCampaignFilter" method="GET" action="{{ route('client.mock-master-helper') }}" onsubmit="return mmCampaignSubmit(event)" class="mm-filter-bar" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:12px 14px;border-bottom:1px solid var(--ln);background:var(--p1)">
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--g3)">Subscription
+                                <select name="subscription" style="min-width:220px;padding:6px 8px;border:1px solid var(--ln);border-radius:6px;font-size:12px;background:#fff">
+                                    <option value="">All subscriptions</option>
+                                    @foreach($mkSubscriptions as $sub)
+                                        <option value="{{ $sub }}" {{ ($mkFilters['subscription'] ?? '') === $sub ? 'selected' : '' }}>{{ $sub }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--g3)">Payment from
+                                <input type="date" name="from" value="{{ $mkFilters['from'] ?? '' }}" style="padding:6px 8px;border:1px solid var(--ln);border-radius:6px;font-size:12px;background:#fff">
+                            </label>
+                            <label style="display:flex;flex-direction:column;gap:4px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--g3)">Payment to
+                                <input type="date" name="to" value="{{ $mkFilters['to'] ?? '' }}" style="padding:6px 8px;border:1px solid var(--ln);border-radius:6px;font-size:12px;background:#fff">
+                            </label>
+                            <button type="submit" style="padding:7px 14px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Apply</button>
+                            <button type="button" onclick="mmCampaignReset()" style="padding:7px 14px;border-radius:6px;border:1px solid var(--ln);color:var(--g3);font-size:12px;font-weight:600;cursor:pointer;background:#fff">Reset</button>
+                        </form>
                         <table class="dtbl">
-                            <thead><tr><th>Student</th><th>Package value</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead>
-                            <tbody>
+                            <thead><tr><th>Student</th><th>Package value</th><th>Payment date</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead>
+                            <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
-                                    <td class="acctn">{{ $s['name'] }} <span style="color:var(--g3);font-weight:400">({{ $s['sub'] }})</span></td>
+                                    <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($s['name']) }}">{{ $mmInitial($s['name']) }}</span><div><div class="bh-acct-n">{{ $s['name'] }}</div><div class="bh-acct-c">({{ $s['sub'] }})</div></div></div></td>
                                     <td>{{ $s['value'] }}</td>
-                                    <td>{{ $s['stage'] }}</td>
+                                    <td>{{ $s['paymentDate'] }}</td>
+                                    <td><span class="bh-pill {{ $mmStageKind($s['stage']) }}">{{ $s['stage'] }}</span></td>
                                     <td>{{ $s['readiness'] }}</td>
                                     <td>{{ $s['trust'] }}</td>
-                                    <td>@if($s['approach'] === 'Offer-led')<span style="color:#0e7a35;font-weight:600">Offer-led</span>@else<span style="color:var(--warn);font-weight:600">Proof-led</span>@endif</td>
+                                    <td>@if($s['approach'] === 'Offer-led')<span class="bh-pill good">Offer-led</span>@else<span class="bh-pill warn">Proof-led</span>@endif</td>
                                     <td>{{ $s['lastActive'] }}</td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="7" style="color:var(--g3);padding:20px">No renewal-ready students found right now.</td></tr>
+                                <tr><td colspan="8" style="color:var(--g3);padding:20px">No renewal-ready students found right now.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
+                        <div id="mmCampaignPager" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--ln);font-size:12px;color:var(--g3)">
+                            <span id="mmCampaignPageInfo">Page {{ $mkPaged['page'] }} of {{ $mkPaged['last_page'] }} · {{ number_format($mkPaged['total']) }} students</span>
+                            <div style="display:flex;gap:6px">
+                                <button type="button" id="mmCampaignPrev" onclick="mmCampaignGo({{ max(1, $mkPaged['page'] - 1) }})" {{ $mkPaged['page'] <= 1 ? 'disabled' : '' }} style="padding:5px 12px;border-radius:6px;border:1px solid var(--ln);background:#fff;font-size:12px;font-weight:600;cursor:pointer">Previous</button>
+                                <button type="button" id="mmCampaignNext" onclick="mmCampaignGo({{ min($mkPaged['last_page'], $mkPaged['page'] + 1) }})" {{ $mkPaged['page'] >= $mkPaged['last_page'] ? 'disabled' : '' }} style="padding:5px 12px;border-radius:6px;border:1px solid var(--ln);background:#fff;font-size:12px;font-weight:600;cursor:pointer">Next</button>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mm-panel" data-panel="mk-performance" style="display:none">
@@ -253,7 +296,7 @@ $agents = [
                     </span>
                 </div>
                 <div class="dm-hd">
-                    <span class="dm-dot"></span>
+                    <span class="dm-spark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2.5l1.9 5.6 5.6 1.9-5.6 1.9L10 17.5l-1.9-5.6L2.5 10l5.6-1.9z"/><path d="M18.5 13l.95 2.55L22 16.5l-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95z"/></svg></span>
                     <div><div class="dm-t">Marketing helper</div><div class="dm-s">ENGINE + AI · GROUNDED IN LIVE DATA</div></div>
                     <span class="dm-ready">Ready</span>
                     <div class="mira-tools">
@@ -325,7 +368,7 @@ $agents = [
                             <tbody>
                                 @forelse($slProspects as $p)
                                 <tr>
-                                    <td class="acctn">{{ $p['name'] }} <span style="color:var(--g3);font-weight:400">({{ $p['sub'] }})</span></td>
+                                    <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div><div class="bh-acct-n">{{ $p['name'] }}</div><div class="bh-acct-c">({{ $p['sub'] }})</div></div></div></td>
                                     <td>{{ $p['readiness'] }}</td>
                                     <td>{{ $p['intent'] }}</td>
                                     <td>{{ $p['trust'] }}</td>
@@ -344,7 +387,7 @@ $agents = [
                             <thead><tr><th>Prospect</th><th>Readiness</th><th>Intent</th><th>Trust</th><th>Play</th></tr></thead>
                             <tbody>
                                 @forelse($slProspects as $p)
-                                <tr><td class="acctn">{{ $p['name'] }}</td><td>{{ $p['readiness'] }}</td><td>{{ $p['intent'] }}</td><td>{{ $p['trust'] }}</td><td>{{ $p['play'] }}</td></tr>
+                                <tr><td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div class="bh-acct-n">{{ $p['name'] }}</div></div></td><td>{{ $p['readiness'] }}</td><td>{{ $p['intent'] }}</td><td>{{ $p['trust'] }}</td><td>{{ $p['play'] }}</td></tr>
                                 @empty
                                 <tr><td colspan="5" style="color:var(--g3);padding:20px">No prospects found right now.</td></tr>
                                 @endforelse
@@ -384,7 +427,7 @@ $agents = [
                     </span>
                 </div>
                 <div class="dm-hd">
-                    <span class="dm-dot"></span>
+                    <span class="dm-spark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2.5l1.9 5.6 5.6 1.9-5.6 1.9L10 17.5l-1.9-5.6L2.5 10l5.6-1.9z"/><path d="M18.5 13l.95 2.55L22 16.5l-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95z"/></svg></span>
                     <div><div class="dm-t">Sales helper</div><div class="dm-s">ENGINE + AI · GROUNDED IN LIVE DATA</div></div>
                     <span class="dm-ready">Ready</span>
                     <div class="mira-tools">
@@ -456,7 +499,7 @@ $agents = [
                             <tbody>
                                 @forelse($chAtRisk as $r)
                                 <tr>
-                                    <td class="acctn">{{ $r['name'] }} <span style="color:var(--g3);font-weight:400">({{ $r['sub'] }})</span></td>
+                                    <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div><div class="bh-acct-c">({{ $r['sub'] }})</div></div></div></td>
                                     <td>{{ $r['inactiveDays'] }}d</td>
                                     <td>{{ $r['valueAtRisk'] }}</td>
                                     <td><span style="color:var(--crit);font-weight:600">{{ $r['risk'] }}</span></td>
@@ -490,7 +533,7 @@ $agents = [
                             <thead><tr><th>Student</th><th>Inactive for</th><th>Value at risk</th><th>Risk score</th></tr></thead>
                             <tbody>
                                 @forelse($chWatchlist as $r)
-                                <tr><td class="acctn">{{ $r['name'] }}</td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
+                                <tr><td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
                                 @empty
                                 <tr><td colspan="4" style="color:var(--g3);padding:20px">Nothing trending toward churn right now.</td></tr>
                                 @endforelse
@@ -514,7 +557,7 @@ $agents = [
                     </span>
                 </div>
                 <div class="dm-hd">
-                    <span class="dm-dot"></span>
+                    <span class="dm-spark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2.5l1.9 5.6 5.6 1.9-5.6 1.9L10 17.5l-1.9-5.6L2.5 10l5.6-1.9z"/><path d="M18.5 13l.95 2.55L22 16.5l-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95z"/></svg></span>
                     <div><div class="dm-t">Retention helper</div><div class="dm-s">ENGINE + AI · GROUNDED IN LIVE DATA</div></div>
                     <span class="dm-ready">Ready</span>
                     <div class="mira-tools">
@@ -640,6 +683,17 @@ $agents = [
 @keyframes mmblink{0%,100%{opacity:1}50%{opacity:.2}}
 @keyframes mmspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
+.risk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:10000;align-items:center;justify-content:center;padding:24px}
+.risk-modal-overlay.show{display:flex}
+.risk-modal{background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.risk-modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;color:#111827}
+.risk-modal-hd button{border:none;background:none;font-size:16px;color:#9ca3af;cursor:pointer;line-height:1;padding:4px}
+.risk-modal-hd button:hover{color:#111827}
+.risk-modal-body{overflow:auto;padding:12px 18px 18px}
+.risk-modal-body table{width:100%;border-collapse:collapse;font-size:12px}
+.risk-modal-body th,.risk-modal-body td{padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:left;white-space:nowrap}
+.risk-modal-body th{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;background:#f9fafb}
+
 /* ── Sync overlay — blurs the whole interface while a sync is running so
    nothing looks interactive mid-copy, and lifts the moment it finishes. ── */
 body.mm-syncing > *:not(#mmSyncOverlay){filter:blur(5px);pointer-events:none;user-select:none;transition:filter .25s ease}
@@ -741,6 +795,191 @@ body.mm-syncing #mmSyncOverlay{display:flex}
 #bhRoot .nmin:focus{border-color:var(--ac-m);box-shadow:0 0 0 3px var(--ac-l)}
 #bhRoot .nmin:disabled{background:var(--p2);color:var(--g3)}
 #bhRoot .nmform .qk{flex-shrink:0;align-self:center}
+
+/* ══════════════════════════════════════════════════════════════════════
+   THEME — same floating-card layout as Business Helpers. Visual overrides
+   only: every class, id and handler above is unchanged.
+   ══════════════════════════════════════════════════════════════════════ */
+.bh-page{background:#f5f7fb}
+
+#bhRoot{--ln:#e6e9f0;--ln2:#d9dee8;--p1:#f7f8fb;--p2:#f1f3f8;--g2:#5b6475;--card-r:14px;--card-sh:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.04)}
+
+/* Agent tabs — one white strip, the active agent is a solid accent block */
+#bhRoot .bar{background:transparent;border:none;gap:0;margin-bottom:16px}
+#bhRoot .atabs{background:#fff;gap:0;border:1px solid var(--ln);border-radius:var(--card-r);box-shadow:var(--card-sh);padding:0;overflow:hidden}
+#bhRoot .atab{min-height:48px;background:#fff;gap:10px;border-radius:0}
+#bhRoot .atab + .atab{border-left:1px solid var(--ln)}
+#bhRoot .atab:hover{background:var(--p1)}
+#bhRoot .atab.on,#bhRoot .atab.on:hover{background:var(--ac);border-radius:var(--card-r);border-left-color:transparent}
+#bhRoot .atab.on + .atab{border-left-color:transparent}
+#bhRoot .atab.on::after{display:none}
+#bhRoot .amono{width:auto;height:auto;background:none;border-radius:0;color:#475569}
+#bhRoot .amono svg{width:17px;height:17px;display:block}
+#bhRoot .atab.on .amono{background:none;color:#fff}
+#bhRoot .atab .a2{font-size:13px;font-weight:600;color:#0f172a}
+#bhRoot .atab.on .a2{color:#fff}
+
+/* Three floating cards instead of one card split by hairlines */
+#bhRoot .dash{gap:16px;background:transparent}
+#bhRoot .dash-left,#bhRoot .dash-main,#bhRoot .dash-mira{background:#fff;border:1px solid var(--ln);border-radius:var(--card-r);box-shadow:var(--card-sh)}
+#bhRoot .dash-main{overflow:hidden}
+#bhRoot .left-resize::before,#bhRoot .mira-resize::before,#bhRoot .row-resize::before{background:transparent}
+#bhRoot .left-resize{transform:translateX(0)}
+#bhRoot .mira-grip{height:26px;border-radius:6px;box-shadow:0 1px 2px rgba(16,24,40,.06)}
+
+/* Steps list */
+#bhRoot .dash-left{padding:10px 0}
+#bhRoot .flowst{margin:2px 10px;padding:10px 10px;border-radius:10px;gap:12px;transition:background .15s}
+#bhRoot .flowst.cur{background:var(--ac-l);border-left:none;padding-left:10px}
+#bhRoot .flowst-dot{width:27px;height:27px;border:1.5px solid var(--ln2);font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:#64748b}
+#bhRoot .flowst.cur .flowst-dot{box-shadow:0 0 0 4px var(--ac-l)}
+#bhRoot .flowst-t{font-size:13.5px;font-weight:600;color:#0f172a}
+#bhRoot .col-rail{background:transparent}
+
+/* View tabs across the middle card (active tab: tint + underline) */
+#bhRoot .dash-vtabs{gap:0;background:#fff;padding:6px 6px 0}
+#bhRoot .dvt{font-family:'Inter',sans-serif;font-size:10.5px;font-weight:600;letter-spacing:1.5px;color:#475569;padding:12px 6px;background:#fff;border-radius:8px 8px 0 0}
+#bhRoot .dvt + .dvt{box-shadow:inset 1px 0 0 var(--ln)}
+#bhRoot .dvt.on{background:var(--ac-l);color:var(--ac-d);box-shadow:inset 0 -2.5px 0 var(--ac)}
+#bhRoot .dvt.on + .dvt{box-shadow:none}
+#bhRoot .dvt:hover:not(.on){background:var(--p1);color:#0f172a}
+
+/* "What you're looking at" intro */
+#bhRoot .stack-intro{padding:20px 20px 16px}
+#bhRoot .si-h{font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:#0f172a;margin-bottom:8px}
+#bhRoot .si-p{font-size:12.5px;color:#475569;line-height:1.75;max-width:680px}
+#bhRoot .si-p b{color:#0f172a}
+
+/* Data tables — a rounded inset table inside the card */
+#bhRoot .dtbl{width:calc(100% - 40px);margin:0 20px 20px;border-collapse:separate;border-spacing:0;border:1px solid var(--ln);border-radius:10px;overflow:hidden;font-size:12px}
+#bhRoot .dtbl th{font-size:10px;font-weight:700;letter-spacing:.5px;color:#64748b;background:var(--p1);padding:9px 14px;border-bottom:1px solid var(--ln)}
+#bhRoot .dtbl td{padding:9px 14px;border-bottom:1px solid var(--ln);color:#1e293b;font-variant-numeric:tabular-nums}
+#bhRoot .dtbl tbody tr:last-child td{border-bottom:none}
+#bhRoot .dtbl tr:hover td{background:#fafbfd}
+#bhRoot .bh-acct{display:flex;align-items:center;gap:10px;min-width:160px}
+#bhRoot .bh-av{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0}
+#bhRoot .bh-acct-n{font-weight:600;color:#0f172a;line-height:1.3}
+#bhRoot .bh-acct-c{font-size:11px;font-weight:400;color:#64748b;line-height:1.35;margin-top:1px}
+#bhRoot .bh-pill{display:inline-block;font-size:11px;font-weight:600;line-height:1.3;padding:3px 8px;border-radius:6px;white-space:normal;max-width:130px}
+#bhRoot .bh-pill.good{background:#e8f7ee;color:#15803d}
+#bhRoot .bh-pill.warn{background:#fff1e6;color:#c2410c}
+#bhRoot .bh-pill.bad{background:#fdecec;color:#b91c1c}
+#bhRoot .bh-pill.info{background:#e8f0fe;color:#1d4ed8}
+#bhRoot .bh-pill.violet{background:#f1ecfe;color:#6d28d9}
+#bhRoot .stk-play{font-size:9.5px;padding:3px 8px;border-radius:6px;border:none}
+
+/* Segment / insight / offer cards and KPI grid */
+#bhRoot .act{border:1px solid var(--ln);border-left:3px solid var(--ac);border-radius:10px;padding:12px 18px;margin:0 20px 10px}
+#bhRoot .act-t{font-size:12.5px}
+#bhRoot .act-d{font-size:11px;margin-top:2px}
+#bhRoot .mg-grid{gap:12px;background:transparent;padding:0 20px 20px}
+#bhRoot .mg-cell{border:1px solid var(--ln);border-radius:12px;padding:16px 18px}
+#bhRoot .mg-h{font-size:10px;letter-spacing:1px;color:#64748b}
+#bhRoot .mg-kpi{font-size:20px;color:#0f172a}
+
+/* Helper panel (right card) */
+#bhRoot .dm-hd{background:#fff;padding:14px 16px;gap:10px}
+#bhRoot .dm-spark{width:18px;height:18px;color:var(--ac);flex-shrink:0;display:grid;place-items:center}
+#bhRoot .dm-spark svg{width:17px;height:17px}
+#bhRoot .dm-t{font-size:13px;font-weight:700;letter-spacing:.2px;color:#0f172a}
+#bhRoot .dm-s{font-family:'Inter',sans-serif;font-size:8.5px;font-weight:600;letter-spacing:.5px;color:#64748b;margin-top:3px}
+#bhRoot .dm-ready{font-family:'Inter',sans-serif;font-size:9.5px;letter-spacing:1px;color:#15803d;background:#e8f7ee;border:none;padding:3px 10px}
+#bhRoot .mira-tools{gap:4px}
+#bhRoot .mira-btn{width:24px;height:24px;border-radius:7px;font-size:12px;color:#334155;border-color:var(--ln2)}
+#bhRoot .dm-chat{padding:18px}
+
+/* Friendly greeting while a chat is empty (pure CSS, disappears on first message) */
+#bhRoot .dm-chat:empty{flex-direction:row;align-items:flex-start;gap:10px}
+#bhRoot .dm-chat:empty::before{content:'\1F44B';width:30px;height:30px;flex-shrink:0;border-radius:50%;background:#fff;border:1px solid var(--ln);display:grid;place-items:center;font-size:14px;box-shadow:var(--card-sh)}
+#bhRoot .dm-chat:empty::after{background:var(--p2);border-radius:10px;padding:11px 13px;font-size:12.5px;line-height:1.65;color:#1e293b;white-space:pre-line;max-width:300px}
+#bhRoot #mmChat-mk:empty::after{content:"Hi! I'm your Marketing helper.\A I can help you with campaigns, student segments, renewal copy, and more."}
+#bhRoot #mmChat-sl:empty::after{content:"Hi! I'm your Sales helper.\A I can help you decide which students to contact, what to say, and how to convert them."}
+#bhRoot #mmChat-ch:empty::after{content:"Hi! I'm your Customer Retention helper.\A I can help you spot at-risk students, plan saves, and choose offers."}
+
+/* Chat bubbles */
+#bhRoot .dm-chat .msg{font-size:12.5px;border-radius:10px;padding:11px 13px}
+#bhRoot .dm-chat .msg.bot{background:var(--p2);border:none}
+#bhRoot .dm-chat .msg.user{background:var(--ac);color:#fff}
+
+/* Suggested prompts */
+#bhRoot .dm-quick-hd{font-family:'Inter',sans-serif;font-size:9.5px;font-weight:700;letter-spacing:1.5px;color:#4c5a8a;padding:10px 16px 4px;border-top:1px solid var(--ln)}
+#bhRoot .dm-quick-min{width:20px;height:20px;border-radius:6px;color:#475569;font-size:8px}
+#bhRoot .dm-quick{padding:6px 16px 14px;gap:7px}
+#bhRoot .dm-quick .qk{position:relative;padding:10px 30px 10px 12px;font-size:12px;font-weight:500;color:#1e293b;border:1px solid var(--ln2);border-radius:8px}
+#bhRoot .dm-quick .qk::after{content:'';position:absolute;right:12px;top:50%;width:6px;height:6px;border-right:1.8px solid #64748b;border-top:1.8px solid #64748b;transform:translateY(-50%) rotate(45deg)}
+#bhRoot .dm-quick .qk:hover::after{border-color:var(--ac-d)}
+#bhRoot .dm-quick-reopen{font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.5px}
+
+/* Composer — rounded input with a separate square send button */
+#bhRoot .dm-inbar{gap:8px;padding:10px 16px 14px;background:#fff;border-top:none}
+#bhRoot .dm-inbar .in{border:1px solid var(--ln2);border-radius:10px;padding:0 14px;min-height:42px;font-size:12.5px;transition:border-color .15s,box-shadow .15s}
+#bhRoot .dm-inbar .in:focus{border-color:var(--ac-m);box-shadow:0 0 0 3px var(--ac-l)}
+#bhRoot .dm-inbar .send{width:42px;border-radius:10px;box-shadow:0 4px 12px rgba(16,24,40,.18)}
+#bhRoot .dm-inbar .send svg{width:14px;height:14px;fill:#fff;stroke:#fff;stroke-width:1.5}
+
+/* ══ Compact tiers for laptops ══
+   At 100% browser zoom, laptops with Windows display scaling (125% / 150%)
+   have a narrower CSS viewport (~1536px / ~1280px), so everything looks
+   bigger. These tiers step the sizes down as the viewport narrows; wide
+   screens keep the sizes above. Visual only. */
+@media (max-width:1600px){
+  .bh-page > .p-6{padding:16px}
+  #bhRoot .bar{margin-bottom:12px}
+  #bhRoot .dash{gap:12px}
+  #bhRoot .atab{min-height:44px;gap:8px}
+  #bhRoot .amono svg{width:16px;height:16px}
+  #bhRoot .atab .a2{font-size:12.5px}
+  #bhRoot .dash-left{padding:8px 0}
+  #bhRoot .flowst{margin:1px 8px;padding:8px 8px;gap:10px}
+  #bhRoot .flowst.cur{padding-left:8px}
+  #bhRoot .flowst-dot{width:24px;height:24px;font-size:10.5px}
+  #bhRoot .flowst-t{font-size:12.5px}
+  #bhRoot .dvt{font-size:10px;letter-spacing:1.2px;padding:10px 4px;min-width:64px}
+  #bhRoot .stack-intro{padding:16px 16px 12px}
+  #bhRoot .si-h{font-size:10.5px;letter-spacing:1.6px;margin-bottom:6px}
+  #bhRoot .si-p{font-size:12px;line-height:1.65}
+  #bhRoot .dtbl{width:calc(100% - 32px);margin:0 16px 16px;font-size:11.5px}
+  #bhRoot .dtbl th{font-size:9.5px;padding:8px 10px}
+  #bhRoot .dtbl td{padding:7px 10px}
+  #bhRoot .bh-acct{gap:8px;min-width:140px}
+  #bhRoot .bh-av{width:24px;height:24px;font-size:11px;border-radius:6px}
+  #bhRoot .bh-acct-c{font-size:10.5px}
+  #bhRoot .bh-pill{font-size:10.5px;padding:2px 7px}
+  #bhRoot .act{padding:10px 14px;margin:0 16px 8px}
+  #bhRoot .act-t{font-size:12px}
+  #bhRoot .mg-grid{gap:10px;padding:0 16px 16px}
+  #bhRoot .mg-kpi{font-size:18px}
+  #bhRoot .dm-hd{padding:12px 14px;gap:8px}
+  #bhRoot .dm-t{font-size:12.5px}
+  #bhRoot .dm-chat{padding:14px}
+  #bhRoot .dm-chat .msg{font-size:12px;padding:10px 12px}
+  #bhRoot .dm-chat:empty::after{font-size:12px;padding:10px 12px}
+  #bhRoot .dm-quick-hd{padding:8px 14px 4px}
+  #bhRoot .dm-quick{padding:4px 14px 10px;gap:6px}
+  #bhRoot .dm-quick .qk{font-size:11.5px;padding:8px 26px 8px 10px}
+  #bhRoot .dm-inbar{padding:8px 14px 12px}
+  #bhRoot .dm-inbar .in{min-height:38px;font-size:12px;padding:0 12px}
+  #bhRoot .dm-inbar .send{width:38px}
+}
+@media (max-width:1366px){
+  .bh-page > .p-6{padding:12px}
+  #bhRoot .dash{gap:10px}
+  #bhRoot .atab{min-height:40px}
+  #bhRoot .atab .a2{font-size:12px}
+  #bhRoot .flowst-t{font-size:12px}
+  #bhRoot .flowst-dot{width:22px;height:22px;font-size:10px}
+  #bhRoot .dvt{font-size:9.5px;letter-spacing:1px;padding:9px 3px;min-width:56px}
+  #bhRoot .si-p{font-size:11.5px}
+  #bhRoot .dtbl{font-size:11px}
+  #bhRoot .dtbl th{font-size:9px}
+  #bhRoot .dm-t{font-size:12px}
+  #bhRoot .dm-chat .msg{font-size:11.5px}
+  #bhRoot .dm-chat:empty::after{font-size:11.5px}
+  #bhRoot .dm-quick .qk{font-size:11px}
+  #bhRoot .dm-inbar .in{min-height:36px;font-size:11.5px}
+  #bhRoot .dm-inbar .send{width:36px}
+}
+@media(max-width:1180px){#bhRoot .dash{gap:12px}}
 </style>
 
 <script>
@@ -1039,12 +1278,160 @@ function mmAsk(agent, text) {
     .then(function (data) {
         var answer = data.answer || "I couldn't get an answer just now.";
         botBubble.innerHTML = '<p>' + escapeHtml(answer).replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>') + '</p>';
+        if (data.results && data.results.payments_list && data.results.payments_list.length) {
+            mmAddResultsButton(botBubble, data.results);
+        }
         chat.scrollTop = chat.scrollHeight;
     })
     .catch(function () {
         botBubble.innerHTML = '<p>I couldn\'t reach the AI just now — try again in a moment.</p>';
         chat.scrollTop = chat.scrollHeight;
     });
+}
+
+/* ── Chat results — "View results" button under an answer built from a
+   date-range lookup, opening the full real list in a modal (same pattern
+   as Business Helpers' "accounts behind this" modal). ── */
+function mmAddResultsButton(bubble, results) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    var shown = results.requested_count ? results.payments_list.length : results.paid_payments_count;
+    btn.textContent = 'View the ' + Number(shown).toLocaleString() + ' payment' + (shown === 1 ? '' : 's') + ' behind this →';
+    btn.style.cssText = 'margin-top:10px;padding:6px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer';
+    btn.onclick = function () { mmShowResultsModal(results); };
+    bubble.appendChild(btn);
+}
+
+function mmShowResultsModal(results) {
+    var overlay = document.getElementById('mmResultsModal');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'mmResultsModal';
+        overlay.className = 'risk-modal-overlay';
+        overlay.onclick = function (e) { if (e.target === overlay) mmCloseResultsModal(); };
+        overlay.innerHTML =
+            '<div class="risk-modal">' +
+                '<div class="risk-modal-hd"><span id="mmResultsTitle"></span>' +
+                '<button type="button" onclick="mmCloseResultsModal()" aria-label="Close">✕</button></div>' +
+                '<div class="risk-modal-body" id="mmResultsBody"></div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+    }
+
+    var rows = results.payments_list.map(function (p, i) {
+        return '<tr>' +
+            '<td>' + (i + 1) + '</td>' +
+            '<td>' + escapeHtml(p.paid_on) + '</td>' +
+            '<td>' + escapeHtml(p.student || '—') + '</td>' +
+            '<td>' + escapeHtml(p.email || '—') + '</td>' +
+            '<td>' + escapeHtml(p.product || '—') + '</td>' +
+            '<td>$' + Number(p.amount).toLocaleString() + '</td>' +
+            '</tr>';
+    }).join('');
+
+    var note = results.payments_list_truncated
+        ? '<p style="font-size:11px;color:#6b7280;margin:8px 0 0">Showing the first ' + results.payments_list.length + ' of ' + Number(results.paid_payments_count).toLocaleString() + ' payments.</p>'
+        : '';
+
+    document.getElementById('mmResultsTitle').textContent = 'Paid subscriptions — ' + (results.period_label || '') + ' · ' + Number(results.paid_payments_count).toLocaleString() + ' payments · $' + Number(results.total_paid_amount).toLocaleString() + ' total';
+    document.getElementById('mmResultsBody').innerHTML =
+        '<table><thead><tr><th>#</th><th>Paid on</th><th>Student</th><th>Email</th><th>Subscription</th><th>Amount</th></tr></thead><tbody>' + rows + '</tbody></table>' + note;
+    overlay.classList.add('show');
+}
+
+function mmCloseResultsModal() {
+    var overlay = document.getElementById('mmResultsModal');
+    if (overlay) overlay.classList.remove('show');
+}
+
+/* ── Campaign filter — re-renders only the Campaign table rows from the
+   JSON endpoint, so the rest of the page never reloads. ── */
+var MM_CAMPAIGN_URL = '{{ route('client.mock-master-helper.campaign-students') }}';
+
+function mmEsc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+function mmCampaignPager(data) {
+    var info = document.getElementById('mmCampaignPageInfo');
+    var prev = document.getElementById('mmCampaignPrev');
+    var next = document.getElementById('mmCampaignNext');
+    if (info) info.textContent = 'Page ' + data.page + ' of ' + data.last_page + ' · ' + Number(data.total).toLocaleString() + ' students';
+    if (prev) { prev.disabled = data.page <= 1; prev.onclick = function () { mmCampaignGo(data.page - 1); }; }
+    if (next) { next.disabled = data.page >= data.last_page; next.onclick = function () { mmCampaignGo(data.page + 1); }; }
+}
+
+function mmCampaignRender(data) {
+    var body = document.getElementById('mmCampaignBody');
+    if (!body) return;
+    var students = data.students;
+    mmCampaignPager(data);
+    if (!students.length) {
+        body.innerHTML = '<tr><td colspan="8" style="color:var(--g3);padding:20px">No renewal-ready students match these filters.</td></tr>';
+        return;
+    }
+    body.innerHTML = students.map(function (s) {
+        var approach = s.approach === 'Offer-led'
+            ? '<span class="bh-pill good">Offer-led</span>'
+            : '<span class="bh-pill warn">Proof-led</span>';
+        return '<tr>' +
+            '<td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:' + mmEsc(s.color) + '">' + mmEsc(s.initial) + '</span>' +
+                '<div><div class="bh-acct-n">' + mmEsc(s.name) + '</div><div class="bh-acct-c">(' + mmEsc(s.sub) + ')</div></div></div></td>' +
+            '<td>' + mmEsc(s.value) + '</td>' +
+            '<td>' + mmEsc(s.paymentDate) + '</td>' +
+            '<td><span class="bh-pill ' + mmEsc(s.stageKind) + '">' + mmEsc(s.stage) + '</span></td>' +
+            '<td>' + mmEsc(s.readiness) + '</td>' +
+            '<td>' + mmEsc(s.trust) + '</td>' +
+            '<td>' + approach + '</td>' +
+            '<td>' + mmEsc(s.lastActive) + '</td>' +
+            '</tr>';
+    }).join('');
+}
+
+function mmCampaignLoad(query) {
+    var body = document.getElementById('mmCampaignBody');
+    if (body) body.innerHTML = '<tr><td colspan="8" style="color:var(--g3);padding:20px">Loading…</td></tr>';
+    fetch(MM_CAMPAIGN_URL + (query ? '?' + query : ''), {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
+    .then(mmCampaignRender)
+    .catch(function () {
+        if (body) body.innerHTML = '<tr><td colspan="8" style="color:#b91c1c;padding:20px">Couldn\'t load students — please try again.</td></tr>';
+    });
+}
+
+function mmCampaignParams(page) {
+    var form = document.getElementById('mmCampaignFilter');
+    var params = new URLSearchParams();
+    new FormData(form).forEach(function (v, k) { if (v) params.append(k, v); });
+    if (page && page > 1) params.set('page', page);
+    return params;
+}
+
+function mmCampaignGo(page) {
+    var params = mmCampaignParams(page);
+    mmCampaignLoad(params.toString());
+    if (window.history && history.replaceState) {
+        history.replaceState(null, '', '?' + params.toString());
+    }
+}
+
+function mmCampaignSubmit(e) {
+    e.preventDefault();
+    mmCampaignGo(1);
+    return false;
+}
+
+function mmCampaignReset() {
+    var form = document.getElementById('mmCampaignFilter');
+    if (form) form.querySelectorAll('select, input').forEach(function (el) { el.value = ''; });
+    mmCampaignLoad('');
+    if (window.history && history.replaceState) {
+        history.replaceState(null, '', window.location.pathname);
+    }
 }
 
 /* ── Sync Data — pulls the 14 live Mock Master source tables from the

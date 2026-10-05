@@ -17,7 +17,7 @@ $clientName = $client?->company_name ?? 'Acme Retail';
 $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(explode(' ', $clientName), 0, 2))));
 @endphp
 
-<div class="flex flex-col h-full overflow-hidden bg-gray-50">
+<div class="bh-page flex flex-col h-full overflow-hidden">
 
     {{-- Page Header --}}
     <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
@@ -71,19 +71,19 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 
     {{-- Helper Interface Card --}}
     <div class="flex-1 overflow-hidden p-6">
-    <div id="bhRoot" class="h-full flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div id="bhRoot" class="h-full flex flex-col overflow-hidden">
 
         {{-- Selector bar: agent tabs + task tabs --}}
         <div class="bar">
             <div class="atabs">
                 <button type="button" class="atab" id="bhAgentTab-mk" onclick="setAgent('mk')">
-                    <span class="amono">M</span><span class="a2">Marketing</span>
+                    <span class="amono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l15-6v14L3 13z"/><path d="M3 11v2"/><path d="M7.5 13.8V18a2 2 0 0 0 4 0v-3"/><path d="M21 9v6"/></svg></span><span class="a2">Marketing</span>
                 </button>
                 <button type="button" class="atab" id="bhAgentTab-sl" onclick="setAgent('sl')">
-                    <span class="amono">S</span><span class="a2">Sales</span>
+                    <span class="amono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20v-6"/><path d="M10 20V10"/><path d="M14 20V4"/><path d="M18 20v-9"/></svg></span><span class="a2">Sales</span>
                 </button>
                 <button type="button" class="atab" id="bhAgentTab-ch" onclick="setAgent('ch')">
-                    <span class="amono">R</span><span class="a2">Customer Retention</span>
+                    <span class="amono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></svg></span><span class="a2">Customer Retention</span>
                 </button>
             </div>
         </div>
@@ -138,7 +138,7 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
                     </span>
                 </div>
                 <div class="dm-hd">
-                    <span class="dm-dot"></span>
+                    <span class="dm-spark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2.5l1.9 5.6 5.6 1.9-5.6 1.9L10 17.5l-1.9-5.6L2.5 10l5.6-1.9z"/><path d="M18.5 13l.95 2.55L22 16.5l-2.55.95L18.5 20l-.95-2.55L15 16.5l2.55-.95z"/></svg></span>
                     <div><div class="dm-t" id="dmTitle"></div><div class="dm-s">ENGINE + AI · GROUNDED IN LIVE DATA</div></div>
                     <span class="dm-ready">Ready</span>
                     <div class="mira-tools">
@@ -525,6 +525,186 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .ov-client-sel{border:1px solid var(--ln2);border-radius:8px;padding:9px 14px;font-family:var(--f1);font-size:13px;font-weight:600;color:var(--ink);background:#fff;cursor:pointer;outline:none;min-width:220px;transition:border-color .15s}
 #bhRoot .ov-client-sel:hover{border-color:var(--ac-m)}
 #bhRoot .ov-client-sel:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac-l)}
+
+/* ══════════════════════════════════════════════════════════════════════
+   THEME — floating-card layout. Visual overrides only: every class, id and
+   handler above is unchanged; these rules restyle what is already there.
+   ══════════════════════════════════════════════════════════════════════ */
+.bh-page{background:#f5f7fb}
+
+#bhRoot{--ln:#e6e9f0;--ln2:#d9dee8;--p1:#f7f8fb;--p2:#f1f3f8;--g2:#5b6475;--card-r:14px;--card-sh:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.04)}
+
+/* Agent tabs — one white strip, the active agent is a solid accent block */
+#bhRoot .bar{background:transparent;border:none;gap:0;margin-bottom:16px}
+#bhRoot .atabs{background:#fff;gap:0;border:1px solid var(--ln);border-radius:var(--card-r);box-shadow:var(--card-sh);padding:0;overflow:hidden}
+#bhRoot .atab{min-height:48px;background:#fff;gap:10px;border-radius:0}
+#bhRoot .atab + .atab{border-left:1px solid var(--ln)}
+#bhRoot .atab:hover{background:var(--p1)}
+#bhRoot .atab.on,#bhRoot .atab.on:hover{background:var(--ac);border-radius:var(--card-r);border-left-color:transparent}
+#bhRoot .atab.on + .atab{border-left-color:transparent}
+#bhRoot .atab.on::after{display:none}
+#bhRoot .atabs .bh-slide-ind{display:none}
+#bhRoot .amono{width:auto;height:auto;background:none;border-radius:0;color:#475569}
+#bhRoot .amono svg{width:17px;height:17px;display:block}
+#bhRoot .atab.on .amono{background:none;color:#fff}
+#bhRoot .atab .a2{font-size:13px;font-weight:600;color:#0f172a}
+#bhRoot .atab.on .a2{color:#fff}
+
+/* Three floating cards instead of one card split by hairlines */
+#bhRoot .dash{gap:16px;background:transparent}
+#bhRoot .dash-left,#bhRoot .dash-main,#bhRoot .dash-mira{background:#fff;border:1px solid var(--ln);border-radius:var(--card-r);box-shadow:var(--card-sh)}
+#bhRoot .dash-main{overflow:hidden}
+#bhRoot .left-resize::before,#bhRoot .mira-resize::before,#bhRoot .row-resize::before{background:transparent}
+#bhRoot .left-resize{transform:translateX(0)}
+#bhRoot .mira-grip{height:26px;border-radius:6px;box-shadow:0 1px 2px rgba(16,24,40,.06)}
+
+/* Steps list */
+#bhRoot .dash-left{padding:10px 0}
+#bhRoot .flowst{margin:2px 10px;padding:10px 10px;border-radius:10px;gap:12px;transition:background .15s}
+#bhRoot .flowst.cur{background:var(--ac-l);border-left:none;padding-left:10px}
+#bhRoot .flowst-dot{width:27px;height:27px;border:1.5px solid var(--ln2);font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:#64748b}
+#bhRoot .flowst.cur .flowst-dot{box-shadow:0 0 0 4px var(--ac-l)}
+#bhRoot .flowst-t{font-size:13.5px;font-weight:600;color:#0f172a}
+#bhRoot .col-rail{background:transparent}
+
+/* View tabs across the middle card */
+#bhRoot .dash-vtabs{gap:0;background:#fff;padding:6px 6px 0}
+#bhRoot .dvt{font-family:'Inter',sans-serif;font-size:10.5px;font-weight:600;letter-spacing:1.5px;color:#475569;padding:12px 6px;background:#fff;border-radius:8px 8px 0 0}
+#bhRoot .dvt + .dvt{box-shadow:inset 1px 0 0 var(--ln)}
+#bhRoot .dvt.on,#bhRoot .dvt.on + .dvt{box-shadow:none}
+#bhRoot .dvt.on{background:var(--ac-l);color:var(--ac-d)}
+#bhRoot .dvt:hover:not(.on){background:var(--p1);color:#0f172a}
+#bhRoot .dash-vtabs .bh-slide-ind{height:2.5px;border-radius:2px}
+
+/* "What you're looking at" intro + section headers */
+#bhRoot .stack-intro{padding:20px 20px 16px}
+#bhRoot .si-h{font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:#0f172a;margin-bottom:8px}
+#bhRoot .si-p{font-size:12.5px;color:#475569;line-height:1.75;max-width:680px}
+#bhRoot .si-p b{color:#0f172a}
+#bhRoot .sectionh{font-family:'Inter',sans-serif;font-size:10px;letter-spacing:2px;background:var(--p1)}
+
+/* Data tables — a rounded inset table inside the card */
+#bhRoot .dtbl{width:calc(100% - 40px);margin:0 20px 20px;border-collapse:separate;border-spacing:0;border:1px solid var(--ln);border-radius:10px;overflow:hidden;font-size:12px}
+#bhRoot .dtbl th{font-size:10px;font-weight:700;letter-spacing:.5px;color:#64748b;background:var(--p1);padding:9px 14px;border-bottom:1px solid var(--ln)}
+#bhRoot .dtbl td{padding:9px 14px;border-bottom:1px solid var(--ln);color:#1e293b;font-variant-numeric:tabular-nums}
+#bhRoot .dtbl tbody tr:last-child td{border-bottom:none}
+#bhRoot .dtbl tr:hover td{background:#fafbfd}
+#bhRoot .bh-acct{display:flex;align-items:center;gap:10px;min-width:160px}
+#bhRoot .bh-av{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0}
+#bhRoot .bh-acct-n{font-weight:600;color:#0f172a;line-height:1.3}
+#bhRoot .bh-acct-c{font-size:11px;font-weight:400;color:#64748b;line-height:1.35;margin-top:1px}
+#bhRoot .dtbl .acctn:hover .bh-acct-n{color:var(--ac)}
+#bhRoot .bh-pill{display:inline-block;font-size:11px;font-weight:600;line-height:1.3;padding:3px 8px;border-radius:6px;white-space:normal;max-width:130px}
+#bhRoot .bh-pill.good{background:#e8f7ee;color:#15803d}
+#bhRoot .bh-pill.warn{background:#fff1e6;color:#c2410c}
+#bhRoot .bh-pill.bad{background:#fdecec;color:#b91c1c}
+#bhRoot .bh-pill.info{background:#e8f0fe;color:#1d4ed8}
+#bhRoot .bh-pill.violet{background:#f1ecfe;color:#6d28d9}
+#bhRoot .segtag{font-size:9.5px;padding:3px 8px;border-radius:6px;letter-spacing:.3px}
+
+/* Helper panel (right card) */
+#bhRoot .dm-hd{background:#fff;padding:14px 16px;gap:10px}
+#bhRoot .dm-spark{width:18px;height:18px;color:var(--ac);flex-shrink:0;display:grid;place-items:center}
+#bhRoot .dm-spark svg{width:17px;height:17px}
+#bhRoot .dm-t{font-size:13px;font-weight:700;letter-spacing:.2px;color:#0f172a}
+#bhRoot .dm-s{font-family:'Inter',sans-serif;font-size:8.5px;font-weight:600;letter-spacing:.5px;color:#64748b;margin-top:3px}
+#bhRoot .dm-ready{font-family:'Inter',sans-serif;font-size:9.5px;letter-spacing:1px;color:#15803d;background:#e8f7ee;border:none;padding:3px 10px}
+#bhRoot .mira-tools{gap:4px}
+#bhRoot .mira-btn{width:24px;height:24px;border-radius:7px;font-size:12px;color:#334155;border-color:var(--ln2)}
+#bhRoot .dm-chat{padding:18px}
+
+/* Friendly greeting while the chat is empty (pure CSS, disappears on first message) */
+#bhRoot .dm-chat:empty{flex-direction:row;align-items:flex-start;gap:10px}
+#bhRoot .dm-chat:empty::before{content:'\1F44B';width:30px;height:30px;flex-shrink:0;border-radius:50%;background:#fff;border:1px solid var(--ln);display:grid;place-items:center;font-size:14px;box-shadow:var(--card-sh)}
+#bhRoot .dm-chat:empty::after{background:var(--p2);border-radius:10px;padding:11px 13px;font-size:12.5px;line-height:1.65;color:#1e293b;white-space:pre-line;max-width:300px}
+#bhRoot[data-agent="mk"] .dm-chat:empty::after{content:"Hi! I'm your Marketing helper.\A I can help you with campaign ideas, audience selection, copy, and more."}
+#bhRoot[data-agent="sl"] .dm-chat:empty::after{content:"Hi! I'm your Sales helper.\A I can help you decide who to contact, what to say, and how to close."}
+#bhRoot[data-agent="ch"] .dm-chat:empty::after{content:"Hi! I'm your Customer Retention helper.\A I can help you spot at-risk customers, plan saves, and choose offers."}
+
+/* Chat bubbles */
+#bhRoot .dm-chat .msg{font-size:12.5px;border-radius:10px;padding:11px 13px}
+#bhRoot .dm-chat .msg.bot{background:var(--p2);border:none}
+#bhRoot .dm-chat .msg.user{background:var(--ac);color:#fff}
+
+/* Suggested prompts */
+#bhRoot .dm-quick-hd{font-family:'Inter',sans-serif;font-size:9.5px;font-weight:700;letter-spacing:1.5px;color:#4c5a8a;padding:10px 16px 4px;border-top:1px solid var(--ln)}
+#bhRoot .dm-quick-min{width:20px;height:20px;border-radius:6px;color:#475569}
+#bhRoot .dm-quick{padding:6px 16px 14px;gap:7px}
+#bhRoot .dm-quick .qk{position:relative;padding:10px 30px 10px 12px;font-size:12px;font-weight:500;color:#1e293b;border:1px solid var(--ln2);border-radius:8px}
+#bhRoot .dm-quick .qk::after{content:'';position:absolute;right:12px;top:50%;width:6px;height:6px;border-right:1.8px solid #64748b;border-top:1.8px solid #64748b;transform:translateY(-50%) rotate(45deg)}
+#bhRoot .dm-quick .qk:hover::after{border-color:var(--ac-d)}
+#bhRoot .dm-quick-reopen{font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.5px}
+
+/* Composer — rounded input with a separate square send button */
+#bhRoot .dm-inbar{gap:8px;padding:10px 16px 14px;background:#fff;border-top:none}
+#bhRoot .dm-inbar .in{border:1px solid var(--ln2);border-radius:10px;padding:0 14px;min-height:42px;font-size:12.5px;transition:border-color .15s,box-shadow .15s}
+#bhRoot .dm-inbar .in:focus{border-color:var(--ac-m);box-shadow:0 0 0 3px var(--ac-l)}
+#bhRoot .dm-inbar .send{width:42px;border-radius:10px;box-shadow:0 4px 12px rgba(16,24,40,.18)}
+#bhRoot .dm-inbar .send svg{width:14px;height:14px;fill:#fff;stroke:#fff;stroke-width:1.5}
+
+/* ══ Compact tiers for laptops ══
+   At 100% browser zoom, laptops with Windows display scaling (125% / 150%)
+   have a narrower CSS viewport (~1536px / ~1280px), so everything looks
+   bigger. These tiers step the sizes down as the viewport narrows; wide
+   screens keep the sizes above. Visual only. */
+@media (max-width:1600px){
+  .bh-page > .p-6{padding:16px}
+  #bhRoot .bar{margin-bottom:12px}
+  #bhRoot .dash{gap:12px}
+  #bhRoot .atab{min-height:44px;gap:8px}
+  #bhRoot .amono svg{width:16px;height:16px}
+  #bhRoot .atab .a2{font-size:12.5px}
+  #bhRoot .dash-left{padding:8px 0}
+  #bhRoot .flowst{margin:1px 8px;padding:8px 8px;gap:10px}
+  #bhRoot .flowst.cur{padding-left:8px}
+  #bhRoot .flowst-dot{width:24px;height:24px;font-size:10.5px}
+  #bhRoot .flowst-t{font-size:12.5px}
+  #bhRoot .dvt{font-size:10px;letter-spacing:1.2px;padding:10px 4px;min-width:64px}
+  #bhRoot .stack-intro{padding:16px 16px 12px}
+  #bhRoot .si-h{font-size:10.5px;letter-spacing:1.6px;margin-bottom:6px}
+  #bhRoot .si-p{font-size:12px;line-height:1.65}
+  #bhRoot .dtbl{width:calc(100% - 32px);margin:0 16px 16px;font-size:11.5px}
+  #bhRoot .dtbl th{font-size:9.5px;padding:8px 10px}
+  #bhRoot .dtbl td{padding:7px 10px}
+  #bhRoot .bh-acct{gap:8px;min-width:140px}
+  #bhRoot .bh-av{width:24px;height:24px;font-size:11px;border-radius:6px}
+  #bhRoot .bh-acct-c{font-size:10.5px}
+  #bhRoot .bh-pill{font-size:10.5px;padding:2px 7px}
+  #bhRoot .act{padding:10px 14px;margin:0 16px 8px}
+  #bhRoot .act-t{font-size:12px}
+  #bhRoot .mg-grid{gap:10px;padding:0 16px 16px}
+  #bhRoot .mg-kpi{font-size:18px}
+  #bhRoot .dm-hd{padding:12px 14px;gap:8px}
+  #bhRoot .dm-t{font-size:12.5px}
+  #bhRoot .dm-chat{padding:14px}
+  #bhRoot .dm-chat .msg{font-size:12px;padding:10px 12px}
+  #bhRoot .dm-chat:empty::after{font-size:12px;padding:10px 12px}
+  #bhRoot .dm-quick-hd{padding:8px 14px 4px}
+  #bhRoot .dm-quick{padding:4px 14px 10px;gap:6px}
+  #bhRoot .dm-quick .qk{font-size:11.5px;padding:8px 26px 8px 10px}
+  #bhRoot .dm-inbar{padding:8px 14px 12px}
+  #bhRoot .dm-inbar .in{min-height:38px;font-size:12px;padding:0 12px}
+  #bhRoot .dm-inbar .send{width:38px}
+}
+@media (max-width:1366px){
+  .bh-page > .p-6{padding:12px}
+  #bhRoot .dash{gap:10px}
+  #bhRoot .atab{min-height:40px}
+  #bhRoot .atab .a2{font-size:12px}
+  #bhRoot .flowst-t{font-size:12px}
+  #bhRoot .flowst-dot{width:22px;height:22px;font-size:10px}
+  #bhRoot .dvt{font-size:9.5px;letter-spacing:1px;padding:9px 3px;min-width:56px}
+  #bhRoot .si-p{font-size:11.5px}
+  #bhRoot .dtbl{font-size:11px}
+  #bhRoot .dtbl th{font-size:9px}
+  #bhRoot .dm-t{font-size:12px}
+  #bhRoot .dm-chat .msg{font-size:11.5px}
+  #bhRoot .dm-chat:empty::after{font-size:11.5px}
+  #bhRoot .dm-quick .qk{font-size:11px}
+  #bhRoot .dm-inbar .in{min-height:36px;font-size:11.5px}
+  #bhRoot .dm-inbar .send{width:36px}
+}
+@media(max-width:1180px){#bhRoot .dash{gap:12px}}
 </style>
 
 <script>
@@ -1643,13 +1823,13 @@ function renderMkCampaignTableHtml(accounts){
   var rows = ready.map(function(a){
     var proofLed = a.trust < 65;
     var approach = proofLed
-      ? '<span style="color:var(--warn);font-weight:600">Proof-led</span>'
-      : '<span style="color:#0e7a35;font-weight:600">Offer-led</span>';
+      ? '<span class="bh-pill warn">Proof-led</span>'
+      : '<span class="bh-pill good">Offer-led</span>';
     var lastTouch = a.days_since_activity <= 7 ? 'This week' : a.days_since_activity + 'd ago';
     return '<tr>'
-      + '<td class="acctn">' + escapeHtml(a.name) + ' <span style="color:var(--g3);font-weight:400">(' + escapeHtml(a.company) + ')</span></td>'
+      + '<td class="acctn">' + bhAcctCell(a.name, a.company) + '</td>'
       + '<td>' + money(a.deal_value) + '</td>'
-      + '<td>' + escapeHtml(a.stage_label) + '</td>'
+      + '<td>' + bhStagePill(a.stage_label) + '</td>'
       + '<td>' + a.buying_readiness + '</td>'
       + '<td>' + a.trust + '</td>'
       + '<td>' + approach + '</td>'
@@ -1660,6 +1840,24 @@ function renderMkCampaignTableHtml(accounts){
   return '<table class="dtbl"><thead><tr><th>Account</th><th>Deal value</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead><tbody>' + rows + '</tbody></table>';
 }
 function scoreCol(v){ return v>=70?'#0e7a35':v>=50?'#9a6700':'#b42332'; }
+/* Presentation-only helpers for the account tables: an initial avatar with a
+   colour picked from the name, and a stage label shown as a coloured pill.
+   They format the same values the tables already showed. */
+var BH_AV_COLORS = ['#3b5bdb','#7c5cfc','#f97316','#1e3a8a','#0284c7','#334155','#16a34a','#db2777','#0d9488'];
+function bhAcctCell(name, company){
+  var n = String(name || '');
+  var h = 0; for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
+  var initial = (n.trim().charAt(0) || '?').toUpperCase();
+  return '<div class="bh-acct"><span class="bh-av" style="background:'+BH_AV_COLORS[h % BH_AV_COLORS.length]+'">'+escapeHtml(initial)+'</span>'
+    + '<div class="bh-acct-txt"><div class="bh-acct-n">'+escapeHtml(n)+'</div>'
+    + (company ? '<div class="bh-acct-c">('+escapeHtml(company)+')</div>' : '')
+    + '</div></div>';
+}
+function bhStagePill(label){
+  var l = String(label || '');
+  var kind = /won/i.test(l) ? 'good' : /lost/i.test(l) ? 'bad' : /decision|bought/i.test(l) ? 'violet' : 'info';
+  return l ? '<span class="bh-pill '+kind+'">'+escapeHtml(l)+'</span>' : '';
+}
 function renderAccountsTable(){
   var agent = dashState.agent;
   var r = rankedFor(agent);
@@ -1697,10 +1895,10 @@ function renderMarketingAccountsTable(accounts){
   var rows = accounts.map(function(a){
     var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
     var segColor = MK_SEGMENT_COLOR[a.segment] || '#6b7280';
-    return '<tr><td class="acctn">'+escapeHtml(a.name)+' <span style="color:var(--g3);font-weight:400">('+escapeHtml(a.company)+')</span></td>'+
+    return '<tr><td class="acctn">'+bhAcctCell(a.name, a.company)+'</td>'+
       '<td><span class="segtag" style="background:'+segColor+'22;color:'+segColor+'">'+escapeHtml(segLabel)+'</span></td>'+
       '<td>'+money(a.deal_value)+'</td><td>'+a.buying_readiness+'</td><td>'+a.trust+'</td>'+
-      '<td>'+escapeHtml(a.stage_label)+'</td><td>'+a.days_since_activity+'d ago</td></tr>';
+      '<td>'+bhStagePill(a.stage_label)+'</td><td>'+a.days_since_activity+'d ago</td></tr>';
   }).join('');
   return MK_ACCOUNTS_INTRO + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>Deal value</th><th>Readiness</th><th>Trust</th><th>Stage</th><th>Last active</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
