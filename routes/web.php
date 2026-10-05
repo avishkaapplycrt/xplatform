@@ -380,7 +380,13 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         $mkTopScorers = $mm->topScorers(15);
         $mkNewStudents = $mm->newStudents(15);
         $slProspects = $mm->salesProspects();
-        $slClose = $mm->salesCloseCandidates(10);
+        $slClose = $mm->salesCloseCandidates(15);
+        // Sales · Close & grow — open checkouts, renewals due and win-backs,
+        // plus headline counts (see MockMasterDataService "Close & grow").
+        $slAbandoned = $mm->salesAbandonedCheckouts(15);
+        $slRenewals = $mm->salesRenewalsDue(15);
+        $slWinBack = $mm->salesWinBack(15);
+        $slCloseSummary = $mm->closeGrowSummary();
         // Raised from the panel's original default (6) — the "Package
         // Expiring Soon" / "Renewal Watch" audience counts run into the
         // dozens, so a 6-row list looked broken next to them once the
@@ -396,7 +402,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return view('client.mock-master-helper', compact(
             'mkPrompts', 'slPrompts', 'chPrompts',
             'mkStudents', 'mkPaged', 'mkSubscriptions', 'mkFilters', 'mkKpis', 'mkSegments', 'mkInsights', 'mkTopScorers', 'mkNewStudents',
-            'slProspects', 'slClose',
+            'slProspects', 'slClose', 'slAbandoned', 'slRenewals', 'slWinBack', 'slCloseSummary',
             'chAtRisk', 'chWatchlist', 'chRootCauses',
             'mmContactNames'
         ));
@@ -429,6 +435,9 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'chWatchlist'   => fn (int $l, int $o) => $mm->retentionWatchlist($l, $o),
             'slProspects'   => fn (int $l, int $o) => $mm->salesProspects($l, $o),
             'slClose'       => fn (int $l, int $o) => $mm->salesCloseCandidates($l, $o),
+            'slAbandoned'   => fn (int $l, int $o) => $mm->salesAbandonedCheckouts($l, $o),
+            'slRenewals'    => fn (int $l, int $o) => $mm->salesRenewalsDue($l, $o),
+            'slWinBack'     => fn (int $l, int $o) => $mm->salesWinBack($l, $o),
             'mkTopScorers'  => fn (int $l, int $o) => $mm->topScorers($l, $o),
             'mkNewStudents' => fn (int $l, int $o) => $mm->newStudents($l, $o),
         ];
@@ -464,6 +473,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
         try {
             $result = (new \App\Services\MockMaster\MockMasterSyncService())->sync();
+            // Fresh data — drop the cached Close & grow activity scan.
+            \App\Services\MockMaster\MockMasterDataService::forgetCachedActivity();
 
             return response()->json([
                 'ok' => true,

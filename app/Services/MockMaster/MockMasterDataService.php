@@ -3,6 +3,7 @@
 namespace App\Services\MockMaster;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -299,42 +300,475 @@ class MockMasterDataService
         })->values()->all();
     }
 
-    /** Sales — students on a free/trial package who show real recent activity (upsell candidates). */
+    // ─────────────────────────────────────────────────────────────────────
+    //  Sales · Close & grow
+    //
+    //  Package types (mm_packages):
+    //    • free trial  — usage_type = 'free' ("1 FREE MOCK TEST")
+    //    • paid        — cost > 0 (memberships, Practice Pro, Success Bundle)
+    //    • enrolled    — cost = 0 and not 'free' (granted to enrolled
+    //                    coaching students, so never treated as prospects)
+    //  mm_payments.status: 1 = paid, 0 = checkout started but not paid.
+    //  Results are memoised per request — the activity scans touch the
+    //  large mm_mock_test_logs / mm_login_history tables.
+    // ─────────────────────────────────────────────────────────────────────
+
+    private array $memo = [];
+
+    private function memo(string $key, callable $fn)
+    {
+        return $this->memo[$key] ??= $fn();
+    }
+
+    private function freeTrialPackageIds(): array
+    {
+        return $this->memo('pk_free', fn () => DB::table('mm_packages')->where('usage_type', 'free')->pluck('packageid')->all());
+    }
+
+    private function paidPackageIds(): array
+    {
+        return $this->memo('pk_paid', fn () => DB::table('mm_packages')->where('cost', '>', 0)->pluck('packageid')->all());
+    }
+
+    private function enrolledPackageIds(): array
+    {
+        return $this->memo('pk_enrolled', fn () => DB::table('mm_packages')->where('cost', 0)->where('usage_type', '!=', 'free')->pluck('packageid')->all());
+    }
+
+    /** Student ids that must never be shown: soft-deleted, in mm_deleted_students, or throwaway test emails. */
+    private function excludedStudentIds(): array
+    {
+        return $this->memo('excluded', function () {
+            $deleted = DB::table('mm_deleted_students')->pluck('studentId')->all();
+            $softDeleted = DB::table('mm_studentuser')
+                ->where(function ($q) {
+                    $q->whereNotNull('deleted_at')
+                      ->orWhere('email', 'like', '%@yopmail.%')
+                      ->orWhere('email', 'like', '%@mailinator.%');
+                })
+                ->pluck('studentId')->all();
+
+            return array_flip(array_merge($deleted, $softDeleted));
+        });
+    }
+
+    /**
+     * Per-student activity signals for a set of students:
+     * tests attempted / logins / notifications seen in a recent window,
+     * scored results, average score, and last activity time.
+     */
+    private function activitySignals(array $ids, int $days = 14): array
+    {
+        if (empty($ids)) {
+            return [];
+        }
+        $w = $days >= 30 ? '30' : '14';
+        $act = $this->recentActivity();
+        $avg = $this->avgScoresByStudent($ids);
+
+        $out = [];
+        foreach ($ids as $id) {
+            $t = $act['tests'][$id] ?? null;
+            $l = $act['logins'][$id] ?? null;
+            $out[$id] = [
+                'tests' => (int) ($t->{'tests' . $w} ?? 0),
+                'results' => (int) ($act['results'][$id]->{'res' . $w} ?? 0),
+                'logins' => (int) ($l->{'logins' . $w} ?? 0),
+                'seen' => (int) ($act['seen'][$id] ?? 0),
+                'avg' => isset($avg[$id]) ? (int) round($avg[$id]) : null,
+                'last_at' => max($t->last_at ?? null, $l->last_at ?? null) ?: null,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * One grouped scan per activity table for the last 30 days, with 14-day
+     * and 30-day counts side by side — shared by every Close & grow list so
+     * the large log tables are read once per request, not once per list.
+     */
+    private const ACTIVITY_CACHE_KEY = 'mm:close-grow:activity';
+
+    /** Called after a Mock Master sync so the next page load rescans fresh data. */
+    public static function forgetCachedActivity(): void
+    {
+        Cache::forget(self::ACTIVITY_CACHE_KEY);
+    }
+
+    private function recentActivity(): array
+    {
+        // Cached for 10 minutes (and cleared on sync): the mm_* tables only
+        // change when Sync Data runs, and this scan is the slow part.
+        return $this->memo('activity', fn () => Cache::remember(self::ACTIVITY_CACHE_KEY, 600, function () {
+            $d30 = now()->subDays(30);
+            $d14 = now()->subDays(14)->toDateTimeString();
+
+            return [
+                'tests' => DB::table('mm_mock_test_logs')->where('create_date', '>=', $d30)
+                    ->selectRaw('studentId, COUNT(DISTINCT mock_test_id) as tests30, COUNT(DISTINCT CASE WHEN create_date >= ? THEN mock_test_id END) as tests14, MAX(create_date) as last_at', [$d14])
+                    ->groupBy('studentId')->get()->keyBy('studentId')->all(),
+                'logins' => DB::table('mm_login_history')->where('login_time', '>=', $d30)
+                    ->selectRaw('user_id, COUNT(*) as logins30, SUM(login_time >= ?) as logins14, MAX(login_time) as last_at', [$d14])
+                    ->groupBy('user_id')->get()->keyBy('user_id')->all(),
+                'results' => DB::table('mm_mock_test_results')->where('create_date', '>=', $d30)
+                    ->selectRaw('studentId, COUNT(*) as res30, SUM(create_date >= ?) as res14', [$d14])
+                    ->groupBy('studentId')->get()->keyBy('studentId')->all(),
+                'seen' => DB::table('mm_notifications_seen')->where('seen_at', '>=', $d30)
+                    ->selectRaw('student_id, COUNT(*) as cnt')->groupBy('student_id')->pluck('cnt', 'student_id')->all(),
+            ];
+        }));
+    }
+
+    /** Short human summary of activity, e.g. "4 tests · 6 logins (14d) · avg 61". */
+    private function activityText(array $a): string
+    {
+        $parts = [];
+        $parts[] = $a['tests'] . ' test' . ($a['tests'] === 1 ? '' : 's');
+        $parts[] = $a['logins'] . ' login' . ($a['logins'] === 1 ? '' : 's') . ' (14d)';
+        if ($a['avg'] !== null) {
+            $parts[] = 'avg score ' . $a['avg'];
+        }
+
+        return implode(' · ', $parts);
+    }
+
+    /** Extra context flags: an upcoming scheduled reminder email, or a past coupon redemption. */
+    private function contactFlags(int $id): string
+    {
+        $scheduled = $this->memo('scheduled', fn () => array_flip(DB::table('mm_scheduled_emails')
+            ->where('scheduled_at', '>=', now())->distinct()->pluck('student_id')->all()));
+        $coupon = $this->memo('coupon', fn () => array_flip(DB::table('mm_coupon_usage')->distinct()->pluck('studentid')->all()));
+
+        $flags = [];
+        if (isset($scheduled[$id])) {
+            $flags[] = 'reminder email already scheduled';
+        }
+        if (isset($coupon[$id])) {
+            $flags[] = 'has used a coupon before';
+        }
+
+        return $flags ? ' · ' . implode(' · ', $flags) : '';
+    }
+
+    private function studentRows(array $ids): \Illuminate\Support\Collection
+    {
+        return DB::table('mm_studentuser')->whereIn('studentId', $ids)
+            ->get(['studentId', 'first_name', 'last_name', 'email', 'phone', 'country_code', 'desired_band', 'profile_completed', 'otp_verified', 'last_login'])
+            ->keyBy('studentId');
+    }
+
+    private function studentName($s, $id): string
+    {
+        return $s ? (trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $id) : 'Student #' . $id;
+    }
+
+    /** Students with an unpaid checkout (mm_payments.status = 0) still open, keyed by student id. */
+    private function openCheckouts(int $days = 30): array
+    {
+        return $this->memo('checkouts_' . $days, function () use ($days) {
+            $rows = DB::table('mm_payments')
+                ->where('status', 0)
+                ->where('create_date', '>=', now()->subDays($days))
+                ->orderByDesc('create_date')
+                ->get(['buyerid', 'product', 'amount', 'create_date']);
+
+            $paidAfter = DB::table('mm_payments')->where('status', 1)
+                ->whereIn('buyerid', $rows->pluck('buyerid')->unique()->all())
+                ->selectRaw('buyerid, MAX(create_date) as last_paid')->groupBy('buyerid')->pluck('last_paid', 'buyerid');
+
+            $activePaid = array_flip(DB::table('mm_purchases')
+                ->whereIn('studentid', $rows->pluck('buyerid')->unique()->all())
+                ->whereIn('productid', $this->paidPackageIds())
+                ->where('expire_date', '>', now())
+                ->pluck('studentid')->all());
+
+            $excluded = $this->excludedStudentIds();
+            $out = [];
+            foreach ($rows as $r) {
+                $id = $r->buyerid;
+                if (isset($excluded[$id]) || isset($activePaid[$id])) {
+                    continue;
+                }
+                if (isset($paidAfter[$id]) && $paidAfter[$id] >= $r->create_date) {
+                    continue; // they completed a payment afterwards
+                }
+                if (!isset($out[$id])) {
+                    $out[$id] = ['product' => $r->product, 'amount' => (int) $r->amount, 'at' => $r->create_date, 'attempts' => 0];
+                }
+                $out[$id]['attempts']++;
+            }
+
+            return $out;
+        });
+    }
+
+    /**
+     * Close — free-trial students most likely to buy, ranked by a conversion
+     * score built from real activity. Only students whose purchases are all
+     * the free trial (no paid package, not enrolled in coaching) and who were
+     * active in the last 14 days are considered.
+     *
+     * Score (0–100): distinct mock tests attempted (10 each, max 30)
+     *  + scored result recorded (15) + logins (5 each, max 20)
+     *  + notifications seen in 30d (5) + profile completed (10)
+     *  + phone verified (5) + open unpaid checkout (15).
+     */
+    private function convertCandidatesAll(): array
+    {
+        return $this->memo('convert_all', function () {
+            $act = $this->recentActivity();
+            $active = array_values(array_unique(array_merge(
+                array_keys(array_filter($act['tests'], fn ($r) => $r->tests14 > 0)),
+                array_keys(array_filter($act['logins'], fn ($r) => $r->logins14 > 0)),
+                array_keys(array_filter($act['results'], fn ($r) => $r->res14 > 0)),
+            )));
+            if (empty($active)) {
+                return [];
+            }
+
+            $trial = array_flip(DB::table('mm_purchases')->whereIn('studentid', $active)
+                ->whereIn('productid', $this->freeTrialPackageIds())->distinct()->pluck('studentid')->all());
+            $other = array_flip(DB::table('mm_purchases')->whereIn('studentid', $active)
+                ->whereIn('productid', array_merge($this->paidPackageIds(), $this->enrolledPackageIds()))
+                ->distinct()->pluck('studentid')->all());
+            $excluded = $this->excludedStudentIds();
+
+            $ids = array_values(array_filter($active, fn ($id) => isset($trial[$id]) && !isset($other[$id]) && !isset($excluded[$id])));
+            if (empty($ids)) {
+                return [];
+            }
+
+            $students = $this->studentRows($ids);
+            $signals = $this->activitySignals($ids);
+            $checkouts = $this->openCheckouts();
+            $rows = [];
+
+            foreach ($ids as $id) {
+                $s = $students[$id] ?? null;
+                if (!$s) {
+                    continue;
+                }
+                $a = $signals[$id];
+                $hasCheckout = isset($checkouts[$id]);
+                $score = min(30, $a['tests'] * 10) + ($a['results'] > 0 ? 15 : 0) + min(20, $a['logins'] * 5)
+                    + ($a['seen'] > 0 ? 5 : 0) + ($s->profile_completed ? 10 : 0) + ($s->otp_verified ? 5 : 0)
+                    + ($hasCheckout ? 15 : 0);
+                // desired_band is an IELTS-style band (5–9), not a PTE score,
+                // so it's shown for context only — never compared to the score.
+                $band = $s->desired_band ? (int) $s->desired_band : null;
+
+                $why = $this->activityText($a);
+                if ($band) {
+                    $why .= ' · target band ' . $band;
+                }
+                if ($hasCheckout) {
+                    $why .= ' · started checkout for ' . $checkouts[$id]['product'];
+                }
+                $why .= $this->contactFlags($id);
+
+                $rows[] = [
+                    'id' => $id,
+                    'name' => $this->studentName($s, $id),
+                    'score' => min(100, $score),
+                    'signals' => $why,
+                    'lastActive' => $this->relativeLogin($a['last_at']),
+                    'action' => $hasCheckout ? 'Call today — help them finish checkout'
+                        : ($a['avg'] === null ? 'Call — help them take a full scored mock'
+                        : ($a['avg'] >= 65 ? 'Pitch a 1-month plan — scoring ' . $a['avg'] . ', ready to polish'
+                        : 'Pitch a 3-month plan — scoring ' . $a['avg'] . ', needs steady practice')),
+                    'email' => $s->email ?: null,
+                    'phone' => $this->formatPhone($s->country_code, $s->phone),
+                ];
+            }
+
+            usort($rows, fn ($x, $y) => [$y['score'], $x['id']] <=> [$x['score'], $y['id']]);
+
+            return $rows;
+        });
+    }
+
+    /** Close — ranked free-trial students likely to convert (kept for the Ask Mira lists and /more). */
     public function salesCloseCandidates(int $limit = 5, int $offset = 0): array
     {
-        $activeStudentIds = DB::table('mm_mock_test_results')
-            ->where('create_date', '>=', now()->subDays(14))
-            ->distinct('studentId')->pluck('studentId')->take(2000);
+        return array_map(fn ($r) => array_diff_key($r, ['id' => 1]), array_slice($this->convertCandidatesAll(), $offset, $limit));
+    }
 
-        $freePackageIds = DB::table('mm_packages')->where('cost', 0)->pluck('packageid');
+    /** Close — open unpaid checkouts in the last 30 days, most recent first. */
+    private function abandonedCheckoutsAll(): array
+    {
+        return $this->memo('abandoned_all', function () {
+            $checkouts = $this->openCheckouts();
+            if (empty($checkouts)) {
+                return [];
+            }
+            $ids = array_keys($checkouts);
+            $students = $this->studentRows($ids);
+            $signals = $this->activitySignals($ids);
+            $rows = [];
+            foreach ($checkouts as $id => $c) {
+                $s = $students[$id] ?? null;
+                if (!$s) {
+                    continue;
+                }
+                $rows[] = [
+                    'name' => $this->studentName($s, $id),
+                    'package' => $c['product'],
+                    'amount' => '$' . number_format($c['amount']),
+                    'attempted' => Carbon::parse($c['at'])->diffForHumans() . ($c['attempts'] > 1 ? ' (' . $c['attempts'] . ' tries)' : ''),
+                    'signals' => $this->activityText($signals[$id]) . $this->contactFlags($id),
+                    'action' => Carbon::parse($c['at'])->gt(now()->subDays(2)) ? 'Call today — payment still fresh' : 'WhatsApp a payment link and offer help',
+                    'email' => $s->email ?: null,
+                    'phone' => $this->formatPhone($s->country_code, $s->phone),
+                    '_amount' => $c['amount'],
+                ];
+            }
 
-        $candidates = DB::table('mm_purchases')
-            ->whereIn('studentid', $activeStudentIds)
-            ->whereIn('productid', $freePackageIds)
-            ->distinct('studentid')->orderBy('studentid')->pluck('studentid');
+            return $rows;
+        });
+    }
 
-        if ($candidates->isEmpty()) {
-            return [];
-        }
+    public function salesAbandonedCheckouts(int $limit = 10, int $offset = 0): array
+    {
+        return array_map(fn ($r) => array_diff_key($r, ['_amount' => 1]), array_slice($this->abandonedCheckoutsAll(), $offset, $limit));
+    }
 
-        $candidates = $candidates->slice($offset, $limit)->values();
-        if ($candidates->isEmpty()) {
-            return [];
-        }
+    /**
+     * Grow — active paid packages expiring in the next 30 days. Students who
+     * are still practising get an upgrade suggestion; quiet ones a check-in.
+     */
+    private function renewalsDueAll(): array
+    {
+        return $this->memo('renewals_all', function () {
+            $rows = DB::table('mm_purchases as p')
+                ->join('mm_packages as k', 'k.packageid', '=', 'p.productid')
+                ->leftJoin('mm_payments as pay', 'pay.id', '=', 'p.paymentid')
+                ->where('k.cost', '>', 0)
+                ->whereBetween('p.expire_date', [now(), now()->addDays(30)])
+                ->orderBy('p.expire_date')
+                ->get(['p.studentid', 'p.product', 'p.expire_date', 'k.cost', 'pay.amount']);
 
-        $students = DB::table('mm_studentuser')->whereIn('studentId', $candidates)->get();
-        $testCounts = DB::table('mm_mock_test_results')
-            ->whereIn('studentId', $candidates)
-            ->where('create_date', '>=', now()->subDays(14))
-            ->selectRaw('studentId, COUNT(*) as cnt')
-            ->groupBy('studentId')->pluck('cnt', 'studentId');
+            // A later paid package means they've already renewed.
+            $later = DB::table('mm_purchases')->whereIn('studentid', $rows->pluck('studentid')->unique()->all())
+                ->whereIn('productid', $this->paidPackageIds())->where('expire_date', '>', now()->addDays(30))
+                ->distinct()->pluck('studentid')->flip();
+            $excluded = $this->excludedStudentIds();
+            $rows = $rows->reject(fn ($r) => isset($later[$r->studentid]) || isset($excluded[$r->studentid]))->unique('studentid')->values();
+            if ($rows->isEmpty()) {
+                return [];
+            }
 
-        return $students->map(fn ($s) => [
-            'name' => trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $s->studentId,
-            'detail' => ($testCounts[$s->studentId] ?? 0) . ' free mock tests in the last 14 days — hasn\'t purchased a paid package yet.',
-            'email' => $s->email ?: null,
-            'phone' => $this->formatPhone($s->country_code, $s->phone),
-        ])->values()->all();
+            $ids = $rows->pluck('studentid')->all();
+            $students = $this->studentRows($ids);
+            $signals = $this->activitySignals($ids);
+            $out = [];
+            foreach ($rows as $r) {
+                $s = $students[$r->studentid] ?? null;
+                if (!$s) {
+                    continue;
+                }
+                $a = $signals[$r->studentid];
+                $days = (int) ceil(now()->diffInHours(Carbon::parse($r->expire_date)) / 24);
+                $value = (int) ($r->amount ?: $r->cost);
+                $busy = $a['tests'] >= 2 || $a['logins'] >= 4;
+                $out[] = [
+                    'name' => $this->studentName($s, $r->studentid),
+                    'package' => $r->product,
+                    'expires' => $days <= 0 ? 'today' : 'in ' . $days . ' day' . ($days === 1 ? '' : 's'),
+                    'amount' => '$' . number_format($value),
+                    'signals' => $this->activityText($a),
+                    'action' => $busy ? 'Upsell a longer plan — still practising actively' : 'Renewal check-in — activity has slowed',
+                    'email' => $s->email ?: null,
+                    'phone' => $this->formatPhone($s->country_code, $s->phone),
+                    '_amount' => $value,
+                ];
+            }
+
+            return $out;
+        });
+    }
+
+    public function salesRenewalsDue(int $limit = 10, int $offset = 0): array
+    {
+        return array_map(fn ($r) => array_diff_key($r, ['_amount' => 1]), array_slice($this->renewalsDueAll(), $offset, $limit));
+    }
+
+    /**
+     * Grow — paid package expired in the last 60 days, nothing active now,
+     * but the student still logs in or practises (last 30 days).
+     */
+    private function winBackAll(): array
+    {
+        return $this->memo('winback_all', function () {
+            $rows = DB::table('mm_purchases as p')
+                ->join('mm_packages as k', 'k.packageid', '=', 'p.productid')
+                ->leftJoin('mm_payments as pay', 'pay.id', '=', 'p.paymentid')
+                ->where('k.cost', '>', 0)
+                ->whereBetween('p.expire_date', [now()->subDays(60), now()])
+                ->orderByDesc('p.expire_date')
+                ->get(['p.studentid', 'p.product', 'p.expire_date', 'k.cost', 'pay.amount']);
+
+            $ids = $rows->pluck('studentid')->unique()->all();
+            $activeNow = DB::table('mm_purchases')->whereIn('studentid', $ids)
+                ->whereIn('productid', array_merge($this->paidPackageIds(), $this->enrolledPackageIds()))
+                ->where('expire_date', '>', now())->distinct()->pluck('studentid')->flip();
+            $excluded = $this->excludedStudentIds();
+            $rows = $rows->reject(fn ($r) => isset($activeNow[$r->studentid]) || isset($excluded[$r->studentid]))->unique('studentid')->values();
+            if ($rows->isEmpty()) {
+                return [];
+            }
+
+            $ids = $rows->pluck('studentid')->all();
+            $students = $this->studentRows($ids);
+            $signals = $this->activitySignals($ids, 30);
+            $out = [];
+            foreach ($rows as $r) {
+                $s = $students[$r->studentid] ?? null;
+                $a = $signals[$r->studentid];
+                if (!$s || ($a['tests'] === 0 && $a['logins'] === 0)) {
+                    continue; // only students who are still coming back
+                }
+                $days = (int) Carbon::parse($r->expire_date)->diffInDays(now());
+                $value = (int) ($r->amount ?: $r->cost);
+                $out[] = [
+                    'name' => $this->studentName($s, $r->studentid),
+                    'package' => $r->product,
+                    'expired' => $days === 0 ? 'today' : $days . ' day' . ($days === 1 ? '' : 's') . ' ago',
+                    'amount' => '$' . number_format($value),
+                    'signals' => str_replace('(14d)', '(30d)', $this->activityText($a)),
+                    'action' => $a['tests'] > 0 ? 'Still practising — offer a renewal today' : 'Logging in without a plan — send a win-back offer',
+                    'email' => $s->email ?: null,
+                    'phone' => $this->formatPhone($s->country_code, $s->phone),
+                    '_amount' => $value,
+                ];
+            }
+
+            return $out;
+        });
+    }
+
+    public function salesWinBack(int $limit = 10, int $offset = 0): array
+    {
+        return array_map(fn ($r) => array_diff_key($r, ['_amount' => 1]), array_slice($this->winBackAll(), $offset, $limit));
+    }
+
+    /** Headline counts and revenue for the Close & grow tab. */
+    public function closeGrowSummary(): array
+    {
+        $abandoned = $this->abandonedCheckoutsAll();
+        $renewals = $this->renewalsDueAll();
+        $winback = $this->winBackAll();
+        $sum = fn ($rows) => array_sum(array_column($rows, '_amount'));
+
+        return [
+            'convert' => count($this->convertCandidatesAll()),
+            'abandoned' => count($abandoned),
+            'abandoned_value' => $sum($abandoned),
+            'renewals' => count($renewals),
+            'renewals_value' => $sum($renewals),
+            'winback' => count($winback),
+            'winback_value' => $sum($winback),
+        ];
     }
 
     /** Retention — students whose active package expires soonest (highest value at risk first). */
@@ -582,6 +1016,10 @@ class MockMasterDataService
             'root_causes' => $this->retentionRootCauses(),
             'top_prospects' => $this->salesProspects(10),
             'close_candidates' => $this->salesCloseCandidates(10),
+            'close_grow_summary' => $this->closeGrowSummary(),
+            'abandoned_checkouts' => $this->salesAbandonedCheckouts(10),
+            'renewals_due' => $this->salesRenewalsDue(10),
+            'win_back' => $this->salesWinBack(10),
 
             'students' => [
                 'total_registered' => DB::table('mm_studentuser')->whereNull('deleted_at')->count(),

@@ -563,12 +563,68 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     </div>
 
                     <div class="mm-panel" data-panel="sl-close" style="display:none">
-                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Prospects most likely to close this week.</div></div>
-                        @forelse($slClose as $c)
-                        <div class="act"><div><div class="act-t">{{ $c['name'] }}</div><div class="act-d">{{ $c['detail'] }}</div></div></div>
-                        @empty
-                        <div class="act"><div class="act-t" style="color:var(--g3)">No close-ready candidates found right now.</div></div>
-                        @endforelse
+                        @php
+                            $cg = $slCloseSummary ?? ['convert' => 0, 'abandoned' => 0, 'abandoned_value' => 0, 'renewals' => 0, 'renewals_value' => 0, 'winback' => 0, 'winback_value' => 0];
+                            $cgScoreKind = fn ($v) => $v >= 70 ? 'good' : ($v >= 50 ? 'info' : 'warn');
+                            $cgTabs = [
+                                'convert'   => ['label' => 'Ready to convert', 'count' => $cg['convert'],   'rows' => $slClose ?? [],     'dataset' => 'slClose'],
+                                'abandoned' => ['label' => 'Open checkouts',   'count' => $cg['abandoned'], 'rows' => $slAbandoned ?? [], 'dataset' => 'slAbandoned'],
+                                'renewals'  => ['label' => 'Renewals due',     'count' => $cg['renewals'],  'rows' => $slRenewals ?? [],  'dataset' => 'slRenewals'],
+                                'winback'   => ['label' => 'Win-back',         'count' => $cg['winback'],   'rows' => $slWinBack ?? [],   'dataset' => 'slWinBack'],
+                            ];
+                        @endphp
+                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Where revenue can be won this week, from live Mock Master data. <b>Close</b>: free-trial students who are practising now, and students who started a checkout but didn't pay. <b>Grow</b>: paid plans expiring in the next 30 days, and lapsed plans whose students still log in. Each row shows the evidence and a suggested next step.</div></div>
+                        <div class="mg-grid cg-kpis">
+                            <div class="mg-cell"><div class="mg-h">Ready to convert</div><div class="mg-kpi">{{ number_format($cg['convert']) }} <small>free-trial students active in the last 14 days</small></div></div>
+                            <div class="mg-cell"><div class="mg-h">Open checkouts</div><div class="mg-kpi">{{ number_format($cg['abandoned']) }} <small>${{ number_format($cg['abandoned_value']) }} not yet paid (30 days)</small></div></div>
+                            <div class="mg-cell"><div class="mg-h">Renewals due</div><div class="mg-kpi">{{ number_format($cg['renewals']) }} <small>${{ number_format($cg['renewals_value']) }} expiring in 30 days</small></div></div>
+                            <div class="mg-cell"><div class="mg-h">Win-back</div><div class="mg-kpi">{{ number_format($cg['winback']) }} <small>${{ number_format($cg['winback_value']) }} in lapsed plans, still active</small></div></div>
+                        </div>
+                        <div class="mm-scr-tabs" role="tablist" aria-label="Close and grow list">
+                            @foreach($cgTabs as $tk => $tab)
+                            <button type="button" role="tab" class="mm-scr-tab {{ $loop->first ? 'on' : '' }}" data-ch="{{ $tk }}" aria-selected="{{ $loop->first ? 'true' : 'false' }}" onclick="mmScriptChannel(this)">{{ $tab['label'] }} <span class="mm-scr-count">{{ number_format($tab['count']) }}</span></button>
+                            @endforeach
+                        </div>
+
+                        @foreach($cgTabs as $tk => $tab)
+                        <div class="mm-scr-list" data-ch="{{ $tk }}" @if(!$loop->first) style="display:none" @endif>
+                            @if(empty($tab['rows']))
+                            <div class="act"><div class="act-t" style="color:var(--g3)">Nobody matches this right now.</div></div>
+                            @else
+                            <table class="dtbl">
+                                <thead><tr>
+                                    <th>Student</th>
+                                    @if($tk === 'convert')<th>Score</th><th>Why</th><th>Last active</th>
+                                    @elseif($tk === 'abandoned')<th>Package</th><th>Amount</th><th>Attempted</th>
+                                    @elseif($tk === 'renewals')<th>Package</th><th>Expires</th><th>Value</th>
+                                    @else<th>Last package</th><th>Expired</th><th>Value</th>
+                                    @endif
+                                    <th>Next step</th>
+                                </tr></thead>
+                                <tbody>
+                                    @foreach($tab['rows'] as $r)
+                                    <tr>
+                                        <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div>@if($tk !== 'convert')<div class="bh-acct-c">{{ $r['signals'] }}</div>@endif</div></div></td>
+                                        @if($tk === 'convert')
+                                        <td><span class="bh-pill {{ $cgScoreKind($r['score']) }}">{{ $r['score'] }}</span></td>
+                                        <td class="cg-why">{{ $r['signals'] }}</td>
+                                        <td>{{ $r['lastActive'] }}</td>
+                                        @elseif($tk === 'abandoned')
+                                        <td>{{ $r['package'] }}</td><td>{{ $r['amount'] }}</td><td>{{ $r['attempted'] }}</td>
+                                        @elseif($tk === 'renewals')
+                                        <td>{{ $r['package'] }}</td><td>{{ $r['expires'] }}</td><td>{{ $r['amount'] }}</td>
+                                        @else
+                                        <td>{{ $r['package'] }}</td><td>{{ $r['expired'] }}</td><td>{{ $r['amount'] }}</td>
+                                        @endif
+                                        <td class="cg-next">{{ $r['action'] }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                            <button type="button" class="qk cg-all" onclick="mmOpenDataset('{{ $tab['dataset'] }}', '{{ $tab['label'] }}')">{{ $tab['count'] > count($tab['rows']) ? 'View all ' . number_format($tab['count']) . ' with contact details →' : 'View with contact details →' }}</button>
+                            @endif
+                        </div>
+                        @endforeach
                     </div>
 
                 </div>
@@ -1091,6 +1147,16 @@ body.mm-syncing #mmSyncOverlay{display:flex}
 #bhRoot .mm-scr-subject b{color:var(--g2);font-weight:600}
 #bhRoot .mm-scr-body{padding:10px 14px 14px;font-size:12.5px;line-height:1.7;color:#1e293b;white-space:pre-line;overflow-wrap:anywhere}
 
+/* Sales · Close & grow — summary strip + list tables */
+#bhRoot .mg-grid.cg-kpis{grid-template-columns:repeat(4,1fr)}
+#bhRoot .cg-kpis .mg-kpi small{display:block;margin:4px 0 0;font-size:10.5px;line-height:1.4}
+@media(max-width:1100px){#bhRoot .mg-grid.cg-kpis{grid-template-columns:1fr 1fr}}
+#bhRoot .mm-scr-list > .dtbl{width:100%;margin:0}
+#bhRoot .mm-scr-list > .act{margin:0}
+#bhRoot .dtbl td.cg-why{font-size:11px;color:var(--g2);line-height:1.5;min-width:180px}
+#bhRoot .dtbl td.cg-next{font-size:11.5px;font-weight:600;color:var(--ac-d);min-width:150px}
+#bhRoot .cg-all{align-self:flex-start;margin-top:4px}
+
 /* ══ Compact tiers for laptops ══
    At 100% browser zoom, laptops with Windows display scaling (125% / 150%)
    have a narrower CSS viewport (~1536px / ~1280px), so everything looks
@@ -1203,6 +1269,9 @@ var MM_LISTS = {
     chWatchlist: @json($chWatchlist),
     slProspects: @json($slProspects),
     slClose: @json($slClose),
+    slAbandoned: @json($slAbandoned ?? []),
+    slRenewals: @json($slRenewals ?? []),
+    slWinBack: @json($slWinBack ?? []),
     mkTopScorers: @json($mkTopScorers),
     mkNewStudents: @json($mkNewStudents)
 };
@@ -1216,7 +1285,7 @@ var MM_LIST_SLUGS = {
     'mm-sl-today-active-no-package':{ list: 'slClose',       noun: 'student' },
     'mm-sl-close-trial-convert':    { list: 'slClose',       noun: 'student' },
     'mm-sl-close-most-tests-no-upgrade': { list: 'slClose',  noun: 'student' },
-    'mm-sl-close-renewal-upsell':   { list: 'chWatchlist',  noun: 'student' },
+    'mm-sl-close-renewal-upsell':   { list: 'slRenewals',   noun: 'student' },
     'mm-ch-save-who-churn':         { list: 'chAtRisk',     noun: 'student' },
     'mm-ch-save-inactive-highrisk': { list: 'chAtRisk',     noun: 'student' },
     'mm-ch-watch-drifting':         { list: 'chWatchlist',  noun: 'student' },
@@ -1229,7 +1298,9 @@ var MM_LIST_COL_LABELS = {
     readiness: 'Readiness', trust: 'Trust', approach: 'Approach', lastActive: 'Last active',
     intent: 'Intent', play: 'Play', detail: 'Detail', avg_score: 'Avg score', joined: 'Joined',
     inactiveDays: 'Days inactive', valueAtRisk: 'Value at risk', risk: 'Risk',
-    email: 'Email', phone: 'Mobile number'
+    email: 'Email', phone: 'Mobile number',
+    score: 'Score', signals: 'Signals', package: 'Package', amount: 'Amount', attempted: 'Attempted',
+    expires: 'Expires', expired: 'Expired', action: 'Next step'
 };
 /* Columns always shown first (contact info), regardless of where they fall
    in MM_LIST_COL_LABELS above — every list here is a list of people to
@@ -1338,6 +1409,15 @@ function mmShowList(agent, slug, label) {
 }
 
 var MM_LIST_CACHE = {};
+/* Sales · Close & grow "View all" — opens the same list popup (with Load
+   more from the database) for one of the Close & grow datasets. */
+function mmOpenDataset(dataset, label) {
+    var rows = MM_LISTS[dataset] || [];
+    if (!rows.length) return;
+    var id = 'mmds-' + dataset;
+    MM_LIST_CACHE[id] = { rows: rows.slice(), noun: 'student', label: label, dataset: dataset, offset: rows.length, hasMore: true };
+    openMmListModal(id);
+}
 function mmListCols(rows) {
     var present = Object.keys(MM_LIST_COL_LABELS).filter(function (k) { return k in rows[0]; });
     if (!present.length) present = Object.keys(rows[0]);
