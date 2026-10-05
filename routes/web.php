@@ -322,6 +322,23 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     // five steps per agent shows only its own questions — the Marketing and
     // Retention "A/B test" steps have no rows on purpose (no A/B-testing
     // data source exists for Mock Master), so they render an empty state.
+    Route::get('mock-master-helper/kpi/{key}', function (string $key) {
+        $service = new \App\Services\MockMaster\MockMasterDataService();
+        $kpiKeys = ['active_students', 'mock_tests', 'avg_score', 'active_packages'];
+        $segmentKeys = ['high_scorers', 'expiring_soon', 'renewal_watch', 'new_students'];
+        $insightKeys = ['avg_score', 'expired_packages', 'recent_mock_tests', 'failed_payments'];
+
+        if (in_array($key, $kpiKeys, true)) {
+            return response()->json($service->kpiDetails($key));
+        }
+        if (in_array($key, $insightKeys, true)) {
+            return response()->json($service->insightDetails($key));
+        }
+        abort_unless(in_array($key, $segmentKeys, true), 404);
+
+        return response()->json($service->segmentDetails($key));
+    })->name('mock-master-helper.kpi');
+
     Route::get('mock-master-helper/campaign-students', function () {
         $filters = request()->validate([
             'subscription' => 'nullable|string|max:255',
@@ -376,7 +393,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         $mkSubscriptions = $mm->subscriptionOptions();
         $mkKpis = $mm->performanceKpis();
         $mkSegments = $mm->audienceSegments();
-        $mkInsights = $mm->insights();
+        $mkInsights = $mm->insightItems();
         $mkTopScorers = $mm->topScorers(15);
         $mkNewStudents = $mm->newStudents(15);
         $slProspects = $mm->salesProspects();
