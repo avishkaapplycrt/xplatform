@@ -162,12 +162,76 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
   var drop = document.getElementById('l1Dropdown');
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
+
+@if($data['has_data'] ?? false)
+(function () {
+  var trend = @json($data['trend_data'] ?? []);
+  var eng = @json($data['engagement_data'] ?? []);
+
+  var trendEl = document.getElementById('emailTrendChart');
+  if (trendEl && window.Chart) {
+    new Chart(trendEl.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: trend.map(function (r) { return r.date; }),
+        datasets: [
+          {
+            label: 'Delivered',
+            data: trend.map(function (r) { return r.sent; }),
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37,99,235,0.08)',
+            tension: 0.3,
+            fill: true,
+          },
+          {
+            label: 'Opened',
+            data: trend.map(function (r) { return r.opens; }),
+            borderColor: '#16a34a',
+            backgroundColor: 'rgba(22,163,74,0.08)',
+            tension: 0.3,
+            fill: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } },
+          x: { ticks: { font: { size: 10 } } },
+        },
+      },
+    });
+  }
+
+  var engEl = document.getElementById('engagementChart');
+  if (engEl && window.Chart) {
+    new Chart(engEl.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Clicked', 'Opened only', 'No engagement', 'Unsubscribed'],
+        datasets: [{
+          data: [eng.clicked || 0, eng.opened_only || 0, eng.no_engagement || 0, eng.unsubscribed || 0],
+          backgroundColor: ['#2563eb', '#16a34a', '#d1d5db', '#dc2626'],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+      },
+    });
+  }
+})();
+@endif
 </script>
-@endsection
+@endpush

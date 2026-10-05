@@ -309,6 +309,32 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     // five steps per agent shows only its own questions — the Marketing and
     // Retention "A/B test" steps have no rows on purpose (no A/B-testing
     // data source exists for Mock Master), so they render an empty state.
+    Route::get('mock-master-helper/campaign-students', function () {
+        $filters = request()->validate([
+            'subscription' => 'nullable|string|max:255',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+            'page' => 'nullable|integer|min:1',
+        ]);
+
+        $palette = ['#3b5bdb', '#7c5cfc', '#f97316', '#1e3a8a', '#0284c7', '#334155', '#16a34a', '#db2777', '#0d9488'];
+        $stageKind = fn (string $label) => preg_match('/won|active|renew/i', $label) ? 'good'
+            : (preg_match('/lost|expired|fail/i', $label) ? 'bad'
+            : (preg_match('/decision|bought/i', $label) ? 'violet' : 'info'));
+
+        $paged = (new \App\Services\MockMaster\MockMasterDataService())->campaignStudentsPage(
+            (int) ($filters['page'] ?? 1), 10, $filters['subscription'] ?? null, $filters['from'] ?? null, $filters['to'] ?? null
+        );
+
+        $paged['students'] = array_map(fn ($s) => $s + [
+            'color' => $palette[crc32((string) $s['name']) % count($palette)],
+            'initial' => mb_strtoupper(mb_substr(trim((string) $s['name']), 0, 1)) ?: '?',
+            'stageKind' => $stageKind((string) $s['stage']),
+        ], $paged['students']);
+
+        return response()->json($paged);
+    })->name('mock-master-helper.campaign-students');
+
     Route::get('mock-master-helper', function () {
         $groupPrompts = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
             ->mockMaster()
@@ -326,7 +352,15 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         $chPrompts = $groupPrompts('retention');
 
         $mm = new \App\Services\MockMaster\MockMasterDataService();
-        $mkStudents = $mm->campaignStudents();
+        $mkFilters = request()->validate([
+            'subscription' => 'nullable|string|max:255',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+            'page' => 'nullable|integer|min:1',
+        ]);
+        $mkPaged = $mm->campaignStudentsPage((int) ($mkFilters['page'] ?? 1), 10, $mkFilters['subscription'] ?? null, $mkFilters['from'] ?? null, $mkFilters['to'] ?? null);
+        $mkStudents = $mkPaged['students'];
+        $mkSubscriptions = $mm->subscriptionOptions();
         $mkKpis = $mm->performanceKpis();
         $mkSegments = $mm->audienceSegments();
         $mkInsights = $mm->insights();
@@ -348,7 +382,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
         return view('client.mock-master-helper', compact(
             'mkPrompts', 'slPrompts', 'chPrompts',
-            'mkStudents', 'mkKpis', 'mkSegments', 'mkInsights', 'mkTopScorers', 'mkNewStudents',
+            'mkStudents', 'mkPaged', 'mkSubscriptions', 'mkFilters', 'mkKpis', 'mkSegments', 'mkInsights', 'mkTopScorers', 'mkNewStudents',
             'slProspects', 'slClose',
             'chAtRisk', 'chWatchlist', 'chRootCauses',
             'mmContactNames'

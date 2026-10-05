@@ -95,8 +95,91 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">Deliverability analytics coming soon.</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Total Sent</p>
+        <p class="text-[20px] font-bold text-gray-900">{{ number_format($data['total_sent'] ?? 0) }}</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Delivered</p>
+        <p class="text-[20px] font-bold text-gray-900">{{ number_format($data['total_delivered'] ?? 0) }}</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Bounce Rate</p>
+        <p class="text-[20px] font-bold text-gray-900">{{ $data['bounce_rate'] ?? 0 }}%</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Unsubscribe Rate</p>
+        <p class="text-[20px] font-bold text-gray-900">{{ $data['unsubscribe_rate'] ?? 0 }}%</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100">
+          <h6 class="text-[13px] font-semibold text-gray-800">Delivery by Provider</h6>
+        </div>
+        @if(($data['by_provider'] ?? collect())->isEmpty())
+        <div class="p-8 text-center">
+          <p class="text-[13px] text-gray-500">No delivery data in this period yet.</p>
+        </div>
+        @else
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-gray-100">
+                <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Provider</th>
+                <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide text-right">Sent</th>
+                <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide text-right">Delivered</th>
+                <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide text-right">Bounced</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach($data['by_provider'] as $p)
+              <tr class="border-b border-gray-50 last:border-b-0">
+                <td class="px-4 py-2.5 text-[13px] text-gray-800 capitalize">{{ $p->provider_name }}</td>
+                <td class="px-4 py-2.5 text-[13px] text-gray-600 text-right">{{ number_format($p->sent) }}</td>
+                <td class="px-4 py-2.5 text-[13px] text-gray-600 text-right">{{ number_format($p->delivered) }}</td>
+                <td class="px-4 py-2.5 text-[13px] text-gray-600 text-right">{{ number_format($p->bounced) }}</td>
+              </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+        @endif
+      </div>
+
+      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-100">
+          <h6 class="text-[13px] font-semibold text-gray-800">Unsubscribes</h6>
+        </div>
+        @if(($data['unsubscribes'] ?? collect())->isEmpty())
+        <div class="p-8 text-center">
+          <p class="text-[13px] text-gray-500">No unsubscribes in this period.</p>
+        </div>
+        @else
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="border-b border-gray-100">
+                <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Name</th>
+                <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Email</th>
+                <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">When</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach($data['unsubscribes'] as $u)
+              <tr class="border-b border-gray-50 last:border-b-0">
+                <td class="px-4 py-2.5 text-[13px] text-gray-800">{{ $u->name ?: '—' }}</td>
+                <td class="px-4 py-2.5 text-[13px] text-gray-600">{{ $u->email }}</td>
+                <td class="px-4 py-2.5 text-[12px] text-gray-500">{{ \Carbon\Carbon::parse($u->unsubscribed_at)->diffForHumans() }}</td>
+              </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+        @endif
+      </div>
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -120,7 +203,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -128,4 +211,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush

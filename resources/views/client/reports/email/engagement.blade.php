@@ -95,8 +95,66 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">Engagement analytics coming soon.</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Total Opens</p>
+        <p class="text-[20px] font-bold text-gray-900">{{ number_format($data['total_opens'] ?? 0) }}</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Total Clicks</p>
+        <p class="text-[20px] font-bold text-gray-900">{{ number_format($data['total_clicks'] ?? 0) }}</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Click-to-Open Rate</p>
+        <p class="text-[20px] font-bold text-gray-900">{{ $data['click_to_open_rate'] ?? 0 }}%</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Avg Time to Open</p>
+        <p class="text-[20px] font-bold text-gray-900">{{ isset($data['avg_time_to_open_min']) && $data['avg_time_to_open_min'] !== null ? $data['avg_time_to_open_min'] . ' min' : '—' }}</p>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100">
+        <h6 class="text-[13px] font-semibold text-gray-800">Recent Activity</h6>
+      </div>
+
+      @if(($data['engaged'] ?? collect())->isEmpty())
+      <div class="p-8 text-center">
+        <p class="text-[13px] text-gray-500">No opens or clicks recorded in this period yet.</p>
+      </div>
+      @else
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b border-gray-100">
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Name</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Email</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Campaign</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Action</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">When</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach($data['engaged'] as $r)
+            <tr class="border-b border-gray-50 last:border-b-0">
+              <td class="px-4 py-2.5 text-[13px] text-gray-800">{{ $r->name ?: '—' }}</td>
+              <td class="px-4 py-2.5 text-[13px] text-gray-600">{{ $r->email }}</td>
+              <td class="px-4 py-2.5 text-[12px] text-gray-500">Campaign #{{ $r->campaign_id }}</td>
+              <td class="px-4 py-2.5 text-[12px]">
+                @if($r->clicked)
+                  <span class="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10.5px] font-medium">Clicked</span>
+                @else
+                  <span class="px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-[10.5px] font-medium">Opened</span>
+                @endif
+              </td>
+              <td class="px-4 py-2.5 text-[12px] text-gray-500">{{ $r->opened_at ? \Carbon\Carbon::parse($r->opened_at)->diffForHumans() : '—' }}</td>
+            </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+      @endif
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -120,7 +178,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -128,4 +186,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush
