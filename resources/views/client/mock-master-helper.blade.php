@@ -337,7 +337,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <button type="button" onclick="mmCampaignReset()" style="padding:7px 14px;border-radius:6px;border:1px solid var(--ln);color:var(--g3);font-size:12px;font-weight:600;cursor:pointer;background:#fff">Reset</button>
                         </form>
                         <table class="dtbl">
-                            <thead><tr><th>Student</th><th title="Amount paid for the selected Course" style="cursor:help">Package value</th><th>Payment date</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead>
+                            <thead><tr><th>Student</th><th title="Amount paid for the selected Course" style="cursor:help">Package value</th><th>Payment date</th><th title="Active, Renewal Due (expired within the last 14 days), or Expired." style="cursor:help">Stage</th><th title="Average score across all mock tests. 0 = no results" style="cursor:help">Readiness</th><th title="Based on the percentage of payments completed. 50 = no payment history." style="cursor:help">Trust</th><th title="Proof-led when Trust is below 65; otherwise Offer-led." style="cursor:help">Approach</th><th>Last active</th></tr></thead>
                             <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
@@ -368,7 +368,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                         <div class="stack-intro"><div class="si-h">PLATFORM PERFORMANCE</div><div class="si-p">Headline numbers across your Mock Master student base.</div></div>
                         <div class="mg-grid">
                             @foreach($mkKpis as $k)
-                            <div class="mg-cell"><div class="mg-h">{{ $k['label'] }}</div><div class="mg-kpi">{{ $k['value'] }} <small>{{ $k['sub'] }}</small></div></div>
+                            <div class="mg-cell" onclick="mmKpiOpen('{{ $k['key'] }}', this.querySelector('.mg-h').textContent)" style="cursor:pointer" title="Click to see the details"><div class="mg-h">{{ $k['label'] }}</div><div class="mg-kpi">{{ $k['value'] }} <small>{{ $k['sub'] }}</small></div></div>
                             @endforeach
                         </div>
                     </div>
@@ -376,7 +376,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="mk-audience" style="display:none">
                         <div class="stack-intro"><div class="si-h">STUDENT SEGMENTS</div><div class="si-p">Grouped by behavior and lifecycle stage.</div></div>
                         @forelse($mkSegments as $seg)
-                        <div class="act"><div><div class="act-t">{{ $seg['name'] }}</div><div class="act-d">{{ $seg['meta'] }}</div></div></div>
+                        <div class="act" onclick="mmKpiOpen('{{ $seg['key'] }}', '{{ $seg['name'] }}')" style="cursor:pointer" title="Click to see the students in this segment"><div><div class="act-t">{{ $seg['name'] }}</div><div class="act-d">{{ $seg['meta'] }}</div></div></div>
                         @empty
                         <div class="act"><div class="act-t" style="color:var(--g3)">No segment data available.</div></div>
                         @endforelse
@@ -385,7 +385,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="mk-insights" style="display:none">
                         <div class="stack-intro"><div class="si-h">KEY INSIGHTS</div><div class="si-p">Patterns worth acting on.</div></div>
                         @forelse($mkInsights as $ins)
-                        <div class="act"><div class="act-t">{{ $ins }}</div></div>
+                        <div class="act" onclick="mmKpiOpen('{{ $ins['key'] }}', '{{ $ins['text'] }}')" style="cursor:pointer" title="Click to see the records behind this insight"><div class="act-t">{{ $ins['text'] }}</div></div>
                         @empty
                         <div class="act"><div class="act-t" style="color:var(--g3)">Not enough data yet to compute insights.</div></div>
                         @endforelse
@@ -875,7 +875,8 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
 #bhRoot .stk-play.call{background:var(--ac-l);color:var(--ac-d);border:1px solid var(--ac-m)}
 #bhRoot .stk-play.onboarding{background:#f3eefc;color:#6d28d9;border:1px solid #e2d5f7}
 
-#bhRoot .act{border:1px solid var(--ln);border-left:3px solid var(--ac);background:#fff;padding:12px 20px;margin:0 20px 10px;display:flex;gap:10px;align-items:center;border-radius:8px}
+#bhRoot .act{border:1px solid var(--ln);border-left:3px solid var(--ac);background:#fff;padding:12px 20px;margin:0 20px 10px;display:flex;gap:10px;align-items:center;border-radius:8px;transition:background .15s,border-color .15s}
+#bhRoot .act[onclick]:hover{background:#f5f3ff;border-color:#c4b5fd;border-left-color:#7c3aed}
 #bhRoot .act-t{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.5}
 #bhRoot .act-d{font-size:11px;color:var(--g2);margin-top:2px}
 
@@ -1082,7 +1083,8 @@ body.mm-syncing #mmSyncOverlay{display:flex}
 #bhRoot .act-t{font-size:12.5px}
 #bhRoot .act-d{font-size:11px;margin-top:2px}
 #bhRoot .mg-grid{gap:12px;background:transparent;padding:0 20px 20px}
-#bhRoot .mg-cell{border:1px solid var(--ln);border-radius:12px;padding:16px 18px}
+#bhRoot .mg-cell{border:1px solid var(--ln);border-radius:12px;padding:16px 18px;transition:background .15s,border-color .15s}
+#bhRoot .mg-cell[onclick]:hover{background:#f5f3ff;border-color:#c4b5fd}
 #bhRoot .mg-h{font-size:10px;letter-spacing:1px;color:#64748b}
 #bhRoot .mg-kpi{font-size:20px;color:#0f172a}
 
@@ -1581,6 +1583,81 @@ function mmAsk(agent, text) {
         botBubble.innerHTML = '<p>I couldn\'t reach the AI just now — try again in a moment.</p>';
         chat.scrollTop = chat.scrollHeight;
     });
+}
+
+/* ── Performance KPI drill-down — click a headline card to see the real
+   rows its number was counted from. ── */
+var MM_KPI_URL = '{{ route('client.mock-master-helper.kpi', ['key' => '__KEY__']) }}';
+
+function mmKpiOpen(key, label) {
+    var overlay = document.getElementById('mmKpiModal');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'mmKpiModal';
+        overlay.className = 'risk-modal-overlay';
+        overlay.onclick = function (e) { if (e.target === overlay) mmKpiClose(); };
+        overlay.innerHTML =
+            '<div class="risk-modal">' +
+                '<div class="risk-modal-hd"><span id="mmKpiTitle"></span>' +
+                '<button type="button" onclick="mmKpiClose()" aria-label="Close">✕</button></div>' +
+                '<div class="risk-modal-body" id="mmKpiBody"></div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+    }
+
+    document.getElementById('mmKpiTitle').textContent = label || 'Details';
+    document.getElementById('mmKpiBody').innerHTML = '<p style="color:#6b7280;font-size:12px;padding:8px 0">Loading…</p>';
+    overlay.classList.add('show');
+
+    fetch(MM_KPI_URL.replace('__KEY__', encodeURIComponent(key)), { headers: { 'Accept': 'application/json' } })
+    .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
+    .then(function (data) {
+        document.getElementById('mmKpiTitle').textContent = data.title + ' · ' + Number(data.total).toLocaleString() + ' total';
+        mmKpiRender(data, 1);
+    })
+    .catch(function () {
+        document.getElementById('mmKpiBody').innerHTML = '<p style="color:#b91c1c;font-size:12px">Couldn\'t load the details — please try again.</p>';
+    });
+}
+
+var MM_KPI_PAGE_SIZE = 10;
+
+function mmKpiRender(data, page) {
+    var rows = data.rows || [];
+    var pages = Math.max(1, Math.ceil(rows.length / MM_KPI_PAGE_SIZE));
+    page = Math.min(Math.max(1, page), pages);
+    var start = (page - 1) * MM_KPI_PAGE_SIZE;
+    var slice = rows.slice(start, start + MM_KPI_PAGE_SIZE);
+
+    var head = '<tr><th>#</th>' + data.columns.map(function (c) { return '<th>' + escapeHtml(c.label) + '</th>'; }).join('') + '</tr>';
+    var body = slice.map(function (r, i) {
+        return '<tr><td>' + (start + i + 1) + '</td>' + data.columns.map(function (c) {
+            return '<td>' + escapeHtml(r[c.key] === null || r[c.key] === undefined || r[c.key] === '' ? '—' : String(r[c.key])) + '</td>';
+        }).join('') + '</tr>';
+    }).join('');
+
+    var truncated = rows.length < data.total
+        ? ' · first ' + rows.length + ' of ' + Number(data.total).toLocaleString() + ' loaded'
+        : '';
+    var nav = rows.length > MM_KPI_PAGE_SIZE
+        ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;font-size:12px;color:#6b7280">' +
+            '<span>Page ' + page + ' of ' + pages + truncated + '</span>' +
+            '<div style="display:flex;gap:6px">' +
+                '<button type="button" onclick="mmKpiRender(MM_KPI_DATA,' + (page - 1) + ')" ' + (page <= 1 ? 'disabled' : '') + ' style="padding:5px 12px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:12px;font-weight:600;cursor:pointer">Previous</button>' +
+                '<button type="button" onclick="mmKpiRender(MM_KPI_DATA,' + (page + 1) + ')" ' + (page >= pages ? 'disabled' : '') + ' style="padding:5px 12px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:12px;font-weight:600;cursor:pointer">Next</button>' +
+            '</div></div>'
+        : (truncated ? '<p style="font-size:11px;color:#6b7280;margin:8px 0 0">' + truncated.replace(' · ', '') + '</p>' : '');
+
+    MM_KPI_DATA = data;
+    document.getElementById('mmKpiBody').innerHTML =
+        '<table><thead>' + head + '</thead><tbody>' + (body || '<tr><td colspan="' + (data.columns.length + 1) + '">No rows.</td></tr>') + '</tbody></table>' + nav;
+}
+
+var MM_KPI_DATA = null;
+
+function mmKpiClose() {
+    var overlay = document.getElementById('mmKpiModal');
+    if (overlay) overlay.classList.remove('show');
 }
 
 /* ── Chat results — "View results" button under an answer built from a

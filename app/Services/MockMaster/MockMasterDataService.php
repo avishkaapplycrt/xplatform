@@ -134,10 +134,170 @@ class MockMasterDataService
             : 0;
 
         return [
-            ['label' => 'Active Students',   'value' => number_format($activeStudents), 'sub' => number_format($totalStudents) . ' total registered'],
-            ['label' => 'Mock Tests Taken',  'value' => number_format($mockTests30d),    'sub' => 'last 30 days'],
-            ['label' => 'Avg Overall Score', 'value' => $avgScore ? number_format($avgScore, 1) : '—', 'sub' => 'across all results'],
-            ['label' => 'Active Packages',   'value' => round($renewalRate) . '%',        'sub' => 'of all purchases not expired'],
+            ['key' => 'active_students', 'label' => 'Active Students',   'value' => number_format($activeStudents), 'sub' => number_format($totalStudents) . ' total registered'],
+            ['key' => 'mock_tests',      'label' => 'Mock Tests Taken',  'value' => number_format($mockTests30d),    'sub' => 'last 30 days'],
+            ['key' => 'avg_score',       'label' => 'Avg Overall Score', 'value' => $avgScore ? number_format($avgScore, 1) : '—', 'sub' => 'across all results'],
+            ['key' => 'active_packages', 'label' => 'Active Packages',   'value' => round($renewalRate) . '%',        'sub' => 'of all purchases not expired'],
+        ];
+    }
+
+    /**
+     * Drill-down rows behind one Performance KPI card. Each card's detail
+     * is the real rows its headline number was counted from.
+     *
+     * @return array{title: string, columns: array<int, array{key: string, label: string}>, rows: array<int, array>, total: int}
+     */
+    public function kpiDetails(string $key, int $limit = 300): array
+    {
+        $name = "TRIM(CONCAT(COALESCE(s.first_name,''), ' ', COALESCE(s.last_name,'')))";
+
+        return match ($key) {
+            'active_students' => $this->kpiActiveStudents($name, $limit),
+            'mock_tests' => $this->kpiMockTests($name, $limit),
+            'avg_score' => $this->kpiAvgScore($name, $limit),
+            'active_packages' => $this->kpiActivePackages($limit),
+            default => ['title' => 'Unknown', 'columns' => [], 'rows' => [], 'total' => 0],
+        };
+    }
+
+    private function kpiActiveStudents(string $name, int $limit): array
+    {
+        $base = DB::table('mm_purchases as p')->where('p.is_expired', 0);
+        $total = (clone $base)->distinct('p.studentid')->count('p.studentid');
+
+        $rows = (clone $base)
+            ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'p.studentid')
+            ->groupBy('p.studentid', 's.first_name', 's.last_name', 's.email', 's.last_login')
+            ->select('s.email', 's.last_login')
+            ->selectRaw($name . ' as name')
+            ->selectRaw('COUNT(*) as active_packages')
+            ->selectRaw('MAX(p.expire_date) as expires')
+            ->orderByDesc('expires')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->name ?: '—',
+                'email' => $r->email ?: '—',
+                'active_packages' => (int) $r->active_packages,
+                'expires' => $r->expires ? Carbon::parse($r->expires)->format('d M Y') : '—',
+                'last_login' => $this->relativeLogin($r->last_login),
+            ])->all();
+
+        return [
+            'title' => 'Active students',
+            'columns' => [
+                ['key' => 'name', 'label' => 'Name'],
+                ['key' => 'email', 'label' => 'Email'],
+                ['key' => 'active_packages', 'label' => 'Active packages'],
+                ['key' => 'expires', 'label' => 'Latest expiry'],
+                ['key' => 'last_login', 'label' => 'Last active'],
+            ],
+            'rows' => $rows,
+            'total' => $total,
+        ];
+    }
+
+    private function kpiMockTests(string $name, int $limit): array
+    {
+        $base = DB::table('mm_mock_test_results as r')->where('r.create_date', '>=', now()->subDays(30));
+        $total = (clone $base)->count();
+
+        $rows = (clone $base)
+            ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'r.studentId')
+            ->selectRaw($name . ' as name')
+            ->addSelect('s.email', 'r.mock_series', 'r.mock_test_id', 'r.overall_score', 'r.create_date')
+            ->orderByDesc('r.create_date')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->name ?: '—',
+                'email' => $r->email ?: '—',
+                'mock_series' => $r->mock_series ?: '—',
+                'mock_test_id' => $r->mock_test_id ?: '—',
+                'overall_score' => $r->overall_score !== null ? number_format((float) $r->overall_score, 1) : '—',
+                'taken_on' => Carbon::parse($r->create_date)->format('d M Y'),
+            ])->all();
+
+        return [
+            'title' => 'Mock tests taken — last 30 days',
+            'columns' => [
+                ['key' => 'name', 'label' => 'Name'],
+                ['key' => 'email', 'label' => 'Email'],
+                ['key' => 'mock_series', 'label' => 'Series'],
+                ['key' => 'mock_test_id', 'label' => 'Test'],
+                ['key' => 'overall_score', 'label' => 'Score'],
+                ['key' => 'taken_on', 'label' => 'Taken on'],
+            ],
+            'rows' => $rows,
+            'total' => $total,
+        ];
+    }
+
+    private function kpiAvgScore(string $name, int $limit): array
+    {
+        $base = DB::table('mm_mock_test_results as r')->whereNotNull('r.overall_score');
+        $total = (clone $base)->distinct('r.studentId')->count('r.studentId');
+
+        $rows = (clone $base)
+            ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'r.studentId')
+            ->groupBy('r.studentId', 's.first_name', 's.last_name', 's.email')
+            ->selectRaw($name . ' as name')
+            ->addSelect('s.email')
+            ->selectRaw('COUNT(*) as tests')
+            ->selectRaw('AVG(r.overall_score) as avg_score')
+            ->selectRaw('MAX(r.overall_score) as best_score')
+            ->orderByDesc('avg_score')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->name ?: '—',
+                'email' => $r->email ?: '—',
+                'tests' => (int) $r->tests,
+                'avg_score' => number_format((float) $r->avg_score, 1),
+                'best_score' => number_format((float) $r->best_score, 1),
+            ])->all();
+
+        return [
+            'title' => 'Average overall score — by student',
+            'columns' => [
+                ['key' => 'name', 'label' => 'Name'],
+                ['key' => 'email', 'label' => 'Email'],
+                ['key' => 'tests', 'label' => 'Tests'],
+                ['key' => 'avg_score', 'label' => 'Average'],
+                ['key' => 'best_score', 'label' => 'Best'],
+            ],
+            'rows' => $rows,
+            'total' => $total,
+        ];
+    }
+
+    private function kpiActivePackages(int $limit): array
+    {
+        $rows = DB::table('mm_purchases')
+            ->select('product')
+            ->selectRaw('COUNT(*) as purchases')
+            ->selectRaw('SUM(CASE WHEN is_expired = 0 THEN 1 ELSE 0 END) as active')
+            ->groupBy('product')
+            ->orderByDesc('active')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'product' => $r->product ?: '—',
+                'active' => (int) $r->active,
+                'purchases' => (int) $r->purchases,
+                'active_pct' => $r->purchases > 0 ? round($r->active / $r->purchases * 100) . '%' : '—',
+            ])->all();
+
+        return [
+            'title' => 'Active packages — by subscription',
+            'columns' => [
+                ['key' => 'product', 'label' => 'Package'],
+                ['key' => 'active', 'label' => 'Active'],
+                ['key' => 'purchases', 'label' => 'All purchases'],
+                ['key' => 'active_pct', 'label' => '% active'],
+            ],
+            'rows' => $rows,
+            'total' => count($rows),
         ];
     }
 
@@ -167,10 +327,132 @@ class MockMasterDataService
             ->count();
 
         return [
-            ['name' => 'High Scorers',          'meta' => number_format($highScorers) . ' students · avg score 75+'],
-            ['name' => 'Package Expiring Soon', 'meta' => number_format($expiringSoon) . ' students · next 7 days'],
-            ['name' => 'Renewal Watch',         'meta' => number_format($expiringWatch) . ' students · next 8-30 days'],
-            ['name' => 'New Students',          'meta' => number_format($newStudents) . ' students · last 14 days'],
+            ['key' => 'high_scorers',    'name' => 'High Scorers',          'meta' => number_format($highScorers) . ' students · avg score 75+'],
+            ['key' => 'expiring_soon',   'name' => 'Package Expiring Soon', 'meta' => number_format($expiringSoon) . ' students · next 7 days'],
+            ['key' => 'renewal_watch',   'name' => 'Renewal Watch',         'meta' => number_format($expiringWatch) . ' students · next 8-30 days'],
+            ['key' => 'new_students',    'name' => 'New Students',          'meta' => number_format($newStudents) . ' students · last 14 days'],
+        ];
+    }
+
+    /**
+     * Drill-down rows behind one Audience segment card — the same rules
+     * audienceSegments() counts with, listed out.
+     *
+     * @return array{title: string, columns: array<int, array{key: string, label: string}>, rows: array<int, array>, total: int}
+     */
+    public function segmentDetails(string $key, int $limit = 300): array
+    {
+        $name = "TRIM(CONCAT(COALESCE(s.first_name,''), ' ', COALESCE(s.last_name,'')))";
+
+        return match ($key) {
+            'high_scorers' => $this->segmentHighScorers($name, $limit),
+            'expiring_soon' => $this->segmentExpiring($name, now(), now()->addDays(7), 'Package expiring soon — next 7 days', $limit),
+            'renewal_watch' => $this->segmentExpiring($name, now()->addDays(8), now()->addDays(30), 'Renewal watch — next 8–30 days', $limit),
+            'new_students' => $this->segmentNewStudents($name, $limit),
+            default => ['title' => 'Unknown', 'columns' => [], 'rows' => [], 'total' => 0],
+        };
+    }
+
+    private function segmentHighScorers(string $name, int $limit): array
+    {
+        $base = DB::table('mm_mock_test_results as r')->whereNotNull('r.overall_score');
+        $total = (clone $base)->select('r.studentId')->groupBy('r.studentId')->havingRaw('AVG(r.overall_score) >= 75')->get()->count();
+
+        $rows = (clone $base)
+            ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'r.studentId')
+            ->groupBy('r.studentId', 's.first_name', 's.last_name', 's.email')
+            ->havingRaw('AVG(r.overall_score) >= 75')
+            ->selectRaw($name . ' as name')
+            ->addSelect('s.email')
+            ->selectRaw('COUNT(*) as tests')
+            ->selectRaw('AVG(r.overall_score) as avg_score')
+            ->orderByDesc('avg_score')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->name ?: '—',
+                'email' => $r->email ?: '—',
+                'tests' => (int) $r->tests,
+                'avg_score' => number_format((float) $r->avg_score, 1),
+            ])->all();
+
+        return [
+            'title' => 'High scorers — avg score 75+',
+            'columns' => [
+                ['key' => 'name', 'label' => 'Name'],
+                ['key' => 'email', 'label' => 'Email'],
+                ['key' => 'tests', 'label' => 'Tests'],
+                ['key' => 'avg_score', 'label' => 'Average'],
+            ],
+            'rows' => $rows,
+            'total' => $total,
+        ];
+    }
+
+    private function segmentExpiring(string $name, Carbon $from, Carbon $to, string $title, int $limit): array
+    {
+        $base = DB::table('mm_purchases as p')
+            ->where('p.is_expired', 0)
+            ->whereBetween('p.expire_date', [$from, $to]);
+        $total = (clone $base)->distinct('p.studentid')->count('p.studentid');
+
+        $rows = (clone $base)
+            ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'p.studentid')
+            ->select('p.product', 'p.expire_date', 's.email')
+            ->selectRaw($name . ' as name')
+            ->orderBy('p.expire_date')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->name ?: '—',
+                'email' => $r->email ?: '—',
+                'product' => $r->product ?: '—',
+                'expires' => Carbon::parse($r->expire_date)->format('d M Y'),
+            ])->all();
+
+        return [
+            'title' => $title,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Name'],
+                ['key' => 'email', 'label' => 'Email'],
+                ['key' => 'product', 'label' => 'Package'],
+                ['key' => 'expires', 'label' => 'Expires'],
+            ],
+            'rows' => $rows,
+            'total' => $total,
+        ];
+    }
+
+    private function segmentNewStudents(string $name, int $limit): array
+    {
+        $base = DB::table('mm_studentuser as s')
+            ->whereNotNull('s.create_date')
+            ->where('s.create_date', '>=', now()->subDays(14)->toDateString());
+        $total = (clone $base)->count();
+
+        $rows = (clone $base)
+            ->select('s.email', 's.country_code', 's.create_date')
+            ->selectRaw($name . ' as name')
+            ->orderByDesc('s.create_date')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->name ?: '—',
+                'email' => $r->email ?: '—',
+                'country' => $r->country_code ?: '—',
+                'joined' => Carbon::parse($r->create_date)->format('d M Y'),
+            ])->all();
+
+        return [
+            'title' => 'New students — last 14 days',
+            'columns' => [
+                ['key' => 'name', 'label' => 'Name'],
+                ['key' => 'email', 'label' => 'Email'],
+                ['key' => 'country', 'label' => 'Country'],
+                ['key' => 'joined', 'label' => 'Joined'],
+            ],
+            'rows' => $rows,
+            'total' => $total,
         ];
     }
 
@@ -246,6 +528,17 @@ class MockMasterDataService
     /** Insights step — real computed findings, not fabricated claims. */
     public function insights(): array
     {
+        return array_column($this->insightItems(), 'text');
+    }
+
+    /**
+     * Key Insights as clickable items — each text is the same sentence
+     * insights() returns, and each key drives its drill-down list.
+     *
+     * @return array<int, array{key: string, text: string}>
+     */
+    public function insightItems(): array
+    {
         $avgScore = DB::table('mm_mock_test_results')->whereNotNull('overall_score')->avg('overall_score');
         $totalPurchases = DB::table('mm_purchases')->count();
         $expiredPct = $totalPurchases > 0
@@ -255,12 +548,167 @@ class MockMasterDataService
         $failedPayments = DB::table('mm_payments')->where('status', 0)->count();
         $totalPayments = DB::table('mm_payments')->count();
 
-        return array_filter([
-            $avgScore ? sprintf('Average mock test overall score across all results is %.1f.', $avgScore) : null,
-            sprintf('%d%% of all issued packages have already expired.', $expiredPct),
-            sprintf('%s mock tests were taken in the last 7 days.', number_format($recentTests)),
-            $totalPayments > 0 ? sprintf('%d of %d payments (%.0f%%) are marked unpaid/failed.', $failedPayments, $totalPayments, $totalPayments ? $failedPayments / $totalPayments * 100 : 0) : null,
-        ]);
+        return array_values(array_filter([
+            $avgScore ? ['key' => 'avg_score', 'text' => sprintf('Average mock test overall score across all results is %.1f.', $avgScore)] : null,
+            ['key' => 'expired_packages', 'text' => sprintf('%d%% of all issued packages have already expired.', $expiredPct)],
+            ['key' => 'recent_mock_tests', 'text' => sprintf('%s mock tests were taken in the last 7 days.', number_format($recentTests))],
+            $totalPayments > 0 ? ['key' => 'failed_payments', 'text' => sprintf('%d of %d payments (%.0f%%) are marked unpaid/failed.', $failedPayments, $totalPayments, $totalPayments ? $failedPayments / $totalPayments * 100 : 0)] : null,
+        ]));
+    }
+
+    /**
+     * Drill-down rows behind one Key Insight — the same rows each sentence
+     * is counted from.
+     *
+     * @return array{title: string, columns: array<int, array{key: string, label: string}>, rows: array<int, array>, total: int}
+     */
+    public function insightDetails(string $key, int $limit = 300): array
+    {
+        $name = "TRIM(CONCAT(COALESCE(s.first_name,''), ' ', COALESCE(s.last_name,'')))";
+
+        return match ($key) {
+            'avg_score' => $this->insightAvgScore($name, $limit),
+            'expired_packages' => $this->insightExpiredPackages($name, $limit),
+            'recent_mock_tests' => $this->insightRecentTests($name, $limit),
+            'failed_payments' => $this->insightFailedPayments($name, $limit),
+            default => ['title' => 'Unknown', 'columns' => [], 'rows' => [], 'total' => 0],
+        };
+    }
+
+    private function insightAvgScore(string $name, int $limit): array
+    {
+        $base = DB::table('mm_mock_test_results as r')->whereNotNull('r.overall_score');
+        $total = (clone $base)->count();
+
+        $rows = (clone $base)
+            ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'r.studentId')
+            ->selectRaw($name . ' as name')
+            ->addSelect('s.email', 'r.mock_series', 'r.overall_score', 'r.create_date')
+            ->orderByDesc('r.create_date')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->name ?: '—',
+                'email' => $r->email ?: '—',
+                'mock_series' => $r->mock_series ?: '—',
+                'score' => number_format((float) $r->overall_score, 1),
+                'taken_on' => Carbon::parse($r->create_date)->format('d M Y'),
+            ])->all();
+
+        return [
+            'title' => 'Average mock test score — all results',
+            'columns' => [
+                ['key' => 'name', 'label' => 'Name'],
+                ['key' => 'email', 'label' => 'Email'],
+                ['key' => 'mock_series', 'label' => 'Series'],
+                ['key' => 'score', 'label' => 'Score'],
+                ['key' => 'taken_on', 'label' => 'Taken on'],
+            ],
+            'rows' => $rows,
+            'total' => $total,
+        ];
+    }
+
+    private function insightExpiredPackages(string $name, int $limit): array
+    {
+        $base = DB::table('mm_purchases as p')->where('p.is_expired', 1);
+        $total = (clone $base)->count();
+
+        $rows = (clone $base)
+            ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'p.studentid')
+            ->select('p.product', 'p.expire_date', 's.email')
+            ->selectRaw($name . ' as name')
+            ->orderByDesc('p.expire_date')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->name ?: '—',
+                'email' => $r->email ?: '—',
+                'product' => $r->product ?: '—',
+                'expired_on' => $r->expire_date ? Carbon::parse($r->expire_date)->format('d M Y') : '—',
+            ])->all();
+
+        return [
+            'title' => 'Expired packages — all purchases',
+            'columns' => [
+                ['key' => 'name', 'label' => 'Name'],
+                ['key' => 'email', 'label' => 'Email'],
+                ['key' => 'product', 'label' => 'Package'],
+                ['key' => 'expired_on', 'label' => 'Expired on'],
+            ],
+            'rows' => $rows,
+            'total' => $total,
+        ];
+    }
+
+    private function insightRecentTests(string $name, int $limit): array
+    {
+        $base = DB::table('mm_mock_test_results as r')->where('r.create_date', '>=', now()->subDays(7));
+        $total = (clone $base)->count();
+
+        $rows = (clone $base)
+            ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'r.studentId')
+            ->selectRaw($name . ' as name')
+            ->addSelect('s.email', 'r.mock_series', 'r.mock_test_id', 'r.overall_score', 'r.create_date')
+            ->orderByDesc('r.create_date')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->name ?: '—',
+                'email' => $r->email ?: '—',
+                'mock_series' => $r->mock_series ?: '—',
+                'mock_test_id' => $r->mock_test_id ?: '—',
+                'score' => $r->overall_score !== null ? number_format((float) $r->overall_score, 1) : '—',
+                'taken_on' => Carbon::parse($r->create_date)->format('d M Y'),
+            ])->all();
+
+        return [
+            'title' => 'Mock tests taken — last 7 days',
+            'columns' => [
+                ['key' => 'name', 'label' => 'Name'],
+                ['key' => 'email', 'label' => 'Email'],
+                ['key' => 'mock_series', 'label' => 'Series'],
+                ['key' => 'mock_test_id', 'label' => 'Test'],
+                ['key' => 'score', 'label' => 'Score'],
+                ['key' => 'taken_on', 'label' => 'Taken on'],
+            ],
+            'rows' => $rows,
+            'total' => $total,
+        ];
+    }
+
+    private function insightFailedPayments(string $name, int $limit): array
+    {
+        $base = DB::table('mm_payments as pay')->where('pay.status', 0);
+        $total = (clone $base)->count();
+
+        $rows = (clone $base)
+            ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'pay.buyerid')
+            ->select('pay.product', 'pay.amount', 'pay.create_date', 's.email')
+            ->selectRaw($name . ' as name')
+            ->orderByDesc('pay.create_date')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->name ?: '—',
+                'email' => $r->email ?: '—',
+                'product' => $r->product ?: '—',
+                'amount' => '$' . number_format((float) $r->amount, 0),
+                'created_on' => Carbon::parse($r->create_date)->format('d M Y'),
+            ])->all();
+
+        return [
+            'title' => 'Unpaid / failed payments',
+            'columns' => [
+                ['key' => 'name', 'label' => 'Name'],
+                ['key' => 'email', 'label' => 'Email'],
+                ['key' => 'product', 'label' => 'Package'],
+                ['key' => 'amount', 'label' => 'Amount'],
+                ['key' => 'created_on', 'label' => 'Created on'],
+            ],
+            'rows' => $rows,
+            'total' => $total,
+        ];
     }
 
     /** Sales — students with no active paid package yet (prospects). */
