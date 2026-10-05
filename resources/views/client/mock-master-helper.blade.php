@@ -94,10 +94,77 @@ $slScriptLibrary = [
     ],
 ];
 
-$slObjections = [
-    ['q' => '"It\'s too expensive."',            'a' => 'Break the package cost down per mock test versus a private tutor session — usually 5-10x cheaper per attempt.'],
-    ['q' => '"I want to try free resources first."', 'a' => 'Offer one free diagnostic mock test with a real band score, then show how paid packages unlock full feedback.'],
-    ['q' => '"My exam date isn\'t confirmed yet."',  'a' => 'Recommend the flexible/monthly package instead of the fixed-term one so they aren\'t locked in early.'],
+// Sales · Objections — common student objections grouped by theme, each with
+// what it usually means and a ready-to-say response. Advisory copy (not data
+// claims). Words in [square brackets] are placeholders the rep fills in.
+$slObjectionGroups = [
+    'price' => [
+        'label' => 'Price & value',
+        'items' => [
+            ['q' => "It's too expensive.", 'means' => "They don't yet see the value, or the cost of failing the exam isn't top of mind.",
+             'a' => "Acknowledge: \"I understand — exam prep is a real investment, and you want to spend wisely.\"\nReframe: \"The [package name] works out to about [price per test] per full mock test. A PTE re-sit costs [exam fee] plus weeks of waiting.\"\nRespond: \"Each mock shows exactly which section is costing you points, so you only practise what moves your score.\"\nAsk: \"If the price fitted your budget, would this be the right package for your target of [target score]?\""],
+            ['q' => "I can find free mock tests online.", 'means' => "They doubt that paid tests are better than free ones.",
+             'a' => "Acknowledge: \"You're right, there are free materials out there, and some are useful.\"\nReframe: \"The difference is how close the test feels to the real exam, and whether you get a score you can trust.\"\nRespond: \"Our full mock tests follow the PTE format and timing and give you a score report after every test, so you can track real progress instead of guessing.\"\nAsk: \"Your free mock with us scored [score]. Would it help to see how that changes after two or three more full tests?\""],
+            ['q' => "I'll just buy one test, not a package.", 'means' => "They want to limit risk or spend less up front.",
+             'a' => "Acknowledge: \"Starting small makes sense if you're unsure.\"\nReframe: \"One test tells you where you are. Improvement comes from testing, fixing a weak area, and testing again.\"\nRespond: \"Most students need [number] full tests to see a steady rise. A package costs less per test than buying them one by one.\"\nAsk: \"How many weeks do you have before [exam date]? Let's work out how many tests fit that time.\""],
+            ['q' => "Can I get a discount?", 'means' => "They're interested but price-sensitive, or just testing for a better deal.",
+             'a' => "Acknowledge: \"Fair question — everyone likes a good deal.\"\nRespond: \"[If an approved offer is running:] Right now there's [offer details] with code [coupon code] until [end date]. [If not:] Our current price is already the best rate, but the [smaller package] is a lower-cost way to start.\"\nReframe: \"The bigger saving is passing the first time and not paying for a re-sit.\"\nAsk: \"Shall I apply that and send you the link?\""],
+            ['q' => "Is paying for practice tests even worth it?", 'means' => "They're unsure that mock tests make a real difference to the result.",
+             'a' => "Acknowledge: \"It's smart to ask that before spending anything.\"\nReframe: \"The PTE is very timed and format-driven. Students often lose points from pacing and unfamiliar question types, not from lack of English.\"\nRespond: \"Full mock tests let you practise exactly that, and each score report shows what to fix next.\"\nAsk: \"What happened in your free mock — did you run short of time in any section?\""],
+        ],
+    ],
+    'timing' => [
+        'label' => 'Timing & readiness',
+        'items' => [
+            ['q' => "My exam date isn't confirmed yet.", 'means' => "They don't want to pay for something they might not use in time.",
+             'a' => "Acknowledge: \"That's sensible — you don't want a package to run out before your exam.\"\nRespond: \"Taking a mock now shows how much preparation you need, which helps you pick the right exam date.\"\nOption: \"[Package with a longer validity / flexible package] gives you time until [expiry], so you're covered even if the date moves.\"\nAsk: \"Roughly which month are you aiming for? Let's choose the package that covers it.\""],
+            ['q' => "I want to study first, then take mock tests.", 'means' => "They think mocks are only for the end of preparation.",
+             'a' => "Acknowledge: \"Studying first feels natural.\"\nReframe: \"Without a mock, it's hard to know what to study. Many students spend weeks on sections that were already fine.\"\nRespond: \"A mock now gives you a baseline and a focus list. Then you study smarter and test again to see the gain.\"\nAsk: \"Could you take one mock this week, just to set your starting point?\""],
+            ['q' => "My exam is months away — I'll buy later.", 'means' => "They don't feel urgency yet.",
+             'a' => "Acknowledge: \"Great that you're planning ahead — that's an advantage.\"\nReframe: \"The students who improve the most usually test early, so there's time to fix weak areas without cramming.\"\nRespond: \"One mock every [week/two weeks] keeps steady progress and stops last-minute panic.\"\nAsk: \"Would a light plan — one mock every couple of weeks — work for you?\""],
+            ['q' => "My exam is in a few days — it's too late.", 'means' => "They think practice can't help now.",
+             'a' => "Acknowledge: \"With only a few days left, every hour counts.\"\nReframe: \"This is exactly when one or two full mocks help most — they settle your timing and nerves for exam day.\"\nRespond: \"You don't need a big package. [Short package / single test] gets you full exam-condition practice this week.\"\nAsk: \"Can you do a full mock tomorrow, so exam day feels familiar?\""],
+            ['q' => "I don't have time to practise right now.", 'means' => "They're busy with work or study, or overwhelmed.",
+             'a' => "Acknowledge: \"That's completely understandable — balancing everything is hard.\"\nReframe: \"You don't need hours every day. One full mock a week keeps you on track.\"\nRespond: \"You can take tests whenever suits you, [early morning / weekends], and the score report shows where to spend your limited time.\"\nAsk: \"Which day of the week is usually quietest for you?\""],
+        ],
+    ],
+    'trust' => [
+        'label' => 'Trust & results',
+        'items' => [
+            ['q' => "Are your scores accurate compared to the real PTE?", 'means' => "They worry the mock score will mislead them.",
+             'a' => "Acknowledge: \"Good question — a practice score is only useful if you can trust it.\"\nRespond: \"Our mock tests follow the PTE format, timing and scoring scale, so the result gives a realistic picture of where you stand.\"\nReframe: \"The most useful part is the trend: if your mock scores rise test after test, your real readiness is rising too.\"\nAsk: \"Would you like to compare your next mock with your first score of [score]?\""],
+            ['q' => "My free mock score was low — I'm discouraged.", 'means' => "Confidence has dropped, and they may give up.",
+             'a' => "Acknowledge: \"I hear you. A low first score can feel disappointing.\"\nReframe: \"A first mock is a starting point, not a verdict. It shows exactly where the quickest gains are.\"\nRespond: \"Your biggest opportunity is [weakest section]. Students who focus there and test again usually see their score move.\"\nAsk: \"Shall we set a realistic next target — say [next score] — for your next mock?\""],
+            ['q' => "I failed the PTE before — practice didn't help.", 'means' => "Past effort didn't pay off, so they doubt it will now.",
+             'a' => "Acknowledge: \"That's frustrating, and I appreciate you sharing it.\"\nDiscover: \"What score did you get, and which section held you back?\"\nRespond: \"Repeating general practice often isn't enough. What helps is a full mock, fixing the specific weak section, then re-testing to confirm it improved.\"\nAsk: \"Would you try one full mock so we can pinpoint what changed since your last attempt?\""],
+            ['q' => "How do I know it'll actually improve my score?", 'means' => "They want proof before committing.",
+             'a' => "Acknowledge: \"Totally fair — you want to see results, not promises.\"\nRespond: \"Each mock gives you a score, so you'll see your own progress in numbers, not just take our word for it.\"\nReframe: \"No practice can guarantee a score, but regular full tests are how you find and fix the points you're losing.\"\nAsk: \"How about we track your next [number] mocks and review the trend together?\""],
+        ],
+    ],
+    'alternatives' => [
+        'label' => 'Alternatives',
+        'items' => [
+            ['q' => "I already use another platform or coaching.", 'means' => "They don't want to pay twice or switch.",
+             'a' => "Acknowledge: \"That's great — it means you're serious about your preparation.\"\nReframe: \"Many students use us alongside coaching, because extra full-length mocks are where coaching often runs short.\"\nRespond: \"Our tests give you a second, independent score check before exam day.\"\nAsk: \"How many full mock tests does your current option include?\""],
+            ['q' => "I'll practise with YouTube and free material.", 'means' => "They think content alone is enough.",
+             'a' => "Acknowledge: \"There's some great free content, and it's useful for learning techniques.\"\nReframe: \"Videos teach the strategy. A full timed test shows whether you can apply it under pressure.\"\nRespond: \"Use the free material to learn, and our mocks to measure. That combination is what moves the score.\"\nAsk: \"When did you last do a full test under real exam timing?\""],
+            ['q' => "My friend has an account — I'll use theirs.", 'means' => "They want to avoid paying.",
+             'a' => "Acknowledge: \"I get it — saving money matters.\"\nRespond: \"Accounts are personal, so your scores and history would mix with your friend's, and you couldn't track your own progress.\"\nReframe: \"Your own account keeps your results separate, so every report reflects only your preparation.\"\nAsk: \"Shall I find the most affordable package that still covers your exam date?\""],
+        ],
+    ],
+    'decision' => [
+        'label' => 'Decision & logistics',
+        'items' => [
+            ['q' => "I need to ask my parents or partner first.", 'means' => "Someone else shares the decision or the cost.",
+             'a' => "Acknowledge: \"Of course — it makes sense to decide together.\"\nRespond: \"Shall I send you a short summary — your current score, your target, and the package that fits — so it's easy to explain?\"\nReframe: \"The main points are: it targets your weak sections, and it helps avoid paying for a re-sit.\"\nAsk: \"When would be a good time for me to follow up — tomorrow evening?\""],
+            ['q' => "Send me the details — I'll think about it.", 'means' => "Polite delay; there is often an unspoken concern.",
+             'a' => "Acknowledge: \"Happy to send everything over.\"\nDiscover: \"Just so I send the right information — is it more about the price, the timing, or whether it'll help your score?\"\nRespond: Answer that concern directly, then send the follow-up email from the Scripts tab.\nAsk: \"I'll check in on [day]. Does that work?\""],
+            ['q' => "I'm not comfortable paying online.", 'means' => "Concern about payment safety, or a past failed payment.",
+             'a' => "Acknowledge: \"That's a fair concern — you should feel safe paying online.\"\nRespond: \"Payments go through [payment provider], and you'll get a confirmation as soon as it goes through.\"\nHelp: \"If a payment failed before, I can stay on the line while you try again, or share [alternative payment option].\"\nAsk: \"Would you like to do it together now?\""],
+            ['q' => "I'm not sure PTE is the right exam for me.", 'means' => "They're still comparing tests (for example IELTS) or are unsure about the requirement.",
+             'a' => "Acknowledge: \"It's worth getting that right before you start.\"\nDiscover: \"Which university, visa or employer is the score for? Do they accept PTE?\"\nRespond: \"If PTE is accepted, a free mock is the quickest way to see how comfortable you are with the format.\"\nAsk: \"Would you like to take the free mock first, and then decide?\""],
+        ],
+    ],
 ];
 
 // $slPrompts is passed in from the route — sourced from agents_pre_defined_prompts
@@ -470,9 +537,28 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     </div>
 
                     <div class="mm-panel" data-panel="sl-objections" style="display:none">
-                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Common objections and how to answer them.</div></div>
-                        @foreach($slObjections as $o)
-                        <div class="act"><div><div class="act-t">{{ $o['q'] }}</div><div class="act-d">{{ $o['a'] }}</div></div></div>
+                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">The objections students raise most often, grouped by theme. Each one shows what the student usually means and a ready-to-say answer: <b>acknowledge</b> the concern, <b>reframe</b> it, <b>respond</b>, then <b>ask</b> a question to keep the conversation moving. Replace the words in <b>[square brackets]</b> before you use it.</div></div>
+                        <div class="mm-scr-tabs" role="tablist" aria-label="Objection category">
+                            @foreach($slObjectionGroups as $gk => $group)
+                            <button type="button" role="tab" class="mm-scr-tab {{ $loop->first ? 'on' : '' }}" data-ch="{{ $gk }}" aria-selected="{{ $loop->first ? 'true' : 'false' }}" onclick="mmScriptChannel(this)">{{ $group['label'] }} <span class="mm-scr-count">{{ count($group['items']) }}</span></button>
+                            @endforeach
+                        </div>
+                        @foreach($slObjectionGroups as $gk => $group)
+                        <div class="mm-scr-list" data-ch="{{ $gk }}" @if(!$loop->first) style="display:none" @endif>
+                            @foreach($group['items'] as $i => $o)
+                            <div class="mm-scr">
+                                <div class="mm-scr-hd">
+                                    <span class="mm-scr-n">{{ $i + 1 }}</span>
+                                    <div class="mm-scr-meta">
+                                        <div class="mm-scr-t">&ldquo;{{ $o['q'] }}&rdquo;</div>
+                                        <div class="mm-scr-when">What it usually means: {{ $o['means'] }}</div>
+                                    </div>
+                                    <button type="button" class="mm-scr-copy" onclick="mmCopyScript(this)" title="Copy this answer">Copy</button>
+                                </div>
+                                <div class="mm-scr-body">{{ $o['a'] }}</div>
+                            </div>
+                            @endforeach
+                        </div>
                         @endforeach
                     </div>
 
