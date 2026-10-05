@@ -270,7 +270,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <button type="button" onclick="mmCampaignReset()" style="padding:7px 14px;border-radius:6px;border:1px solid var(--ln);color:var(--g3);font-size:12px;font-weight:600;cursor:pointer;background:#fff">Reset</button>
                         </form>
                         <table class="dtbl">
-                            <thead><tr><th>Student</th><th title="Amount paid for the selected Course" style="cursor:help">Package value</th><th>Payment date</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead>
+                            <thead><tr><th>Student</th><th title="Amount paid for the selected Course" style="cursor:help">Package value</th><th>Payment date</th><th title="Active, Renewal Due (expired within the last 14 days), or Expired." style="cursor:help">Stage</th><th title="Average score across all mock tests. 0 = no results" style="cursor:help">Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead>
                             <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
