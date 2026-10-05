@@ -40,6 +40,18 @@ class OpenAiClient
      */
     public function chat(string $system, string $prompt, array $options = []): string
     {
+        return $this->chatMessages($system, [['role' => 'user', 'content' => $prompt]], $options);
+    }
+
+    /**
+     * Multi-turn variant of chat(): sends a whole conversation.
+     *
+     * @param array $messages [['role' => 'user'|'assistant', 'content' => string], ...] ending with a user turn.
+     *
+     * @throws OpenAiException non-retryable error, retries exhausted, or empty response
+     */
+    public function chatMessages(string $system, array $messages, array $options = []): string
+    {
         if (!$this->isConfigured()) {
             throw new OpenAiException('OPENAI_API_KEY is not configured.');
         }
@@ -48,10 +60,7 @@ class OpenAiClient
             'model'       => $this->model,
             'max_tokens'  => $options['max_tokens'] ?? 500,
             'temperature' => $options['temperature'] ?? 0.3,
-            'messages'    => [
-                ['role' => 'system', 'content' => $system],
-                ['role' => 'user', 'content' => $prompt],
-            ],
+            'messages'    => array_merge([['role' => 'system', 'content' => $system]], $messages),
         ];
 
         $body = $this->sendWithRetry($payload)->json();

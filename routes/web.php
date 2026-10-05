@@ -62,6 +62,13 @@ Route::get('/', fn() => view('welcome', [
         ->groupBy(fn ($q) => $q->industry_id ?? 'all')
         ->map(fn ($group) => $group->pluck('question')->values()),
 ]))->name('home');
+Route::get('mira-premium', fn() => view('mira-premium', [
+    'premiumLive' => (new \App\Services\Llm\PremiumMiraService())->isConfigured(),
+    // For the "Analyse my website" tab, which reuses partials.ask-mira.script.
+    'miraLive'    => (new \App\Services\Llm\MarketingChatBotService())->isConfigured(),
+    'loggedIn'    => auth('client')->check(),
+    'chatQuestionsByIndustry' => [],
+]))->name('mira-premium');
 Route::get('simulator', fn() => view('simulator'))->name('simulator');
 Route::get('case-studies', fn() => view('case-studies'))->name('case-studies');
 Route::get('pricing', fn() => view('pricing'))->name('pricing');
@@ -97,6 +104,12 @@ Route::middleware('throttle:20,1')->prefix('chat')->name('chat.')->group(functio
     Route::post('send',  [PublicChatController::class, 'send'])->name('send');
     Route::post('reset', [PublicChatController::class, 'reset'])->name('reset');
     Route::post('analyze-lead', [PublicChatController::class, 'analyzeWithLead'])->name('analyze-lead');
+});
+
+// Premium Mira (/mira-premium): AEO questions about the visitor's own website, via OpenAI.
+Route::middleware('throttle:20,1')->prefix('mira-premium')->name('mira-premium.')->group(function () {
+    Route::post('send',  [\App\Http\Controllers\PremiumMiraController::class, 'send'])->name('send');
+    Route::post('reset', [\App\Http\Controllers\PremiumMiraController::class, 'reset'])->name('reset');
 });
 
 // Public API route for tracking script (no auth required - called from client websites)
