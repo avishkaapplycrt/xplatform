@@ -883,8 +883,9 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
 @keyframes mmblink{0%,100%{opacity:1}50%{opacity:.2}}
 @keyframes mmspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
-#mmTip{position:fixed;z-index:20000;display:none;max-width:260px;background:#16a34a;color:#fff;font-size:12px;line-height:1.45;font-weight:500;padding:7px 11px;border-radius:8px;box-shadow:0 8px 20px rgba(22,163,74,.3);pointer-events:none;text-transform:none;letter-spacing:normal}
-#mmTip::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:6px solid transparent;border-top-color:#16a34a}
+.mm-btn-spinner{display:inline-block;width:13px;height:13px;margin-right:8px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:mmspin .7s linear infinite;vertical-align:-2px}
+#mmTip{position:fixed;z-index:20000;display:none;max-width:300px;background:#16a34a;color:#fff;font-size:14px;line-height:1.45;font-weight:500;padding:10px 14px;border-radius:10px;box-shadow:0 10px 25px rgba(22,163,74,.35);pointer-events:none}
+#mmTip::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:7px solid transparent;border-top-color:#16a34a}
 /* Table headers with a hover explanation show the help cursor */
 th[data-tip]{cursor:help}
 .risk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:10000;align-items:center;justify-content:center;padding:24px}
@@ -2482,7 +2483,7 @@ function mmSendEmail() {
     var body = document.getElementById('mmMsgBody').value;
 
     btn.disabled = true;
-    btn.textContent = 'Sending…';
+    btn.innerHTML = '<span class="mm-btn-spinner"></span>Sending…';
     hint.style.color = '#6b7280';
     hint.textContent = 'Sending to ' + s.email + '…';
 
