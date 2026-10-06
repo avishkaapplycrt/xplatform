@@ -192,10 +192,17 @@ img,svg{display:block}
 .mira-empty p{margin-top:8px;font-family:'Inter',sans-serif;font-size:14px;color:#8f8f94;max-width:360px;line-height:1.5}
 
 .mira-messages{flex:1;overflow-y:auto;padding:22px 28px 6px;display:flex;flex-direction:column;gap:14px}
-.mira-msg{max-width:72%;padding:12px 16px;border-radius:16px;font-family:'Inter',sans-serif;font-size:14px;line-height:1.55}
+.mira-msg{max-width:72%;padding:12px 16px;border-radius:16px;font-family:'Inter',sans-serif;font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
 .mira-msg.user{align-self:flex-end;background:#5383EC;color:#fff;border-bottom-right-radius:4px}
 .mira-msg.bot{align-self:flex-start;background:#fff;color:#1c1c1f;border-bottom-left-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
 .mira-msg.bot.typing{color:#9a9a9e;font-style:italic}
+/* Follow-up question chips under a reply (miraAddSuggestions). */
+.mira-suggest{display:flex;flex-wrap:wrap;gap:8px;align-self:flex-start;max-width:85%;margin-top:-4px}
+.mira-chip{background:#fff;border:1px solid #dbe4fa;border-radius:999px;padding:7px 14px;font-family:'Inter',sans-serif;font-size:13px;
+  font-weight:500;color:#3f6fd8;cursor:pointer;text-align:left;line-height:1.35;transition:background .15s,border-color .15s}
+.mira-chip:hover{background:#eef3fe;border-color:#5383EC}
+.mira-chip.premium{border-color:#ecd38a;color:#8a6814;background:#fffaf0}
+.mira-chip.premium:hover{background:#fdf1d4;border-color:#d4af37}
 .mira-msg a{color:#5383EC;text-decoration:underline}
 
 .mira-input-row{display:flex;align-items:flex-end;gap:10px;background:#fff;border-radius:18px;margin:16px 24px 20px;padding:16px 16px 16px 20px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
@@ -665,7 +672,7 @@ img,svg{display:block}
         <div class="mira-group">
           <div class="mira-label">Try Asking</div>
           <div class="mira-starters" id="miraStarters">
-            @foreach(($chatQuestionsByIndustry['all'] ?? collect(['What does X Platform do?','How much does it cost?']))->take(6) as $q)
+            @foreach(($chatQuestionsByIndustry['all'] ?? collect(['What does X Platform do?','How much does it cost?']))->take(8) as $q)
               <button type="button" class="mira-starter" onclick="miraAskSuggested({{ \Illuminate\Support\Js::from($q) }})">{{ $q }}</button>
             @endforeach
           </div>
@@ -1465,6 +1472,7 @@ async function miraSubmitLead() {
       status.classList.toggle('err', !res.ok);
     } else {
       miraAddMessage('bot', text);
+      if (res.ok) miraAddSuggestions(data.suggestions);
     }
     if (res.ok && data.report) renderAnalysisReport(data.report);
   } catch (e) {
@@ -1483,7 +1491,7 @@ function miraRenderStarters(industryId) {
   var wrap = document.getElementById('miraStarters');
   if (!wrap) return;
   wrap.innerHTML = '';
-  questions.slice(0, 6).forEach(function (q) {
+  questions.slice(0, 8).forEach(function (q) {
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'mira-starter';
@@ -1545,10 +1553,32 @@ function miraAddMessage(cls, text) {
   return el;
 }
 
+/* Follow-up question chips under Mira's reply (from the server's
+   `suggestions`). Clicking one asks it; chips mentioning Mira Premium get a
+   gold star. Text goes in via textContent only. */
+function miraAddSuggestions(questions) {
+  if (!questions || !questions.length) return;
+  var msgs = document.getElementById('miraMessages');
+  var row = document.createElement('div');
+  row.className = 'mira-suggest';
+  questions.forEach(function (q) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'mira-chip' + (/premium/i.test(q) ? ' premium' : '');
+    btn.textContent = (/premium/i.test(q) ? '★ ' : '') + q;
+    btn.addEventListener('click', function () { row.remove(); miraAskSuggested(q); });
+    row.appendChild(btn);
+  });
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
 async function miraSendChat() {
   var input = document.getElementById('miraInput'), msg = input.value.trim();
   if (!msg) return;
   input.value = ''; input.style.height = 'auto';
+  // Unused chips from earlier answers no longer fit the conversation.
+  document.querySelectorAll('#miraMessages .mira-suggest').forEach(function (r) { r.remove(); });
   miraAddMessage('user', msg);
   // A pasted website URL is analysed; visitors who aren't logged in give their details first.
   if (!MIRA_LOGGED_IN && miraLooksLikeUrl(msg)) { miraOpenLead(msg, 'chat'); return; }
@@ -1558,6 +1588,7 @@ async function miraSendChat() {
     typing.remove();
     miraAddMessage('bot', result.ok ? result.data.reply : (result.data.error || 'Something went wrong. Please try again.'));
     if (result.ok && result.data.report) renderAnalysisReport(result.data.report);
+    if (result.ok) miraAddSuggestions(result.data.suggestions);
   } catch (e) {
     typing.remove();
     miraAddMessage('bot', 'Could not reach the server. Check your connection and try again.');

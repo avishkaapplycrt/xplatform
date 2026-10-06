@@ -28,6 +28,9 @@ class MarketingChatBotService
     /** Turns kept in context. One exchange is two turns. */
     private const MAX_HISTORY_TURNS = 20;
 
+    /** Follow-up question chips under each answer. */
+    private const MAX_FOLLOW_UPS = 3;
+
     private AnthropicClient $client;
     private WebsiteAnalyzerService $analyzer;
 
@@ -71,6 +74,70 @@ class MarketingChatBotService
      * @throws AnthropicRefusedException
      */
     public function reply(string $message, array $history = [], ?Client $client = null, ?string $industry = null, bool $premium = false): array
+    {
+        $result = $this->answer($message, $history, $client, $industry, $premium);
+
+        return $result + ['suggestions' => $this->followUps($message, $result['report'] !== null)];
+    }
+
+    /**
+     * Follow-up questions shown as clickable chips under each answer. Picked
+     * by the topic of the visitor's question (the same keywords answerLocally()
+     * uses), so every suggestion is one Mira has a real answer for. Most sets
+     * include a Mira Premium question; the question just asked is never
+     * suggested back.
+     *
+     * @return string[] up to MAX_FOLLOW_UPS questions
+     */
+    private function followUps(string $message, bool $wasAnalysis): array
+    {
+        $text = strtolower($message);
+
+        $premium   = 'What can Mira Premium do for my website?';
+        $aiAnswers = 'How can my business show up in ChatGPT and Google answers?';
+        $cost      = 'How much does it cost?';
+        $trial     = 'Is there a free trial?';
+        $what      = 'What does X Platforms do?';
+        $sources   = 'What data sources can I connect?';
+        $industry  = 'Which industries do you support?';
+        $layers    = 'How does the 8-layer AI pipeline work?';
+        $scores    = 'What behavioural scores do you track?';
+        $analyse   = 'Can you analyse my website?';
+
+        $set = match (true) {
+            $wasAnalysis                                                  => [$premium, $aiAnswers, $cost],
+            str_contains($text, 'premium')                                => [$aiAnswers, $analyse, $cost],
+            str_contains($text, 'chatgpt') || (bool) preg_match('/\b(aeo|geo)\b/', $text)
+                || str_contains($text, 'ai answers') || str_contains($text, 'google answers') => [$premium, $analyse, $what],
+            str_contains($text, 'analy')                                  => [$premium, $aiAnswers, $what],
+            (bool) preg_match('/price|pricing|cost|plan|starter|growth|enterprise|annual|yearly/', $text)
+                                                                          => [$trial, 'What\'s included in the Growth plan?', $premium],
+            (bool) preg_match('/trial|free|sign ?up|get started|demo/', $text) => [$cost, $sources, $premium],
+            str_contains($text, 'source') || str_contains($text, 'connect') || str_contains($text, 'integrat')
+                                                                          => [$layers, $trial, $premium],
+            str_contains($text, 'industr')                                => [$cost, $what, $premium],
+            (bool) preg_match('/layer|pipeline|how does/', $text)         => [$scores, $sources, $premium],
+            str_contains($text, 'score')                                  => [$layers, $cost, $premium],
+            str_contains($text, 'what') && (str_contains($text, 'x platform') || str_contains($text, 'you do'))
+                                                                          => [$cost, $industry, $premium],
+            default                                                       => [$what, $cost, $premium],
+        };
+
+        $asked = trim($text, " \t\n?!.");
+
+        // Topped up from general questions when the set held the one just asked.
+        return array_values(array_slice(
+            array_filter(
+                array_unique(array_merge($set, [$cost, $what, $premium, $trial])),
+                fn ($q) => strtolower(trim($q, '?')) !== $asked
+            ),
+            0,
+            self::MAX_FOLLOW_UPS
+        ));
+    }
+
+    /** @return array{reply: string, report: array|null} */
+    private function answer(string $message, array $history, ?Client $client, ?string $industry, bool $premium): array
     {
         if ($this->wantsDeeperAnalysis($message)) {
             return ['reply' => $this->upgradeMessage(), 'report' => null];
@@ -191,6 +258,23 @@ class MarketingChatBotService
             return "Hi! I'm Mira. Ask me one of the questions below, or tell me what you'd like to know.";
         }
 
+        // Mira Premium: what it does, and the AEO/GEO question it answers best.
+        // Both end with the link to try it.
+        $premiumUrl = route('mira-premium');
+        if (str_contains($text, 'premium')) {
+            return "Mira Premium is your personal website consultant. Paste your URL and it:\n"
+                . "• reads your site and gives you an instant SEO, AEO and GEO snapshot\n"
+                . "• answers any question about YOUR website, using its real content\n"
+                . "• writes ready-to-use fixes: titles, meta descriptions, FAQ answers, schema\n"
+                . "• shows how to get found on Google, picked for featured snippets and voice search, and recommended by ChatGPT and other AI assistants\n"
+                . "Try Mira Premium now: {$premiumUrl}";
+        }
+        if (str_contains($text, 'chatgpt') || str_contains($text, 'ai answers') || str_contains($text, 'google answers')
+            || preg_match('/\b(aeo|geo)\b/', $text)) {
+            return "More and more people get answers straight from Google's answer boxes, voice assistants and AI chatbots like ChatGPT, without clicking through to a website. Showing up there takes two things: AEO (Answer Engine Optimization: clear, question-and-answer content Google can quote) and GEO (Generative Engine Optimization: making sure AI assistants can read, trust and recommend your business).\n"
+                . "Mira Premium checks your website for both, shows exactly what's missing, and writes the fixes for you: {$premiumUrl}";
+        }
+
         if (str_contains($text, 'website url') || str_contains($text, 'enter your website') || str_contains($text, 'analyze') || str_contains($text, 'analyse')
             || str_contains($text, 'site overview') || str_contains($text, 'competitor')) {
             return "Sure — paste your website URL below (starting with http:// or https://) and I'll take a look.";
@@ -239,20 +323,29 @@ class MarketingChatBotService
             return "There are nine behavioral scores, each 0–100: intent, engagement, buying readiness, churn, loyalty, trust, frustration, dropoff risk and reactivation potential.";
         }
 
+        // Prices match the /pricing page. Each answer ends with the pricing
+        // link, which the chat widget renders as a clickable link.
+        $pricingUrl = route('pricing');
+
         if (str_contains($text, 'enterprise')) {
-            return "Enterprise is custom-quoted based on your customer volume, data sources, industry models and SLA needs — it includes dedicated infrastructure and a named Customer Success Manager. Use the \"Request Enterprise Quote\" option on the Pricing page, or Book a Demo and we'll scope it with you.";
+            return "Enterprise is custom-quoted based on your customer volume, data sources, industry models and SLA needs — it includes dedicated infrastructure and a named Customer Success Manager. Request a quote on the pricing page: {$pricingUrl}";
         }
         if (str_contains($text, 'growth')) {
-            return "Growth is \$1,499/mo (\$1,199/mo billed annually) — everything in Starter, plus more data sources, industry models and profile volume. Full breakdown on the Pricing page.";
+            return "Growth is \$1,499/mo (\$1,199/mo billed annually) — everything in Starter, plus more data sources, industry models and profile volume. Full breakdown: {$pricingUrl}";
         }
         if (str_contains($text, 'starter')) {
-            return "Starter is \$499/mo (\$399/mo billed annually) — 3 data source integrations, real-time scoring and segmentation, and standard dashboards. Full breakdown on the Pricing page.";
+            return "Starter is \$499/mo (\$399/mo billed annually) — 3 data source integrations, real-time scoring and segmentation, and standard dashboards. Full breakdown: {$pricingUrl}";
         }
         if (str_contains($text, 'annual') || str_contains($text, 'yearly')) {
-            return "Annual billing is charged upfront for 12 months and saves 20% versus monthly — Starter drops to \$399/mo, Growth to \$1,199/mo. You can switch to annual at any renewal.";
+            return "Annual billing is charged upfront for 12 months and saves 20% versus monthly — Starter drops to \$399/mo, Growth to \$1,199/mo. You can switch to annual at any renewal. See all plans: {$pricingUrl}";
         }
         if (str_contains($text, 'price') || str_contains($text, 'pricing') || str_contains($text, 'cost') || str_contains($text, 'plan')) {
-            return "Three plans: Starter at \$499/mo, Growth at \$1,499/mo, and custom-quoted Enterprise. Every plan includes a 30-day proof of concept with your own data, no credit card required. See the Pricing page for the full comparison.";
+            return "X Platforms has three plans:\n"
+                . "• Starter — \$499/mo, or \$399/mo billed annually\n"
+                . "• Growth — \$1,499/mo, or \$1,199/mo billed annually\n"
+                . "• Enterprise — custom quote, with dedicated infrastructure and a named Customer Success Manager\n"
+                . "Annual billing saves 20%, and every plan starts with a free 30-day proof of concept on your own data, no credit card required.\n"
+                . "See the full comparison and pick a plan: {$pricingUrl}";
         }
 
         if (str_contains($text, 'trial') || str_contains($text, 'free') || str_contains($text, 'get started') || str_contains($text, 'sign up') || str_contains($text, 'signup') || str_contains($text, 'demo')) {
@@ -283,6 +376,8 @@ class MarketingChatBotService
     {
         $signupUrl   = route('client.register');
         $loginUrl    = route('client.login');
+        $pricingUrl  = route('pricing');
+        $premiumUrl  = route('mira-premium');
         $loginStatus = $client === null
             ? "The visitor is NOT signed in."
             : "The visitor IS currently signed in to X Platforms as {$client->company_name}.";
@@ -302,6 +397,10 @@ class MarketingChatBotService
         - Nine behavioral scores drive it, each 0–100: intent, engagement, buying readiness, churn, loyalty, trust, frustration, dropoff risk, reactivation potential. Trust below 65 triggers a discount offer in the platform's own decision logic (about a 1.38× conversion lift); above 65 stays full price.
 
         Answer questions about the product, pricing, industries served, and getting started. Keep it simple and easy to follow — avoid jargon. {$industryLine}
+
+        When asked about cost, prices or plans, give the actual plan prices above (monthly and annual) and always end with the pricing page link: {$pricingUrl}
+
+        Mira Premium is the upgraded Mira: the visitor pastes their website URL and it reads the site, gives an SEO, AEO and GEO snapshot, answers questions about that specific website, and writes ready-to-use fixes (titles, meta descriptions, FAQ answers, schema). AEO means being picked as the answer in Google featured snippets, "People also ask" and voice search; GEO means being recommended by AI assistants like ChatGPT. When the visitor asks about Mira Premium, about improving their own website, SEO, or showing up in Google or ChatGPT answers, explain the benefit briefly and invite them to try it: {$premiumUrl}
 
         {$loginStatus} Some questions are about the visitor's OWN customers (who to call first, winning back dormant customers, connecting their CRM). You have no access to any specific company's account or data — if the visitor is signed in, explain the general approach (Decision Centre, churn_score, reactivation_potential) without inventing specific customer names or numbers. If they are NOT signed in, tell them plainly they'll need an account first and give the signup URL: {$signupUrl} (login: {$loginUrl}).
 

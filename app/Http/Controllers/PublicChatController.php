@@ -80,7 +80,7 @@ class PublicChatController extends Controller
 
         $request->session()->put(self::SESSION_KEY, $bot->trim($history));
 
-        return response()->json(['reply' => $reply, 'report' => $report]);
+        return response()->json(['reply' => $reply, 'report' => $report, 'suggestions' => $result['suggestions'] ?? []]);
     }
 
     public function analyzeWithLead(Request $request, MarketingChatBotService $bot): JsonResponse
@@ -137,7 +137,7 @@ class PublicChatController extends Controller
 
         $request->session()->put(self::SESSION_KEY, $bot->trim($history));
 
-        return response()->json(['reply' => $reply, 'report' => $report]);
+        return response()->json(['reply' => $reply, 'report' => $report, 'suggestions' => $result['suggestions'] ?? []]);
     }
 
     public function reset(Request $request): JsonResponse
