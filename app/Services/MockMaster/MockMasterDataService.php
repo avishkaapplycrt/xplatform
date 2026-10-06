@@ -115,6 +115,7 @@ class MockMasterDataService
                 : ($daysToExpire !== null && $daysToExpire >= -14 && $daysToExpire <= 0 ? 'Renewal Due' : 'Active');
 
             return [
+                'sid' => (int) $r->studentid,
                 'name' => trim($r->first_name . ' ' . $r->last_name) ?: 'Student #' . $r->studentid,
                 'sub' => $r->product ?: 'Package',
                 'value' => '$' . number_format((float) ($r->amount ?? 0), 0),
@@ -499,6 +500,7 @@ class MockMasterDataService
         return $rows->map(function ($r) use ($students) {
             $s = $students[$r->studentId] ?? null;
             return [
+                'sid' => (int) $r->studentId,
                 'name' => $s ? (trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $r->studentId) : 'Student #' . $r->studentId,
                 'avg_score' => round((float) $r->avg_score, 1),
                 'lastActive' => $s ? $this->relativeLogin($s->last_login) : '—',
@@ -520,6 +522,7 @@ class MockMasterDataService
             ->get();
 
         return $rows->map(fn ($s) => [
+            'sid' => (int) $s->studentId,
             'name' => trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $s->studentId,
             'sub' => $s->student_course_type ?: '—',
             'joined' => $s->create_date,
@@ -756,6 +759,7 @@ class MockMasterDataService
             $trust = $s->otp_verified ? 70 : 40;
 
             return [
+                'sid' => (int) $s->studentId,
                 'name' => trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $s->studentId,
                 'sub' => 'Interested in ' . ($s->student_course_type ?: 'a course'),
                 'readiness' => $readiness,
@@ -1037,6 +1041,7 @@ class MockMasterDataService
 
                 $rows[] = [
                     'id' => $id,
+                    'sid' => (int) $id,
                     'name' => $this->studentName($s, $id),
                     'score' => min(100, $score),
                     'signals' => $why,
@@ -1080,6 +1085,7 @@ class MockMasterDataService
                     continue;
                 }
                 $rows[] = [
+                    'sid' => (int) $id,
                     'name' => $this->studentName($s, $id),
                     'package' => $c['product'],
                     'amount' => '$' . number_format($c['amount']),
@@ -1141,6 +1147,7 @@ class MockMasterDataService
                 $value = (int) ($r->amount ?: $r->cost);
                 $busy = $a['tests'] >= 2 || $a['logins'] >= 4;
                 $out[] = [
+                    'sid' => (int) $r->studentid,
                     'name' => $this->studentName($s, $r->studentid),
                     'package' => $r->product,
                     'expires' => $days <= 0 ? 'today' : 'in ' . $days . ' day' . ($days === 1 ? '' : 's'),
@@ -1201,6 +1208,7 @@ class MockMasterDataService
                 $days = (int) Carbon::parse($r->expire_date)->diffInDays(now());
                 $value = (int) ($r->amount ?: $r->cost);
                 $out[] = [
+                    'sid' => (int) $r->studentid,
                     'name' => $this->studentName($s, $r->studentid),
                     'package' => $r->product,
                     'expired' => $days === 0 ? 'today' : $days . ' day' . ($days === 1 ? '' : 's') . ' ago',
@@ -1277,6 +1285,7 @@ class MockMasterDataService
             $risk = min(100, max(10, $inactiveDays + (int) Carbon::parse($r->expire_date)->diffInDays(now(), true)));
 
             return [
+                'sid' => (int) $r->studentid,
                 'name' => trim($r->first_name . ' ' . $r->last_name) ?: 'Student #' . $r->studentid,
                 'sub' => $r->product ?: 'Package',
                 'inactiveDays' => min($inactiveDays, 999),
@@ -1338,6 +1347,61 @@ class MockMasterDataService
         }
         $days = (int) Carbon::parse($lastLogin)->diffInDays(now());
         return $days <= 7 ? 'This week' : $days . 'd ago';
+    }
+
+    /**
+     * One student's profile card for the "click a name" popup — looked up by
+     * student id, or by email for lists whose rows only carry an email.
+     */
+    public function studentProfile(?int $studentId, ?string $email): ?array
+    {
+        $query = DB::table('mm_studentuser')->whereNull('deleted_at');
+        if ($studentId) {
+            $query->where('studentId', $studentId);
+        } elseif ($email) {
+            $query->where('email', $email)->orderByDesc('studentId');
+        } else {
+            return null;
+        }
+
+        $s = $query->first(['studentId', 'first_name', 'last_name', 'student_course_type', 'country_code', 'phone', 'email', 'profile_picture']);
+        if (!$s) {
+            return null;
+        }
+
+        return [
+            'first_name' => $s->first_name ?: null,
+            'last_name' => $s->last_name ?: null,
+            'course_type' => $s->student_course_type ?: null,
+            'phone' => $this->formatPhone($s->country_code, $s->phone),
+            'email' => $s->email ?: null,
+            'profile_picture' => $this->profilePictureUrl($s->profile_picture),
+        ];
+    }
+
+    /**
+     * Full URLs (e.g. Google avatars) are used as-is. Relative paths such as
+     * "assets/uploads/profile_images/x.jpg" live on the PTE Portal site, so
+     * they need MOCKMASTER_PORTAL_URL; without it the popup shows initials.
+     */
+    private function profilePictureUrl(?string $path): ?string
+    {
+        $path = trim((string) $path);
+        if ($path === '') {
+            return null;
+        }
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+        // A leading "/" means the image is served by this app (public/),
+        // e.g. /images/mm-profiles/14.jpg — asset() adds the right host and
+        // base path whether the app runs at the domain root or a subfolder.
+        if (str_starts_with($path, '/')) {
+            return asset(ltrim($path, '/'));
+        }
+        $base = rtrim((string) config('services.mockmaster.portal_url'), '/');
+
+        return $base !== '' ? $base . '/' . ltrim($path, '/') : null;
     }
 
     /** Real contact number for the "who to call" style answers — country code + number, or null if none on file. */

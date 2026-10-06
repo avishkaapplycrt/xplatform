@@ -75,4 +75,10 @@ return [
         'api_key' => env('PAGESPEED_API_KEY'),
     ],
 
+    // Mock Master (PTE Portal) website address — used to show profile
+    // pictures stored as relative paths, e.g. https://your-portal-domain
+    'mockmaster' => [
+        'portal_url' => env('MOCKMASTER_PORTAL_URL'),
+    ],
+
 ];

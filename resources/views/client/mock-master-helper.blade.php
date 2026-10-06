@@ -342,7 +342,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
-                                    <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($s['name']) }}">{{ $mmInitial($s['name']) }}</span><div><div class="bh-acct-n">{{ $s['name'] }}</div><div class="bh-acct-c">({{ $s['sub'] }})</div></div></div></td>
+                                    <td class="acctn" data-mm-stu data-sid="{{ $s['sid'] ?? '' }}" data-email="{{ $s['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($s['name']) }}">{{ $mmInitial($s['name']) }}</span><div><div class="bh-acct-n">{{ $s['name'] }}</div><div class="bh-acct-c">({{ $s['sub'] }})</div></div></div></td>
                                     <td>{{ $s['value'] }}</td>
                                     <td>{{ $s['paymentDate'] }}</td>
                                     <td><span class="bh-pill {{ $mmStageKind($s['stage']) }}">{{ $s['stage'] }}</span></td>
@@ -480,7 +480,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <tbody>
                                 @forelse($slProspects as $p)
                                 <tr>
-                                    <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div><div class="bh-acct-n">{{ $p['name'] }}</div><div class="bh-acct-c">({{ $p['sub'] }})</div></div></div></td>
+                                    <td class="acctn" data-mm-stu data-sid="{{ $p['sid'] ?? '' }}" data-email="{{ $p['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div><div class="bh-acct-n">{{ $p['name'] }}</div><div class="bh-acct-c">({{ $p['sub'] }})</div></div></div></td>
                                     <td>{{ $p['readiness'] }}</td>
                                     <td>{{ $p['intent'] }}</td>
                                     <td>{{ $p['trust'] }}</td>
@@ -499,7 +499,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <thead><tr><th>Prospect</th><th>Readiness</th><th>Intent</th><th>Trust</th><th>Play</th></tr></thead>
                             <tbody>
                                 @forelse($slProspects as $p)
-                                <tr><td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div class="bh-acct-n">{{ $p['name'] }}</div></div></td><td>{{ $p['readiness'] }}</td><td>{{ $p['intent'] }}</td><td>{{ $p['trust'] }}</td><td>{{ $p['play'] }}</td></tr>
+                                <tr><td class="acctn" data-mm-stu data-sid="{{ $p['sid'] ?? '' }}" data-email="{{ $p['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div class="bh-acct-n">{{ $p['name'] }}</div></div></td><td>{{ $p['readiness'] }}</td><td>{{ $p['intent'] }}</td><td>{{ $p['trust'] }}</td><td>{{ $p['play'] }}</td></tr>
                                 @empty
                                 <tr><td colspan="5" style="color:var(--g3);padding:20px">No prospects found right now.</td></tr>
                                 @endforelse
@@ -662,7 +662,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <tbody>
                                 @forelse($chAtRisk as $r)
                                 <tr>
-                                    <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div><div class="bh-acct-c">({{ $r['sub'] }})</div></div></div></td>
+                                    <td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div><div class="bh-acct-c">({{ $r['sub'] }})</div></div></div></td>
                                     <td>{{ $r['inactiveDays'] }}d</td>
                                     <td>{{ $r['valueAtRisk'] }}</td>
                                     <td><span style="color:var(--crit);font-weight:600">{{ $r['risk'] }}</span></td>
@@ -696,7 +696,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <thead><tr><th>Student</th><th>Inactive for</th><th>Value at risk</th><th>Risk score</th></tr></thead>
                             <tbody>
                                 @forelse($chWatchlist as $r)
-                                <tr><td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
+                                <tr><td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
                                 @empty
                                 <tr><td colspan="4" style="color:var(--g3);padding:20px">Nothing trending toward churn right now.</td></tr>
                                 @endforelse
@@ -773,6 +773,21 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
 
         {{-- Popup for "which/who" style answers — a clean table of the real
              students behind the answer, instead of a run-on paragraph. --}}
+        {{-- Student profile popup — opened by clicking a student's name in any list (see mmStudentOpen) --}}
+        <div class="mm-stu-overlay" id="mmStuOverlay" onclick="if(event.target===this) mmStudentClose()" role="dialog" aria-modal="true" aria-labelledby="mmStuName">
+            <div class="mm-stu-card">
+                <button type="button" class="mm-stu-x" onclick="mmStudentClose()" aria-label="Close">✕</button>
+                <div class="mm-stu-top">
+                    <div class="mm-stu-pic" id="mmStuPic"></div>
+                    <div class="mm-stu-id">
+                        <div class="mm-stu-name" id="mmStuName">Loading…</div>
+                        <div class="mm-stu-course" id="mmStuCourse"></div>
+                    </div>
+                </div>
+                <dl class="mm-stu-dl" id="mmStuBody"></dl>
+            </div>
+        </div>
+
         <div class="mm-list-modal-overlay" id="mmListModalOverlay" onclick="if(event.target===this) closeMmListModal()">
             <div class="mm-list-modal">
                 <div class="mm-list-modal-hd">
@@ -961,6 +976,32 @@ body.mm-syncing #mmSyncOverlay{display:flex}
    list-shaped answer (who/which questions) is a clean table, not a run-on
    paragraph. */
 .mm-list-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:200;align-items:center;justify-content:center;padding:24px}
+
+/* Clickable student names (any element with data-mm-stu) + profile popup */
+[data-mm-stu] .bh-acct-n,[data-mm-stu] .bh-av{cursor:pointer}
+[data-mm-stu] .bh-acct-n:hover{color:#4f46e5;text-decoration:underline;text-underline-offset:2px}
+.mm-stu-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.5);z-index:10050;align-items:center;justify-content:center;padding:24px}
+.mm-stu-overlay.show{display:flex}
+.mm-stu-card{position:relative;background:#fff;border-radius:14px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.25);padding:22px 22px 18px;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+.mm-stu-x{position:absolute;top:12px;right:12px;border:none;background:none;font-size:15px;color:#9ca3af;cursor:pointer;padding:4px;line-height:1}
+.mm-stu-x:hover{color:#111827}
+.mm-stu-top{display:flex;align-items:center;gap:14px;margin-bottom:16px;padding-right:20px}
+.mm-stu-pic{width:64px;height:64px;border-radius:50%;flex-shrink:0;overflow:hidden;background:#eef2ff;display:grid;place-items:center}
+.mm-stu-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.mm-stu-ini{font-size:24px;font-weight:700;color:#4f46e5}
+.mm-stu-name{font-size:16px;font-weight:700;color:#111827;line-height:1.3}
+.mm-stu-course{display:inline-block;margin-top:5px;font-size:11px;font-weight:600;color:#4338ca;background:#eef2ff;border-radius:6px;padding:2px 8px}
+.mm-stu-course:empty{display:none}
+.mm-stu-dl{display:grid;grid-template-columns:auto 1fr;gap:0;margin:0;border:1px solid #e6e9f0;border-radius:10px;overflow:hidden}
+.mm-stu-dl dt,.mm-stu-dl dd{margin:0;padding:9px 12px;border-top:1px solid #e6e9f0;font-size:12.5px}
+.mm-stu-dl dt:first-of-type,.mm-stu-dl dt:first-of-type + dd{border-top:none}
+.mm-stu-dl dt{color:#64748b;font-weight:600;background:#f7f8fb;white-space:nowrap}
+.mm-stu-dl dd{color:#111827;display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.mm-stu-dl dd span{overflow-wrap:anywhere}
+.mm-stu-none{color:#9ca3af;font-style:italic}
+.mm-stu-copy{flex-shrink:0;font-size:10.5px;font-weight:600;color:#4338ca;background:#fff;border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;cursor:pointer}
+.mm-stu-copy:hover{background:#eef2ff}
+.mm-stu-err{grid-column:1 / -1;margin:0;padding:12px;font-size:12.5px;color:#64748b}
 .mm-list-modal-overlay.show{display:flex}
 .mm-list-modal{background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
 .mm-list-modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;color:#111827}
@@ -1413,7 +1454,8 @@ function mmRenderListTable(entry) {
     var body = rows.map(function (r, i) {
         return '<tr><td>' + (i + 1) + '</td>' + cols.map(function (k) {
             var v = r[k];
-            return '<td>' + (v === null || v === undefined || v === '' ? '—' : escapeHtml(v)) + '</td>';
+            var text = (v === null || v === undefined || v === '' ? '—' : escapeHtml(v));
+            return k === 'name' ? '<td ' + mmStuAttrs(r) + '><span class="bh-acct-n">' + text + '</span></td>' : '<td>' + text + '</td>';
         }).join('') + '</tr>';
     }).join('');
 
@@ -1455,6 +1497,79 @@ function closeMmListModal() {
     var overlay = document.getElementById('mmListModalOverlay');
     if (overlay) overlay.classList.remove('show');
 }
+
+/* ── Student profile popup ──
+   Any name cell carrying data-mm-stu opens the student's details. Rows
+   give a student id (sid) where available, otherwise an email. */
+var MM_STUDENT_URL = '{{ route('client.mock-master-helper.student') }}';
+function mmStuAttrs(r) {
+    var sid = r && r.sid ? String(r.sid) : '';
+    var email = r && r.email ? String(r.email) : '';
+    if (!sid && !email) return '';
+    return 'data-mm-stu data-sid="' + escapeHtml(sid) + '" data-email="' + escapeHtml(email) + '"';
+}
+function mmStuRow(label, value, copy) {
+    var v = value ? escapeHtml(value) : '<span class="mm-stu-none">Not on file</span>';
+    var btn = (value && copy) ? '<button type="button" class="mm-stu-copy" data-copy="' + escapeHtml(value) + '">Copy</button>' : '';
+    return '<dt>' + label + '</dt><dd><span>' + v + '</span>' + btn + '</dd>';
+}
+function mmStudentOpen(sid, email) {
+    if (!sid && !email) return;
+    var overlay = document.getElementById('mmStuOverlay');
+    document.getElementById('mmStuName').textContent = 'Loading…';
+    document.getElementById('mmStuCourse').textContent = '';
+    document.getElementById('mmStuPic').innerHTML = '';
+    document.getElementById('mmStuBody').innerHTML = '';
+    overlay.classList.add('show');
+
+    var qs = sid ? 'sid=' + encodeURIComponent(sid) : 'email=' + encodeURIComponent(email);
+    fetch(MM_STUDENT_URL + '?' + qs, { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { if (!r.ok) throw r.status; return r.json(); })
+        .then(function (p) {
+            var full = [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Unnamed student';
+            document.getElementById('mmStuName').textContent = full;
+            document.getElementById('mmStuCourse').textContent = p.course_type || '';
+            var initial = escapeHtml((p.first_name || full).trim().charAt(0).toUpperCase() || '?');
+            var pic = document.getElementById('mmStuPic');
+            pic.innerHTML = '<span class="mm-stu-ini">' + initial + '</span>';
+            if (p.profile_picture) {
+                var img = new Image();
+                img.alt = full;
+                img.referrerPolicy = 'no-referrer';
+                img.onload = function () { pic.innerHTML = ''; pic.appendChild(img); };
+                img.src = p.profile_picture;
+            }
+            document.getElementById('mmStuBody').innerHTML =
+                mmStuRow('First name', p.first_name) +
+                mmStuRow('Last name', p.last_name) +
+                mmStuRow('Course type', p.course_type) +
+                mmStuRow('Mobile number', p.phone, true) +
+                mmStuRow('Email', p.email, true);
+        })
+        .catch(function (status) {
+            document.getElementById('mmStuName').textContent = status === 404 ? 'Student not found' : 'Could not load details';
+            document.getElementById('mmStuBody').innerHTML = '<p class="mm-stu-err">' +
+                (status === 404 ? 'This student may have been removed from Mock Master.' : 'Please try again in a moment.') + '</p>';
+        });
+}
+function mmStudentClose() {
+    document.getElementById('mmStuOverlay').classList.remove('show');
+}
+document.addEventListener('click', function (e) {
+    var copy = e.target.closest('.mm-stu-copy');
+    if (copy) {
+        var text = copy.getAttribute('data-copy');
+        var done = function () { copy.textContent = 'Copied'; setTimeout(function () { copy.textContent = 'Copy'; }, 1500); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () {});
+        return;
+    }
+    var cell = e.target.closest('[data-mm-stu]');
+    if (!cell || !e.target.closest('.bh-acct-n, .bh-av')) return;
+    mmStudentOpen(cell.getAttribute('data-sid'), cell.getAttribute('data-email'));
+});
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && document.getElementById('mmStuOverlay').classList.contains('show')) mmStudentClose();
+});
 
 /* Sales · Scripts — switch between the Call / Email / WhatsApp lists, and
    copy one script (with its email subject) to the clipboard. */
@@ -1608,7 +1723,8 @@ function mmKpiRender(data, page) {
     var head = '<tr><th>#</th>' + data.columns.map(function (c) { return '<th>' + escapeHtml(c.label) + '</th>'; }).join('') + '</tr>';
     var body = slice.map(function (r, i) {
         return '<tr><td>' + (start + i + 1) + '</td>' + data.columns.map(function (c) {
-            return '<td>' + escapeHtml(r[c.key] === null || r[c.key] === undefined || r[c.key] === '' ? '—' : String(r[c.key])) + '</td>';
+            var text = escapeHtml(r[c.key] === null || r[c.key] === undefined || r[c.key] === '' ? '—' : String(r[c.key]));
+            return c.key === 'name' ? '<td ' + mmStuAttrs(r) + '><span class="bh-acct-n">' + text + '</span></td>' : '<td>' + text + '</td>';
         }).join('') + '</tr>';
     }).join('');
 
@@ -1724,7 +1840,7 @@ function mmCampaignRender(data) {
             ? '<span class="bh-pill good">Offer-led</span>'
             : '<span class="bh-pill warn">Proof-led</span>';
         return '<tr>' +
-            '<td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:' + mmEsc(s.color) + '">' + mmEsc(s.initial) + '</span>' +
+            '<td class="acctn" ' + mmStuAttrs(s) + '><div class="bh-acct"><span class="bh-av" style="background:' + mmEsc(s.color) + '">' + mmEsc(s.initial) + '</span>' +
                 '<div><div class="bh-acct-n">' + mmEsc(s.name) + '</div><div class="bh-acct-c">(' + mmEsc(s.sub) + ')</div></div></div></td>' +
             '<td>' + mmEsc(s.value) + '</td>' +
             '<td>' + mmEsc(s.paymentDate) + '</td>' +

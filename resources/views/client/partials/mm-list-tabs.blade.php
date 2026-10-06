@@ -33,7 +33,7 @@
         <tbody>
             @foreach($tab['rows'] as $r)
             <tr>
-                <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div>@if($tk !== 'convert')<div class="bh-acct-c">{{ $r['signals'] }}</div>@endif</div></div></td>
+                <td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div>@if($tk !== 'convert')<div class="bh-acct-c">{{ $r['signals'] }}</div>@endif</div></div></td>
                 @if($tk === 'convert')
                 <td><span class="bh-pill {{ $scoreKind($r['score']) }}">{{ $r['score'] }}</span></td>
                 <td class="cg-why">{{ $r['signals'] }}</td>
