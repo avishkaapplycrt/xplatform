@@ -29,6 +29,7 @@
             @else<th>Last package</th><th>Expired</th><th>Value</th>
             @endif
             <th>Next step</th>
+            <th>Action</th>
         </tr></thead>
         <tbody>
             @foreach($tab['rows'] as $r)
@@ -46,6 +47,7 @@
                 <td>{{ $r['package'] }}</td><td>{{ $r['expired'] }}</td><td>{{ $r['amount'] }}</td>
                 @endif
                 <td class="cg-next">{{ $r['action'] }}</td>
+                <td><button type="button" class="mm-act-btn" data-mm-compose="{{ $tk }}" data-row="{{ json_encode($r) }}">View</button></td>
             </tr>
             @endforeach
         </tbody>
