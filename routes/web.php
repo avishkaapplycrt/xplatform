@@ -329,11 +329,32 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'body' => 'required|string|max:5000',
         ]);
 
-        $email = \Illuminate\Support\Facades\DB::table('mm_studentuser')
+        $student = \Illuminate\Support\Facades\DB::table('mm_studentuser')
             ->where('studentId', $data['student_id'])
-            ->value('email');
+            ->first(['email', 'first_name', 'last_name']);
+        $email = $student->email ?? null;
+        $recipientName = $student ? trim($student->first_name . ' ' . $student->last_name) : null;
+        $clientId = \Illuminate\Support\Facades\Auth::guard('client')->id();
+
+        $log = function (string $status, ?string $error = null) use ($clientId, $email, $recipientName, $data) {
+            \Illuminate\Support\Facades\DB::table('email_logs')->insert([
+                'client_id' => $clientId,
+                'email_address' => (string) $email,
+                'recipient_name' => $recipientName,
+                'subject' => mb_substr($data['subject'], 0, 255),
+                'body' => $data['body'],
+                'type' => 'single',
+                'bulk_count' => 1,
+                'status' => $status,
+                'error_message' => $error,
+                'sent_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        };
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $log('failed', 'No valid email address on file.');
             return response()->json(['ok' => false, 'message' => 'This student has no valid email address on file.'], 422);
         }
 
@@ -343,8 +364,11 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             });
         } catch (\Throwable $e) {
             report($e);
+            $log('failed', mb_substr($e->getMessage(), 0, 1000));
             return response()->json(['ok' => false, 'message' => 'The email could not be sent. Please try again.'], 500);
         }
+
+        $log('sent');
 
         return response()->json(['ok' => true, 'message' => 'Email sent to ' . $email]);
     })->name('mock-master-helper.send-email');
