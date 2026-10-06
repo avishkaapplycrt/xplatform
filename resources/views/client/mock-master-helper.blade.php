@@ -2275,12 +2275,42 @@ function mmSendEmail() {
     });
 }
 
+var MM_SEND_WHATSAPP_URL = '{{ route('client.mock-master-helper.send-whatsapp') }}';
+
 function mmSendWhatsApp() {
     var s = MM_STUDENT_SELECTED;
-    var digits = s ? String(s.phone || '').replace(/\D/g, '') : '';
-    if (!digits) return;
+    if (!s || !String(s.phone || '').replace(/\D/g, '')) return;
+    var btn = document.getElementById('mmSendWa');
+    var hint = document.getElementById('mmMsgHint');
     var body = document.getElementById('mmMsgBody').value;
-    window.open('https://wa.me/' + digits + '?text=' + encodeURIComponent(body), '_blank', 'noopener');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="mm-btn-spinner"></span>Sending…';
+    hint.style.color = '#6b7280';
+    hint.textContent = 'Sending WhatsApp to ' + s.phone + '…';
+
+    fetch(MM_SEND_WHATSAPP_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ student_id: s.studentId, body: body })
+    })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+    .then(function (res) {
+        btn.textContent = 'WhatsApp';
+        btn.disabled = false;
+        hint.style.color = res.ok ? '#16a34a' : '#b91c1c';
+        hint.textContent = res.data.message || (res.ok ? 'WhatsApp sent.' : 'WhatsApp could not be sent.');
+    })
+    .catch(function () {
+        btn.textContent = 'WhatsApp';
+        btn.disabled = false;
+        hint.style.color = '#b91c1c';
+        hint.textContent = "Couldn't reach the server — please try again.";
+    });
 }
 
 function mmStudentClose() {

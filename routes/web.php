@@ -373,6 +373,36 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return response()->json(['ok' => true, 'message' => 'Email sent to ' . $email]);
     })->name('mock-master-helper.send-email');
 
+    Route::post('mock-master-helper/send-whatsapp', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'student_id' => 'required|integer',
+            'body' => 'required|string|max:4096',
+        ]);
+
+        $student = \Illuminate\Support\Facades\DB::table('mm_studentuser')
+            ->where('studentId', $data['student_id'])
+            ->first(['country_code', 'phone']);
+        $digits = $student ? preg_replace('/\D/', '', ($student->country_code ?? '') . ($student->phone ?? '')) : '';
+
+        if ($digits === '') {
+            return response()->json(['ok' => false, 'message' => 'This student has no phone number on file.'], 422);
+        }
+
+        $result = (new \App\Services\WhatsAppCloudService())->sendText('+' . $digits, $data['body']);
+
+        if (!$result['ok']) {
+            $outsideWindow = str_contains((string) $result['error'], '131047');
+            return response()->json([
+                'ok' => false,
+                'message' => $outsideWindow
+                    ? 'WhatsApp only allows free text within 24 hours of the student\'s last message. Use an approved template for this student.'
+                    : 'WhatsApp could not send the message: ' . $result['error'],
+            ], 422);
+        }
+
+        return response()->json(['ok' => true, 'message' => 'WhatsApp sent to +' . $digits]);
+    })->name('mock-master-helper.send-whatsapp');
+
     Route::get('mock-master-helper/kpi/{key}', function (string $key) {
         $service = new \App\Services\MockMaster\MockMasterDataService();
         $kpiKeys = ['active_students', 'mock_tests', 'avg_score', 'active_packages'];
