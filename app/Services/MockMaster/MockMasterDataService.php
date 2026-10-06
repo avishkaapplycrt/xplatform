@@ -1102,8 +1102,9 @@ class MockMasterDataService
     }
 
     /**
-     * Grow — active paid packages expiring in the next 30 days. Students who
-     * are still practising get an upgrade suggestion; quiet ones a check-in.
+     * Retention · Renew & win back — active paid packages expiring in the
+     * next 30 days. Students who are still practising get an upgrade
+     * suggestion; quiet ones a renewal check-in.
      */
     private function renewalsDueAll(): array
     {
@@ -1156,14 +1157,15 @@ class MockMasterDataService
         });
     }
 
-    public function salesRenewalsDue(int $limit = 10, int $offset = 0): array
+    public function retentionRenewalsDue(int $limit = 10, int $offset = 0): array
     {
         return array_map(fn ($r) => array_diff_key($r, ['_amount' => 1]), array_slice($this->renewalsDueAll(), $offset, $limit));
     }
 
     /**
-     * Grow — paid package expired in the last 60 days, nothing active now,
-     * but the student still logs in or practises (last 30 days).
+     * Retention · Renew & win back — paid package expired in the last 60
+     * days, nothing active now, but the student still logs in or practises
+     * (last 30 days).
      */
     private function winBackAll(): array
     {
@@ -1215,27 +1217,34 @@ class MockMasterDataService
         });
     }
 
-    public function salesWinBack(int $limit = 10, int $offset = 0): array
+    public function retentionWinBack(int $limit = 10, int $offset = 0): array
     {
         return array_map(fn ($r) => array_diff_key($r, ['_amount' => 1]), array_slice($this->winBackAll(), $offset, $limit));
     }
 
-    /** Headline counts and revenue for the Close & grow tab. */
+    /** Headline counts for Sales · Close & grow (convert + open checkouts). */
     public function closeGrowSummary(): array
     {
         $abandoned = $this->abandonedCheckoutsAll();
-        $renewals = $this->renewalsDueAll();
-        $winback = $this->winBackAll();
-        $sum = fn ($rows) => array_sum(array_column($rows, '_amount'));
 
         return [
             'convert' => count($this->convertCandidatesAll()),
             'abandoned' => count($abandoned),
-            'abandoned_value' => $sum($abandoned),
+            'abandoned_value' => array_sum(array_column($abandoned, '_amount')),
+        ];
+    }
+
+    /** Headline counts and revenue for Retention · Renew & win back. */
+    public function renewWinBackSummary(): array
+    {
+        $renewals = $this->renewalsDueAll();
+        $winback = $this->winBackAll();
+
+        return [
             'renewals' => count($renewals),
-            'renewals_value' => $sum($renewals),
+            'renewals_value' => array_sum(array_column($renewals, '_amount')),
             'winback' => count($winback),
-            'winback_value' => $sum($winback),
+            'winback_value' => array_sum(array_column($winback, '_amount')),
         ];
     }
 
@@ -1486,8 +1495,9 @@ class MockMasterDataService
             'close_candidates' => $this->salesCloseCandidates(10),
             'close_grow_summary' => $this->closeGrowSummary(),
             'abandoned_checkouts' => $this->salesAbandonedCheckouts(10),
-            'renewals_due' => $this->salesRenewalsDue(10),
-            'win_back' => $this->salesWinBack(10),
+            'renew_win_back_summary' => $this->renewWinBackSummary(),
+            'renewals_due' => $this->retentionRenewalsDue(10),
+            'win_back' => $this->retentionWinBack(10),
 
             'students' => [
                 'total_registered' => DB::table('mm_studentuser')->whereNull('deleted_at')->count(),

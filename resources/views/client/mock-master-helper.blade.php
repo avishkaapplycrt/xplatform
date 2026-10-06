@@ -176,6 +176,7 @@ $chSteps = [
     ['key' => 'rootcause', 'label' => 'Root cause'],
     ['key' => 'offers',    'label' => 'Offers'],
     ['key' => 'watchlist', 'label' => 'Watchlist'],
+    ['key' => 'renew',     'label' => 'Renew & win back'],
     ['key' => 'abtest',    'label' => 'A/B test'],
 ];
 
@@ -564,67 +565,20 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
 
                     <div class="mm-panel" data-panel="sl-close" style="display:none">
                         @php
-                            $cg = $slCloseSummary ?? ['convert' => 0, 'abandoned' => 0, 'abandoned_value' => 0, 'renewals' => 0, 'renewals_value' => 0, 'winback' => 0, 'winback_value' => 0];
-                            $cgScoreKind = fn ($v) => $v >= 70 ? 'good' : ($v >= 50 ? 'info' : 'warn');
-                            $cgTabs = [
-                                'convert'   => ['label' => 'Ready to convert', 'count' => $cg['convert'],   'rows' => $slClose ?? [],     'dataset' => 'slClose'],
-                                'abandoned' => ['label' => 'Open checkouts',   'count' => $cg['abandoned'], 'rows' => $slAbandoned ?? [], 'dataset' => 'slAbandoned'],
-                                'renewals'  => ['label' => 'Renewals due',     'count' => $cg['renewals'],  'rows' => $slRenewals ?? [],  'dataset' => 'slRenewals'],
-                                'winback'   => ['label' => 'Win-back',         'count' => $cg['winback'],   'rows' => $slWinBack ?? [],   'dataset' => 'slWinBack'],
-                            ];
+                            $cg = $slCloseSummary ?? ['convert' => 0, 'abandoned' => 0, 'abandoned_value' => 0];
                         @endphp
-                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Where revenue can be won this week, from live Mock Master data. <b>Close</b>: free-trial students who are practising now, and students who started a checkout but didn't pay. <b>Grow</b>: paid plans expiring in the next 30 days, and lapsed plans whose students still log in. Each row shows the evidence and a suggested next step.</div></div>
+                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">New revenue you can close this week, from live Mock Master data: free-trial students who are practising now, and students who started a checkout but didn't pay. Each row shows the evidence and a suggested next step. Renewals and lapsed plans are in <b>Customer Retention › Renew &amp; win back</b>.</div></div>
                         <div class="mg-grid cg-kpis">
                             <div class="mg-cell"><div class="mg-h">Ready to convert</div><div class="mg-kpi">{{ number_format($cg['convert']) }} <small>free-trial students active in the last 14 days</small></div></div>
                             <div class="mg-cell"><div class="mg-h">Open checkouts</div><div class="mg-kpi">{{ number_format($cg['abandoned']) }} <small>${{ number_format($cg['abandoned_value']) }} not yet paid (30 days)</small></div></div>
-                            <div class="mg-cell"><div class="mg-h">Renewals due</div><div class="mg-kpi">{{ number_format($cg['renewals']) }} <small>${{ number_format($cg['renewals_value']) }} expiring in 30 days</small></div></div>
-                            <div class="mg-cell"><div class="mg-h">Win-back</div><div class="mg-kpi">{{ number_format($cg['winback']) }} <small>${{ number_format($cg['winback_value']) }} in lapsed plans, still active</small></div></div>
                         </div>
-                        <div class="mm-scr-tabs" role="tablist" aria-label="Close and grow list">
-                            @foreach($cgTabs as $tk => $tab)
-                            <button type="button" role="tab" class="mm-scr-tab {{ $loop->first ? 'on' : '' }}" data-ch="{{ $tk }}" aria-selected="{{ $loop->first ? 'true' : 'false' }}" onclick="mmScriptChannel(this)">{{ $tab['label'] }} <span class="mm-scr-count">{{ number_format($tab['count']) }}</span></button>
-                            @endforeach
-                        </div>
-
-                        @foreach($cgTabs as $tk => $tab)
-                        <div class="mm-scr-list" data-ch="{{ $tk }}" @if(!$loop->first) style="display:none" @endif>
-                            @if(empty($tab['rows']))
-                            <div class="act"><div class="act-t" style="color:var(--g3)">Nobody matches this right now.</div></div>
-                            @else
-                            <table class="dtbl">
-                                <thead><tr>
-                                    <th>Student</th>
-                                    @if($tk === 'convert')<th>Score</th><th>Why</th><th>Last active</th>
-                                    @elseif($tk === 'abandoned')<th>Package</th><th>Amount</th><th>Attempted</th>
-                                    @elseif($tk === 'renewals')<th>Package</th><th>Expires</th><th>Value</th>
-                                    @else<th>Last package</th><th>Expired</th><th>Value</th>
-                                    @endif
-                                    <th>Next step</th>
-                                </tr></thead>
-                                <tbody>
-                                    @foreach($tab['rows'] as $r)
-                                    <tr>
-                                        <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div>@if($tk !== 'convert')<div class="bh-acct-c">{{ $r['signals'] }}</div>@endif</div></div></td>
-                                        @if($tk === 'convert')
-                                        <td><span class="bh-pill {{ $cgScoreKind($r['score']) }}">{{ $r['score'] }}</span></td>
-                                        <td class="cg-why">{{ $r['signals'] }}</td>
-                                        <td>{{ $r['lastActive'] }}</td>
-                                        @elseif($tk === 'abandoned')
-                                        <td>{{ $r['package'] }}</td><td>{{ $r['amount'] }}</td><td>{{ $r['attempted'] }}</td>
-                                        @elseif($tk === 'renewals')
-                                        <td>{{ $r['package'] }}</td><td>{{ $r['expires'] }}</td><td>{{ $r['amount'] }}</td>
-                                        @else
-                                        <td>{{ $r['package'] }}</td><td>{{ $r['expired'] }}</td><td>{{ $r['amount'] }}</td>
-                                        @endif
-                                        <td class="cg-next">{{ $r['action'] }}</td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                            <button type="button" class="qk cg-all" onclick="mmOpenDataset('{{ $tab['dataset'] }}', '{{ $tab['label'] }}')">{{ $tab['count'] > count($tab['rows']) ? 'View all ' . number_format($tab['count']) . ' with contact details →' : 'View with contact details →' }}</button>
-                            @endif
-                        </div>
-                        @endforeach
+                        @include('client.partials.mm-list-tabs', [
+                            'ariaLabel' => 'Close and grow list',
+                            'tabs' => [
+                                'convert'   => ['label' => 'Ready to convert', 'count' => $cg['convert'],   'rows' => $slClose ?? [],     'dataset' => 'slClose'],
+                                'abandoned' => ['label' => 'Open checkouts',   'count' => $cg['abandoned'], 'rows' => $slAbandoned ?? [], 'dataset' => 'slAbandoned'],
+                            ],
+                        ])
                     </div>
 
                 </div>
@@ -748,6 +702,24 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                                 @endforelse
                             </tbody>
                         </table>
+                    </div>
+
+                    <div class="mm-panel" data-panel="ch-renew" style="display:none">
+                        @php
+                            $rw = $chRenewSummary ?? ['renewals' => 0, 'renewals_value' => 0, 'winback' => 0, 'winback_value' => 0];
+                        @endphp
+                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Keep paying students paying. <b>Renewals due</b>: paid plans that expire in the next 30 days and haven't been renewed. <b>Win-back</b>: paid plans that lapsed in the last 60 days, where the student still logs in or practises. Each row shows their recent activity and a suggested next step. Unlike Save first and Watchlist, this covers paid plans only, not enrolled coaching access.</div></div>
+                        <div class="mg-grid cg-kpis">
+                            <div class="mg-cell"><div class="mg-h">Renewals due</div><div class="mg-kpi">{{ number_format($rw['renewals']) }} <small>${{ number_format($rw['renewals_value']) }} expiring in 30 days</small></div></div>
+                            <div class="mg-cell"><div class="mg-h">Win-back</div><div class="mg-kpi">{{ number_format($rw['winback']) }} <small>${{ number_format($rw['winback_value']) }} in lapsed plans, still active</small></div></div>
+                        </div>
+                        @include('client.partials.mm-list-tabs', [
+                            'ariaLabel' => 'Renew and win back list',
+                            'tabs' => [
+                                'renewals' => ['label' => 'Renewals due', 'count' => $rw['renewals'], 'rows' => $chRenewals ?? [], 'dataset' => 'chRenewals'],
+                                'winback'  => ['label' => 'Win-back',     'count' => $rw['winback'],  'rows' => $chWinBack ?? [],  'dataset' => 'chWinBack'],
+                            ],
+                        ])
                     </div>
 
                     <div class="mm-panel" data-panel="ch-abtest" style="display:none">
@@ -1152,7 +1124,7 @@ body.mm-syncing #mmSyncOverlay{display:flex}
 #bhRoot .mm-scr-body{padding:10px 14px 14px;font-size:12.5px;line-height:1.7;color:#1e293b;white-space:pre-line;overflow-wrap:anywhere}
 
 /* Sales · Close & grow — summary strip + list tables */
-#bhRoot .mg-grid.cg-kpis{grid-template-columns:repeat(4,1fr)}
+#bhRoot .mg-grid.cg-kpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 #bhRoot .cg-kpis .mg-kpi small{display:block;margin:4px 0 0;font-size:10.5px;line-height:1.4}
 @media(max-width:1100px){#bhRoot .mg-grid.cg-kpis{grid-template-columns:1fr 1fr}}
 #bhRoot .mm-scr-list > .dtbl{width:100%;margin:0}
@@ -1236,7 +1208,7 @@ function escapeHtml(s) {
 var MM_STEP_LABELS = {
     'mk-campaign':'CAMPAIGN','mk-performance':'PERFORMANCE','mk-audience':'AUDIENCE','mk-insights':'INSIGHTS','mk-abtest':'A/B TEST',
     'sl-today':'TODAY','sl-accounts':'ACCOUNTS','sl-scripts':'SCRIPTS','sl-objections':'OBJECTIONS','sl-close':'CLOSE & GROW',
-    'ch-savefirst':'SAVE FIRST','ch-rootcause':'ROOT CAUSE','ch-offers':'OFFERS','ch-watchlist':'WATCHLIST','ch-abtest':'A/B TEST'
+    'ch-savefirst':'SAVE FIRST','ch-rootcause':'ROOT CAUSE','ch-offers':'OFFERS','ch-watchlist':'WATCHLIST','ch-renew':'RENEW & WIN BACK','ch-abtest':'A/B TEST'
 };
 
 /* Real, step-grouped "Ask Mira" prompts from agents_pre_defined_prompts
@@ -1253,7 +1225,7 @@ var MM_PROMPTS_BY_AGENT = {
 var MM_STEP_TITLE = {
     'mk-campaign':'Campaign','mk-performance':'Performance','mk-audience':'Audience','mk-insights':'Insights','mk-abtest':'A/B test',
     'sl-today':'Today','sl-accounts':'Accounts','sl-scripts':'Scripts','sl-objections':'Objections','sl-close':'Close & grow',
-    'ch-savefirst':'Save first','ch-rootcause':'Root cause','ch-offers':'Offers','ch-watchlist':'Watchlist','ch-abtest':'A/B test'
+    'ch-savefirst':'Save first','ch-rootcause':'Root cause','ch-offers':'Offers','ch-watchlist':'Watchlist','ch-renew':'Renew & win back','ch-abtest':'A/B test'
 };
 /* Prompts that name a specific student — a real name is picked from a
    list (see MM_CONTACT_NAMES) via mmNameForm(), then substituted for the
@@ -1274,8 +1246,8 @@ var MM_LISTS = {
     slProspects: @json($slProspects),
     slClose: @json($slClose),
     slAbandoned: @json($slAbandoned ?? []),
-    slRenewals: @json($slRenewals ?? []),
-    slWinBack: @json($slWinBack ?? []),
+    chRenewals: @json($chRenewals ?? []),
+    chWinBack: @json($chWinBack ?? []),
     mkTopScorers: @json($mkTopScorers),
     mkNewStudents: @json($mkNewStudents)
 };
@@ -1289,7 +1261,9 @@ var MM_LIST_SLUGS = {
     'mm-sl-today-active-no-package':{ list: 'slClose',       noun: 'student' },
     'mm-sl-close-trial-convert':    { list: 'slClose',       noun: 'student' },
     'mm-sl-close-most-tests-no-upgrade': { list: 'slClose',  noun: 'student' },
-    'mm-sl-close-renewal-upsell':   { list: 'slRenewals',   noun: 'student' },
+    'mm-sl-close-renewal-upsell':   { list: 'chRenewals',   noun: 'student' },
+    'mm-ch-renew-due':              { list: 'chRenewals',   noun: 'student' },
+    'mm-ch-renew-winback':          { list: 'chWinBack',    noun: 'student' },
     'mm-ch-save-who-churn':         { list: 'chAtRisk',     noun: 'student' },
     'mm-ch-save-inactive-highrisk': { list: 'chAtRisk',     noun: 'student' },
     'mm-ch-watch-drifting':         { list: 'chWatchlist',  noun: 'student' },

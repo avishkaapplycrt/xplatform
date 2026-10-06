@@ -401,12 +401,15 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         $mkNewStudents = $mm->newStudents(15);
         $slProspects = $mm->salesProspects();
         $slClose = $mm->salesCloseCandidates(15);
-        // Sales · Close & grow — open checkouts, renewals due and win-backs,
-        // plus headline counts (see MockMasterDataService "Close & grow").
+        // Sales · Close & grow — open checkouts plus headline counts
+        // (see MockMasterDataService "Close & grow").
         $slAbandoned = $mm->salesAbandonedCheckouts(15);
-        $slRenewals = $mm->salesRenewalsDue(15);
-        $slWinBack = $mm->salesWinBack(15);
         $slCloseSummary = $mm->closeGrowSummary();
+        // Retention · Renew & win back — paid plans due for renewal and
+        // lapsed plans whose students are still active.
+        $chRenewals = $mm->retentionRenewalsDue(15);
+        $chWinBack = $mm->retentionWinBack(15);
+        $chRenewSummary = $mm->renewWinBackSummary();
         // Raised from the panel's original default (6) — the "Package
         // Expiring Soon" / "Renewal Watch" audience counts run into the
         // dozens, so a 6-row list looked broken next to them once the
@@ -422,8 +425,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return view('client.mock-master-helper', compact(
             'mkPrompts', 'slPrompts', 'chPrompts',
             'mkStudents', 'mkPaged', 'mkSubscriptions', 'mkFilters', 'mkKpis', 'mkSegments', 'mkInsights', 'mkTopScorers', 'mkNewStudents',
-            'slProspects', 'slClose', 'slAbandoned', 'slRenewals', 'slWinBack', 'slCloseSummary',
-            'chAtRisk', 'chWatchlist', 'chRootCauses',
+            'slProspects', 'slClose', 'slAbandoned', 'slCloseSummary',
+            'chAtRisk', 'chWatchlist', 'chRootCauses', 'chRenewals', 'chWinBack', 'chRenewSummary',
             'mmContactNames'
         ));
     })->name('mock-master-helper');
@@ -456,8 +459,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'slProspects'   => fn (int $l, int $o) => $mm->salesProspects($l, $o),
             'slClose'       => fn (int $l, int $o) => $mm->salesCloseCandidates($l, $o),
             'slAbandoned'   => fn (int $l, int $o) => $mm->salesAbandonedCheckouts($l, $o),
-            'slRenewals'    => fn (int $l, int $o) => $mm->salesRenewalsDue($l, $o),
-            'slWinBack'     => fn (int $l, int $o) => $mm->salesWinBack($l, $o),
+            'chRenewals'    => fn (int $l, int $o) => $mm->retentionRenewalsDue($l, $o),
+            'chWinBack'     => fn (int $l, int $o) => $mm->retentionWinBack($l, $o),
             'mkTopScorers'  => fn (int $l, int $o) => $mm->topScorers($l, $o),
             'mkNewStudents' => fn (int $l, int $o) => $mm->newStudents($l, $o),
         ];
