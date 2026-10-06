@@ -149,7 +149,44 @@ img,svg{display:block}
 
 .mira-panel{flex:1;display:flex;flex-direction:column;min-height:0}
 .mira-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px 24px 10px}
-.mira-orb{width:118px;height:118px;margin-bottom:18px;filter:drop-shadow(0 10px 30px rgba(83,131,236,.35))}
+.mira-orb{width:118px;height:118px;margin-bottom:18px;filter:drop-shadow(0 10px 30px rgba(83,131,236,.35));
+  /* Three layered loops on separate properties so they don't override each
+     other: a float (translate), a slow spin (rotate) and a breathing glow (filter). */
+  animation:miraOrbFloat 6s ease-in-out infinite,miraOrbSpin 24s linear infinite,miraOrbGlow 4s ease-in-out infinite}
+@keyframes miraOrbFloat{0%,100%{translate:0 0}50%{translate:0 -10px}}
+@keyframes miraOrbSpin{to{rotate:360deg}}
+@keyframes miraOrbGlow{
+  0%,100%{filter:drop-shadow(0 10px 30px rgba(83,131,236,.35))}
+  50%{filter:drop-shadow(0 14px 44px rgba(83,131,236,.6)) drop-shadow(0 0 22px rgba(196,132,252,.35))}}
+/* Orb surroundings (all behind/around the image, purely decorative):
+   ::before  soft aura that pulses
+   ::after   thin gradient light ring sweeping around
+   .mira-orb-ripple  rings expanding outward and fading (two, offset in time)
+   .mira-orb-orbit   tiny glowing particles circling the orb (two, opposite directions) */
+.mira-orb-wrap{position:relative;width:118px;height:118px;margin-bottom:22px;display:grid;place-items:center;isolation:isolate}
+.mira-orb-wrap .mira-orb{position:relative;z-index:2;margin:0}
+.mira-orb-wrap::before{content:"";position:absolute;inset:-42px;border-radius:50%;z-index:0;
+  background:radial-gradient(circle,rgba(83,131,236,.30) 0%,rgba(196,132,252,.14) 42%,transparent 70%);
+  animation:miraAura 4s ease-in-out infinite}
+.mira-orb-wrap::after{content:"";position:absolute;inset:-9px;border-radius:50%;z-index:1;
+  background:conic-gradient(from 0deg,transparent 0deg,rgba(83,131,236,.75) 70deg,rgba(196,132,252,.7) 130deg,transparent 200deg,transparent 360deg);
+  -webkit-mask:radial-gradient(circle,transparent calc(50% - 2px),#000 calc(50% - 1px));
+          mask:radial-gradient(circle,transparent calc(50% - 2px),#000 calc(50% - 1px));
+  animation:miraOrbSpin 5s linear infinite}
+.mira-orb-ripple{position:absolute;inset:-4px;border-radius:50%;z-index:0;border:1.5px solid rgba(83,131,236,.35);
+  animation:miraRipple 3.6s ease-out infinite}
+.mira-orb-ripple.r2{animation-delay:1.8s}
+.mira-orb-orbit{position:absolute;inset:-22px;z-index:3;animation:miraOrbSpin 7s linear infinite}
+.mira-orb-orbit::before{content:"";position:absolute;top:0;left:50%;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;
+  background:#fff;box-shadow:0 0 8px 2px rgba(83,131,236,.9),0 0 16px 4px rgba(196,132,252,.5)}
+.mira-orb-orbit.o2{inset:-32px;animation-duration:11s;animation-direction:reverse}
+.mira-orb-orbit.o2::before{width:5px;height:5px;margin-left:-2.5px;box-shadow:0 0 6px 2px rgba(196,132,252,.9)}
+@keyframes miraAura{0%,100%{transform:scale(.92);opacity:.75}50%{transform:scale(1.08);opacity:1}}
+@keyframes miraRipple{0%{transform:scale(.9);opacity:.7}100%{transform:scale(1.75);opacity:0}}
+@media (max-width:640px){.mira-orb-wrap{width:90px;height:90px}}
+@media (prefers-reduced-motion:reduce){
+  .mira-orb,.mira-orb-wrap::before,.mira-orb-wrap::after,.mira-orb-orbit{animation:none}
+  .mira-orb-ripple{display:none}}
 .mira-empty h3{font-family:'Inter',sans-serif;font-size:23px;font-weight:700;color:#121214;letter-spacing:-.2px}
 .mira-empty h3 .mira-accent{color:#5383EC}
 .mira-empty p{margin-top:8px;font-family:'Inter',sans-serif;font-size:14px;color:#8f8f94;max-width:360px;line-height:1.5}
@@ -645,7 +682,11 @@ img,svg{display:block}
 
         <div class="mira-panel" id="miraPanelAsk">
           <div class="mira-empty" id="miraEmpty">
-            <img src="{{ asset('images/homepage/mira/orb.png') }}" class="mira-orb" alt="Mira">
+            <div class="mira-orb-wrap" aria-hidden="true">
+              <span class="mira-orb-ripple"></span><span class="mira-orb-ripple r2"></span>
+              <span class="mira-orb-orbit"></span><span class="mira-orb-orbit o2"></span>
+              <img src="{{ asset('images/homepage/mira/orb.png') }}" class="mira-orb" alt="">
+            </div>
             <h3>Hey, I'm <span class="mira-accent">Mira.</span> How can I help you today?</h3>
             <p>Understand your customers, discover insights, and make smarter decisions.</p>
           </div>
@@ -659,7 +700,11 @@ img,svg{display:block}
 
         <div class="mira-panel" id="miraPanelAnalyze" style="display:none">
           <div class="mira-empty">
-            <img src="{{ asset('images/homepage/mira/orb.png') }}" class="mira-orb" alt="Mira">
+            <div class="mira-orb-wrap" aria-hidden="true">
+              <span class="mira-orb-ripple"></span><span class="mira-orb-ripple r2"></span>
+              <span class="mira-orb-orbit"></span><span class="mira-orb-orbit o2"></span>
+              <img src="{{ asset('images/homepage/mira/orb.png') }}" class="mira-orb" alt="">
+            </div>
             <h3>Paste your <span class="mira-accent">website.</span> I'll take a look</h3>
             <p>I'll run a quick check and tell you what stands out.</p>
           </div>
