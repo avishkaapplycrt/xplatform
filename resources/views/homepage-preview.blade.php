@@ -94,6 +94,13 @@ img,svg{display:block}
    homepage widget: route('chat.send') / route('chat.reset') —
    see App\Http\Controllers\PublicChatController. ============ */
 .chatbot-section{padding-top:0;padding-bottom:40px}
+/* Try Premium Mira — under New Chat, links to /mira-premium. */
+.mira-premium-btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px 14px;border-radius:999px;
+  background:linear-gradient(135deg,#f0d27a,#d4af37 55%,#b8902f);color:#1a1406;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;
+  text-decoration:none;box-shadow:0 4px 14px rgba(212,175,55,.35);transition:transform .15s,box-shadow .2s;margin-top:-14px}
+.mira-premium-btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(212,175,55,.45)}
+
 .mira-widget{
   display:flex;background:#fff;border-radius:28px;overflow:hidden;
   box-shadow:0 30px 80px -20px rgba(0,0,0,.55);min-height:560px;
@@ -534,6 +541,28 @@ img,svg{display:block}
   .pred-row .body p{font-size:10.5px}
   .pred-row .pct{font-size:20px}
 }
+/* ============ ASK MIRA — website analysis report + pop-ups ============
+   Shared styles from partials/ask-mira (report cards, category pop-up with
+   animated pie, name/email form), coloured for this page's light widget via
+   the variables below. Driven by partials.ask-mira.report-script. */
+@include('partials.ask-mira.styles')
+.mira-report,.a-modal-overlay,.lead-modal-overlay{
+  --card:#fff;--card-h:#fff;--bg3:#f5f5f7;--white:#17181a;
+  --g100:#2a2a2e;--g200:#4a4a50;--g300:#6b6b70;--g400:#9a9a9e;--g500:#d9d9de;--g600:#ececef;
+  --brd:#ececef;--brd2:#e2e2e6;--blue:#5383EC;--blue2:#3f6fd8;--acc-rgb:83,131,236;--on-acc:#fff;
+  --emerald:#16a34a;--amber:#d97706;--rose:#e0564c;
+  --f1:'Inter',system-ui,sans-serif;--fm:'Space Grotesk','Inter',sans-serif;--ease:cubic-bezier(.16,1,.3,1);
+  font-family:'Inter',system-ui,sans-serif;color:#17181a}
+.mira-report{margin-top:20px;border-radius:28px;padding:26px 28px;box-shadow:0 30px 80px -20px rgba(0,0,0,.55)}
+.mira-report .a-summary{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mira-report .analysis-url{font-weight:600;color:#17181a;font-size:14px}
+.mira-report .a-pie-card{background:#f5f5f7;border-color:#ececef}
+/* "Want the full picture?" — a row at the bottom of the report on this page. */
+.mira-report .chat-upsell-aside{width:auto;margin-top:18px;flex-direction:row;align-items:center;justify-content:space-between;gap:16px;
+  background:linear-gradient(135deg,rgba(83,131,236,.1),rgba(83,131,236,.04));border:1px solid rgba(83,131,236,.25);border-radius:18px}
+.mira-report .a-upsell-btn{flex-shrink:0;background:#5383EC;color:#fff;border-radius:999px;padding:10px 20px}
+@media (max-width:640px){.mira-report{padding:20px 16px;border-radius:20px}.mira-report .chat-upsell-aside{flex-direction:column;align-items:flex-start}}
+.a-modal,.lead-modal{background:#fff;border-color:#ececef;box-shadow:0 20px 60px rgba(0,0,0,.35)}
 </style>
 </head>
 <body>
@@ -581,6 +610,7 @@ img,svg{display:block}
           <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           New Chat
         </button>
+        <a class="mira-premium-btn" href="{{ route('mira-premium') }}">&#9733; Try Premium Mira</a>
 
         <div class="mira-group">
           <div class="mira-label">Industry</div>
@@ -666,8 +696,59 @@ img,svg{display:block}
         </div>
       </div>
     </div>
+
+    {{-- "Analyse my website" report: shown by renderAnalysisReport()
+         (partials.ask-mira.report-script). No recommendations on this free
+         widget — Premium Mira adds those. --}}
+    <div class="analysis-panel mira-report" id="analysisPanel">
+      <div class="a-summary">
+        <div class="analysis-url" id="analysisUrl"></div>
+      </div>
+      <div class="a-pie-grid" id="analysisPieGrid"></div>
+      <aside class="chat-upsell-aside" id="chatUpsellAside">
+        <div class="a-upsell-text">
+          <strong>Want the full picture?</strong>
+          A multi-page site crawl and Lighthouse speed scoring are available on our paid plans.
+        </div>
+        <a href="{{ route('pricing') }}" class="a-upsell-btn">View Pricing</a>
+      </aside>
+    </div>
   </div>
 </section>
+
+{{-- Category pop-up (click a report card) and the name/email form shown
+     before analysing a site for visitors who aren't logged in. --}}
+<div class="a-modal-overlay" id="analysisModalOverlay" onclick="if(event.target===this) closeAnalysisModal()">
+  <div class="a-modal">
+    <button type="button" class="a-modal-close" onclick="closeAnalysisModal()" aria-label="Close">&times;</button>
+    <div class="a-modal-header">
+      <div class="a-modal-pct" id="modalPct"></div>
+      <div>
+        <div class="a-modal-title" id="modalTitle"></div>
+        <div class="a-modal-desc" id="modalDesc"></div>
+      </div>
+    </div>
+    <div class="a-modal-checks" id="modalChecks"></div>
+  </div>
+</div>
+
+<div class="lead-modal-overlay" id="leadModalOverlay" onclick="if(event.target===this) miraCloseLead()">
+  <div class="lead-modal">
+    <button type="button" class="lead-modal-close" onclick="miraCloseLead()" aria-label="Close">&times;</button>
+    <div class="lead-modal-title">Before we analyze your site</div>
+    <p class="lead-modal-sub">Enter your details and we'll run the free check right after.</p>
+    <div class="lead-modal-field">
+      <label for="leadName">Name</label>
+      <input type="text" id="leadName" placeholder="Your name">
+    </div>
+    <div class="lead-modal-field">
+      <label for="leadEmail">Email</label>
+      <input type="email" id="leadEmail" placeholder="you@company.com" onkeydown="if(event.key==='Enter'){event.preventDefault();miraSubmitLead()}">
+    </div>
+    <p class="lead-modal-error" id="leadModalError"></p>
+    <button type="button" class="lead-modal-submit" id="leadModalSubmit" onclick="miraSubmitLead()">Continue</button>
+  </div>
+</div>
 
 {{-- ============ SIGNALS EVERYWHERE ============ --}}
 <section class="sec">
@@ -1273,6 +1354,82 @@ document.querySelectorAll('.faq-item').forEach(function (item) {
    App\Http\Controllers\PublicChatController for the request/response shape. */
 var MIRA_CHAT_QUESTIONS_BY_INDUSTRY = @json($chatQuestionsByIndustry ?? []);
 var MIRA_DEFAULT_STARTERS = ['What does X Platform do?', 'How much does it cost?'];
+var MIRA_LOGGED_IN = {{ !empty($loggedIn) ? 'true' : 'false' }};
+
+/* Website analysis report + category pop-up, shared with the classic
+   homepage and Premium Mira: renderAnalysisReport(), openAnalysisModal(),
+   closeAnalysisModal(), etc. */
+@include('partials.ask-mira.report-script')
+
+function miraLooksLikeUrl(text) {
+  return /^https?:\/\/\S+$/i.test(text.trim());
+}
+
+/* ---- Name/email form before analysing (visitors who aren't logged in) ----
+   Posts to route('chat.analyze-lead'), which saves the lead and returns the
+   same reply + report as chat.send. `source` says where the URL came from
+   ('chat' or 'analyze') so the result shows up in the right place. */
+var miraPendingUrl = null, miraPendingSource = null;
+
+function miraOpenLead(url, source) {
+  miraPendingUrl = url; miraPendingSource = source;
+  document.getElementById('leadName').value = '';
+  document.getElementById('leadEmail').value = '';
+  document.getElementById('leadModalError').textContent = '';
+  document.getElementById('leadModalOverlay').classList.add('show');
+  setTimeout(function () { document.getElementById('leadName').focus(); }, 50);
+}
+
+function miraCloseLead() {
+  document.getElementById('leadModalOverlay').classList.remove('show');
+  miraPendingUrl = null; miraPendingSource = null;
+}
+
+async function miraSubmitLead() {
+  var name = document.getElementById('leadName').value.trim();
+  var email = document.getElementById('leadEmail').value.trim();
+  var errEl = document.getElementById('leadModalError');
+  if (!name) { errEl.textContent = 'Please enter your name.'; return; }
+  if (!/^\S+@\S+\.\S+$/.test(email)) { errEl.textContent = 'Please enter a valid email address.'; return; }
+
+  var url = miraPendingUrl, source = miraPendingSource;
+  var btn = document.getElementById('leadModalSubmit');
+  btn.disabled = true; btn.textContent = 'Analysing…';
+  errEl.textContent = '';
+  var status = document.getElementById('miraAnalyzeStatus');
+  var typing = null;
+  if (source === 'analyze') {
+    status.classList.remove('err');
+    status.textContent = 'Checking your site — this can take a moment…';
+  } else {
+    typing = miraAddMessage('bot typing', 'Checking your site…');
+  }
+  document.getElementById('leadModalOverlay').classList.remove('show');
+
+  try {
+    var res = await fetch('{{ route("chat.analyze-lead") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+      body: JSON.stringify({ name: name, email: email, url: url, industry_id: (document.getElementById('miraIndustry') || {}).value || null })
+    });
+    var data = await res.json();
+    var text = res.ok ? data.reply : (data.error || data.message || 'Something went wrong. Please try again.');
+    if (typing) typing.remove();
+    if (source === 'analyze') {
+      status.textContent = text;
+      status.classList.toggle('err', !res.ok);
+    } else {
+      miraAddMessage('bot', text);
+    }
+    if (res.ok && data.report) renderAnalysisReport(data.report);
+  } catch (e) {
+    if (typing) typing.remove();
+    if (source === 'analyze') { status.textContent = 'Could not reach the server. Check your connection and try again.'; status.classList.add('err'); }
+    else miraAddMessage('bot', 'Could not reach the server. Check your connection and try again.');
+  }
+  btn.disabled = false; btn.textContent = 'Continue';
+  miraPendingUrl = null; miraPendingSource = null;
+}
 
 function miraRenderStarters(industryId) {
   var key = industryId ? String(industryId) : 'all';
@@ -1331,28 +1488,35 @@ function miraShowMessages() {
   document.getElementById('miraMessages').style.display = 'flex';
 }
 
+/* Appends a chat bubble ('user', 'bot' or 'bot typing') and returns it. */
+function miraAddMessage(cls, text) {
+  miraShowMessages();
+  var msgs = document.getElementById('miraMessages');
+  var el = document.createElement('div');
+  el.className = 'mira-msg ' + cls;
+  if (cls === 'bot') miraRenderBotMessage(el, text); else el.textContent = text;
+  msgs.appendChild(el);
+  msgs.scrollTop = msgs.scrollHeight;
+  return el;
+}
+
 async function miraSendChat() {
   var input = document.getElementById('miraInput'), msg = input.value.trim();
   if (!msg) return;
-  miraShowMessages();
-  var msgs = document.getElementById('miraMessages');
-  var uEl = document.createElement('div'); uEl.className = 'mira-msg user'; uEl.textContent = msg;
-  msgs.appendChild(uEl); input.value = ''; input.style.height = 'auto';
-  var typing = document.createElement('div'); typing.className = 'mira-msg bot typing'; typing.textContent = 'Thinking…';
-  msgs.appendChild(typing); msgs.scrollTop = msgs.scrollHeight;
+  input.value = ''; input.style.height = 'auto';
+  miraAddMessage('user', msg);
+  // A pasted website URL is analysed; visitors who aren't logged in give their details first.
+  if (!MIRA_LOGGED_IN && miraLooksLikeUrl(msg)) { miraOpenLead(msg, 'chat'); return; }
+  var typing = miraAddMessage('bot typing', 'Thinking…');
   try {
     var result = await miraPostToChat(msg);
     typing.remove();
-    var bEl = document.createElement('div'); bEl.className = 'mira-msg bot';
-    miraRenderBotMessage(bEl, result.ok ? result.data.reply : (result.data.error || 'Something went wrong. Please try again.'));
-    msgs.appendChild(bEl);
+    miraAddMessage('bot', result.ok ? result.data.reply : (result.data.error || 'Something went wrong. Please try again.'));
+    if (result.ok && result.data.report) renderAnalysisReport(result.data.report);
   } catch (e) {
     typing.remove();
-    var errEl = document.createElement('div'); errEl.className = 'mira-msg bot';
-    errEl.textContent = 'Could not reach the server. Check your connection and try again.';
-    msgs.appendChild(errEl);
+    miraAddMessage('bot', 'Could not reach the server. Check your connection and try again.');
   }
-  msgs.scrollTop = msgs.scrollHeight;
 }
 
 async function miraSendAnalyze() {
@@ -1361,11 +1525,13 @@ async function miraSendAnalyze() {
   status.classList.remove('err');
   if (!url) { status.textContent = 'Enter a website URL first.'; status.classList.add('err'); return; }
   if (!/^https?:\/\//i.test(url)) { status.textContent = 'Include http:// or https:// at the start.'; status.classList.add('err'); return; }
+  if (!MIRA_LOGGED_IN) { miraOpenLead(url, 'analyze'); return; }
   status.textContent = 'Checking your site — this can take a moment…';
   try {
     var result = await miraPostToChat(url);
     if (result.ok) {
       status.textContent = result.data.reply;
+      if (result.data.report) renderAnalysisReport(result.data.report);
     } else {
       status.textContent = result.data.error || 'Something went wrong. Please try again.';
       status.classList.add('err');
@@ -1393,6 +1559,10 @@ async function miraResetChat() {
   if (analyzeInput) analyzeInput.value = '';
   var analyzeStatus = document.getElementById('miraAnalyzeStatus');
   if (analyzeStatus) { analyzeStatus.textContent = ''; analyzeStatus.classList.remove('err'); }
+  // Clear any website report too.
+  document.getElementById('analysisPanel').classList.remove('show');
+  document.getElementById('chatUpsellAside').classList.remove('show');
+  closeAnalysisModal();
   miraSwitchTab('ask');
 }
 
