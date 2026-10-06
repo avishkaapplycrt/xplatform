@@ -44,15 +44,24 @@ class MockMasterDataService
      *
      * @return array{students: array, total: int, page: int, last_page: int}
      */
-    public function campaignStudentsPage(int $page, int $perPage, ?string $subscription = null, ?string $from = null, ?string $to = null): array
+    public function campaignStudentsPage(int $page, int $perPage, ?string $subscription = null, ?string $from = null, ?string $to = null, ?string $sort = null, string $dir = 'asc'): array
     {
         $candidates = $this->campaignCandidates($subscription, $from, $to);
         $total = $candidates->count();
         $lastPage = max(1, (int) ceil($total / $perPage));
         $page = min(max(1, $page), $lastPage);
 
+        if ($sort && in_array($sort, self::CAMPAIGN_SORT_KEYS, true)) {
+            $sorted = collect($this->mapCampaignRows($candidates))
+                ->sortBy(fn ($r) => $r['sort'][$sort] ?? null, SORT_REGULAR, $dir === 'desc')
+                ->values();
+            $students = $sorted->slice(($page - 1) * $perPage, $perPage)->values()->all();
+        } else {
+            $students = $this->mapCampaignRows($candidates->slice(($page - 1) * $perPage, $perPage));
+        }
+
         return [
-            'students' => $this->mapCampaignRows($candidates->slice(($page - 1) * $perPage, $perPage)),
+            'students' => array_map(fn ($r) => array_diff_key($r, ['sort' => true]), $students),
             'total' => $total,
             'page' => $page,
             'last_page' => $lastPage,
@@ -117,9 +126,20 @@ class MockMasterDataService
                 'lastActive' => $this->relativeLogin($r->last_login),
                 'email' => $r->email ?: null,
                 'phone' => $this->formatPhone($r->country_code, $r->phone),
+                'sort' => [
+                    'value' => (float) ($r->amount ?? 0),
+                    'payment' => $r->payment_date ? Carbon::parse($r->payment_date)->timestamp : null,
+                    'stage' => ['Active' => 0, 'Renewal Due' => 1, 'Expired' => 2][$stage],
+                    'readiness' => $readiness,
+                    'trust' => $trust,
+                    'approach' => $trust < 65 ? 0 : 1,
+                    'last_active' => $r->last_login ? Carbon::parse($r->last_login)->timestamp : null,
+                ],
             ];
         })->values()->all();
     }
+
+    private const CAMPAIGN_SORT_KEYS = ['value', 'payment', 'stage', 'readiness', 'trust', 'approach', 'last_active'];
 
     /** Performance step — headline KPIs. */
     public function performanceKpis(): array

@@ -338,7 +338,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <button type="button" onclick="mmCampaignReset()" style="padding:7px 14px;border-radius:6px;border:1px solid var(--ln);color:var(--g3);font-size:12px;font-weight:600;cursor:pointer;background:#fff">Reset</button>
                         </form>
                         <table class="dtbl">
-                            <thead><tr><th>Student</th><th title="Amount paid for the selected Course" style="cursor:help">Package value</th><th>Payment date</th><th title="Active, Renewal Due (expired within the last 14 days), or Expired." style="cursor:help">Stage</th><th title="Average score across all mock tests. 0 = no results" style="cursor:help">Readiness</th><th title="Based on the percentage of payments completed. 50 = no payment history." style="cursor:help">Trust</th><th title="Proof-led when Trust is below 65; otherwise Offer-led." style="cursor:help">Approach</th><th>Last active</th></tr></thead>
+                            <thead><tr><th>Student</th><th data-sort-key="value" onclick="mmCampaignSortBy('value')" data-tip="Amount paid for the selected Course" class="mm-sortable" style="cursor:pointer">Package value <span class="mm-sort-ind" data-for="value"></span></th><th data-sort-key="payment" onclick="mmCampaignSortBy('payment')" class="mm-sortable" style="cursor:pointer">Payment date <span class="mm-sort-ind" data-for="payment"></span></th><th data-sort-key="stage" onclick="mmCampaignSortBy('stage')" data-tip="Active, Renewal Due (expired within the last 14 days), or Expired." class="mm-sortable" style="cursor:pointer">Stage <span class="mm-sort-ind" data-for="stage"></span></th><th data-sort-key="readiness" onclick="mmCampaignSortBy('readiness')" data-tip="Average score across all mock tests. 0 = no results" class="mm-sortable" style="cursor:pointer">Readiness <span class="mm-sort-ind" data-for="readiness"></span></th><th data-sort-key="trust" onclick="mmCampaignSortBy('trust')" data-tip="Based on the percentage of payments completed. 50 = no payment history." class="mm-sortable" style="cursor:pointer">Trust <span class="mm-sort-ind" data-for="trust"></span></th><th data-sort-key="approach" onclick="mmCampaignSortBy('approach')" data-tip="Proof-led when Trust is below 65; otherwise Offer-led." class="mm-sortable" style="cursor:pointer">Approach <span class="mm-sort-ind" data-for="approach"></span></th><th data-sort-key="last_active" onclick="mmCampaignSortBy('last_active')" class="mm-sortable" style="cursor:pointer">Last active <span class="mm-sort-ind" data-for="last_active"></span></th></tr></thead>
                             <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
@@ -865,6 +865,8 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
 @keyframes mmblink{0%,100%{opacity:1}50%{opacity:.2}}
 @keyframes mmspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
+#mmTip{position:fixed;z-index:20000;display:none;max-width:300px;background:#16a34a;color:#fff;font-size:14px;line-height:1.45;font-weight:500;padding:10px 14px;border-radius:10px;box-shadow:0 10px 25px rgba(22,163,74,.35);pointer-events:none}
+#mmTip::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:7px solid transparent;border-top-color:#16a34a}
 .risk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:10000;align-items:center;justify-content:center;padding:24px}
 .risk-modal-overlay.show{display:flex}
 .risk-modal{background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
@@ -1748,11 +1750,60 @@ function mmCampaignLoad(query) {
     });
 }
 
+(function () {
+    var tip = null;
+    function show(el) {
+        if (!tip) { tip = document.createElement('div'); tip.id = 'mmTip'; document.body.appendChild(tip); }
+        tip.textContent = el.getAttribute('data-tip');
+        tip.style.display = 'block';
+        var r = el.getBoundingClientRect();
+        var t = tip.getBoundingClientRect();
+        var left = Math.min(Math.max(8, r.left + r.width / 2 - t.width / 2), window.innerWidth - t.width - 8);
+        tip.style.left = left + 'px';
+        tip.style.top = (r.top - t.height - 12) + 'px';
+    }
+    function hide() { if (tip) tip.style.display = 'none'; }
+    document.addEventListener('mouseover', function (e) {
+        var el = e.target.closest && e.target.closest('[data-tip]');
+        if (el) show(el); else hide();
+    });
+    document.addEventListener('scroll', hide, true);
+})();
+
+var MM_CAMPAIGN_SORT = { key: null, dir: 'asc' };
+
+function mmCampaignSortBy(key) {
+    if (MM_CAMPAIGN_SORT.key === key) {
+        if (MM_CAMPAIGN_SORT.dir === 'asc') { MM_CAMPAIGN_SORT.dir = 'desc'; }
+        else { MM_CAMPAIGN_SORT.key = null; MM_CAMPAIGN_SORT.dir = 'asc'; }
+    } else {
+        MM_CAMPAIGN_SORT.key = key;
+        MM_CAMPAIGN_SORT.dir = 'asc';
+    }
+    mmCampaignSortIndicators();
+    mmCampaignGo(1);
+}
+
+if (document.readyState !== 'loading') { mmCampaignSortIndicators(); }
+else { document.addEventListener('DOMContentLoaded', function () { mmCampaignSortIndicators(); }); }
+
+function mmCampaignSortIndicators() {
+    document.querySelectorAll('.mm-sort-ind').forEach(function (el) {
+        var active = MM_CAMPAIGN_SORT.key === el.getAttribute('data-for');
+        el.textContent = active ? (MM_CAMPAIGN_SORT.dir === 'asc' ? ' ▲' : ' ▼') : ' ⇅';
+        el.style.color = active ? '#7c3aed' : '#9ca3af';
+    });
+}
+
 function mmCampaignParams(page) {
     var form = document.getElementById('mmCampaignFilter');
     var params = new URLSearchParams();
     new FormData(form).forEach(function (v, k) { if (v) params.append(k, v); });
     if (page && page > 1) params.set('page', page);
+    if (MM_CAMPAIGN_SORT.key) {
+        params.set('sort', MM_CAMPAIGN_SORT.key);
+        params.set('dir', MM_CAMPAIGN_SORT.dir);
+    }
     return params;
 }
 
@@ -1773,6 +1824,8 @@ function mmCampaignSubmit(e) {
 function mmCampaignReset() {
     var form = document.getElementById('mmCampaignFilter');
     if (form) form.querySelectorAll('select, input').forEach(function (el) { el.value = ''; });
+    MM_CAMPAIGN_SORT = { key: null, dir: 'asc' };
+    mmCampaignSortIndicators();
     mmCampaignLoad('');
     if (window.history && history.replaceState) {
         history.replaceState(null, '', window.location.pathname);
