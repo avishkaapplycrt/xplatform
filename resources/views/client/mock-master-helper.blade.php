@@ -1876,12 +1876,43 @@ function mmSetSendEnabled(on) {
         : 'Pick a message above to enable sending.';
 }
 
+var MM_SEND_EMAIL_URL = '{{ route('client.mock-master-helper.send-email') }}';
+
 function mmSendEmail() {
     var s = MM_STUDENT_SELECTED;
     if (!s || !s.email) return;
+    var btn = document.getElementById('mmSendEmail');
+    var hint = document.getElementById('mmMsgHint');
     var subject = document.getElementById('mmMsgSubject').value;
     var body = document.getElementById('mmMsgBody').value;
-    window.location.href = 'mailto:' + encodeURIComponent(s.email) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    hint.style.color = '#6b7280';
+    hint.textContent = 'Sending to ' + s.email + '…';
+
+    fetch(MM_SEND_EMAIL_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ student_id: s.studentId, subject: subject, body: body })
+    })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+    .then(function (res) {
+        btn.textContent = 'Email';
+        btn.disabled = false;
+        hint.style.color = res.ok ? '#16a34a' : '#b91c1c';
+        hint.textContent = res.data.message || (res.ok ? 'Email sent.' : 'The email could not be sent.');
+    })
+    .catch(function () {
+        btn.textContent = 'Email';
+        btn.disabled = false;
+        hint.style.color = '#b91c1c';
+        hint.textContent = "Couldn't reach the server — please try again.";
+    });
 }
 
 function mmSendWhatsApp() {

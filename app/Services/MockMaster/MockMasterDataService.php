@@ -124,6 +124,7 @@ class MockMasterDataService
                 'trust' => $trust,
                 'approach' => $trust < 65 ? 'Proof-led' : 'Offer-led',
                 'lastActive' => $this->relativeLogin($r->last_login),
+                'studentId' => $r->studentid,
                 'email' => $r->email ?: null,
                 'phone' => $this->formatPhone($r->country_code, $r->phone),
                 'sort' => [
