@@ -338,7 +338,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <button type="button" onclick="mmCampaignReset()" style="padding:7px 14px;border-radius:6px;border:1px solid var(--ln);color:var(--g3);font-size:12px;font-weight:600;cursor:pointer;background:#fff">Reset</button>
                         </form>
                         <table class="dtbl">
-                            <thead><tr><th>Student</th><th data-sort-key="value" onclick="mmCampaignSortBy('value')" data-tip="Amount paid for the selected Course" class="mm-sortable" style="cursor:pointer">Package value <span class="mm-sort-ind" data-for="value"></span></th><th data-sort-key="payment" onclick="mmCampaignSortBy('payment')" class="mm-sortable" style="cursor:pointer">Payment date <span class="mm-sort-ind" data-for="payment"></span></th><th data-sort-key="stage" onclick="mmCampaignSortBy('stage')" data-tip="Active, Renewal Due (expired within the last 14 days), or Expired." class="mm-sortable" style="cursor:pointer">Stage <span class="mm-sort-ind" data-for="stage"></span></th><th data-sort-key="readiness" onclick="mmCampaignSortBy('readiness')" data-tip="Average score across all mock tests. 0 = no results" class="mm-sortable" style="cursor:pointer">Readiness <span class="mm-sort-ind" data-for="readiness"></span></th><th data-sort-key="trust" onclick="mmCampaignSortBy('trust')" data-tip="Based on the percentage of payments completed. 50 = no payment history." class="mm-sortable" style="cursor:pointer">Trust <span class="mm-sort-ind" data-for="trust"></span></th><th data-sort-key="approach" onclick="mmCampaignSortBy('approach')" data-tip="Proof-led when Trust is below 65; otherwise Offer-led." class="mm-sortable" style="cursor:pointer">Approach <span class="mm-sort-ind" data-for="approach"></span></th><th data-sort-key="last_active" onclick="mmCampaignSortBy('last_active')" class="mm-sortable" style="cursor:pointer">Last active <span class="mm-sort-ind" data-for="last_active"></span></th><th>Action</th></tr></thead>
+                            <thead><tr><th data-tip="Renewal-ready students with a package. Click a name for contact details.">Student</th><th data-sort-key="value" onclick="mmCampaignSortBy('value')" data-tip="Amount paid for the selected Course" class="mm-sortable" style="cursor:pointer">Package value <span class="mm-sort-ind" data-for="value"></span></th><th data-sort-key="payment" onclick="mmCampaignSortBy('payment')" data-tip="Date of the payment linked to this package. Shows — if none is linked." class="mm-sortable" style="cursor:pointer">Payment date <span class="mm-sort-ind" data-for="payment"></span></th><th data-sort-key="stage" onclick="mmCampaignSortBy('stage')" data-tip="Active, Renewal Due (expired within the last 14 days), or Expired." class="mm-sortable" style="cursor:pointer">Stage <span class="mm-sort-ind" data-for="stage"></span></th><th data-sort-key="readiness" onclick="mmCampaignSortBy('readiness')" data-tip="Average score across all mock tests. 0 = no results" class="mm-sortable" style="cursor:pointer">Readiness <span class="mm-sort-ind" data-for="readiness"></span></th><th data-sort-key="trust" onclick="mmCampaignSortBy('trust')" data-tip="Based on the percentage of payments completed. 50 = no payment history." class="mm-sortable" style="cursor:pointer">Trust <span class="mm-sort-ind" data-for="trust"></span></th><th data-sort-key="approach" onclick="mmCampaignSortBy('approach')" data-tip="Proof-led when Trust is below 65; otherwise Offer-led." class="mm-sortable" style="cursor:pointer">Approach <span class="mm-sort-ind" data-for="approach"></span></th><th data-sort-key="last_active" onclick="mmCampaignSortBy('last_active')" data-tip="When they last logged in." class="mm-sortable" style="cursor:pointer">Last active <span class="mm-sort-ind" data-for="last_active"></span></th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
                             <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
@@ -476,7 +476,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <div class="si-p">The prospects that need your attention right now, ranked by <b>buying readiness</b> and <b>intent</b>. Use this to decide who to call today versus who to nurture.</div>
                         </div>
                         <table class="dtbl">
-                            <thead><tr><th>Prospect</th><th>Readiness</th><th>Intent</th><th>Trust</th><th>Play</th><th>Action</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose packages are all $0 (free trial or coaching access) and who have never bought a paid package. Click a name for contact details.">Prospect</th><th data-tip="Average overall mock test score (PTE scale, about 10 to 90). 0 = no scored tests yet.">Readiness</th><th data-tip="Readiness + 20 if their profile is complete, otherwise Readiness - 20 (minimum 10).">Intent</th><th data-tip="70 if they verified their phone number (OTP), otherwise 40.">Trust</th><th data-tip="Call when Readiness is 50 or more, otherwise Nurture.">Play</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
                             <tbody>
                                 @forelse($slProspects as $p)
                                 <tr>
@@ -497,7 +497,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="sl-accounts" style="display:none">
                         <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Every prospect in your pipeline, in one place.</div></div>
                         <table class="dtbl">
-                            <thead><tr><th>Prospect</th><th>Readiness</th><th>Intent</th><th>Trust</th><th>Play</th><th>Action</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose packages are all $0 (free trial or coaching access) and who have never bought a paid package. Click a name for contact details.">Prospect</th><th data-tip="Average overall mock test score (PTE scale, about 10 to 90). 0 = no scored tests yet.">Readiness</th><th data-tip="Readiness + 20 if their profile is complete, otherwise Readiness - 20 (minimum 10).">Intent</th><th data-tip="70 if they verified their phone number (OTP), otherwise 40.">Trust</th><th data-tip="Call when Readiness is 50 or more, otherwise Nurture.">Play</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
                             <tbody>
                                 @forelse($slProspects as $p)
                                 <tr><td class="acctn" data-mm-stu data-sid="{{ $p['sid'] ?? '' }}" data-email="{{ $p['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div class="bh-acct-n">{{ $p['name'] }}</div></div></td><td>{{ $p['readiness'] }}</td><td>{{ $p['intent'] }}</td><td>{{ $p['trust'] }}</td><td>{{ $p['play'] }}</td><td><button type="button" class="mm-act-btn" data-mm-compose="prospect" data-row="{{ json_encode($p) }}">View</button></td></tr>
@@ -659,7 +659,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <div class="si-p">Sorted by <b>churn risk × value at stake</b>. Click through and reach out before they lapse.</div>
                         </div>
                         <table class="dtbl">
-                            <thead><tr><th>Student</th><th>Inactive for</th><th>Value at risk</th><th>Risk score</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose package expires in the next 7 days. Click a name for contact details.">Student</th><th data-tip="Days since their last login (999 = never logged in).">Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages.">Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100.">Risk score</th></tr></thead>
                             <tbody>
                                 @forelse($chAtRisk as $r)
                                 <tr>
@@ -694,7 +694,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="ch-watchlist" style="display:none">
                         <div class="stack-intro"><div class="si-h">WATCH — CHURN CREEPING UP</div><div class="si-p">Not urgent yet, but trending the wrong way.</div></div>
                         <table class="dtbl">
-                            <thead><tr><th>Student</th><th>Inactive for</th><th>Value at risk</th><th>Risk score</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose package expires in 8 to 30 days. Click a name for contact details.">Student</th><th data-tip="Days since their last login (999 = never logged in).">Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages.">Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100.">Risk score</th></tr></thead>
                             <tbody>
                                 @forelse($chWatchlist as $r)
                                 <tr><td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
@@ -881,8 +881,10 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
 @keyframes mmblink{0%,100%{opacity:1}50%{opacity:.2}}
 @keyframes mmspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
-#mmTip{position:fixed;z-index:20000;display:none;max-width:300px;background:#16a34a;color:#fff;font-size:14px;line-height:1.45;font-weight:500;padding:10px 14px;border-radius:10px;box-shadow:0 10px 25px rgba(22,163,74,.35);pointer-events:none}
-#mmTip::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:7px solid transparent;border-top-color:#16a34a}
+#mmTip{position:fixed;z-index:20000;display:none;max-width:260px;background:#16a34a;color:#fff;font-size:12px;line-height:1.45;font-weight:500;padding:7px 11px;border-radius:8px;box-shadow:0 8px 20px rgba(22,163,74,.3);pointer-events:none;text-transform:none;letter-spacing:normal}
+#mmTip::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:6px solid transparent;border-top-color:#16a34a}
+/* Table headers with a hover explanation show the help cursor */
+th[data-tip]{cursor:help}
 .risk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:10000;align-items:center;justify-content:center;padding:24px}
 .risk-modal-overlay.show{display:flex}
 .risk-modal{background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
