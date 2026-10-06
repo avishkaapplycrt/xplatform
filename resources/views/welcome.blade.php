@@ -371,6 +371,9 @@ canvas#gmap{width:100%;height:100%}
 @keyframes toastOut{to{opacity:0;transform:translateX(-20px)}}
 
 @include('partials.ask-mira.styles')
+/* Light appearance: pop-ups solid white (--card is translucent, so the dark
+   overlay showed through as grey). Dark mode keeps its solid dark --card. */
+body:not(.theme-dark) .a-modal,body:not(.theme-dark) .lead-modal{background:#fff}
 
 /* ANIM & RESPONSIVE */
 @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}

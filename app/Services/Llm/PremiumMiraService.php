@@ -2,6 +2,7 @@
 
 namespace App\Services\Llm;
 
+use App\Models\AskMiraPremiumPrompt;
 use App\Services\WebsiteAnalyzerException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -50,6 +51,23 @@ class PremiumMiraService
         'ClaudeBot'       => 'Anthropic Claude',
         'Google-Extended' => 'Google Gemini',
     ];
+
+    /**
+     * schema.org types that say who the business is (GEO "entity" signal):
+     * Organization, LocalBusiness and their common subtypes such as
+     * JewelryStore, Dentist, Restaurant, Corporation.
+     */
+    private const ENTITY_SCHEMA_PATTERN = '/Organization|LocalBusiness|Corporation|Store$|Restaurant|Dentist|Physician|Attorney|Hotel|Person/i';
+
+    /** Below this many words of HTML text, AI crawlers (which mostly don't run JavaScript) see little. */
+    private const THIN_TEXT_WORDS = 150;
+
+    /** Most clickable suggestions shown under the welcome reply. */
+    private const MAX_SUGGESTIONS = 4;
+
+    /** Follow-up questions generated with every answer, and the line that separates them from it. */
+    private const MAX_FOLLOW_UPS   = 3;
+    private const FOLLOW_UP_MARKER = '###FOLLOW-UPS###';
 
     /** Word range Google typically shows in a paragraph featured snippet. */
     private const SNIPPET_MIN_WORDS = 20;
@@ -144,6 +162,7 @@ class PremiumMiraService
         $lists  = $xpath->query('//ul[li]|//ol[li]')->length;
         $tables = $xpath->query('//table')->length;
 
+        $h1Count      = $xpath->query('//h1')->length;
         $schemaTypes  = $this->schemaTypes($xpath);
         $answerSchema = array_values(array_intersect($schemaTypes, self::ANSWER_SCHEMA));
 
@@ -159,8 +178,18 @@ class PremiumMiraService
             ? $robots->body() : null;
         $crawlers = $this->crawlerAccess($robotsTxt);
 
+        // GEO: an llms.txt summarising the site for AI models (a plain-text file, not an HTML 404 page).
+        $llms    = $this->safeGet($origin . '/llms.txt');
+        $hasLlms = $llms !== null && $llms->successful()
+            && !str_contains(strtolower($llms->header('Content-Type')), 'html') && trim($llms->body()) !== '';
+
+        $entitySchema = array_values(array_filter($schemaTypes, fn ($t) => preg_match(self::ENTITY_SCHEMA_PATTERN, $t)));
+
         $facts = [
             'title'             => $title,
+            'h1_count'          => $h1Count,
+            'llms_txt'          => $hasLlms,
+            'entity_schema'     => $entitySchema,
             'meta_description'  => $description,
             'language'          => $lang,
             'canonical'         => $canonical,
@@ -186,23 +215,49 @@ class PremiumMiraService
         ];
     }
 
-    /** The first reply after a site is loaded: what was read, and the headline AEO signals. */
+    /** The first reply after a site is loaded: what was read, and the headline SEO, AEO and GEO signals. */
     public function welcomeFor(array $site): string
     {
         $f = $site['facts'];
 
-        $searchCrawlers = array_intersect_key($f['crawlers'], self::ANSWER_CRAWLERS);
-        $blocked        = array_keys(array_filter($searchCrawlers, fn ($s) => $s === 'blocked'));
+        $blockedFor = fn (array $bots) => array_keys(array_filter(
+            array_intersect_key($f['crawlers'], $bots),
+            fn ($s) => $s === 'blocked'
+        ));
+        $searchBlocked = $blockedFor(self::ANSWER_CRAWLERS);
+        $aiBlocked     = $blockedFor(self::AI_CRAWLERS);
+
+        $titleLength = mb_strlen($f['title']);
+        $descLength  = mb_strlen($f['meta_description']);
 
         $lines = [
             "Got it. I've read {$site['title']} ({$site['url']}).",
+            '',
+            'Quick SEO snapshot:',
+            '- Title: ' . ($f['title'] === '' ? 'missing' : "{$titleLength} characters" . ($titleLength < 30 || $titleLength > 60 ? ' (aim for 30–60)' : '')),
+            '- Meta description: ' . ($f['meta_description'] === '' ? 'missing' : "{$descLength} characters" . ($descLength < 120 || $descLength > 160 ? ' (aim for 120–160)' : '')),
+            '- H1 heading: ' . match (true) {
+                $f['h1_count'] === 1 => '1 found',
+                $f['h1_count'] === 0 => 'none found',
+                default              => "{$f['h1_count']} found (should be 1)",
+            },
+            '- Canonical tag: ' . ($f['canonical'] === '' ? 'missing' : 'present'),
+            '- Indexing: ' . (str_contains($f['meta_robots'], 'noindex') ? 'blocked by a noindex tag' : 'allowed'),
+            "- Content: {$f['word_count']} words",
             '',
             'Quick AEO snapshot:',
             "- Question headings: {$f['question_headings']} ({$f['snippet_ready']} followed by a snippet-length answer)",
             '- FAQ / HowTo / Q&A schema: ' . ($f['answer_schema'] === [] ? 'none found' : implode(', ', $f['answer_schema'])),
             "- Lists and tables: {$f['lists']} lists, {$f['tables']} tables",
-            '- Meta description: ' . ($f['meta_description'] === '' ? 'missing' : 'present'),
-            '- Search crawlers: ' . ($blocked === [] ? 'Google, Bing and Apple can all crawl the site' : 'blocked for ' . implode(', ', $blocked)),
+            '- Search crawlers: ' . ($searchBlocked === [] ? 'Google, Bing and Apple can all crawl the site' : 'blocked for ' . implode(', ', $searchBlocked)),
+            '',
+            'Quick GEO snapshot:',
+            '- AI crawlers: ' . ($aiBlocked === [] ? 'ChatGPT, Perplexity, Claude and Gemini can all read the site' : 'blocked for ' . implode(', ', $aiBlocked)),
+            '- llms.txt: ' . ($f['llms_txt'] ? 'found' : 'not found'),
+            '- Business identity schema (Organization / LocalBusiness): ' . ($f['entity_schema'] === [] ? 'none found' : implode(', ', array_slice($f['entity_schema'], 0, 3))),
+            '- Text AI can read: ' . ($f['word_count'] < self::THIN_TEXT_WORDS
+                ? "only {$f['word_count']} words (content may load with JavaScript, which most AI crawlers can't run)"
+                : "{$f['word_count']} words"),
             '',
             'Pick a question below or ask your own:',
         ];
@@ -211,47 +266,97 @@ class PremiumMiraService
     }
 
     /**
-     * Clickable follow-up questions shown under the welcome reply. Leads with
-     * fixes for what the snapshot found missing, then fills up with general
-     * ones, so the first suggestions are the most useful for this site.
+     * Clickable follow-up questions shown under the welcome reply, read from
+     * askmirap_predefined_prompts (placement = suggestion). Rows whose
+     * trigger matches what the snapshot found missing come first, then rows
+     * with no trigger fill the remaining slots — each group in sort_order.
+     * Rows with a trigger not listed in TRIGGERS are skipped.
      *
      * @return string[]
      */
     public function suggestionsFor(array $site): array
     {
-        $f = $site['facts'];
+        $triggers = $this->activeTriggers($site['facts']);
 
-        $specific = array_filter([
-            $f['meta_description'] === '' ? 'Write a meta description for my homepage' : null,
-            $f['question_headings'] === 0 ? 'Rewrite my headings as questions with snippet-ready answers' : null,
-            $f['answer_schema'] === [] ? 'What FAQ or HowTo schema should I add?' : null,
-        ]);
+        $rows = AskMiraPremiumPrompt::active()->placement('suggestion')->ordered()->get(['question', 'trigger']);
 
-        $general = [
-            'Which questions could we win the featured snippet for?',
-            'What should I fix first to show up as the answer?',
-            'Write an FAQ section for my homepage',
-        ];
+        $specific = $rows->filter(fn ($r) => $r->trigger !== null && in_array($r->trigger, $triggers, true));
+        $general  = $rows->filter(fn ($r) => $r->trigger === null);
 
-        return array_slice(array_values(array_unique(array_merge($specific, $general))), 0, 4);
+        return $specific->concat($general)
+            ->pluck('question')
+            ->unique()
+            ->take(self::MAX_SUGGESTIONS)
+            ->values()
+            ->all();
     }
 
     /**
-     * Answers a question about the loaded site.
+     * Trigger names (askmirap_predefined_prompts.trigger) that apply to this
+     * site. To add a new trigger, add a condition here and use its name in
+     * the table.
+     *
+     * @return string[]
+     */
+    private function activeTriggers(array $f): array
+    {
+        $conditions = [
+            'missing_meta_description' => $f['meta_description'] === '',
+            'no_question_headings'     => $f['question_headings'] === 0,
+            'no_snippet_answers'       => $f['question_headings'] > 0 && $f['snippet_ready'] === 0,
+            'no_answer_schema'         => $f['answer_schema'] === [],
+            'no_lists_or_tables'       => $f['lists'] === 0 && $f['tables'] === 0,
+            'search_crawler_blocked'   => (bool) array_filter(array_intersect_key($f['crawlers'], self::ANSWER_CRAWLERS), fn ($s) => $s === 'blocked'),
+            'ai_crawler_blocked'       => (bool) array_filter(array_intersect_key($f['crawlers'], self::AI_CRAWLERS), fn ($s) => $s === 'blocked'),
+        ];
+
+        return array_keys(array_filter($conditions));
+    }
+
+    /**
+     * Answers a question about the loaded site, plus follow-up questions the
+     * user might ask next. Both come from one OpenAI call: the model ends
+     * its answer with FOLLOW_UP_MARKER and one question per line, which is
+     * split off here so it never shows in the answer or the chat history.
      *
      * @param array $history Prior turns: [['role' => 'user'|'assistant', 'content' => string], ...]
      *
+     * @return array{answer: string, suggestions: string[]}
+     *
      * @throws OpenAiException
      */
-    public function reply(string $question, array $site, array $history = []): string
+    public function reply(string $question, array $site, array $history = []): array
     {
         $messages   = $this->trim($history);
         $messages[] = ['role' => 'user', 'content' => $question];
 
-        return $this->client->chatMessages($this->systemPrompt($site), $messages, [
-            'max_tokens'  => 900,
+        $raw = $this->client->chatMessages($this->systemPrompt($site), $messages, [
+            'max_tokens'  => 1000,
             'temperature' => 0.3,
         ]);
+
+        return $this->splitFollowUps($raw);
+    }
+
+    /** @return array{answer: string, suggestions: string[]} */
+    private function splitFollowUps(string $raw): array
+    {
+        $pos = strpos($raw, self::FOLLOW_UP_MARKER);
+
+        if ($pos === false) {
+            return ['answer' => trim($raw), 'suggestions' => []];
+        }
+
+        $suggestions = collect(preg_split('/\R/', substr($raw, $pos + strlen(self::FOLLOW_UP_MARKER))))
+            // Strip any numbering or bullets the model adds anyway ("1. ", "- ").
+            ->map(fn ($line) => trim(preg_replace('/^\s*(\d+[.)]|[-*•])\s*/u', '', $line)))
+            ->filter(fn ($line) => $line !== '' && mb_strlen($line) <= 150)
+            ->unique()
+            ->take(self::MAX_FOLLOW_UPS)
+            ->values()
+            ->all();
+
+        return ['answer' => trim(substr($raw, 0, $pos)), 'suggestions' => $suggestions];
     }
 
     public function trim(array $history): array
@@ -267,6 +372,9 @@ class PremiumMiraService
 
     private function systemPrompt(array $site): string
     {
+        $marker    = self::FOLLOW_UP_MARKER;
+        $followUps = self::MAX_FOLLOW_UPS;
+
         return <<<PROMPT
 You are Mira Premium, an Answer Engine Optimization (AEO) consultant from X Platforms. The user owns the website below and asks questions about it.
 
@@ -291,6 +399,8 @@ AEO factors to draw on where relevant:
 
 Style: plain text only, no Markdown (no #, no ** bold, no tables). Start with a direct 1-2 sentence answer, then give specific, prioritised actions as a numbered list ("1. ..."). Refer to the site's real content in your suggestions: rewrite a real heading as a question and write the 40-60 word answer that should sit under it. Keep it under about 250 words unless the user asks for more detail. If the question is unrelated to their website, SEO, AEO or GEO, briefly steer back to what you can help with.
 
+Follow-up questions: after your answer, on a new line write exactly {$marker} and then exactly {$followUps} questions the user is likely to ask next, one per line, with no numbering or bullets. Write them in the user's voice ("How do I...", "Can you write..."), each under 12 words, specific to this website and to what you just answered, and different from questions already asked in this conversation. Mix angles: a deeper next step on this topic, a related SEO, AEO or GEO question, and a request for ready-to-use content (for example "Write the FAQ answers for me").
+
 WEBSITE DATA
 {$site['context']}
 PROMPT;
@@ -314,6 +424,9 @@ PROMPT;
             'HTTPS: ' . ($f['https'] ? 'yes' : 'no'),
             'Structured data (schema.org types): ' . ($f['schema_types'] ? implode(', ', $f['schema_types']) : 'none'),
             'Answer-type schema (FAQPage/QAPage/HowTo/Speakable): ' . ($f['answer_schema'] ? implode(', ', $f['answer_schema']) : 'none'),
+            'Business identity schema (Organization/LocalBusiness and subtypes): ' . (($f['entity_schema'] ?? []) ? implode(', ', $f['entity_schema']) : 'none'),
+            'H1 headings on page: ' . ($f['h1_count'] ?? 'unknown'),
+            'llms.txt: ' . (($f['llms_txt'] ?? false) ? 'present' : 'not found'),
             'robots.txt: ' . ($f['robots_txt'] ? 'present' : 'not found'),
             'Answer-engine crawler access per robots.txt: ' . implode('; ', $crawlers),
             "Word count on page: {$f['word_count']}",

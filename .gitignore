@@ -5,6 +5,7 @@
 .claude/settings.local.json
 .env.backup
 .env.production
+.env_bkp
 .phpactor.json
 .phpunit.result.cache
 /.fleet

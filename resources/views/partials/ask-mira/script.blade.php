@@ -1,4 +1,7 @@
 const IS_LOGGED_IN = {{ $loggedIn ? 'true' : 'false' }};
+// True only on the Premium Mira page (it includes this script with premium => true):
+// website analyses then come back with recommendations. The free Ask Mira gets scores only.
+const ASK_MIRA_PREMIUM = {{ !empty($premium) ? 'true' : 'false' }};
 const CHAT_QUESTIONS_BY_INDUSTRY = @json($chatQuestionsByIndustry);
 const DEFAULT_STARTER_QUESTIONS = ["What does X Platforms do?", "How much does it cost?"];
 
@@ -93,7 +96,7 @@ async function submitLeadAndAnalyze(){
   try{
     const res = await fetch('{{ route("chat.analyze-lead") }}', {method:'POST',
       headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content},
-      body: JSON.stringify({name:name, email:email, url:url, industry_id:(document.getElementById('industrySelect')||{}).value||null})
+      body: JSON.stringify({name:name, email:email, url:url, industry_id:(document.getElementById('industrySelect')||{}).value||null, premium:ASK_MIRA_PREMIUM})
     });
     const data = await res.json();
 
@@ -141,7 +144,7 @@ const CATEGORY_INFO = {
   richresults: "Can your site show up with stars, prices, etc. in Google?"
 };
 
-function openAnalysisModal(key, label, pct, checkRows){
+function openAnalysisModal(key, label, pct, checkRows, recommendations){
   document.getElementById('modalTitle').textContent = label;
   document.getElementById('modalDesc').textContent = CATEGORY_INFO[key] || '';
   const pctEl = document.getElementById('modalPct');
@@ -165,14 +168,112 @@ function openAnalysisModal(key, label, pct, checkRows){
     checksEl.appendChild(rowEl);
   });
 
+  renderModalRecommendations(checksEl, checkRows, recommendations);
+
   document.getElementById('analysisModalOverlay').classList.add('show');
+  // After .show: a transition can only start on an element that is rendered.
+  animateModalPie(pctEl, pct);
+}
+
+// "Recommendations" section under the checks in the category pop-up. Uses
+// the given list (the Site Overview card passes the report's
+// top_recommendations), otherwise the fixes attached to this category's
+// fail/warn checks — failures first. Built once below #modalChecks, then
+// refilled on each open. Text goes in via textContent only.
+function renderModalRecommendations(checksEl, checkRows, recommendations){
+  let box=document.getElementById('modalRecs');
+  // Free Ask Mira: the report has no recommendations, so show no section at all.
+  if(RECOMMENDATIONS_SOURCE==='none'){
+    if(box) box.remove();
+    return;
+  }
+  if(!box){
+    box=document.createElement('div');
+    box.id='modalRecs';
+    box.className='a-modal-recs';
+    checksEl.parentNode.insertBefore(box, checksEl.nextSibling);
+  }
+  box.innerHTML='';
+
+  const recs=(recommendations && recommendations.length ? recommendations : checkRows.filter(function(r){ return r.recommendation; }))
+    .slice().sort(function(a,b){ return (a.status==='fail'?0:1)-(b.status==='fail'?0:1); });
+
+  const title=document.createElement('div');
+  title.className='a-modal-recs-title';
+  title.textContent='Recommendations';
+  if(RECOMMENDATIONS_SOURCE==='ai' && recs.length){
+    const tag=document.createElement('span');
+    tag.className='a-modal-recs-ai';
+    tag.textContent='AI-tailored';
+    title.appendChild(tag);
+  }
+  box.appendChild(title);
+
+  if(!recs.length){
+    const ok=document.createElement('p');
+    ok.className='a-modal-recs-ok';
+    ok.textContent='Nothing to fix here — every check in this section passed.';
+    box.appendChild(ok);
+    return;
+  }
+
+  const list=document.createElement('ol');
+  list.className='a-modal-recs-list';
+  recs.forEach(function(r){
+    const li=document.createElement('li');
+    li.className='a-modal-rec '+(r.status==='fail'?'fail':'warn');
+    const head=document.createElement('div');
+    head.className='a-modal-rec-head';
+    const badge=document.createElement('span');
+    badge.className='a-modal-check-badge '+(r.status==='fail'?'fail':'warn');
+    badge.textContent=r.status==='fail'?'FAIL':'WARN';
+    const name=document.createElement('span');
+    name.className='a-modal-rec-name';
+    name.textContent=r.name;
+    head.appendChild(badge);head.appendChild(name);
+    const text=document.createElement('p');
+    text.className='a-modal-rec-text';
+    text.textContent=r.recommendation;
+    li.appendChild(head);li.appendChild(text);
+    list.appendChild(li);
+  });
+  box.appendChild(list);
+}
+
+// Small donut before the percentage in the category pop-up. Created once and
+// reused; each time the pop-up opens it snaps to empty with transitions off,
+// a forced reflow makes the browser register that state, then the score is
+// set with transitions back on, so .a-modal-pie-fill's CSS transition
+// animates it. Called after the pop-up is shown (see openAnalysisModal).
+function animateModalPie(pctEl, pct){
+  const r=40, circumference=2*Math.PI*r;
+  let pie=document.getElementById('modalPie');
+  if(!pie){
+    pie=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    pie.id='modalPie';
+    pie.setAttribute('class','a-modal-pie');
+    pie.setAttribute('viewBox','0 0 100 100');
+    pie.setAttribute('aria-hidden','true');
+    pie.innerHTML='<circle class="a-modal-pie-track" cx="50" cy="50" r="'+r+'"></circle>'+
+                  '<circle class="a-modal-pie-fill" cx="50" cy="50" r="'+r+'"></circle>';
+    pctEl.parentNode.insertBefore(pie, pctEl);
+  }
+  const fill=pie.querySelector('.a-modal-pie-fill');
+  const p=(pct===null||pct===undefined)?0:Math.max(0,Math.min(100,pct));
+  fill.style.stroke=scoreColor(pct);
+  fill.style.strokeDasharray=circumference;
+  fill.style.transition='none';
+  fill.style.strokeDashoffset=circumference;
+  void fill.getBoundingClientRect();   // force reflow: commit the empty state
+  fill.style.transition='';
+  fill.style.strokeDashoffset=circumference*(1-p/100);
 }
 
 function closeAnalysisModal(){
   document.getElementById('analysisModalOverlay').classList.remove('show');
 }
 
-function buildPieCard(label, pct, checkRows, key){
+function buildPieCard(label, pct, checkRows, key, recommendations){
   const r=42, circumference=2*Math.PI*r;
   const p=(pct===null||pct===undefined)?0:pct;
   const color=scoreColor(pct);
@@ -199,14 +300,19 @@ function buildPieCard(label, pct, checkRows, key){
   });
   card.appendChild(checksEl);
   card.addEventListener('click', function(){
-    openAnalysisModal(key, label, pct, checkRows);
+    openAnalysisModal(key, label, pct, checkRows, recommendations);
   });
   return card;
 }
 
 // Renders a WebsiteAnalyzerService report (real SEO/Technical checks)
 // as a grid of per-category donut chart cards — never as a giant chat bubble.
+// 'ai' when the report's recommendations were written by OpenAI, 'standard'
+// for the fixed fallback advice — labels the pop-up's Recommendations section.
+let RECOMMENDATIONS_SOURCE='none';
+
 function renderAnalysisReport(report){
+  RECOMMENDATIONS_SOURCE=report.recommendations_source||'none';
   const panel=document.getElementById('analysisPanel');
   document.getElementById('analysisUrl').textContent=report.url;
 
@@ -219,17 +325,19 @@ function renderAnalysisReport(report){
     {name:'Pass', detail:String(c.pass), status:'pass'},
     {name:'Warn', detail:String(c.warn), status:'warn'},
     {name:'Fail', detail:String(c.fail), status:'fail'}
-  ], 'overview'));
+  ], 'overview', report.top_recommendations || []));
 
   report.categories.forEach(function(cat){
     gridEl.appendChild(buildPieCard(cat.label, cat.score, (cat.checks||[]).map(function(ch){
-      return {name:ch.name, detail:ch.detail, status:ch.status};
+      return {name:ch.name, detail:ch.detail, status:ch.status, recommendation:ch.recommendation||null};
     }), cat.key));
   });
 
   panel.classList.add('show');
   panel.scrollIntoView({behavior:'smooth',block:'nearest'});
-  document.getElementById('chatUpsellAside').classList.add('show');
+  // Optional page hook — Premium Mira uses it to show the site in its "Your website" card.
+  if(typeof onAnalysisReport==='function') onAnalysisReport(report);
+  document.getElementById('chatUpsellAside')?.classList.add('show');   // absent on Premium Mira
 }
 
 function switchChatTab(tab){
@@ -244,7 +352,7 @@ function switchChatTab(tab){
 async function postToChat(message){
   const res=await fetch('{{ route("chat.send") }}',{method:'POST',
     headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content},
-    body:JSON.stringify({message:message, industry_id:(document.getElementById('industrySelect')||{}).value||null})});
+    body:JSON.stringify({message:message, industry_id:(document.getElementById('industrySelect')||{}).value||null, premium:ASK_MIRA_PREMIUM})});
   const data=await res.json();
   return {ok:res.ok, data:data};
 }
@@ -301,7 +409,7 @@ async function resetChat(){
   await fetch('{{ route("chat.reset") }}',{method:'POST',headers:{'Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content}});
   document.getElementById('chatMsgs').innerHTML=CHAT_GREETING;
   document.getElementById('analysisPanel').classList.remove('show');
-  document.getElementById('chatUpsellAside').classList.remove('show');
+  document.getElementById('chatUpsellAside')?.classList.remove('show');
   document.getElementById('analyzeInput').value='';
   document.getElementById('analyzeStatus').textContent='';
   document.getElementById('analyzeStatus').classList.remove('err');

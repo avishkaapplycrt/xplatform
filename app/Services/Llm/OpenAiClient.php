@@ -34,7 +34,7 @@ class OpenAiClient
      *
      * @param string $system  System prompt — persona, scope, output style.
      * @param string $prompt  The user turn — in this app, a data snapshot plus a question.
-     * @param array  $options ['max_tokens' => int, 'temperature' => float]
+     * @param array  $options ['max_tokens' => int, 'temperature' => float, 'timeout' => seconds (default 60), 'attempts' => int (default MAX_ATTEMPTS)]
      *
      * @throws OpenAiException non-retryable error, retries exhausted, or empty response
      */
@@ -63,7 +63,7 @@ class OpenAiClient
             'messages'    => array_merge([['role' => 'system', 'content' => $system]], $messages),
         ];
 
-        $body = $this->sendWithRetry($payload)->json();
+        $body = $this->sendWithRetry($payload, $options['timeout'] ?? 60, $options['attempts'] ?? self::MAX_ATTEMPTS)->json();
 
         $text = $body['choices'][0]['message']['content'] ?? null;
 
@@ -80,7 +80,7 @@ class OpenAiClient
      * immediately since retrying a malformed/unauthorized request wastes the
      * attempt budget.
      */
-    private function sendWithRetry(array $payload): \Illuminate\Http\Client\Response
+    private function sendWithRetry(array $payload, int $timeout = 60, int $maxAttempts = self::MAX_ATTEMPTS): \Illuminate\Http\Client\Response
     {
         $attempt = 0;
 
@@ -88,7 +88,7 @@ class OpenAiClient
             $attempt++;
 
             $response = Http::withToken($this->apiKey)
-                ->timeout(60)
+                ->timeout($timeout)
                 ->post(self::ENDPOINT, $payload);
 
             if ($response->successful()) {
@@ -97,7 +97,7 @@ class OpenAiClient
 
             $status      = $response->status();
             $retryable   = $status === 429 || $status >= 500;
-            $lastAttempt = $attempt >= self::MAX_ATTEMPTS;
+            $lastAttempt = $attempt >= $maxAttempts;
 
             Log::warning('OpenAI API request failed', [
                 'attempt' => $attempt,

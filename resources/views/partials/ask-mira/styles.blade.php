@@ -75,21 +75,38 @@
 .a-modal{background:var(--card);border:1px solid var(--brd2);border-radius:16px;padding:28px;max-width:440px;width:100%;max-height:80vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 .a-modal-close{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--g400);font-size:22px;line-height:1;cursor:pointer;padding:4px 8px;border-radius:8px}
 .a-modal-close:hover{color:var(--white);background:rgba(var(--acc-rgb,79,143,255),.08)}
-.a-modal-header{display:flex;align-items:center;gap:16px;padding-bottom:16px;border-bottom:1px solid var(--brd);margin-bottom:14px}
-.a-modal-pct{font-family:var(--fm);font-size:26px;font-weight:800;flex-shrink:0}
+.a-modal-header{display:flex;align-items:center;gap:16px;padding:0 28px 16px 0;border-bottom:1px solid var(--brd);margin-bottom:14px}
+.a-modal-pct{font-family:var(--fm);font-size:26px;font-weight:800;flex-shrink:0;line-height:1}
+/* Small donut before the percentage — built and animated by animateModalPie(). */
+.a-modal-pie{width:46px;height:46px;flex-shrink:0;margin-right:-6px;transform:rotate(-90deg)}
+.a-modal-pie-track{fill:none;stroke:var(--g600);stroke-width:12}
+.a-modal-pie-fill{fill:none;stroke-width:12;stroke-linecap:round;transition:stroke-dashoffset .9s var(--ease) .05s}
+@media(prefers-reduced-motion:reduce){.a-modal-pie-fill{transition:none}}
+/* Recommendations under the checks in the category pop-up (renderModalRecommendations). */
+.a-modal-recs{margin-top:16px;padding-top:14px;border-top:1px solid var(--brd)}
+.a-modal-recs-title{font-family:var(--fm);font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--g400);margin-bottom:10px}
+.a-modal-recs-ok{font-size:13px;color:var(--emerald)}
+.a-modal-recs-ai{margin-left:8px;padding:1px 7px;border-radius:5px;background:rgba(var(--acc-rgb,79,143,255),.14);color:var(--blue);letter-spacing:.5px;text-transform:none;font-size:10px}
+.a-modal-recs-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+.a-modal-rec{padding:10px 12px;border-radius:10px;background:var(--bg3);border:1px solid var(--brd);border-left:3px solid var(--rec-c)}
+.a-modal-rec.fail{--rec-c:var(--rose)}
+.a-modal-rec.warn{--rec-c:var(--amber)}
+.a-modal-rec-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.a-modal-rec-name{font-size:12.5px;font-weight:600;color:var(--white)}
+.a-modal-rec-text{font-size:12.5px;line-height:1.55;color:var(--g200)}
 .a-modal-title{font-size:17px;font-weight:700;color:var(--white)}
 .a-modal-desc{font-size:12.5px;color:var(--g300);margin-top:4px;line-height:1.5}
 .a-modal-checks{display:flex;flex-direction:column;gap:10px}
-.a-modal-check-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--brd)}
+.a-modal-check-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--brd)}
 .a-modal-check-row:last-child{border-bottom:none}
-.a-modal-check-left{display:flex;align-items:center;gap:8px;min-width:0}
+.a-modal-check-left{display:flex;align-items:center;gap:8px;flex-shrink:0;max-width:55%}
 .a-modal-check-badge{font-family:var(--fm);font-size:9px;font-weight:700;letter-spacing:.5px;padding:2px 6px;border-radius:5px;flex-shrink:0;white-space:nowrap}
 .a-modal-check-badge.pass{background:rgba(52,211,153,.15);color:var(--emerald)}
 .a-modal-check-badge.warn{background:rgba(251,191,36,.15);color:var(--amber)}
 .a-modal-check-badge.fail{background:rgba(244,114,182,.15);color:var(--rose)}
 .a-modal-check-badge.info{background:rgba(148,163,184,.15);color:var(--g300)}
 .a-modal-check-name{color:var(--g200)}
-.a-modal-check-detail{color:var(--g100);font-weight:600;text-align:right;flex-shrink:0}
+.a-modal-check-detail{color:var(--g100);font-weight:600;text-align:right;flex:1 1 0;min-width:0;line-height:1.45;overflow-wrap:anywhere}
 .lead-modal-overlay{display:none;position:fixed;inset:0;background:rgba(6,10,20,.75);backdrop-filter:blur(4px);z-index:210;align-items:center;justify-content:center;padding:20px}
 .lead-modal-overlay.show{display:flex}
 .lead-modal{background:var(--card);border:1px solid var(--brd2);border-radius:16px;padding:28px;max-width:380px;width:100%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.5)}
