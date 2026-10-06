@@ -53,7 +53,9 @@ use App\Http\Controllers\Analytics\GrowthReportController;
 use App\Http\Controllers\Analytics\ExecutiveDashboardController;
 
 // ─── Public ───────────────────────────────────────────────────────────────────
-Route::get('/', fn() => view('welcome', [
+// Shared data for the new homepage's "Ask Mira" chat widget — same shape the
+// classic homepage/.classic route below already uses for its own widget.
+$homepageChatData = fn() => [
     'industries'  => \App\Models\Industry::orderBy('name')->get(['id', 'name']),
     'miraLive'    => (new \App\Services\Llm\MarketingChatBotService())->isConfigured(),
     'loggedIn'    => auth('client')->check(),
@@ -61,7 +63,19 @@ Route::get('/', fn() => view('welcome', [
         ->get(['industry_id', 'question'])
         ->groupBy(fn ($q) => $q->industry_id ?? 'all')
         ->map(fn ($group) => $group->pluck('question')->values()),
-]))->name('home');
+];
+
+Route::get('/', fn() => view('homepage-preview', $homepageChatData()))->name('home');
+
+// Classic homepage, preserved exactly as-is for instant rollback — if the
+// new design needs reverting, change the '/' route above back to this
+// view() call (swap the two blocks) instead of editing welcome.blade.php.
+Route::get('homepage-classic', fn() => view('welcome', $homepageChatData()))->name('home.classic');
+
+// Preview route kept pointing at the same new design for continued testing
+// under its original URL.
+Route::get('homepage-preview', fn() => view('homepage-preview', $homepageChatData()))->name('homepage.preview');
+
 Route::get('mira-premium', fn() => view('mira-premium', [
     'premiumLive' => (new \App\Services\Llm\PremiumMiraService())->isConfigured(),
     // "Try asking" sidebar questions from askmirap_predefined_prompts, by category (seo / aeo / geo).
