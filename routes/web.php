@@ -327,6 +327,57 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     // five steps per agent shows only its own questions — the Marketing and
     // Retention "A/B test" steps have no rows on purpose (no A/B-testing
     // data source exists for Mock Master), so they render an empty state.
+    Route::post('mock-master-helper/send-email', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'student_id' => 'required|integer',
+            'subject' => 'required|string|max:255',
+            'body' => 'required|string|max:5000',
+        ]);
+
+        $student = \Illuminate\Support\Facades\DB::table('mm_studentuser')
+            ->where('studentId', $data['student_id'])
+            ->first(['email', 'first_name', 'last_name']);
+        $email = $student->email ?? null;
+        $recipientName = $student ? trim($student->first_name . ' ' . $student->last_name) : null;
+        $clientId = \Illuminate\Support\Facades\Auth::guard('client')->id();
+
+        $log = function (string $status, ?string $error = null) use ($clientId, $email, $recipientName, $data) {
+            \Illuminate\Support\Facades\DB::table('email_logs')->insert([
+                'client_id' => $clientId,
+                'email_address' => (string) $email,
+                'recipient_name' => $recipientName,
+                'subject' => mb_substr($data['subject'], 0, 255),
+                'body' => $data['body'],
+                'type' => 'single',
+                'bulk_count' => 1,
+                'status' => $status,
+                'error_message' => $error,
+                'sent_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        };
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $log('failed', 'No valid email address on file.');
+            return response()->json(['ok' => false, 'message' => 'This student has no valid email address on file.'], 422);
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::raw($data['body'], function ($message) use ($email, $data) {
+                $message->to($email)->subject($data['subject']);
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            $log('failed', mb_substr($e->getMessage(), 0, 1000));
+            return response()->json(['ok' => false, 'message' => 'The email could not be sent. Please try again.'], 500);
+        }
+
+        $log('sent');
+
+        return response()->json(['ok' => true, 'message' => 'Email sent to ' . $email]);
+    })->name('mock-master-helper.send-email');
+
     Route::get('mock-master-helper/kpi/{key}', function (string $key) {
         $service = new \App\Services\MockMaster\MockMasterDataService();
         $kpiKeys = ['active_students', 'mock_tests', 'avg_score', 'active_packages'];
@@ -350,6 +401,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'page' => 'nullable|integer|min:1',
+            'sort' => 'nullable|in:value,payment,stage,readiness,trust,approach,last_active',
+            'dir' => 'nullable|in:asc,desc',
         ]);
 
         $palette = ['#3b5bdb', '#7c5cfc', '#f97316', '#1e3a8a', '#0284c7', '#334155', '#16a34a', '#db2777', '#0d9488'];
@@ -358,7 +411,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             : (preg_match('/decision|bought/i', $label) ? 'violet' : 'info'));
 
         $paged = (new \App\Services\MockMaster\MockMasterDataService())->campaignStudentsPage(
-            (int) ($filters['page'] ?? 1), 10, $filters['subscription'] ?? null, $filters['from'] ?? null, $filters['to'] ?? null
+            (int) ($filters['page'] ?? 1), 10, $filters['subscription'] ?? null, $filters['from'] ?? null, $filters['to'] ?? null,
+            $filters['sort'] ?? null, $filters['dir'] ?? 'asc'
         );
 
         $paged['students'] = array_map(fn ($s) => $s + [
@@ -403,12 +457,15 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         $mkNewStudents = $mm->newStudents(15);
         $slProspects = $mm->salesProspects();
         $slClose = $mm->salesCloseCandidates(15);
-        // Sales · Close & grow — open checkouts, renewals due and win-backs,
-        // plus headline counts (see MockMasterDataService "Close & grow").
+        // Sales · Close & grow — open checkouts plus headline counts
+        // (see MockMasterDataService "Close & grow").
         $slAbandoned = $mm->salesAbandonedCheckouts(15);
-        $slRenewals = $mm->salesRenewalsDue(15);
-        $slWinBack = $mm->salesWinBack(15);
         $slCloseSummary = $mm->closeGrowSummary();
+        // Retention · Renew & win back — paid plans due for renewal and
+        // lapsed plans whose students are still active.
+        $chRenewals = $mm->retentionRenewalsDue(15);
+        $chWinBack = $mm->retentionWinBack(15);
+        $chRenewSummary = $mm->renewWinBackSummary();
         // Raised from the panel's original default (6) — the "Package
         // Expiring Soon" / "Renewal Watch" audience counts run into the
         // dozens, so a 6-row list looked broken next to them once the
@@ -424,8 +481,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return view('client.mock-master-helper', compact(
             'mkPrompts', 'slPrompts', 'chPrompts',
             'mkStudents', 'mkPaged', 'mkSubscriptions', 'mkFilters', 'mkKpis', 'mkSegments', 'mkInsights', 'mkTopScorers', 'mkNewStudents',
-            'slProspects', 'slClose', 'slAbandoned', 'slRenewals', 'slWinBack', 'slCloseSummary',
-            'chAtRisk', 'chWatchlist', 'chRootCauses',
+            'slProspects', 'slClose', 'slAbandoned', 'slCloseSummary',
+            'chAtRisk', 'chWatchlist', 'chRootCauses', 'chRenewals', 'chWinBack', 'chRenewSummary',
             'mmContactNames'
         ));
     })->name('mock-master-helper');
@@ -450,6 +507,24 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     // pages straight from the database on demand. {dataset} must be one of
     // the keys below, matching MM_LIST_SLUGS' `list` values in
     // mock-master-helper.blade.php.
+    // Student profile popup — opened by clicking a student's name in any
+    // Mock Master Helper list. Rows carry a student id (sid) where one is
+    // at hand, otherwise the email; either is enough to find the student.
+    Route::get('mock-master-helper/student', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'sid' => 'nullable|integer|min:1',
+            'email' => 'nullable|string|max:255',
+        ]);
+        if (empty($data['sid']) && empty($data['email'])) {
+            return response()->json(['message' => 'A student id or email is required.'], 422);
+        }
+
+        $profile = (new \App\Services\MockMaster\MockMasterDataService())
+            ->studentProfile(isset($data['sid']) ? (int) $data['sid'] : null, $data['email'] ?? null);
+
+        return $profile ? response()->json($profile) : response()->json(['message' => 'Student not found.'], 404);
+    })->name('mock-master-helper.student');
+
     Route::get('mock-master-helper/more/{dataset}', function (\Illuminate\Http\Request $request, string $dataset) {
         $mm = new \App\Services\MockMaster\MockMasterDataService();
         $fetchers = [
@@ -458,8 +533,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'slProspects'   => fn (int $l, int $o) => $mm->salesProspects($l, $o),
             'slClose'       => fn (int $l, int $o) => $mm->salesCloseCandidates($l, $o),
             'slAbandoned'   => fn (int $l, int $o) => $mm->salesAbandonedCheckouts($l, $o),
-            'slRenewals'    => fn (int $l, int $o) => $mm->salesRenewalsDue($l, $o),
-            'slWinBack'     => fn (int $l, int $o) => $mm->salesWinBack($l, $o),
+            'chRenewals'    => fn (int $l, int $o) => $mm->retentionRenewalsDue($l, $o),
+            'chWinBack'     => fn (int $l, int $o) => $mm->retentionWinBack($l, $o),
             'mkTopScorers'  => fn (int $l, int $o) => $mm->topScorers($l, $o),
             'mkNewStudents' => fn (int $l, int $o) => $mm->newStudents($l, $o),
         ];

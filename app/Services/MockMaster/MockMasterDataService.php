@@ -32,9 +32,9 @@ class MockMasterDataService
 
     public function campaignStudents(int $limit = 10, int $offset = 0, ?string $subscription = null, ?string $from = null, ?string $to = null): array
     {
-        return $this->mapCampaignRows(
+        return $this->withPlan($this->mapCampaignRows(
             $this->campaignCandidates($subscription, $from, $to)->slice($offset, $limit)
-        );
+        ));
     }
 
     /**
@@ -44,15 +44,24 @@ class MockMasterDataService
      *
      * @return array{students: array, total: int, page: int, last_page: int}
      */
-    public function campaignStudentsPage(int $page, int $perPage, ?string $subscription = null, ?string $from = null, ?string $to = null): array
+    public function campaignStudentsPage(int $page, int $perPage, ?string $subscription = null, ?string $from = null, ?string $to = null, ?string $sort = null, string $dir = 'asc'): array
     {
         $candidates = $this->campaignCandidates($subscription, $from, $to);
         $total = $candidates->count();
         $lastPage = max(1, (int) ceil($total / $perPage));
         $page = min(max(1, $page), $lastPage);
 
+        if ($sort && in_array($sort, self::CAMPAIGN_SORT_KEYS, true)) {
+            $sorted = collect($this->mapCampaignRows($candidates))
+                ->sortBy(fn ($r) => $r['sort'][$sort] ?? null, SORT_REGULAR, $dir === 'desc')
+                ->values();
+            $students = $sorted->slice(($page - 1) * $perPage, $perPage)->values()->all();
+        } else {
+            $students = $this->mapCampaignRows($candidates->slice(($page - 1) * $perPage, $perPage));
+        }
+
         return [
-            'students' => $this->mapCampaignRows($candidates->slice(($page - 1) * $perPage, $perPage)),
+            'students' => $this->withPlan(array_map(fn ($r) => array_diff_key($r, ['sort' => true]), $students)),
             'total' => $total,
             'page' => $page,
             'last_page' => $lastPage,
@@ -106,6 +115,7 @@ class MockMasterDataService
                 : ($daysToExpire !== null && $daysToExpire >= -14 && $daysToExpire <= 0 ? 'Renewal Due' : 'Active');
 
             return [
+                'sid' => (int) $r->studentid,
                 'name' => trim($r->first_name . ' ' . $r->last_name) ?: 'Student #' . $r->studentid,
                 'sub' => $r->product ?: 'Package',
                 'value' => '$' . number_format((float) ($r->amount ?? 0), 0),
@@ -115,11 +125,23 @@ class MockMasterDataService
                 'trust' => $trust,
                 'approach' => $trust < 65 ? 'Proof-led' : 'Offer-led',
                 'lastActive' => $this->relativeLogin($r->last_login),
+                'studentId' => $r->studentid,
                 'email' => $r->email ?: null,
                 'phone' => $this->formatPhone($r->country_code, $r->phone),
+                'sort' => [
+                    'value' => (float) ($r->amount ?? 0),
+                    'payment' => $r->payment_date ? Carbon::parse($r->payment_date)->timestamp : null,
+                    'stage' => ['Active' => 0, 'Renewal Due' => 1, 'Expired' => 2][$stage],
+                    'readiness' => $readiness,
+                    'trust' => $trust,
+                    'approach' => $trust < 65 ? 0 : 1,
+                    'last_active' => $r->last_login ? Carbon::parse($r->last_login)->timestamp : null,
+                ],
             ];
         })->values()->all();
     }
+
+    private const CAMPAIGN_SORT_KEYS = ['value', 'payment', 'stage', 'readiness', 'trust', 'approach', 'last_active'];
 
     /** Performance step — headline KPIs. */
     public function performanceKpis(): array
@@ -476,16 +498,17 @@ class MockMasterDataService
 
         $students = DB::table('mm_studentuser')->whereIn('studentId', $rows->pluck('studentId'))->get()->keyBy('studentId');
 
-        return $rows->map(function ($r) use ($students) {
+        return $this->withPlan($rows->map(function ($r) use ($students) {
             $s = $students[$r->studentId] ?? null;
             return [
+                'sid' => (int) $r->studentId,
                 'name' => $s ? (trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $r->studentId) : 'Student #' . $r->studentId,
                 'avg_score' => round((float) $r->avg_score, 1),
                 'lastActive' => $s ? $this->relativeLogin($s->last_login) : '—',
                 'email' => $s->email ?? null,
                 'phone' => $s ? $this->formatPhone($s->country_code, $s->phone) : null,
             ];
-        })->values()->all();
+        })->values()->all());
     }
 
     /** Audience · named list backing "Which students joined in the last 14 days?" */
@@ -499,13 +522,14 @@ class MockMasterDataService
             ->limit($limit)
             ->get();
 
-        return $rows->map(fn ($s) => [
+        return $this->withPlan($rows->map(fn ($s) => [
+            'sid' => (int) $s->studentId,
             'name' => trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $s->studentId,
             'sub' => $s->student_course_type ?: '—',
             'joined' => $s->create_date,
             'email' => $s->email ?: null,
             'phone' => $this->formatPhone($s->country_code, $s->phone),
-        ])->values()->all();
+        ])->values()->all());
     }
 
     /** Real student names offered in the "Which student?" picker for the Sales · Accounts prompts. */
@@ -730,12 +754,13 @@ class MockMasterDataService
         $students = DB::table('mm_studentuser')->whereIn('studentId', $studentIds)->orderBy('studentId')->offset($offset)->limit($limit)->get();
         $avgScores = $this->avgScoresByStudent($students->pluck('studentId')->all());
 
-        return $students->map(function ($s) use ($avgScores) {
+        return $this->withPlan($students->map(function ($s) use ($avgScores) {
             $readiness = (int) round($avgScores[$s->studentId] ?? 0);
             $intent = $s->profile_completed ? min(100, $readiness + 20) : max(10, $readiness - 20);
             $trust = $s->otp_verified ? 70 : 40;
 
             return [
+                'sid' => (int) $s->studentId,
                 'name' => trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $s->studentId,
                 'sub' => 'Interested in ' . ($s->student_course_type ?: 'a course'),
                 'readiness' => $readiness,
@@ -745,7 +770,7 @@ class MockMasterDataService
                 'email' => $s->email ?: null,
                 'phone' => $this->formatPhone($s->country_code, $s->phone),
             ];
-        })->values()->all();
+        })->values()->all());
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -1017,6 +1042,7 @@ class MockMasterDataService
 
                 $rows[] = [
                     'id' => $id,
+                    'sid' => (int) $id,
                     'name' => $this->studentName($s, $id),
                     'score' => min(100, $score),
                     'signals' => $why,
@@ -1039,7 +1065,7 @@ class MockMasterDataService
     /** Close — ranked free-trial students likely to convert (kept for the Ask Mira lists and /more). */
     public function salesCloseCandidates(int $limit = 5, int $offset = 0): array
     {
-        return array_map(fn ($r) => array_diff_key($r, ['id' => 1]), array_slice($this->convertCandidatesAll(), $offset, $limit));
+        return $this->withPlan(array_map(fn ($r) => array_diff_key($r, ['id' => 1]), array_slice($this->convertCandidatesAll(), $offset, $limit)));
     }
 
     /** Close — open unpaid checkouts in the last 30 days, most recent first. */
@@ -1060,6 +1086,7 @@ class MockMasterDataService
                     continue;
                 }
                 $rows[] = [
+                    'sid' => (int) $id,
                     'name' => $this->studentName($s, $id),
                     'package' => $c['product'],
                     'amount' => '$' . number_format($c['amount']),
@@ -1078,12 +1105,13 @@ class MockMasterDataService
 
     public function salesAbandonedCheckouts(int $limit = 10, int $offset = 0): array
     {
-        return array_map(fn ($r) => array_diff_key($r, ['_amount' => 1]), array_slice($this->abandonedCheckoutsAll(), $offset, $limit));
+        return $this->withPlan(array_map(fn ($r) => array_diff_key($r, ['_amount' => 1]), array_slice($this->abandonedCheckoutsAll(), $offset, $limit)));
     }
 
     /**
-     * Grow — active paid packages expiring in the next 30 days. Students who
-     * are still practising get an upgrade suggestion; quiet ones a check-in.
+     * Retention · Renew & win back — active paid packages expiring in the
+     * next 30 days. Students who are still practising get an upgrade
+     * suggestion; quiet ones a renewal check-in.
      */
     private function renewalsDueAll(): array
     {
@@ -1120,6 +1148,7 @@ class MockMasterDataService
                 $value = (int) ($r->amount ?: $r->cost);
                 $busy = $a['tests'] >= 2 || $a['logins'] >= 4;
                 $out[] = [
+                    'sid' => (int) $r->studentid,
                     'name' => $this->studentName($s, $r->studentid),
                     'package' => $r->product,
                     'expires' => $days <= 0 ? 'today' : 'in ' . $days . ' day' . ($days === 1 ? '' : 's'),
@@ -1136,14 +1165,15 @@ class MockMasterDataService
         });
     }
 
-    public function salesRenewalsDue(int $limit = 10, int $offset = 0): array
+    public function retentionRenewalsDue(int $limit = 10, int $offset = 0): array
     {
-        return array_map(fn ($r) => array_diff_key($r, ['_amount' => 1]), array_slice($this->renewalsDueAll(), $offset, $limit));
+        return $this->withPlan(array_map(fn ($r) => array_diff_key($r, ['_amount' => 1]), array_slice($this->renewalsDueAll(), $offset, $limit)));
     }
 
     /**
-     * Grow — paid package expired in the last 60 days, nothing active now,
-     * but the student still logs in or practises (last 30 days).
+     * Retention · Renew & win back — paid package expired in the last 60
+     * days, nothing active now, but the student still logs in or practises
+     * (last 30 days).
      */
     private function winBackAll(): array
     {
@@ -1179,6 +1209,7 @@ class MockMasterDataService
                 $days = (int) Carbon::parse($r->expire_date)->diffInDays(now());
                 $value = (int) ($r->amount ?: $r->cost);
                 $out[] = [
+                    'sid' => (int) $r->studentid,
                     'name' => $this->studentName($s, $r->studentid),
                     'package' => $r->product,
                     'expired' => $days === 0 ? 'today' : $days . ' day' . ($days === 1 ? '' : 's') . ' ago',
@@ -1195,27 +1226,34 @@ class MockMasterDataService
         });
     }
 
-    public function salesWinBack(int $limit = 10, int $offset = 0): array
+    public function retentionWinBack(int $limit = 10, int $offset = 0): array
     {
-        return array_map(fn ($r) => array_diff_key($r, ['_amount' => 1]), array_slice($this->winBackAll(), $offset, $limit));
+        return $this->withPlan(array_map(fn ($r) => array_diff_key($r, ['_amount' => 1]), array_slice($this->winBackAll(), $offset, $limit)));
     }
 
-    /** Headline counts and revenue for the Close & grow tab. */
+    /** Headline counts for Sales · Close & grow (convert + open checkouts). */
     public function closeGrowSummary(): array
     {
         $abandoned = $this->abandonedCheckoutsAll();
-        $renewals = $this->renewalsDueAll();
-        $winback = $this->winBackAll();
-        $sum = fn ($rows) => array_sum(array_column($rows, '_amount'));
 
         return [
             'convert' => count($this->convertCandidatesAll()),
             'abandoned' => count($abandoned),
-            'abandoned_value' => $sum($abandoned),
+            'abandoned_value' => array_sum(array_column($abandoned, '_amount')),
+        ];
+    }
+
+    /** Headline counts and revenue for Retention · Renew & win back. */
+    public function renewWinBackSummary(): array
+    {
+        $renewals = $this->renewalsDueAll();
+        $winback = $this->winBackAll();
+
+        return [
             'renewals' => count($renewals),
-            'renewals_value' => $sum($renewals),
+            'renewals_value' => array_sum(array_column($renewals, '_amount')),
             'winback' => count($winback),
-            'winback_value' => $sum($winback),
+            'winback_value' => array_sum(array_column($winback, '_amount')),
         ];
     }
 
@@ -1243,11 +1281,12 @@ class MockMasterDataService
             ->limit($limit)
             ->get();
 
-        return $rows->map(function ($r) {
+        return $this->withPlan($rows->map(function ($r) {
             $inactiveDays = $r->last_login ? (int) Carbon::parse($r->last_login)->diffInDays(now()) : 999;
             $risk = min(100, max(10, $inactiveDays + (int) Carbon::parse($r->expire_date)->diffInDays(now(), true)));
 
             return [
+                'sid' => (int) $r->studentid,
                 'name' => trim($r->first_name . ' ' . $r->last_name) ?: 'Student #' . $r->studentid,
                 'sub' => $r->product ?: 'Package',
                 'inactiveDays' => min($inactiveDays, 999),
@@ -1256,7 +1295,7 @@ class MockMasterDataService
                 'email' => $r->email ?: null,
                 'phone' => $this->formatPhone($r->country_code, $r->phone),
             ];
-        })->values()->all();
+        })->values()->all());
     }
 
     /** Retention — real root-cause breakdown, not illustrative examples. */
@@ -1309,6 +1348,105 @@ class MockMasterDataService
         }
         $days = (int) Carbon::parse($lastLogin)->diffInDays(now());
         return $days <= 7 ? 'This week' : $days . 'd ago';
+    }
+
+    /**
+     * Plan type per student, from their whole package history:
+     *   Coaching + Paid · Coaching (Enrolled/Coaching access, never paid)
+     *   · Paid (a cost > 0 package) · Free trial (only the free mock test)
+     *   · No purchase · Other (only testing / Applykart / unmatched items).
+     */
+    private function planFor(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        if (empty($ids)) {
+            return [];
+        }
+
+        $rows = DB::table('mm_purchases as u')
+            ->leftJoin('mm_packages as k', 'k.packageid', '=', 'u.productid')
+            ->whereIn('u.studentid', $ids)
+            ->groupBy('u.studentid')
+            ->selectRaw("u.studentid,
+                MAX(k.usage_type = 'free') as f,
+                MAX(k.cost > 0) as p,
+                MAX(k.cost = 0 AND (k.package_name LIKE '%Enrolled%' OR k.package_name LIKE '%Coaching%')) as c")
+            ->get()->keyBy('studentid');
+
+        $out = [];
+        foreach ($ids as $id) {
+            $r = $rows[$id] ?? null;
+            $out[$id] = !$r ? 'No purchase'
+                : ($r->c && $r->p ? 'Coaching + Paid'
+                : ($r->c ? 'Coaching'
+                : ($r->p ? 'Paid'
+                : ($r->f ? 'Free trial' : 'Other'))));
+        }
+
+        return $out;
+    }
+
+    /** Adds a 'plan' value to every row that carries a student id (sid). */
+    private function withPlan(array $rows): array
+    {
+        $plans = $this->planFor(array_column($rows, 'sid'));
+
+        return array_map(fn ($r) => isset($r['sid']) ? $r + ['plan' => $plans[(int) $r['sid']] ?? 'No purchase'] : $r, $rows);
+    }
+
+    /**
+     * One student's profile card for the "click a name" popup — looked up by
+     * student id, or by email for lists whose rows only carry an email.
+     */
+    public function studentProfile(?int $studentId, ?string $email): ?array
+    {
+        $query = DB::table('mm_studentuser')->whereNull('deleted_at');
+        if ($studentId) {
+            $query->where('studentId', $studentId);
+        } elseif ($email) {
+            $query->where('email', $email)->orderByDesc('studentId');
+        } else {
+            return null;
+        }
+
+        $s = $query->first(['studentId', 'first_name', 'last_name', 'student_course_type', 'country_code', 'phone', 'email', 'profile_picture']);
+        if (!$s) {
+            return null;
+        }
+
+        return [
+            'first_name' => $s->first_name ?: null,
+            'last_name' => $s->last_name ?: null,
+            'course_type' => $s->student_course_type ?: null,
+            'phone' => $this->formatPhone($s->country_code, $s->phone),
+            'email' => $s->email ?: null,
+            'profile_picture' => $this->profilePictureUrl($s->profile_picture),
+        ];
+    }
+
+    /**
+     * Full URLs (e.g. Google avatars) are used as-is. Relative paths such as
+     * "assets/uploads/profile_images/x.jpg" live on the PTE Portal site, so
+     * they need MOCKMASTER_PORTAL_URL; without it the popup shows initials.
+     */
+    private function profilePictureUrl(?string $path): ?string
+    {
+        $path = trim((string) $path);
+        if ($path === '') {
+            return null;
+        }
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+        // A leading "/" means the image is served by this app (public/),
+        // e.g. /images/mm-profiles/14.jpg — asset() adds the right host and
+        // base path whether the app runs at the domain root or a subfolder.
+        if (str_starts_with($path, '/')) {
+            return asset(ltrim($path, '/'));
+        }
+        $base = rtrim((string) config('services.mockmaster.portal_url'), '/');
+
+        return $base !== '' ? $base . '/' . ltrim($path, '/') : null;
     }
 
     /** Real contact number for the "who to call" style answers — country code + number, or null if none on file. */
@@ -1466,8 +1604,9 @@ class MockMasterDataService
             'close_candidates' => $this->salesCloseCandidates(10),
             'close_grow_summary' => $this->closeGrowSummary(),
             'abandoned_checkouts' => $this->salesAbandonedCheckouts(10),
-            'renewals_due' => $this->salesRenewalsDue(10),
-            'win_back' => $this->salesWinBack(10),
+            'renew_win_back_summary' => $this->renewWinBackSummary(),
+            'renewals_due' => $this->retentionRenewalsDue(10),
+            'win_back' => $this->retentionWinBack(10),
 
             'students' => [
                 'total_registered' => DB::table('mm_studentuser')->whereNull('deleted_at')->count(),

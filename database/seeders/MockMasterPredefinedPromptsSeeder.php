@@ -91,6 +91,11 @@ class MockMasterPredefinedPromptsSeeder extends Seeder
             ['retention', 'Watchlist', 'mm-ch-watch-count', 'How many students are in the 30-day renewal watchlist?', 2],
             ['retention', 'Watchlist', 'mm-ch-watch-highvalue', 'Which watchlist students have the highest value at risk?', 3],
 
+            // Retention · Renew & win back — paid plans due for renewal and lapsed plans still in use
+            ['retention', 'Renew & win back', 'mm-ch-renew-due', 'Which paid plans expire in the next 30 days?', 1],
+            ['retention', 'Renew & win back', 'mm-ch-renew-winback', 'Which students let their plan lapse but are still logging in?', 2],
+            ['retention', 'Renew & win back', 'mm-ch-renew-value', 'How much revenue is up for renewal or win-back right now?', 3],
+
             // Retention · A/B test — intentionally no rows: no A/B-testing
             // engine exists for Mock Master data, so this stays an honest
             // empty state instead of a fabricated question.
