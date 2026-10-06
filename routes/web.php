@@ -64,6 +64,11 @@ Route::get('/', fn() => view('welcome', [
 ]))->name('home');
 Route::get('mira-premium', fn() => view('mira-premium', [
     'premiumLive' => (new \App\Services\Llm\PremiumMiraService())->isConfigured(),
+    // "Try asking" sidebar questions from askmirap_predefined_prompts, by category (seo / aeo / geo).
+    'sidebarPrompts' => \App\Models\AskMiraPremiumPrompt::active()->placement('sidebar')->ordered()
+        ->get(['category', 'question'])
+        ->groupBy(fn ($p) => $p->category ?: 'other')
+        ->map(fn ($group) => $group->pluck('question')),
     // For the "Analyse my website" tab, which reuses partials.ask-mira.script.
     'miraLive'    => (new \App\Services\Llm\MarketingChatBotService())->isConfigured(),
     'loggedIn'    => auth('client')->check(),

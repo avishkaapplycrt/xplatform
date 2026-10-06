@@ -62,13 +62,15 @@ class MarketingChatBotService
      *                              once signed in. Does NOT gate website-URL analysis.
      * @param string|null $industry Industry picked from the sidebar dropdown, if any — only
      *                              affects the LLM system prompt, not the local fallback text.
+     * @param bool        $premium  Set by the Premium Mira page: a URL analysis then includes
+     *                              recommendations (OpenAI-written). The free Ask Mira gets scores only.
      *
      * @return array{reply: string, report: array|null}
      *
      * @throws AnthropicException
      * @throws AnthropicRefusedException
      */
-    public function reply(string $message, array $history = [], ?Client $client = null, ?string $industry = null): array
+    public function reply(string $message, array $history = [], ?Client $client = null, ?string $industry = null, bool $premium = false): array
     {
         if ($this->wantsDeeperAnalysis($message)) {
             return ['reply' => $this->upgradeMessage(), 'report' => null];
@@ -76,7 +78,7 @@ class MarketingChatBotService
 
         $url = $this->extractWebsiteUrl($message);
         if ($url !== null) {
-            return $this->runAnalysis($url);
+            return $this->runAnalysis($url, $premium);
         }
 
         if (!$this->isConfigured()) {
@@ -146,7 +148,7 @@ class MarketingChatBotService
 
     /** Runs the free-tier WebsiteAnalyzerService checks and returns a chat reply plus the structured report. */
     /** @return array{reply: string, report: array|null} */
-    private function runAnalysis(string $url): array
+    private function runAnalysis(string $url, bool $withRecommendations = false): array
     {
         try {
             $checks = $this->analyzer->analyzeSeoAndTechnical($url);
@@ -154,7 +156,7 @@ class MarketingChatBotService
             return ['reply' => $e->getMessage(), 'report' => null];
         }
 
-        $report = $this->analyzer->buildReport($url, $checks);
+        $report = $this->analyzer->buildReport($url, $checks, $withRecommendations);
 
         return [
             'reply'  => "I checked {$url} — {$report['overall']}/100 (Grade {$report['grade']}). Full breakdown is in the report below.",

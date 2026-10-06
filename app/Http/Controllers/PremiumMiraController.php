@@ -75,7 +75,7 @@ class PremiumMiraController extends Controller
         $history = $request->session()->get(self::HISTORY_KEY, []);
 
         try {
-            $reply = $mira->reply($message, $site, $history);
+            $result = $mira->reply($message, $site, $history);
         } catch (OpenAiException $e) {
             Log::error('Premium Mira request failed', ['message' => $e->getMessage()]);
 
@@ -84,11 +84,16 @@ class PremiumMiraController extends Controller
             ], 502);
         }
 
+        // History keeps only the answer; follow-ups are a UI aid, not part of the conversation.
         $history[] = ['role' => 'user', 'content' => $message];
-        $history[] = ['role' => 'assistant', 'content' => $reply];
+        $history[] = ['role' => 'assistant', 'content' => $result['answer']];
         $request->session()->put(self::HISTORY_KEY, $mira->trim($history));
 
-        return response()->json(['reply' => $reply, 'site' => $this->siteSummary($site)]);
+        return response()->json([
+            'reply'       => $result['answer'],
+            'site'        => $this->siteSummary($site),
+            'suggestions' => $result['suggestions'],
+        ]);
     }
 
     public function reset(Request $request): JsonResponse

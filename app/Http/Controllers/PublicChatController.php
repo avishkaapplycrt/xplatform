@@ -39,6 +39,7 @@ class PublicChatController extends Controller
         $validated = $request->validate([
             'message'     => 'required|string|max:4000',
             'industry_id' => 'nullable|integer|exists:industries,id',
+            'premium'     => 'sometimes|boolean',
         ]);
 
         $history  = $request->session()->get(self::SESSION_KEY, []);
@@ -48,7 +49,7 @@ class PublicChatController extends Controller
             : null;
 
         try {
-            $result = $bot->reply($validated['message'], $history, $client, $industry);
+            $result = $bot->reply($validated['message'], $history, $client, $industry, (bool) ($validated['premium'] ?? false));
         } catch (AnthropicRefusedException $e) {
             Log::info('Public chat request declined', ['message' => $e->getMessage()]);
 
@@ -89,6 +90,7 @@ class PublicChatController extends Controller
             'email'       => 'required|email|max:255',
             'url'         => 'required|url|max:2048',
             'industry_id' => 'nullable|integer|exists:industries,id',
+            'premium'     => 'sometimes|boolean',
         ]);
 
         ChatBotUser::create([
@@ -104,7 +106,7 @@ class PublicChatController extends Controller
             : null;
 
         try {
-            $result = $bot->reply($validated['url'], $history, $client, $industry);
+            $result = $bot->reply($validated['url'], $history, $client, $industry, (bool) ($validated['premium'] ?? false));
         } catch (AnthropicRefusedException $e) {
             Log::info('Public chat request declined', ['message' => $e->getMessage()]);
 

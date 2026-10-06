@@ -52,9 +52,20 @@ class WebsiteAnalyzerService
 
     private ?string $apiKey;
 
-    public function __construct(?string $apiKey = null)
+    private SeoRecommendationService $recommender;
+
+    /**
+     * Content of the page most recently checked by analyzeSeoAndTechnical(),
+     * so buildReport() can give OpenAI something site-specific to work from.
+     *
+     * @var array{url: string, title: string, description: string, headings: string[], text: string}|null
+     */
+    private ?array $lastPage = null;
+
+    public function __construct(?string $apiKey = null, ?SeoRecommendationService $recommender = null)
     {
-        $this->apiKey = $apiKey ?? (string) config('services.pagespeed.api_key') ?: null;
+        $this->apiKey      = $apiKey ?? (string) config('services.pagespeed.api_key') ?: null;
+        $this->recommender = $recommender ?? new SeoRecommendationService();
     }
 
     public function isConfigured(): bool
@@ -148,6 +159,14 @@ class WebsiteAnalyzerService
 
         $description = trim($this->metaContent($xpath, 'description') ?? '');
         $checks[] = $this->lengthCheck('titles', 'Meta description', $description, 120, 160);
+
+        $this->lastPage = [
+            'url'         => $url,
+            'title'       => $title,
+            'description' => $description,
+            'headings'    => $this->pageHeadings($xpath),
+            'text'        => $this->pageText($xpath),
+        ];
 
         // --- CONTENT STRUCTURE ---
         $h1Count = $xpath->query('//h1')->length;
@@ -405,8 +424,47 @@ class WebsiteAnalyzerService
     }
 
     /**
+     * Fallback advice for a failing or warning check, keyed by check name —
+     * used when SeoRecommendationService (OpenAI) can't provide a
+     * site-specific fix. A string applies to both statuses;
+     * ['fail' => ..., 'warn' => ...] gives status-specific advice.
+     */
+    private const RECOMMENDATIONS = [
+        'Title tag' => [
+            'fail' => 'Add a <title> tag: your main keyword plus your brand, 30–60 characters, e.g. "Family Dental Care in Perth | BrightSmile".',
+            'warn' => 'Rewrite the title to 30–60 characters so Google shows it in full: main keyword first, brand last.',
+        ],
+        'Meta description' => [
+            'fail' => 'Add a meta description of 120–160 characters that says what the page offers and ends with a reason to click.',
+            'warn' => 'Adjust the meta description to 120–160 characters so it isn\'t cut off or padded out in search results.',
+        ],
+        'H1 heading'                 => 'Use exactly one H1 that states what the page is about; turn any other H1s into H2s.',
+        'Heading order'              => 'Keep headings in order (H1 → H2 → H3) without skipping levels, so search engines and screen readers follow the structure.',
+        'Word count'                 => 'Add more useful text (aim for 300+ words): what you offer, who it\'s for, and answers to common questions.',
+        'Image alt text'             => 'Give every meaningful image a short alt text describing it, e.g. alt="Blue sapphire engagement ring in white gold".',
+        'HTTPS'                      => 'Serve the whole site over HTTPS with a valid SSL certificate and redirect all http:// pages to https://.',
+        'Mixed content'              => 'Load every image, script and stylesheet over https://; mixed content triggers browser warnings and hurts trust.',
+        'Mobile viewport'            => 'Add <meta name="viewport" content="width=device-width, initial-scale=1"> so the page scales properly on phones.',
+        'Internal vs external links' => 'Link to your own key pages (services, contact, FAQs) from this page so visitors and search engines can reach them.',
+        'Generic anchor text'        => 'Replace link text like "click here" or "read more" with words that describe the destination, e.g. "view our ring collection".',
+        'robots.txt'                 => 'Add a robots.txt at the site root that allows crawling and points to your sitemap (Sitemap: https://yoursite/sitemap.xml).',
+        'sitemap.xml'                => 'Publish a sitemap.xml listing your important pages and submit it in Google Search Console.',
+        'Canonical tag'              => 'Add <link rel="canonical"> pointing to this page\'s preferred URL to avoid duplicate-content issues.',
+        'Open Graph tags'            => 'Add og:title, og:description and og:image so links to this page look good when shared on Facebook and LinkedIn.',
+        'Twitter Card tags'          => 'Add twitter:card (summary_large_image), twitter:title and twitter:image for a rich preview on X/Twitter.',
+        'Structured data'            => 'Add JSON-LD structured data (Organization or LocalBusiness, plus FAQPage or Product where relevant) to qualify for rich results.',
+    ];
+
+    /** Most recommendations listed on the "Site Overview" card. */
+    private const MAX_TOP_RECOMMENDATIONS = 3;
+
+    /**
      * Structured version of summarizeFull() — same data, shaped for a UI
      * dashboard (per-category pie-chart cards) instead of a text blob.
+     * With $withRecommendations (Premium Mira only), every fail/warn check
+     * gets a `recommendation`: site-specific from OpenAI when available,
+     * otherwise the fixed RECOMMENDATIONS advice. Without it (the free Ask
+     * Mira) there are no recommendations and no OpenAI call.
      *
      * @param list<array{category: 'titles'|'structure'|'images'|'security'|'mobile'|'links'|'discoverability'|'social'|'richresults', name: string, status: string, detail: string}> $checks
      *
@@ -414,10 +472,36 @@ class WebsiteAnalyzerService
      *   url: string, overall: int, grade: string,
      *   counts: array{pass: int, warn: int, fail: int},
      *   categories: list<array{key: string, label: string, score: int|null, checks?: array, subscores?: array, metrics?: array}>,
+     *   recommendations_source: 'ai'|'standard'|'none',
+     *   top_recommendations: list<array{name: string, status: string, recommendation: string}>,
      * }
      */
-    public function buildReport(string $url, array $checks): array
+    public function buildReport(string $url, array $checks, bool $withRecommendations = false): array
     {
+        $source = 'none';
+
+        if ($withRecommendations) {
+            // Fixed advice first, then let OpenAI replace it with site-specific
+            // fixes. Any check OpenAI doesn't answer (or every check, if the
+            // call fails or isn't configured) keeps the fixed advice.
+            $checks = array_map(fn ($c) => $c + ['recommendation' => $this->recommendationFor($c)], $checks);
+            $source = 'standard';
+
+            $page   = ($this->lastPage['url'] ?? null) === $url ? $this->lastPage : null;
+            $aiRecs = $this->recommender->recommend(
+                $page,
+                array_filter($checks, fn ($c) => in_array($c['status'], ['fail', 'warn'], true)),
+                self::CATEGORIES
+            );
+
+            if ($aiRecs !== []) {
+                foreach ($aiRecs as $i => $text) {
+                    $checks[$i]['recommendation'] = $text;
+                }
+                $source = 'ai';
+            }
+        }
+
         $scored         = $this->scoreChecks($checks);
         $categoryScores = $scored['categoryScores'];
 
@@ -439,13 +523,36 @@ class WebsiteAnalyzerService
             ];
         }
 
+        // Biggest problems first for the overview: every fail, then warns, in check order.
+        $actionable = array_values(array_filter($checks, fn ($c) => ($c['recommendation'] ?? null) !== null));
+        usort($actionable, fn ($a, $b) => ($a['status'] === 'fail' ? 0 : 1) <=> ($b['status'] === 'fail' ? 0 : 1));
+
         return [
-            'url'        => $url,
-            'overall'    => $overall,
-            'grade'      => $this->grade($overall),
-            'counts'     => $scored['counts'],
-            'categories' => $categories,
+            'url'                 => $url,
+            // Page <title>, for UIs that name the analysed site (e.g. Premium Mira's "Your website" card).
+            'title'               => ($this->lastPage['url'] ?? null) === $url ? $this->lastPage['title'] : '',
+            'overall'             => $overall,
+            'grade'               => $this->grade($overall),
+            'counts'              => $scored['counts'],
+            'categories'          => $categories,
+            'recommendations_source' => $source,   // 'ai' (OpenAI), 'standard' (fixed advice) or 'none' (free Ask Mira)
+            'top_recommendations' => array_map(
+                fn ($c) => ['name' => $c['name'], 'status' => $c['status'], 'recommendation' => $c['recommendation']],
+                array_slice($actionable, 0, self::MAX_TOP_RECOMMENDATIONS)
+            ),
         ];
+    }
+
+    /** The fix for a fail/warn check, or null when it passed (or has no advice yet). */
+    private function recommendationFor(array $check): ?string
+    {
+        if (!in_array($check['status'], ['fail', 'warn'], true)) {
+            return null;
+        }
+
+        $advice = self::RECOMMENDATIONS[$check['name']] ?? null;
+
+        return is_array($advice) ? ($advice[$check['status']] ?? null) : $advice;
     }
 
     /**
@@ -503,6 +610,31 @@ class WebsiteAnalyzerService
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    /** @return string[] H1–H3 texts, e.g. "H2: Our services", at most 25. */
+    private function pageHeadings(\DOMXPath $xpath): array
+    {
+        $headings = [];
+        foreach ($xpath->query('//h1|//h2|//h3') as $h) {
+            $text = trim(preg_replace('/\s+/u', ' ', $h->textContent));
+            if ($text !== '' && count($headings) < 25) {
+                $headings[] = strtoupper($h->nodeName) . ': ' . $text;
+            }
+        }
+
+        return $headings;
+    }
+
+    /** Visible body text (no script/style), whitespace-collapsed, first ~3000 characters. */
+    private function pageText(\DOMXPath $xpath): string
+    {
+        $parts = [];
+        foreach ($xpath->query('//body//text()[not(ancestor::script) and not(ancestor::style) and not(ancestor::noscript)]') as $node) {
+            $parts[] = $node->nodeValue;
+        }
+
+        return mb_substr(trim(preg_replace('/\s+/u', ' ', implode(' ', $parts))), 0, 3000);
     }
 
     private function parseHtml(string $html): \DOMXPath
