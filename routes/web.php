@@ -478,6 +478,24 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     // pages straight from the database on demand. {dataset} must be one of
     // the keys below, matching MM_LIST_SLUGS' `list` values in
     // mock-master-helper.blade.php.
+    // Student profile popup — opened by clicking a student's name in any
+    // Mock Master Helper list. Rows carry a student id (sid) where one is
+    // at hand, otherwise the email; either is enough to find the student.
+    Route::get('mock-master-helper/student', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'sid' => 'nullable|integer|min:1',
+            'email' => 'nullable|string|max:255',
+        ]);
+        if (empty($data['sid']) && empty($data['email'])) {
+            return response()->json(['message' => 'A student id or email is required.'], 422);
+        }
+
+        $profile = (new \App\Services\MockMaster\MockMasterDataService())
+            ->studentProfile(isset($data['sid']) ? (int) $data['sid'] : null, $data['email'] ?? null);
+
+        return $profile ? response()->json($profile) : response()->json(['message' => 'Student not found.'], 404);
+    })->name('mock-master-helper.student');
+
     Route::get('mock-master-helper/more/{dataset}', function (\Illuminate\Http\Request $request, string $dataset) {
         $mm = new \App\Services\MockMaster\MockMasterDataService();
         $fetchers = [

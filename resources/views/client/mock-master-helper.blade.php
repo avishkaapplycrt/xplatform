@@ -342,7 +342,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
-                                    <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($s['name']) }}">{{ $mmInitial($s['name']) }}</span><div><div class="bh-acct-n">{{ $s['name'] }}</div><div class="bh-acct-c">({{ $s['sub'] }})</div></div></div></td>
+                                    <td class="acctn" data-mm-stu data-sid="{{ $s['sid'] ?? '' }}" data-email="{{ $s['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($s['name']) }}">{{ $mmInitial($s['name']) }}</span><div><div class="bh-acct-n">{{ $s['name'] }}</div><div class="bh-acct-c">({{ $s['sub'] }})</div></div></div></td>
                                     <td>{{ $s['value'] }}</td>
                                     <td>{{ $s['paymentDate'] }}</td>
                                     <td><span class="bh-pill {{ $mmStageKind($s['stage']) }}">{{ $s['stage'] }}</span></td>
@@ -476,18 +476,19 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <div class="si-p">The prospects that need your attention right now, ranked by <b>buying readiness</b> and <b>intent</b>. Use this to decide who to call today versus who to nurture.</div>
                         </div>
                         <table class="dtbl">
-                            <thead><tr><th>Prospect</th><th>Readiness</th><th>Intent</th><th>Trust</th><th>Play</th></tr></thead>
+                            <thead><tr><th>Prospect</th><th>Readiness</th><th>Intent</th><th>Trust</th><th>Play</th><th>Action</th></tr></thead>
                             <tbody>
                                 @forelse($slProspects as $p)
                                 <tr>
-                                    <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div><div class="bh-acct-n">{{ $p['name'] }}</div><div class="bh-acct-c">({{ $p['sub'] }})</div></div></div></td>
+                                    <td class="acctn" data-mm-stu data-sid="{{ $p['sid'] ?? '' }}" data-email="{{ $p['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div><div class="bh-acct-n">{{ $p['name'] }}</div><div class="bh-acct-c">({{ $p['sub'] }})</div></div></div></td>
                                     <td>{{ $p['readiness'] }}</td>
                                     <td>{{ $p['intent'] }}</td>
                                     <td>{{ $p['trust'] }}</td>
                                     <td><span class="stk-play {{ $p['play'] === 'Call' ? 'call' : 'onboarding' }}">{{ $p['play'] }}</span></td>
+                                    <td><button type="button" class="mm-act-btn" data-mm-compose="prospect" data-row="{{ json_encode($p) }}">View</button></td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="5" style="color:var(--g3);padding:20px">No trial-only prospects found right now.</td></tr>
+                                <tr><td colspan="6" style="color:var(--g3);padding:20px">No trial-only prospects found right now.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -496,12 +497,12 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="sl-accounts" style="display:none">
                         <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Every prospect in your pipeline, in one place.</div></div>
                         <table class="dtbl">
-                            <thead><tr><th>Prospect</th><th>Readiness</th><th>Intent</th><th>Trust</th><th>Play</th></tr></thead>
+                            <thead><tr><th>Prospect</th><th>Readiness</th><th>Intent</th><th>Trust</th><th>Play</th><th>Action</th></tr></thead>
                             <tbody>
                                 @forelse($slProspects as $p)
-                                <tr><td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div class="bh-acct-n">{{ $p['name'] }}</div></div></td><td>{{ $p['readiness'] }}</td><td>{{ $p['intent'] }}</td><td>{{ $p['trust'] }}</td><td>{{ $p['play'] }}</td></tr>
+                                <tr><td class="acctn" data-mm-stu data-sid="{{ $p['sid'] ?? '' }}" data-email="{{ $p['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div class="bh-acct-n">{{ $p['name'] }}</div></div></td><td>{{ $p['readiness'] }}</td><td>{{ $p['intent'] }}</td><td>{{ $p['trust'] }}</td><td>{{ $p['play'] }}</td><td><button type="button" class="mm-act-btn" data-mm-compose="prospect" data-row="{{ json_encode($p) }}">View</button></td></tr>
                                 @empty
-                                <tr><td colspan="5" style="color:var(--g3);padding:20px">No prospects found right now.</td></tr>
+                                <tr><td colspan="6" style="color:var(--g3);padding:20px">No prospects found right now.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -662,7 +663,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <tbody>
                                 @forelse($chAtRisk as $r)
                                 <tr>
-                                    <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div><div class="bh-acct-c">({{ $r['sub'] }})</div></div></div></td>
+                                    <td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div><div class="bh-acct-c">({{ $r['sub'] }})</div></div></div></td>
                                     <td>{{ $r['inactiveDays'] }}d</td>
                                     <td>{{ $r['valueAtRisk'] }}</td>
                                     <td><span style="color:var(--crit);font-weight:600">{{ $r['risk'] }}</span></td>
@@ -696,7 +697,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <thead><tr><th>Student</th><th>Inactive for</th><th>Value at risk</th><th>Risk score</th></tr></thead>
                             <tbody>
                                 @forelse($chWatchlist as $r)
-                                <tr><td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
+                                <tr><td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
                                 @empty
                                 <tr><td colspan="4" style="color:var(--g3);padding:20px">Nothing trending toward churn right now.</td></tr>
                                 @endforelse
@@ -773,6 +774,21 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
 
         {{-- Popup for "which/who" style answers — a clean table of the real
              students behind the answer, instead of a run-on paragraph. --}}
+        {{-- Student profile popup — opened by clicking a student's name in any list (see mmProfileOpen) --}}
+        <div class="mm-stu-overlay" id="mmStuOverlay" onclick="if(event.target===this) mmProfileClose()" role="dialog" aria-modal="true" aria-labelledby="mmStuName">
+            <div class="mm-stu-card">
+                <button type="button" class="mm-stu-x" onclick="mmProfileClose()" aria-label="Close">✕</button>
+                <div class="mm-stu-top">
+                    <div class="mm-stu-pic" id="mmStuPic"></div>
+                    <div class="mm-stu-id">
+                        <div class="mm-stu-name" id="mmStuName">Loading…</div>
+                        <div class="mm-stu-course" id="mmStuCourse"></div>
+                    </div>
+                </div>
+                <dl class="mm-stu-dl" id="mmStuBody"></dl>
+            </div>
+        </div>
+
         <div class="mm-list-modal-overlay" id="mmListModalOverlay" onclick="if(event.target===this) closeMmListModal()">
             <div class="mm-list-modal">
                 <div class="mm-list-modal-hd">
@@ -961,6 +977,66 @@ body.mm-syncing #mmSyncOverlay{display:flex}
    list-shaped answer (who/which questions) is a clean table, not a run-on
    paragraph. */
 .mm-list-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:200;align-items:center;justify-content:center;padding:24px}
+
+/* Clickable student names (any element with data-mm-stu) + profile popup */
+[data-mm-stu] .bh-acct-n,[data-mm-stu] .bh-av{cursor:pointer}
+[data-mm-stu] .bh-acct-n:hover{color:#4f46e5;text-decoration:underline;text-underline-offset:2px}
+.mm-stu-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.5);z-index:10050;align-items:center;justify-content:center;padding:24px}
+.mm-stu-overlay.show{display:flex}
+.mm-stu-card{position:relative;background:#fff;border-radius:14px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.25);padding:22px 22px 18px;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+.mm-stu-x{position:absolute;top:12px;right:12px;border:none;background:none;font-size:15px;color:#9ca3af;cursor:pointer;padding:4px;line-height:1}
+.mm-stu-x:hover{color:#111827}
+.mm-stu-top{display:flex;align-items:center;gap:14px;margin-bottom:16px;padding-right:20px}
+.mm-stu-pic{width:64px;height:64px;border-radius:50%;flex-shrink:0;overflow:hidden;background:#eef2ff;display:grid;place-items:center}
+.mm-stu-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.mm-stu-ini{font-size:24px;font-weight:700;color:#4f46e5}
+.mm-stu-name{font-size:16px;font-weight:700;color:#111827;line-height:1.3}
+.mm-stu-course{display:inline-block;margin-top:5px;font-size:11px;font-weight:600;color:#4338ca;background:#eef2ff;border-radius:6px;padding:2px 8px}
+.mm-stu-course:empty{display:none}
+.mm-stu-dl{display:grid;grid-template-columns:auto 1fr;gap:0;margin:0;border:1px solid #e6e9f0;border-radius:10px;overflow:hidden}
+.mm-stu-dl dt,.mm-stu-dl dd{margin:0;padding:9px 12px;border-top:1px solid #e6e9f0;font-size:12.5px}
+.mm-stu-dl dt:first-of-type,.mm-stu-dl dt:first-of-type + dd{border-top:none}
+.mm-stu-dl dt{color:#64748b;font-weight:600;background:#f7f8fb;white-space:nowrap}
+.mm-stu-dl dd{color:#111827;display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.mm-stu-dl dd span{overflow-wrap:anywhere}
+.mm-stu-none{color:#9ca3af;font-style:italic}
+.mm-stu-copy{flex-shrink:0;font-size:10.5px;font-weight:600;color:#4338ca;background:#fff;border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;cursor:pointer}
+.mm-stu-copy:hover{background:#eef2ff}
+.mm-stu-err{grid-column:1 / -1;margin:0;padding:12px;font-size:12.5px;color:#64748b}
+
+/* Action column "View" button + message composer (mmComposeOpen) */
+.mm-act-btn{padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit}
+.mm-act-btn:hover{background:#6d28d9}
+.mm-act-btn:focus-visible{outline:2px solid #c4b5fd;outline-offset:2px}
+.mm-cmp-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:10040;align-items:center;justify-content:center;padding:24px}
+.mm-cmp-overlay.show{display:flex}
+.mm-cmp{background:#fff;border-radius:12px;width:100%;max-width:880px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+.mm-cmp-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid #e5e7eb}
+.mm-cmp-title{font-size:14px;font-weight:700;color:#111827}
+.mm-cmp-contact{font-size:12px;color:#6b7280;margin-top:2px;overflow-wrap:anywhere}
+.mm-cmp-x{border:none;background:none;font-size:15px;color:#9ca3af;cursor:pointer;padding:4px;line-height:1}
+.mm-cmp-x:hover{color:#111827}
+.mm-cmp-body{display:grid;grid-template-columns:1fr 1.4fr;gap:20px;padding:16px 18px;overflow:auto}
+.mm-cmp-body:has(#mmCmpEdit[hidden]){grid-template-columns:1fr}
+@media(max-width:720px){.mm-cmp-body{grid-template-columns:1fr}}
+.mm-cmp-lbl{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;margin-bottom:8px}
+.mm-cmp-tpls{display:grid;gap:8px}
+.mm-cmp-tpl{display:block;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;cursor:pointer;background:#fff;transition:border-color .15s}
+.mm-cmp-tpl:hover{border-color:#c4b5fd}
+.mm-cmp-tpl:has(input:checked){border-color:#7c3aed;background:#f5f3ff}
+.mm-cmp-tpl input{margin-right:6px;accent-color:#7c3aed}
+.mm-cmp-tpl b{font-size:12.5px;color:#111827}
+.mm-cmp-tpl span{display:block;font-size:11px;color:#6b7280;margin:3px 0 0 20px}
+.mm-cmp-flbl{display:block;font-size:11px;font-weight:700;color:#6b7280}
+.mm-cmp-flbl span{font-weight:400}
+.mm-cmp-in{width:100%;margin:4px 0 10px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;color:#111827}
+.mm-cmp-in:focus{outline:none;border-color:#c4b5fd;box-shadow:0 0 0 3px #f5f3ff}
+textarea.mm-cmp-in{resize:vertical;line-height:1.55}
+.mm-cmp-send{display:flex;gap:10px;justify-content:flex-end;margin-top:4px}
+.mm-cmp-send button{padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;border:none;background:#e5e7eb;color:#9ca3af;cursor:not-allowed;font-family:inherit}
+#mmCmpEmail.on{background:#2563eb;color:#fff;cursor:pointer}
+#mmCmpWa.on{background:#16a34a;color:#fff;cursor:pointer}
+.mm-cmp-hint{font-size:11.5px;color:#6b7280;margin:0;padding:0 18px 14px;text-align:right}
 .mm-list-modal-overlay.show{display:flex}
 .mm-list-modal{background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
 .mm-list-modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;color:#111827}
@@ -1409,12 +1485,14 @@ function mmRenderListTable(entry) {
     var head = '<tr><th>#</th>' + cols.map(function (k) {
         var label = MM_LIST_COL_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
         return '<th>' + label + '</th>';
-    }).join('') + '</tr>';
+    }).join('') + '<th>Action</th></tr>';
+    var ctx = MM_CMP_DATASET_CTX[entry.dataset] || 'marketing';
     var body = rows.map(function (r, i) {
         return '<tr><td>' + (i + 1) + '</td>' + cols.map(function (k) {
             var v = r[k];
-            return '<td>' + (v === null || v === undefined || v === '' ? '—' : escapeHtml(v)) + '</td>';
-        }).join('') + '</tr>';
+            var text = (v === null || v === undefined || v === '' ? '—' : escapeHtml(v));
+            return k === 'name' ? '<td ' + mmStuAttrs(r) + '><span class="bh-acct-n">' + text + '</span></td>' : '<td>' + text + '</td>';
+        }).join('') + '<td>' + mmCmpBtn(ctx, r) + '</td></tr>';
     }).join('');
 
     var footer = entry.hasMore
@@ -1455,6 +1533,282 @@ function closeMmListModal() {
     var overlay = document.getElementById('mmListModalOverlay');
     if (overlay) overlay.classList.remove('show');
 }
+
+/* ── Student profile popup ──
+   Any name cell carrying data-mm-stu opens the student's details. Rows
+   give a student id (sid) where available, otherwise an email. */
+var MM_STUDENT_URL = '{{ route('client.mock-master-helper.student') }}';
+function mmStuAttrs(r) {
+    var sid = r && r.sid ? String(r.sid) : '';
+    var email = r && r.email ? String(r.email) : '';
+    if (!sid && !email) return '';
+    return 'data-mm-stu data-sid="' + mmEsc(sid) + '" data-email="' + mmEsc(email) + '"';
+}
+function mmStuRow(label, value, copy) {
+    var v = value ? escapeHtml(value) : '<span class="mm-stu-none">Not on file</span>';
+    var btn = (value && copy) ? '<button type="button" class="mm-stu-copy" data-copy="' + escapeHtml(value) + '">Copy</button>' : '';
+    return '<dt>' + label + '</dt><dd><span>' + v + '</span>' + btn + '</dd>';
+}
+function mmProfileOpen(sid, email) {
+    if (!sid && !email) return;
+    var overlay = document.getElementById('mmStuOverlay');
+    document.getElementById('mmStuName').textContent = 'Loading…';
+    document.getElementById('mmStuCourse').textContent = '';
+    document.getElementById('mmStuPic').innerHTML = '';
+    document.getElementById('mmStuBody').innerHTML = '';
+    overlay.classList.add('show');
+
+    var qs = sid ? 'sid=' + encodeURIComponent(sid) : 'email=' + encodeURIComponent(email);
+    fetch(MM_STUDENT_URL + '?' + qs, { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { if (!r.ok) throw r.status; return r.json(); })
+        .then(function (p) {
+            var full = [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Unnamed student';
+            document.getElementById('mmStuName').textContent = full;
+            document.getElementById('mmStuCourse').textContent = p.course_type || '';
+            var initial = escapeHtml((p.first_name || full).trim().charAt(0).toUpperCase() || '?');
+            var pic = document.getElementById('mmStuPic');
+            pic.innerHTML = '<span class="mm-stu-ini">' + initial + '</span>';
+            if (p.profile_picture) {
+                var img = new Image();
+                img.alt = full;
+                img.referrerPolicy = 'no-referrer';
+                img.onload = function () { pic.innerHTML = ''; pic.appendChild(img); };
+                img.src = p.profile_picture;
+            }
+            document.getElementById('mmStuBody').innerHTML =
+                mmStuRow('First name', p.first_name) +
+                mmStuRow('Last name', p.last_name) +
+                mmStuRow('Course type', p.course_type) +
+                mmStuRow('Mobile number', p.phone, true) +
+                mmStuRow('Email', p.email, true);
+        })
+        .catch(function (status) {
+            document.getElementById('mmStuName').textContent = status === 404 ? 'Student not found' : 'Could not load details';
+            document.getElementById('mmStuBody').innerHTML = '<p class="mm-stu-err">' +
+                (status === 404 ? 'This student may have been removed from Mock Master.' : 'Please try again in a moment.') + '</p>';
+        });
+}
+function mmProfileClose() {
+    document.getElementById('mmStuOverlay').classList.remove('show');
+}
+document.addEventListener('click', function (e) {
+    var copy = e.target.closest('.mm-stu-copy');
+    if (copy) {
+        var text = copy.getAttribute('data-copy');
+        var done = function () { copy.textContent = 'Copied'; setTimeout(function () { copy.textContent = 'Copy'; }, 1500); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () {});
+        return;
+    }
+    var cell = e.target.closest('[data-mm-stu]');
+    if (!cell || !e.target.closest('.bh-acct-n, .bh-av')) return;
+    mmProfileOpen(cell.getAttribute('data-sid'), cell.getAttribute('data-email'));
+});
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && document.getElementById('mmStuOverlay').classList.contains('show')) mmProfileClose();
+});
+
+/* ── Action column: "View" → message composer ──
+   One composer for every Sales, Marketing and Retention list. Each list
+   passes its context (which template set fits) and its row; the student's
+   real email and mobile are loaded from the profile endpoint. Separate from
+   the Campaign table's own composer (mmStudentOpen), which is unchanged. */
+var MM_CMP_TEMPLATES = {
+    prospect: [
+        { key: 'next-mock', label: 'Take your next mock test', hint: 'Free-trial student, early stage', subject: 'Your next PTE mock test, {first}',
+          body: 'Hi {first}, thanks for starting your {course} preparation with Mock Master. Taking a full scored mock test next will show exactly where to focus. Want me to send you the link?' },
+        { key: 'call', label: 'Book a quick call', hint: 'Plan their preparation together', subject: 'Quick call about your {course} preparation?',
+          body: "Hi {first}, I'd love to help you plan your {course} preparation. When's a good time for a quick 5-minute call this week?" },
+        { key: 'upgrade', label: 'Upgrade from free', hint: 'Show what paid plans unlock', subject: 'Unlock full mock tests, {first}',
+          body: "Hi {first}, you're on the free plan. Our paid plans unlock full mock tests with score reports, so you can track your progress before exam day. Shall I send you the options?" }
+    ],
+    convert: [
+        { key: 'plan', label: 'Recommend a plan', hint: 'Active free-trial student', subject: 'The right plan for you, {first}',
+          body: "Hi {first}, you've been practising well on Mock Master. A paid plan gives you full mock tests and score reports to reach your target. Shall I send you the best option for you?" },
+        { key: 'scored-mock', label: 'Take a full scored mock', hint: 'No scored test yet', subject: 'Get your real score, {first}',
+          body: 'Hi {first}, a full scored mock test will show your real score and which section to focus on. Want me to send you the link?' },
+        { key: 'checkout', label: 'Help finish checkout', hint: 'Started paying but stopped', subject: 'Need a hand finishing sign-up, {first}?',
+          body: 'Hi {first}, I noticed you started signing up for a plan. Can I help you finish? Reply here and I\'ll send you the link.' }
+    ],
+    abandoned: [
+        { key: 'finish', label: 'Finish your checkout', hint: 'Payment started, not completed', subject: 'Your {package} is almost ready, {first}',
+          body: "Hi {first}, you started checking out {package} ({amount}) but didn't finish. It's still available. Reply and I'll send you the payment link." },
+        { key: 'help', label: 'Offer payment help', hint: 'Payment may have failed', subject: 'Did your payment go through, {first}?',
+          body: "Hi {first}, it looks like your payment for {package} didn't go through. Did something go wrong? I'm happy to help you complete it." },
+        { key: 'question', label: 'Any questions?', hint: 'Still deciding', subject: 'Any questions about {package}?',
+          body: "Hi {first}, before you decide on {package}, do you have any questions I can answer? I'm here to help." }
+    ],
+    renewals: [
+        { key: 'renew', label: 'Renewal reminder', hint: 'Plan expiring soon', subject: 'Your {package} expires {expires}',
+          body: 'Hi {first}, your {package} expires {expires}. Renew now to keep your access and progress without a break. Reply RENEW and I\'ll send your link.' },
+        { key: 'longer', label: 'Upgrade to a longer plan', hint: 'Still practising actively', subject: 'Stay covered until exam day, {first}',
+          body: "Hi {first}, you've been practising consistently. A longer plan keeps you covered until exam day and costs less per month. Want the details?" },
+        { key: 'checkin', label: 'Check-in', hint: 'Activity has slowed', subject: 'How is your preparation going, {first}?',
+          body: "Hi {first}, how's your preparation going? Your {package} expires {expires}. Is your exam date still on track?" }
+    ],
+    winback: [
+        { key: 'comeback', label: 'Come back offer', hint: 'Lapsed, still logging in', subject: "We'd love to have you back, {first}",
+          body: "Hi {first}, your {package} ended {expired}, but we noticed you're still logging in. Renew today and pick up right where you left off." },
+        { key: 'progress', label: 'Keep your progress', hint: 'Practice history saved', subject: 'Your practice history is waiting, {first}',
+          body: 'Hi {first}, your practice history is still saved. Renew your {package} to keep building on it before your exam.' },
+        { key: 'ask', label: 'Ask what they need', hint: 'Find out why they left', subject: 'Can we help, {first}?',
+          body: 'Hi {first}, I saw your plan ended recently. Is there anything we could do better, or a plan that would suit you more?' }
+    ],
+    retention: [
+        { key: 'renew', label: 'Renewal reminder', hint: 'Package expiring', subject: 'Your {package} is expiring soon, {first}',
+          body: 'Hi {first}, your {package} is expiring soon. Renew now to keep your access and progress without a break. Reply RENEW and I\'ll send your link.' },
+        { key: 'reengage', label: 'We miss you', hint: 'Not active recently', subject: 'We miss you, {first}',
+          body: 'Hi {first}, we noticed you haven\'t practised in a while. Log in today and take your next mock test to stay on track.' },
+        { key: 'call', label: 'Offer a quick call', hint: 'Help plan next steps', subject: 'Can I help with your preparation, {first}?',
+          body: 'Hi {first}, would a quick call help you plan your next steps before your exam? Reply with a time that suits you.' }
+    ],
+    marketing: [
+        { key: 'checkin', label: 'Friendly check-in', hint: 'Any student', subject: 'How is your preparation going, {first}?',
+          body: "Hi {first}, just checking in from Mock Master. How's your preparation going? Reply if there's anything we can help with." },
+        { key: 'progress', label: 'Celebrate progress', hint: 'Active or high-scoring', subject: 'Great work on your mock tests, {first}',
+          body: 'Hi {first}, great work on your recent mock tests. Keep it up: regular full tests are the fastest way to your target score.' },
+        { key: 'offer', label: 'Plan offer', hint: 'Keep momentum going', subject: 'Keep your momentum going, {first}',
+          body: 'Hi {first}, want to keep your momentum going? Our plans include full mock tests with score reports. Shall I send you the options?' },
+        { key: 'referral', label: 'Feedback and referral', hint: 'Happy students', subject: 'How was your experience, {first}?',
+          body: "Hi {first}, we'd love to hear how your preparation with Mock Master is going. And if friends are preparing for the PTE, feel free to share us with them!" }
+    ]
+};
+/* Which template set each popup dataset uses. */
+var MM_CMP_DATASET_CTX = {
+    slProspects: 'prospect', slClose: 'convert', slAbandoned: 'abandoned',
+    chRenewals: 'renewals', chWinBack: 'winback', chAtRisk: 'retention', chWatchlist: 'retention',
+    mkTopScorers: 'marketing', mkNewStudents: 'marketing'
+};
+var MM_CMP = null;
+
+/* Action-column button for one row; ctx picks the template set. */
+function mmCmpBtn(ctx, row) {
+    return '<button type="button" class="mm-act-btn" data-mm-compose="' + mmEsc(ctx) + '" data-row="' + mmEsc(JSON.stringify(row || {})) + '">View</button>';
+}
+function mmCmpVars(row, contact) {
+    var name = String(row.name || '').trim();
+    var sub = String(row.sub || '');
+    var course = /^Interested in /.test(sub) ? sub.replace(/^Interested in /, '') : '';
+    return {
+        first: (contact.first_name || name.split(' ')[0] || 'there'),
+        name: name || 'there',
+        course: contact.course_type || course || 'PTE',
+        package: row.package || row.product || (course ? '' : sub) || 'your plan',
+        amount: row.amount || row.value || '',
+        expires: row.expires || 'soon',
+        expired: row.expired || 'recently'
+    };
+}
+function mmCmpFill(text, v) {
+    return String(text).replace(/\{(\w+)\}/g, function (m, k) { return v[k] !== undefined && v[k] !== '' ? v[k] : m; })
+        .replace(/ \(\{amount\}\)/g, '').replace(/\{amount\}/g, '');
+}
+function mmComposeOpen(ctx, row) {
+    var templates = MM_CMP_TEMPLATES[ctx] || MM_CMP_TEMPLATES.marketing;
+    MM_CMP = { ctx: ctx, row: row, templates: templates, contact: { email: row.email || null, phone: row.phone || null } };
+
+    var overlay = document.getElementById('mmCmpOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'mmCmpOverlay';
+        overlay.className = 'mm-cmp-overlay';
+        overlay.onclick = function (e) { if (e.target === overlay) mmComposeClose(); };
+        overlay.innerHTML =
+            '<div class="mm-cmp" role="dialog" aria-modal="true" aria-labelledby="mmCmpTitle">' +
+                '<div class="mm-cmp-hd"><div><div class="mm-cmp-title" id="mmCmpTitle"></div><div class="mm-cmp-contact" id="mmCmpContact"></div></div>' +
+                '<button type="button" class="mm-cmp-x" onclick="mmComposeClose()" aria-label="Close">✕</button></div>' +
+                '<div class="mm-cmp-body">' +
+                    '<div><div class="mm-cmp-lbl">Choose a message</div><div class="mm-cmp-tpls" id="mmCmpTpls"></div></div>' +
+                    '<div class="mm-cmp-edit" id="mmCmpEdit" hidden>' +
+                        '<div class="mm-cmp-lbl">Edit and send</div>' +
+                        '<label class="mm-cmp-flbl" for="mmCmpSubject">Email subject <span>(email only)</span></label>' +
+                        '<input id="mmCmpSubject" type="text" class="mm-cmp-in">' +
+                        '<label class="mm-cmp-flbl" for="mmCmpMsg">Message <span>(used for Email and WhatsApp)</span></label>' +
+                        '<textarea id="mmCmpMsg" rows="7" class="mm-cmp-in"></textarea>' +
+                        '<div class="mm-cmp-send"><button type="button" id="mmCmpEmail" onclick="mmComposeSend(\'email\')">Email</button>' +
+                        '<button type="button" id="mmCmpWa" onclick="mmComposeSend(\'wa\')">WhatsApp</button></div>' +
+                    '</div>' +
+                '</div>' +
+                '<p class="mm-cmp-hint" id="mmCmpHint">Pick a message to enable sending.</p>' +
+            '</div>';
+        document.body.appendChild(overlay);
+    }
+
+    document.getElementById('mmCmpTitle').textContent = row.name || 'Student';
+    document.getElementById('mmCmpContact').textContent = 'Loading contact details…';
+    document.getElementById('mmCmpEdit').hidden = true;
+    document.getElementById('mmCmpTpls').innerHTML = templates.map(function (t) {
+        return '<label class="mm-cmp-tpl"><input type="radio" name="mmCmpTpl" value="' + mmEsc(t.key) + '" onchange="mmComposePick(\'' + mmEsc(t.key) + '\')">' +
+            '<b>' + mmEsc(t.label) + '</b><span>' + mmEsc(t.hint) + '</span></label>';
+    }).join('');
+    mmComposeButtons(false);
+    overlay.classList.add('show');
+
+    // Load the real email and mobile number (rows don't always carry a phone).
+    var qs = row.sid ? 'sid=' + encodeURIComponent(row.sid) : (row.email ? 'email=' + encodeURIComponent(row.email) : '');
+    var showContact = function () {
+        var c = MM_CMP.contact, parts = [];
+        if (c.email) parts.push(c.email);
+        if (c.phone) parts.push(c.phone);
+        document.getElementById('mmCmpContact').textContent = parts.length ? parts.join(' · ') : 'No email or mobile number on file';
+        var picked = document.querySelector('input[name="mmCmpTpl"]:checked');
+        mmComposeButtons(!!picked);
+    };
+    if (!qs) { showContact(); return; }
+    var forRow = row;
+    fetch(MM_STUDENT_URL + '?' + qs, { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (p) {
+            if (!MM_CMP || MM_CMP.row !== forRow) return; // composer was reopened for someone else
+            if (p) MM_CMP.contact = { email: p.email || MM_CMP.contact.email, phone: p.phone || MM_CMP.contact.phone, first_name: p.first_name, course_type: p.course_type };
+            showContact();
+        })
+        .catch(function () { if (MM_CMP && MM_CMP.row === forRow) showContact(); });
+}
+function mmComposePick(key) {
+    if (!MM_CMP) return;
+    var t = MM_CMP.templates.find(function (x) { return x.key === key; });
+    if (!t) return;
+    var v = mmCmpVars(MM_CMP.row, MM_CMP.contact);
+    document.getElementById('mmCmpEdit').hidden = false;
+    document.getElementById('mmCmpSubject').value = mmCmpFill(t.subject, v);
+    document.getElementById('mmCmpMsg').value = mmCmpFill(t.body, v);
+    mmComposeButtons(true);
+}
+function mmComposeButtons(on) {
+    var c = (MM_CMP && MM_CMP.contact) || {};
+    var canEmail = on && !!c.email;
+    var canWa = on && !!String(c.phone || '').replace(/\D/g, '');
+    var email = document.getElementById('mmCmpEmail'), wa = document.getElementById('mmCmpWa');
+    email.disabled = !canEmail; email.classList.toggle('on', canEmail);
+    wa.disabled = !canWa; wa.classList.toggle('on', canWa);
+    document.getElementById('mmCmpHint').textContent = !on ? 'Pick a message to enable sending.'
+        : (canEmail || canWa ? 'Edit the message if you like, then send it.' : 'This student has no email or mobile number on file.');
+}
+function mmComposeSend(channel) {
+    if (!MM_CMP) return;
+    var c = MM_CMP.contact, body = document.getElementById('mmCmpMsg').value;
+    if (channel === 'email' && c.email) {
+        window.location.href = 'mailto:' + encodeURIComponent(c.email) + '?subject=' + encodeURIComponent(document.getElementById('mmCmpSubject').value) + '&body=' + encodeURIComponent(body);
+    } else if (channel === 'wa') {
+        var digits = String(c.phone || '').replace(/\D/g, '');
+        if (digits) window.open('https://wa.me/' + digits + '?text=' + encodeURIComponent(body), '_blank', 'noopener');
+    }
+}
+function mmComposeClose() {
+    var o = document.getElementById('mmCmpOverlay');
+    if (o) o.classList.remove('show');
+}
+document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-mm-compose]');
+    if (!btn) return;
+    var row = {};
+    try { row = JSON.parse(btn.getAttribute('data-row') || '{}'); } catch (err) {}
+    mmComposeOpen(btn.getAttribute('data-mm-compose'), row);
+});
+document.addEventListener('keydown', function (e) {
+    var o = document.getElementById('mmCmpOverlay');
+    if (e.key === 'Escape' && o && o.classList.contains('show') && !document.getElementById('mmStuOverlay').classList.contains('show')) mmComposeClose();
+});
 
 /* Sales · Scripts — switch between the Call / Email / WhatsApp lists, and
    copy one script (with its email subject) to the clipboard. */
@@ -1605,11 +1959,14 @@ function mmKpiRender(data, page) {
     var start = (page - 1) * MM_KPI_PAGE_SIZE;
     var slice = rows.slice(start, start + MM_KPI_PAGE_SIZE);
 
-    var head = '<tr><th>#</th>' + data.columns.map(function (c) { return '<th>' + escapeHtml(c.label) + '</th>'; }).join('') + '</tr>';
+    // Marketing detail lists of students get an Action column (message composer).
+    var hasStudents = data.columns.some(function (c) { return c.key === 'name'; }) && rows.some(function (r) { return r.sid || r.email; });
+    var head = '<tr><th>#</th>' + data.columns.map(function (c) { return '<th>' + escapeHtml(c.label) + '</th>'; }).join('') + (hasStudents ? '<th>Action</th>' : '') + '</tr>';
     var body = slice.map(function (r, i) {
         return '<tr><td>' + (start + i + 1) + '</td>' + data.columns.map(function (c) {
-            return '<td>' + escapeHtml(r[c.key] === null || r[c.key] === undefined || r[c.key] === '' ? '—' : String(r[c.key])) + '</td>';
-        }).join('') + '</tr>';
+            var text = escapeHtml(r[c.key] === null || r[c.key] === undefined || r[c.key] === '' ? '—' : String(r[c.key]));
+            return c.key === 'name' ? '<td ' + mmStuAttrs(r) + '><span class="bh-acct-n">' + text + '</span></td>' : '<td>' + text + '</td>';
+        }).join('') + (hasStudents ? '<td>' + ((r.sid || r.email) ? mmCmpBtn('marketing', r) : '') + '</td>' : '') + '</tr>';
     }).join('');
 
     var truncated = rows.length < data.total
@@ -1725,7 +2082,7 @@ function mmCampaignRender(data) {
             ? '<span class="bh-pill good">Offer-led</span>'
             : '<span class="bh-pill warn">Proof-led</span>';
         return '<tr>' +
-            '<td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:' + mmEsc(s.color) + '">' + mmEsc(s.initial) + '</span>' +
+            '<td class="acctn" ' + mmStuAttrs(s) + '><div class="bh-acct"><span class="bh-av" style="background:' + mmEsc(s.color) + '">' + mmEsc(s.initial) + '</span>' +
                 '<div><div class="bh-acct-n">' + mmEsc(s.name) + '</div><div class="bh-acct-c">(' + mmEsc(s.sub) + ')</div></div></div></td>' +
             '<td>' + mmEsc(s.value) + '</td>' +
             '<td>' + mmEsc(s.paymentDate) + '</td>' +

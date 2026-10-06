@@ -29,11 +29,12 @@
             @else<th>Last package</th><th>Expired</th><th>Value</th>
             @endif
             <th>Next step</th>
+            <th>Action</th>
         </tr></thead>
         <tbody>
             @foreach($tab['rows'] as $r)
             <tr>
-                <td class="acctn"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div>@if($tk !== 'convert')<div class="bh-acct-c">{{ $r['signals'] }}</div>@endif</div></div></td>
+                <td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div>@if($tk !== 'convert')<div class="bh-acct-c">{{ $r['signals'] }}</div>@endif</div></div></td>
                 @if($tk === 'convert')
                 <td><span class="bh-pill {{ $scoreKind($r['score']) }}">{{ $r['score'] }}</span></td>
                 <td class="cg-why">{{ $r['signals'] }}</td>
@@ -46,6 +47,7 @@
                 <td>{{ $r['package'] }}</td><td>{{ $r['expired'] }}</td><td>{{ $r['amount'] }}</td>
                 @endif
                 <td class="cg-next">{{ $r['action'] }}</td>
+                <td><button type="button" class="mm-act-btn" data-mm-compose="{{ $tk }}" data-row="{{ json_encode($r) }}">View</button></td>
             </tr>
             @endforeach
         </tbody>
