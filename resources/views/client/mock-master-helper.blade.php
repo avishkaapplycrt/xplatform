@@ -338,7 +338,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <button type="button" onclick="mmCampaignReset()" style="padding:7px 14px;border-radius:6px;border:1px solid var(--ln);color:var(--g3);font-size:12px;font-weight:600;cursor:pointer;background:#fff">Reset</button>
                         </form>
                         <table class="dtbl">
-                            <thead><tr><th>Student</th><th data-sort-key="value" onclick="mmCampaignSortBy('value')" data-tip="Amount paid for the selected Course" class="mm-sortable" style="cursor:pointer">Package value <span class="mm-sort-ind" data-for="value"></span></th><th data-sort-key="payment" onclick="mmCampaignSortBy('payment')" class="mm-sortable" style="cursor:pointer">Payment date <span class="mm-sort-ind" data-for="payment"></span></th><th data-sort-key="stage" onclick="mmCampaignSortBy('stage')" data-tip="Active, Renewal Due (expired within the last 14 days), or Expired." class="mm-sortable" style="cursor:pointer">Stage <span class="mm-sort-ind" data-for="stage"></span></th><th data-sort-key="readiness" onclick="mmCampaignSortBy('readiness')" data-tip="Average score across all mock tests. 0 = no results" class="mm-sortable" style="cursor:pointer">Readiness <span class="mm-sort-ind" data-for="readiness"></span></th><th data-sort-key="trust" onclick="mmCampaignSortBy('trust')" data-tip="Based on the percentage of payments completed. 50 = no payment history." class="mm-sortable" style="cursor:pointer">Trust <span class="mm-sort-ind" data-for="trust"></span></th><th data-sort-key="approach" onclick="mmCampaignSortBy('approach')" data-tip="Proof-led when Trust is below 65; otherwise Offer-led." class="mm-sortable" style="cursor:pointer">Approach <span class="mm-sort-ind" data-for="approach"></span></th><th data-sort-key="last_active" onclick="mmCampaignSortBy('last_active')" class="mm-sortable" style="cursor:pointer">Last active <span class="mm-sort-ind" data-for="last_active"></span></th></tr></thead>
+                            <thead><tr><th>Student</th><th data-sort-key="value" onclick="mmCampaignSortBy('value')" data-tip="Amount paid for the selected Course" class="mm-sortable" style="cursor:pointer">Package value <span class="mm-sort-ind" data-for="value"></span></th><th data-sort-key="payment" onclick="mmCampaignSortBy('payment')" class="mm-sortable" style="cursor:pointer">Payment date <span class="mm-sort-ind" data-for="payment"></span></th><th data-sort-key="stage" onclick="mmCampaignSortBy('stage')" data-tip="Active, Renewal Due (expired within the last 14 days), or Expired." class="mm-sortable" style="cursor:pointer">Stage <span class="mm-sort-ind" data-for="stage"></span></th><th data-sort-key="readiness" onclick="mmCampaignSortBy('readiness')" data-tip="Average score across all mock tests. 0 = no results" class="mm-sortable" style="cursor:pointer">Readiness <span class="mm-sort-ind" data-for="readiness"></span></th><th data-sort-key="trust" onclick="mmCampaignSortBy('trust')" data-tip="Based on the percentage of payments completed. 50 = no payment history." class="mm-sortable" style="cursor:pointer">Trust <span class="mm-sort-ind" data-for="trust"></span></th><th data-sort-key="approach" onclick="mmCampaignSortBy('approach')" data-tip="Proof-led when Trust is below 65; otherwise Offer-led." class="mm-sortable" style="cursor:pointer">Approach <span class="mm-sort-ind" data-for="approach"></span></th><th data-sort-key="last_active" onclick="mmCampaignSortBy('last_active')" class="mm-sortable" style="cursor:pointer">Last active <span class="mm-sort-ind" data-for="last_active"></span></th><th>Action</th></tr></thead>
                             <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
@@ -349,10 +349,10 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                                     <td>{{ $s['readiness'] }}</td>
                                     <td>{{ $s['trust'] }}</td>
                                     <td>@if($s['approach'] === 'Offer-led')<span class="bh-pill good">Offer-led</span>@else<span class="bh-pill warn">Proof-led</span>@endif</td>
-                                    <td>{{ $s['lastActive'] }}</td>
+                                    <td>{{ $s['lastActive'] }}</td><td><button type="button" onclick="mmStudentOpen({{ $loop->index }})" style="padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">View</button></td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="8" style="color:var(--g3);padding:20px">No renewal-ready students found right now.</td></tr>
+                                <tr><td colspan="9" style="color:var(--g3);padding:20px">No renewal-ready students found right now.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -1832,10 +1832,11 @@ function mmCampaignRender(data) {
     var students = data.students;
     mmCampaignPager(data);
     if (!students.length) {
-        body.innerHTML = '<tr><td colspan="8" style="color:var(--g3);padding:20px">No renewal-ready students match these filters.</td></tr>';
+        body.innerHTML = '<tr><td colspan="9" style="color:var(--g3);padding:20px">No renewal-ready students match these filters.</td></tr>';
         return;
     }
-    body.innerHTML = students.map(function (s) {
+    MM_CAMPAIGN_ROWS = students;
+    body.innerHTML = students.map(function (s, i) {
         var approach = s.approach === 'Offer-led'
             ? '<span class="bh-pill good">Offer-led</span>'
             : '<span class="bh-pill warn">Proof-led</span>';
@@ -1849,20 +1850,21 @@ function mmCampaignRender(data) {
             '<td>' + mmEsc(s.trust) + '</td>' +
             '<td>' + approach + '</td>' +
             '<td>' + mmEsc(s.lastActive) + '</td>' +
+            '<td><button type="button" onclick="mmStudentOpen(' + i + ')" style="padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">View</button></td>' +
             '</tr>';
     }).join('');
 }
 
 function mmCampaignLoad(query) {
     var body = document.getElementById('mmCampaignBody');
-    if (body) body.innerHTML = '<tr><td colspan="8" style="color:var(--g3);padding:20px">Loading…</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="9" style="color:var(--g3);padding:20px">Loading…</td></tr>';
     fetch(MM_CAMPAIGN_URL + (query ? '?' + query : ''), {
         headers: { 'Accept': 'application/json' }
     })
     .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
     .then(mmCampaignRender)
     .catch(function () {
-        if (body) body.innerHTML = '<tr><td colspan="8" style="color:#b91c1c;padding:20px">Couldn\'t load students — please try again.</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="9" style="color:#b91c1c;padding:20px">Couldn\'t load students — please try again.</td></tr>';
     });
 }
 
@@ -1885,6 +1887,131 @@ function mmCampaignLoad(query) {
     });
     document.addEventListener('scroll', hide, true);
 })();
+
+var MM_CAMPAIGN_ROWS = @json($mkStudents);
+
+var MM_MESSAGE_TEMPLATES = [
+    { key: 'renewal', label: 'Renewal offer', hint: 'Renewal Due students', subject: 'Your {package} plan has ended, {first}',
+      body: 'Hi {first}, your {package} plan has just ended. Renew this week and keep your practice momentum going. Reply RENEW and I\'ll send your link.' },
+    { key: 'proof', label: 'Progress proof', hint: 'Proof-led students', subject: 'Your mock test progress, {first}',
+      body: 'Hi {first}, you\'ve averaged {readiness} across your mock tests. Renew your {package} to keep building on that.' },
+    { key: 'reengage', label: 'Re-engage', hint: 'Not logged in recently', subject: 'We miss you, {first}',
+      body: 'Hi {first}, we miss you. Your {package} is still active. Log in today and take your next mock test.' },
+    { key: 'thanks', label: 'Thank you + discount', hint: 'High-value packages', subject: 'Thanks for choosing us, {first}',
+      body: 'Hi {first}, thanks for your {value} {package} purchase. Here\'s a discount on your next renewal, just reply to claim it.' },
+    { key: 'upgrade', label: 'Upgrade from free', hint: 'Free package students', subject: 'Unlock full practice, {first}',
+      body: 'Hi {first}, you\'re on the free {package}. Upgrade to unlock full practice tests and class links.' }
+];
+
+var MM_STUDENT_SELECTED = null;
+
+function mmFillTemplate(text, s) {
+    var first = String(s.name || '').split(' ')[0] || 'there';
+    return String(text)
+        .replace(/\{first\}/g, first)
+        .replace(/\{name\}/g, s.name || 'there')
+        .replace(/\{package\}/g, s.sub || 'package')
+        .replace(/\{value\}/g, s.value || '')
+        .replace(/\{readiness\}/g, String(s.readiness));
+}
+
+function mmStudentOpen(index) {
+    var s = MM_CAMPAIGN_ROWS[index];
+    if (!s) return;
+    MM_STUDENT_SELECTED = s;
+
+    var overlay = document.getElementById('mmStudentModal');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'mmStudentModal';
+        overlay.className = 'risk-modal-overlay';
+        overlay.onclick = function (e) { if (e.target === overlay) mmStudentClose(); };
+        overlay.innerHTML =
+            '<div class="risk-modal" style="max-width:920px;width:100%">' +
+                '<div class="risk-modal-hd"><span id="mmStudentTitle"></span>' +
+                '<button type="button" onclick="mmStudentClose()" aria-label="Close">✕</button></div>' +
+                '<div class="risk-modal-body" id="mmStudentBody" style="padding:18px 22px 22px"></div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+    }
+
+    var chips = MM_MESSAGE_TEMPLATES.map(function (t) {
+        return '<label style="display:block;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;cursor:pointer;background:#fff">' +
+            '<input type="radio" name="mmTpl" value="' + t.key + '" onchange="mmPickTemplate(\'' + t.key + '\')" style="margin-right:6px">' +
+            '<b style="font-size:12.5px">' + escapeHtml(t.label) + '</b>' +
+            '<div style="font-size:11px;color:#6b7280;margin:4px 0 0 20px">' + escapeHtml(t.hint) + '</div></label>';
+    }).join('');
+
+    document.getElementById('mmStudentTitle').textContent = s.name;
+    document.getElementById('mmStudentBody').innerHTML =
+        '<div id="mmMsgWrap" style="display:grid;grid-template-columns:1fr;gap:20px;align-items:start">' +
+            '<div><div style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;margin-bottom:8px">Choose a message</div>' +
+                '<div style="display:grid;gap:8px">' + chips + '</div></div>' +
+            '<div id="mmMsgArea" style="display:none">' +
+                '<div style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;margin-bottom:8px">Edit and send</div>' +
+                '<label style="font-size:11px;font-weight:700;color:#6b7280">Email subject <span style="font-weight:400">(email only)</span></label>' +
+                '<input id="mmMsgSubject" type="text" style="width:100%;margin:4px 0 10px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px">' +
+                '<label style="font-size:11px;font-weight:700;color:#6b7280">Message <span style="font-weight:400">(used for both Email and WhatsApp; WhatsApp has no subject line)</span></label>' +
+                '<textarea id="mmMsgBody" rows="8" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit"></textarea>' +
+                '<div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">' +
+                    '<button type="button" id="mmSendEmail" disabled onclick="mmSendEmail()"></button>' +
+                    '<button type="button" id="mmSendWa" disabled onclick="mmSendWhatsApp()"></button>' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
+        '<p id="mmMsgHint" style="font-size:11.5px;color:#6b7280;margin:10px 0 0;text-align:right">Pick a message above to enable sending.</p>';
+    mmSetSendEnabled(false);
+    overlay.classList.add('show');
+}
+
+function mmPickTemplate(key) {
+    var t = MM_MESSAGE_TEMPLATES.find(function (x) { return x.key === key; });
+    if (!t || !MM_STUDENT_SELECTED) return;
+    document.getElementById('mmMsgArea').style.display = 'block';
+    document.getElementById('mmMsgWrap').style.gridTemplateColumns = '1fr 1.4fr';
+    document.getElementById('mmMsgSubject').value = mmFillTemplate(t.subject, MM_STUDENT_SELECTED);
+    document.getElementById('mmMsgBody').value = mmFillTemplate(t.body, MM_STUDENT_SELECTED);
+    mmSetSendEnabled(true);
+}
+
+function mmSetSendEnabled(on) {
+    var base = 'display:inline-flex;align-items:center;justify-content:center;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;border:none';
+    var email = document.getElementById('mmSendEmail');
+    var wa = document.getElementById('mmSendWa');
+    var s = MM_STUDENT_SELECTED || {};
+    var canEmail = on && !!s.email;
+    var canWa = on && !!String(s.phone || '').replace(/\D/g, '');
+    email.textContent = 'Email';
+    wa.textContent = 'WhatsApp';
+    email.disabled = !canEmail;
+    email.style.cssText = base + (canEmail ? ';background:#2563eb;color:#fff;cursor:pointer' : ';background:#e5e7eb;color:#9ca3af;cursor:not-allowed');
+    wa.disabled = !canWa;
+    wa.style.cssText = base + (canWa ? ';background:#16a34a;color:#fff;cursor:pointer' : ';background:#e5e7eb;color:#9ca3af;cursor:not-allowed');
+    document.getElementById('mmMsgHint').textContent = on
+        ? (canEmail || canWa ? 'Edit the message if you like, then send it.' : 'This student has no email or phone on file.')
+        : 'Pick a message above to enable sending.';
+}
+
+function mmSendEmail() {
+    var s = MM_STUDENT_SELECTED;
+    if (!s || !s.email) return;
+    var subject = document.getElementById('mmMsgSubject').value;
+    var body = document.getElementById('mmMsgBody').value;
+    window.location.href = 'mailto:' + encodeURIComponent(s.email) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+}
+
+function mmSendWhatsApp() {
+    var s = MM_STUDENT_SELECTED;
+    var digits = s ? String(s.phone || '').replace(/\D/g, '') : '';
+    if (!digits) return;
+    var body = document.getElementById('mmMsgBody').value;
+    window.open('https://wa.me/' + digits + '?text=' + encodeURIComponent(body), '_blank', 'noopener');
+}
+
+function mmStudentClose() {
+    var overlay = document.getElementById('mmStudentModal');
+    if (overlay) overlay.classList.remove('show');
+}
 
 var MM_CAMPAIGN_SORT = { key: null, dir: 'asc' };
 
