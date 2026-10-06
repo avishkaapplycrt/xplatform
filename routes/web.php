@@ -322,6 +322,33 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     // five steps per agent shows only its own questions — the Marketing and
     // Retention "A/B test" steps have no rows on purpose (no A/B-testing
     // data source exists for Mock Master), so they render an empty state.
+    Route::post('mock-master-helper/send-email', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'student_id' => 'required|integer',
+            'subject' => 'required|string|max:255',
+            'body' => 'required|string|max:5000',
+        ]);
+
+        $email = \Illuminate\Support\Facades\DB::table('mm_studentuser')
+            ->where('studentId', $data['student_id'])
+            ->value('email');
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return response()->json(['ok' => false, 'message' => 'This student has no valid email address on file.'], 422);
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::raw($data['body'], function ($message) use ($email, $data) {
+                $message->to($email)->subject($data['subject']);
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['ok' => false, 'message' => 'The email could not be sent. Please try again.'], 500);
+        }
+
+        return response()->json(['ok' => true, 'message' => 'Email sent to ' . $email]);
+    })->name('mock-master-helper.send-email');
+
     Route::get('mock-master-helper/kpi/{key}', function (string $key) {
         $service = new \App\Services\MockMaster\MockMasterDataService();
         $kpiKeys = ['active_students', 'mock_tests', 'avg_score', 'active_packages'];
