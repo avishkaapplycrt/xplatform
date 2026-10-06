@@ -200,6 +200,8 @@ $agents = [
 $mmAvColors = ['#3b5bdb', '#7c5cfc', '#f97316', '#1e3a8a', '#0284c7', '#334155', '#16a34a', '#db2777', '#0d9488'];
 $mmAvColor  = fn ($name) => $mmAvColors[crc32((string) $name) % count($mmAvColors)];
 $mmInitial  = fn ($name) => mb_strtoupper(mb_substr(trim((string) $name), 0, 1)) ?: '?';
+// Plan column pill class: "Coaching + Paid" -> "mm-plan coaching-paid" (see MockMasterDataService::planFor()).
+$mmPlanClass = fn ($plan) => 'mm-plan ' . \Illuminate\Support\Str::slug((string) $plan);
 $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label) ? 'good'
     : (preg_match('/lost|expired|fail/i', (string) $label) ? 'bad'
     : (preg_match('/decision|bought/i', (string) $label) ? 'violet' : 'info'));
@@ -338,11 +340,11 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <button type="button" onclick="mmCampaignReset()" style="padding:7px 14px;border-radius:6px;border:1px solid var(--ln);color:var(--g3);font-size:12px;font-weight:600;cursor:pointer;background:#fff">Reset</button>
                         </form>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Renewal-ready students with a package. Click a name for contact details.">Student</th><th data-sort-key="value" onclick="mmCampaignSortBy('value')" data-tip="Amount paid for the selected Course" class="mm-sortable" style="cursor:pointer">Package value <span class="mm-sort-ind" data-for="value"></span></th><th data-sort-key="payment" onclick="mmCampaignSortBy('payment')" data-tip="Date of the payment linked to this package. Shows — if none is linked." class="mm-sortable" style="cursor:pointer">Payment date <span class="mm-sort-ind" data-for="payment"></span></th><th data-sort-key="stage" onclick="mmCampaignSortBy('stage')" data-tip="Active, Renewal Due (expired within the last 14 days), or Expired." class="mm-sortable" style="cursor:pointer">Stage <span class="mm-sort-ind" data-for="stage"></span></th><th data-sort-key="readiness" onclick="mmCampaignSortBy('readiness')" data-tip="Average score across all mock tests. 0 = no results" class="mm-sortable" style="cursor:pointer">Readiness <span class="mm-sort-ind" data-for="readiness"></span></th><th data-sort-key="trust" onclick="mmCampaignSortBy('trust')" data-tip="Based on the percentage of payments completed. 50 = no payment history." class="mm-sortable" style="cursor:pointer">Trust <span class="mm-sort-ind" data-for="trust"></span></th><th data-sort-key="approach" onclick="mmCampaignSortBy('approach')" data-tip="Proof-led when Trust is below 65; otherwise Offer-led." class="mm-sortable" style="cursor:pointer">Approach <span class="mm-sort-ind" data-for="approach"></span></th><th data-sort-key="last_active" onclick="mmCampaignSortBy('last_active')" data-tip="When they last logged in." class="mm-sortable" style="cursor:pointer">Last active <span class="mm-sort-ind" data-for="last_active"></span></th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
+                            <thead><tr><th data-tip="Renewal-ready students with a package. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-sort-key="value" onclick="mmCampaignSortBy('value')" data-tip="Amount paid for the selected Course" class="mm-sortable" style="cursor:pointer">Package value <span class="mm-sort-ind" data-for="value"></span></th><th data-sort-key="payment" onclick="mmCampaignSortBy('payment')" data-tip="Date of the payment linked to this package. Shows — if none is linked." class="mm-sortable" style="cursor:pointer">Payment date <span class="mm-sort-ind" data-for="payment"></span></th><th data-sort-key="stage" onclick="mmCampaignSortBy('stage')" data-tip="Active, Renewal Due (expired within the last 14 days), or Expired." class="mm-sortable" style="cursor:pointer">Stage <span class="mm-sort-ind" data-for="stage"></span></th><th data-sort-key="readiness" onclick="mmCampaignSortBy('readiness')" data-tip="Average score across all mock tests. 0 = no results" class="mm-sortable" style="cursor:pointer">Readiness <span class="mm-sort-ind" data-for="readiness"></span></th><th data-sort-key="trust" onclick="mmCampaignSortBy('trust')" data-tip="Based on the percentage of payments completed. 50 = no payment history." class="mm-sortable" style="cursor:pointer">Trust <span class="mm-sort-ind" data-for="trust"></span></th><th data-sort-key="approach" onclick="mmCampaignSortBy('approach')" data-tip="Proof-led when Trust is below 65; otherwise Offer-led." class="mm-sortable" style="cursor:pointer">Approach <span class="mm-sort-ind" data-for="approach"></span></th><th data-sort-key="last_active" onclick="mmCampaignSortBy('last_active')" data-tip="When they last logged in." class="mm-sortable" style="cursor:pointer">Last active <span class="mm-sort-ind" data-for="last_active"></span></th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
                             <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
-                                    <td class="acctn" data-mm-stu data-sid="{{ $s['sid'] ?? '' }}" data-email="{{ $s['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($s['name']) }}">{{ $mmInitial($s['name']) }}</span><div><div class="bh-acct-n">{{ $s['name'] }}</div><div class="bh-acct-c">({{ $s['sub'] }})</div></div></div></td>
+                                    <td class="acctn" data-mm-stu data-sid="{{ $s['sid'] ?? '' }}" data-email="{{ $s['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($s['name']) }}">{{ $mmInitial($s['name']) }}</span><div><div class="bh-acct-n">{{ $s['name'] }}</div><div class="bh-acct-c">({{ $s['sub'] }})</div></div></div></td><td><span class="{{ $mmPlanClass($s['plan'] ?? '') }}">{{ $s['plan'] ?? '—' }}</span></td>
                                     <td>{{ $s['value'] }}</td>
                                     <td>{{ $s['paymentDate'] }}</td>
                                     <td><span class="bh-pill {{ $mmStageKind($s['stage']) }}">{{ $s['stage'] }}</span></td>
@@ -352,7 +354,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                                     <td>{{ $s['lastActive'] }}</td><td><button type="button" onclick="mmStudentOpen({{ $loop->index }})" style="padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">View</button></td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="9" style="color:var(--g3);padding:20px">No renewal-ready students found right now.</td></tr>
+                                <tr><td colspan="10" style="color:var(--g3);padding:20px">No renewal-ready students found right now.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -476,11 +478,11 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <div class="si-p">The prospects that need your attention right now, ranked by <b>buying readiness</b> and <b>intent</b>. Use this to decide who to call today versus who to nurture.</div>
                         </div>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Students whose packages are all $0 (free trial or coaching access) and who have never bought a paid package. Click a name for contact details.">Prospect</th><th data-tip="Average overall mock test score (PTE scale, about 10 to 90). 0 = no scored tests yet.">Readiness</th><th data-tip="Readiness + 20 if their profile is complete, otherwise Readiness - 20 (minimum 10).">Intent</th><th data-tip="70 if they verified their phone number (OTP), otherwise 40.">Trust</th><th data-tip="Call when Readiness is 50 or more, otherwise Nurture.">Play</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose packages are all $0 (free trial or coaching access) and who have never bought a paid package. Click a name for contact details.">Prospect</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Average overall mock test score (PTE scale, about 10 to 90). 0 = no scored tests yet.">Readiness</th><th data-tip="Readiness + 20 if their profile is complete, otherwise Readiness - 20 (minimum 10).">Intent</th><th data-tip="70 if they verified their phone number (OTP), otherwise 40.">Trust</th><th data-tip="Call when Readiness is 50 or more, otherwise Nurture.">Play</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
                             <tbody>
                                 @forelse($slProspects as $p)
                                 <tr>
-                                    <td class="acctn" data-mm-stu data-sid="{{ $p['sid'] ?? '' }}" data-email="{{ $p['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div><div class="bh-acct-n">{{ $p['name'] }}</div><div class="bh-acct-c">({{ $p['sub'] }})</div></div></div></td>
+                                    <td class="acctn" data-mm-stu data-sid="{{ $p['sid'] ?? '' }}" data-email="{{ $p['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div><div class="bh-acct-n">{{ $p['name'] }}</div><div class="bh-acct-c">({{ $p['sub'] }})</div></div></div></td><td><span class="{{ $mmPlanClass($p['plan'] ?? '') }}">{{ $p['plan'] ?? '—' }}</span></td>
                                     <td>{{ $p['readiness'] }}</td>
                                     <td>{{ $p['intent'] }}</td>
                                     <td>{{ $p['trust'] }}</td>
@@ -488,7 +490,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                                     <td><button type="button" class="mm-act-btn" data-mm-compose="prospect" data-row="{{ json_encode($p) }}">View</button></td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="6" style="color:var(--g3);padding:20px">No trial-only prospects found right now.</td></tr>
+                                <tr><td colspan="7" style="color:var(--g3);padding:20px">No trial-only prospects found right now.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -497,12 +499,12 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="sl-accounts" style="display:none">
                         <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Every prospect in your pipeline, in one place.</div></div>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Students whose packages are all $0 (free trial or coaching access) and who have never bought a paid package. Click a name for contact details.">Prospect</th><th data-tip="Average overall mock test score (PTE scale, about 10 to 90). 0 = no scored tests yet.">Readiness</th><th data-tip="Readiness + 20 if their profile is complete, otherwise Readiness - 20 (minimum 10).">Intent</th><th data-tip="70 if they verified their phone number (OTP), otherwise 40.">Trust</th><th data-tip="Call when Readiness is 50 or more, otherwise Nurture.">Play</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose packages are all $0 (free trial or coaching access) and who have never bought a paid package. Click a name for contact details.">Prospect</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Average overall mock test score (PTE scale, about 10 to 90). 0 = no scored tests yet.">Readiness</th><th data-tip="Readiness + 20 if their profile is complete, otherwise Readiness - 20 (minimum 10).">Intent</th><th data-tip="70 if they verified their phone number (OTP), otherwise 40.">Trust</th><th data-tip="Call when Readiness is 50 or more, otherwise Nurture.">Play</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
                             <tbody>
                                 @forelse($slProspects as $p)
-                                <tr><td class="acctn" data-mm-stu data-sid="{{ $p['sid'] ?? '' }}" data-email="{{ $p['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div class="bh-acct-n">{{ $p['name'] }}</div></div></td><td>{{ $p['readiness'] }}</td><td>{{ $p['intent'] }}</td><td>{{ $p['trust'] }}</td><td>{{ $p['play'] }}</td><td><button type="button" class="mm-act-btn" data-mm-compose="prospect" data-row="{{ json_encode($p) }}">View</button></td></tr>
+                                <tr><td class="acctn" data-mm-stu data-sid="{{ $p['sid'] ?? '' }}" data-email="{{ $p['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div class="bh-acct-n">{{ $p['name'] }}</div></div></td><td><span class="{{ $mmPlanClass($p['plan'] ?? '') }}">{{ $p['plan'] ?? '—' }}</span></td><td>{{ $p['readiness'] }}</td><td>{{ $p['intent'] }}</td><td>{{ $p['trust'] }}</td><td>{{ $p['play'] }}</td><td><button type="button" class="mm-act-btn" data-mm-compose="prospect" data-row="{{ json_encode($p) }}">View</button></td></tr>
                                 @empty
-                                <tr><td colspan="6" style="color:var(--g3);padding:20px">No prospects found right now.</td></tr>
+                                <tr><td colspan="7" style="color:var(--g3);padding:20px">No prospects found right now.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -659,17 +661,17 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <div class="si-p">Sorted by <b>churn risk × value at stake</b>. Click through and reach out before they lapse.</div>
                         </div>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Students whose package expires in the next 7 days. Click a name for contact details.">Student</th><th data-tip="Days since their last login (999 = never logged in).">Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages.">Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100.">Risk score</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose package expires in the next 7 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in).">Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages.">Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100.">Risk score</th></tr></thead>
                             <tbody>
                                 @forelse($chAtRisk as $r)
                                 <tr>
-                                    <td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div><div class="bh-acct-c">({{ $r['sub'] }})</div></div></div></td>
+                                    <td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div><div class="bh-acct-c">({{ $r['sub'] }})</div></div></div></td><td><span class="{{ $mmPlanClass($r['plan'] ?? '') }}">{{ $r['plan'] ?? '—' }}</span></td>
                                     <td>{{ $r['inactiveDays'] }}d</td>
                                     <td>{{ $r['valueAtRisk'] }}</td>
                                     <td><span style="color:var(--crit);font-weight:600">{{ $r['risk'] }}</span></td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="4" style="color:var(--g3);padding:20px">Nothing urgent right now — no packages expiring in the next 7 days.</td></tr>
+                                <tr><td colspan="5" style="color:var(--g3);padding:20px">Nothing urgent right now — no packages expiring in the next 7 days.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -694,12 +696,12 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="ch-watchlist" style="display:none">
                         <div class="stack-intro"><div class="si-h">WATCH — CHURN CREEPING UP</div><div class="si-p">Not urgent yet, but trending the wrong way.</div></div>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Students whose package expires in 8 to 30 days. Click a name for contact details.">Student</th><th data-tip="Days since their last login (999 = never logged in).">Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages.">Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100.">Risk score</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose package expires in 8 to 30 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in).">Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages.">Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100.">Risk score</th></tr></thead>
                             <tbody>
                                 @forelse($chWatchlist as $r)
-                                <tr><td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
+                                <tr><td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td><span class="{{ $mmPlanClass($r['plan'] ?? '') }}">{{ $r['plan'] ?? '—' }}</span></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
                                 @empty
-                                <tr><td colspan="4" style="color:var(--g3);padding:20px">Nothing trending toward churn right now.</td></tr>
+                                <tr><td colspan="5" style="color:var(--g3);padding:20px">Nothing trending toward churn right now.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -1005,6 +1007,44 @@ body.mm-syncing #mmSyncOverlay{display:flex}
 .mm-stu-copy{flex-shrink:0;font-size:10.5px;font-weight:600;color:#4338ca;background:#fff;border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;cursor:pointer}
 .mm-stu-copy:hover{background:#eef2ff}
 .mm-stu-err{grid-column:1 / -1;margin:0;padding:12px;font-size:12.5px;color:#64748b}
+
+/* Plan column pill (mmPlanClass / mmPlanCell) */
+.mm-plan{display:inline-block;font-size:11px;font-weight:600;line-height:1.3;padding:3px 8px;border-radius:6px;white-space:nowrap;background:#f3f4f6;color:#6b7280}
+.mm-plan.free-trial{background:#eef2f7;color:#475569}
+.mm-plan.paid{background:#e8f7ee;color:#15803d}
+.mm-plan.coaching{background:#f1ecfe;color:#6d28d9}
+.mm-plan.coaching-paid{background:#e3f6f3;color:#0f766e}
+.mm-plan.no-purchase,.mm-plan.other{background:#f3f4f6;color:#9ca3af}
+
+/* Plan filter — arrow in the Plan header + dropdown menu (mmPlanFilterInit) */
+th[data-mm-plan-filter]{white-space:nowrap}
+.mm-pf-btn{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:5px;padding:0;border:1px solid #e2e5ee;border-radius:5px;background:#fff;color:#6b7280;cursor:pointer;vertical-align:-4px;transition:background .15s,color .15s,border-color .15s}
+.mm-pf-btn svg{width:11px;height:11px;transition:transform .2s cubic-bezier(.4,0,.2,1)}
+.mm-pf-btn:hover{background:#f5f3ff;border-color:#c4b5fd;color:#6d28d9}
+.mm-pf-btn:focus-visible{outline:2px solid #c4b5fd;outline-offset:1px}
+.mm-pf-btn.open svg{transform:rotate(180deg)}
+.mm-pf-btn.on{background:#7c3aed;border-color:#7c3aed;color:#fff}
+.mm-pf-menu{position:fixed;z-index:20050;min-width:250px;max-width:300px;background:#fff;border:1px solid #e6e9f0;border-radius:12px;box-shadow:0 14px 34px rgba(17,24,39,.16),0 2px 6px rgba(17,24,39,.06);padding:6px;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;opacity:0;transform:translateY(-6px);transition:opacity .15s ease,transform .15s ease;text-transform:none;letter-spacing:normal}
+.mm-pf-menu.show{opacity:1;transform:translateY(0)}
+.mm-pf-menu:not(.show){pointer-events:none}
+.mm-pf-opt{display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;border:none;border-radius:8px;background:none;text-align:left;cursor:pointer;font-family:inherit;color:#111827;transition:background .12s}
+.mm-pf-opt:hover:not(:disabled),.mm-pf-opt:focus-visible{background:#f5f3ff;outline:none}
+.mm-pf-opt.sel{background:#f5f3ff}
+.mm-pf-opt:disabled{opacity:.45;cursor:default}
+.mm-pf-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.mm-pf-txt b{font-size:12.5px;font-weight:600}
+.mm-pf-txt small{font-size:11px;color:#6b7280}
+.mm-pf-n{font-size:11px;font-weight:600;color:#6b7280;background:#f3f4f6;border-radius:999px;padding:1px 7px;font-variant-numeric:tabular-nums}
+.mm-pf-check{width:14px;height:14px;color:#7c3aed;flex-shrink:0;display:inline-flex}
+.mm-pf-check svg{width:14px;height:14px}
+.mm-pf-dot{width:9px;height:9px;padding:0;border-radius:50%;flex-shrink:0}
+.mm-pf-dot.mm-plan.free-trial{background:#94a3b8}
+.mm-pf-dot.mm-plan.paid{background:#16a34a}
+.mm-pf-dot.mm-plan.coaching{background:#7c3aed}
+.mm-pf-dot.mm-plan.coaching-paid{background:#0d9488}
+.mm-pf-dot.mm-plan.no-purchase,.mm-pf-dot.mm-plan.other{background:#d1d5db}
+.mm-pf-sep{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#9ca3af;padding:8px 10px 4px;margin-top:4px;border-top:1px solid #f0f1f5}
+tr.mm-pf-empty td{color:#9ca3af;padding:18px 14px;font-size:12.5px;text-align:center}
 
 /* Action column "View" button + message composer (mmComposeOpen) */
 .mm-act-btn{padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit}
@@ -1349,8 +1389,200 @@ var MM_LIST_SLUGS = {
 };
 /* Column labels for the "view list" popup — only keys actually present on
    the rows are shown, so one table works for every dataset above. */
+/* ── Plan filter: dropdown arrow inside every "Plan" header ──
+   Filters the rows already in that table by plan. The choice is kept on
+   the table (data-plan-filter) and re-applied when the table's rows are
+   re-rendered (Campaign paging/filters, popup Load more). */
+var MM_PLAN_ORDER = ['Free trial', 'Paid', 'Coaching', 'Coaching + Paid', 'No purchase', 'Other'];
+var MM_PLAN_DESC = {
+    'Free trial': 'Only the free mock test', 'Paid': 'Bought a paid package', 'Coaching': 'Coaching access, never paid',
+    'Coaching + Paid': 'Coaching and a paid package', 'No purchase': 'Nothing bought yet', 'Other': 'Testing or special access'
+};
+var MM_PLAN_GROUPS = {
+    all:    { label: 'All plans',     desc: 'Show every student',           plans: null },
+    paid:   { label: 'Any paid plan', desc: 'Paid, Coaching + Paid',         plans: ['Paid', 'Coaching + Paid'] },
+    unpaid: { label: 'Never paid',    desc: 'Free trial, Coaching, No purchase', plans: ['Free trial', 'Coaching', 'No purchase'] }
+};
+var MM_LIST_CURRENT = null;
+var MM_PF_MENU = null;
+
+var MM_PF_CHEVRON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+var MM_PF_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+
+function mmPfParts(table) {
+    var th = table.querySelector('th[data-mm-plan-filter]');
+    if (!th) return null;
+    var headRow = th.parentElement;
+    var idx = Array.prototype.indexOf.call(headRow.children, th);
+    var rows = Array.prototype.filter.call(table.querySelectorAll('tr'), function (tr) {
+        return tr !== headRow && !tr.classList.contains('mm-pf-empty') && tr.children.length > idx;
+    });
+    return { th: th, idx: idx, rows: rows, cols: headRow.children.length };
+}
+function mmPfPlanOf(tr, idx) { return (tr.children[idx].textContent || '').trim(); }
+function mmPfMatches(plan, value) {
+    if (!value || value === 'all') return true;
+    if (MM_PLAN_GROUPS[value]) return MM_PLAN_GROUPS[value].plans.indexOf(plan) > -1;
+    return plan === value;
+}
+function mmPfLabel(value) {
+    return MM_PLAN_GROUPS[value] ? MM_PLAN_GROUPS[value].label : value;
+}
+function mmPlanFilterApply(table) {
+    var p = mmPfParts(table);
+    if (!p) return;
+    var value = table.getAttribute('data-plan-filter') || 'all';
+    var shown = 0;
+    p.rows.forEach(function (tr) {
+        var ok = mmPfMatches(mmPfPlanOf(tr, p.idx), value);
+        if (tr.hidden === ok) tr.hidden = !ok;
+        if (ok) shown++;
+    });
+    // "Nothing found" row — only when a filter hides everything.
+    var empty = table.querySelector('tr.mm-pf-empty');
+    var needEmpty = value !== 'all' && shown === 0 && p.rows.length > 0;
+    if (needEmpty && !empty) {
+        empty = document.createElement('tr');
+        empty.className = 'mm-pf-empty';
+        empty.innerHTML = '<td colspan="' + p.cols + '">No students with this plan in this list.</td>';
+        (p.rows[p.rows.length - 1] || p.th.parentElement).parentElement.appendChild(empty);
+    } else if (!needEmpty && empty) {
+        empty.remove();
+    }
+    var btn = p.th.querySelector('.mm-pf-btn');
+    if (btn) {
+        var on = value !== 'all';
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-label', on ? 'Plan filter: ' + mmPfLabel(value) + ' (change)' : 'Filter by plan');
+        btn.title = on ? 'Showing: ' + mmPfLabel(value) : 'Filter by plan';
+    }
+}
+/* Adds the arrow to Plan headers inside scope; optional initial value. */
+function mmPlanFilterInit(scope, initial) {
+    if (!scope) return;
+    scope.querySelectorAll('th[data-mm-plan-filter]').forEach(function (th) {
+        var table = th.closest('table');
+        if (!th.querySelector('.mm-pf-btn')) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'mm-pf-btn';
+            btn.setAttribute('aria-haspopup', 'listbox');
+            btn.setAttribute('aria-expanded', 'false');
+            btn.setAttribute('aria-label', 'Filter by plan');
+            btn.title = 'Filter by plan';
+            btn.innerHTML = MM_PF_CHEVRON;
+            th.appendChild(btn);
+        }
+        if (initial && !table.hasAttribute('data-plan-filter')) table.setAttribute('data-plan-filter', initial);
+        if (table.hasAttribute('data-plan-filter')) mmPlanFilterApply(table);
+        // Re-apply when the rows are replaced (Campaign paging, filters, sorting).
+        if (!table.__mmPfObs) {
+            table.__mmPfObs = new MutationObserver(function () {
+                if (table.getAttribute('data-plan-filter') && table.getAttribute('data-plan-filter') !== 'all') mmPlanFilterApply(table);
+            });
+            table.__mmPfObs.observe(table, { childList: true, subtree: true });
+        }
+    });
+}
+function mmPlanMenuClose() {
+    if (!MM_PF_MENU) return;
+    var m = MM_PF_MENU;
+    MM_PF_MENU = null;
+    if (m.btn) { m.btn.classList.remove('open'); m.btn.setAttribute('aria-expanded', 'false'); }
+    m.el.classList.remove('show');
+    setTimeout(function () { m.el.remove(); }, 160);
+}
+function mmPlanMenuOpen(btn) {
+    var table = btn.closest('table');
+    var p = mmPfParts(table);
+    if (!p) return;
+    var current = table.getAttribute('data-plan-filter') || 'all';
+    var counts = {};
+    p.rows.forEach(function (tr) { var pl = mmPfPlanOf(tr, p.idx); counts[pl] = (counts[pl] || 0) + 1; });
+    var countOf = function (value) {
+        if (value === 'all') return p.rows.length;
+        if (MM_PLAN_GROUPS[value]) return MM_PLAN_GROUPS[value].plans.reduce(function (s, pl) { return s + (counts[pl] || 0); }, 0);
+        return counts[value] || 0;
+    };
+    var item = function (value, label, desc, cls) {
+        var n = countOf(value), sel = value === current;
+        return '<button type="button" role="option" class="mm-pf-opt' + (sel ? ' sel' : '') + '" aria-selected="' + sel + '" data-value="' + mmEsc(value) + '"' + (n === 0 && value !== 'all' ? ' disabled' : '') + '>' +
+            (cls ? '<span class="mm-pf-dot ' + cls + '"></span>' : '') +
+            '<span class="mm-pf-txt"><b>' + mmEsc(label) + '</b><small>' + mmEsc(desc) + '</small></span>' +
+            '<span class="mm-pf-n">' + n + '</span><span class="mm-pf-check">' + (sel ? MM_PF_CHECK : '') + '</span></button>';
+    };
+    var html = item('all', MM_PLAN_GROUPS.all.label, MM_PLAN_GROUPS.all.desc) +
+        item('paid', MM_PLAN_GROUPS.paid.label, MM_PLAN_GROUPS.paid.desc) +
+        item('unpaid', MM_PLAN_GROUPS.unpaid.label, MM_PLAN_GROUPS.unpaid.desc) +
+        '<div class="mm-pf-sep" role="presentation">By plan</div>' +
+        MM_PLAN_ORDER.filter(function (pl) { return counts[pl] || current === pl; }).map(function (pl) {
+            return item(pl, pl, MM_PLAN_DESC[pl] || '', 'mm-plan ' + pl.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+        }).join('');
+
+    var el = document.createElement('div');
+    el.className = 'mm-pf-menu';
+    el.setAttribute('role', 'listbox');
+    el.setAttribute('aria-label', 'Filter by plan');
+    el.innerHTML = html;
+    document.body.appendChild(el);
+    var r = btn.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+    var left = Math.min(Math.max(8, r.left - 8), window.innerWidth - w - 8);
+    var top = r.bottom + 6 + h > window.innerHeight - 8 ? Math.max(8, r.top - h - 6) : r.bottom + 6;
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+    MM_PF_MENU = { el: el, btn: btn, table: table };
+    var tip = document.getElementById('mmTip');
+    if (tip) tip.style.display = 'none'; // the header's hover tooltip would sit on top of the menu
+    btn.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
+    requestAnimationFrame(function () { el.classList.add('show'); });
+    var first = el.querySelector('.mm-pf-opt.sel') || el.querySelector('.mm-pf-opt');
+    if (first) first.focus({ preventScroll: true });
+}
+document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.mm-pf-btn');
+    if (btn) {
+        e.stopPropagation();
+        var reopen = !(MM_PF_MENU && MM_PF_MENU.btn === btn);
+        mmPlanMenuClose();
+        if (reopen) mmPlanMenuOpen(btn);
+        return;
+    }
+    var opt = e.target.closest('.mm-pf-opt');
+    if (opt && MM_PF_MENU) {
+        var table = MM_PF_MENU.table, value = opt.getAttribute('data-value');
+        table.setAttribute('data-plan-filter', value);
+        mmPlanFilterApply(table);
+        if (table.closest('#mmListModalBody') && MM_LIST_CURRENT) MM_LIST_CURRENT.planFilter = value;
+        mmPlanMenuClose();
+        return;
+    }
+    if (MM_PF_MENU && !e.target.closest('.mm-pf-menu')) mmPlanMenuClose();
+}, true);
+document.addEventListener('keydown', function (e) {
+    if (!MM_PF_MENU) return;
+    if (e.key === 'Escape') { e.stopPropagation(); var b = MM_PF_MENU.btn; mmPlanMenuClose(); if (b) b.focus(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        var opts = Array.prototype.filter.call(MM_PF_MENU.el.querySelectorAll('.mm-pf-opt'), function (o) { return !o.disabled; });
+        var i = opts.indexOf(document.activeElement);
+        var next = opts[(i + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length];
+        if (next) next.focus();
+    }
+}, true);
+window.addEventListener('resize', mmPlanMenuClose);
+mmPlanFilterInit(document);
+document.addEventListener('scroll', function (e) { if (MM_PF_MENU && !(e.target.closest && e.target.closest('.mm-pf-menu'))) mmPlanMenuClose(); }, true);
+
+/* Plan pill (Free trial / Paid / Coaching / Coaching + Paid / No purchase) — see MockMasterDataService::planFor(). */
+function mmPlanCell(r) {
+    var p = r && r.plan ? String(r.plan) : '';
+    if (!p) return '<td>—</td>';
+    var cls = p.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return '<td><span class="mm-plan ' + cls + '">' + mmEsc(p) + '</span></td>';
+}
 var MM_LIST_COL_LABELS = {
-    name: 'Student', sub: 'Package / interest', value: 'Package value', stage: 'Stage',
+    name: 'Student', plan: 'Plan', sub: 'Package / interest', value: 'Package value', stage: 'Stage',
     readiness: 'Readiness', trust: 'Trust', approach: 'Approach', lastActive: 'Last active',
     intent: 'Intent', play: 'Play', detail: 'Detail', avg_score: 'Avg score', joined: 'Joined',
     inactiveDays: 'Days inactive', valueAtRisk: 'Value at risk', risk: 'Risk',
@@ -1486,13 +1718,14 @@ function mmRenderListTable(entry) {
     var cols = mmListCols(rows);
     var head = '<tr><th>#</th>' + cols.map(function (k) {
         var label = MM_LIST_COL_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-        return '<th>' + label + '</th>';
+        return '<th' + (k === 'plan' ? ' data-mm-plan-filter' : '') + '>' + label + '</th>';
     }).join('') + '<th>Action</th></tr>';
     var ctx = MM_CMP_DATASET_CTX[entry.dataset] || 'marketing';
     var body = rows.map(function (r, i) {
         return '<tr><td>' + (i + 1) + '</td>' + cols.map(function (k) {
             var v = r[k];
             var text = (v === null || v === undefined || v === '' ? '—' : escapeHtml(v));
+            if (k === 'plan') return mmPlanCell(r);
             return k === 'name' ? '<td ' + mmStuAttrs(r) + '><span class="bh-acct-n">' + text + '</span></td>' : '<td>' + text + '</td>';
         }).join('') + '<td>' + mmCmpBtn(ctx, r) + '</td></tr>';
     }).join('');
@@ -1502,6 +1735,9 @@ function mmRenderListTable(entry) {
         : '<p style="color:var(--g3);font-size:11.5px;margin-top:10px">That\'s everyone — no more results.</p>';
 
     document.getElementById('mmListModalBody').innerHTML = '<table>' + head + body + '</table>' + footer;
+    // Keep the Plan filter through re-renders (e.g. Load more).
+    MM_LIST_CURRENT = entry;
+    mmPlanFilterInit(document.getElementById('mmListModalBody'), entry.planFilter);
 }
 function openMmListModal(id) {
     var entry = MM_LIST_CACHE[id];
@@ -2075,7 +2311,7 @@ function mmCampaignRender(data) {
     var students = data.students;
     mmCampaignPager(data);
     if (!students.length) {
-        body.innerHTML = '<tr><td colspan="9" style="color:var(--g3);padding:20px">No renewal-ready students match these filters.</td></tr>';
+        body.innerHTML = '<tr><td colspan="10" style="color:var(--g3);padding:20px">No renewal-ready students match these filters.</td></tr>';
         return;
     }
     MM_CAMPAIGN_ROWS = students;
@@ -2085,7 +2321,7 @@ function mmCampaignRender(data) {
             : '<span class="bh-pill warn">Proof-led</span>';
         return '<tr>' +
             '<td class="acctn" ' + mmStuAttrs(s) + '><div class="bh-acct"><span class="bh-av" style="background:' + mmEsc(s.color) + '">' + mmEsc(s.initial) + '</span>' +
-                '<div><div class="bh-acct-n">' + mmEsc(s.name) + '</div><div class="bh-acct-c">(' + mmEsc(s.sub) + ')</div></div></div></td>' +
+                '<div><div class="bh-acct-n">' + mmEsc(s.name) + '</div><div class="bh-acct-c">(' + mmEsc(s.sub) + ')</div></div></div></td>' + mmPlanCell(s) +
             '<td>' + mmEsc(s.value) + '</td>' +
             '<td>' + mmEsc(s.paymentDate) + '</td>' +
             '<td><span class="bh-pill ' + mmEsc(s.stageKind) + '">' + mmEsc(s.stage) + '</span></td>' +
@@ -2100,14 +2336,14 @@ function mmCampaignRender(data) {
 
 function mmCampaignLoad(query) {
     var body = document.getElementById('mmCampaignBody');
-    if (body) body.innerHTML = '<tr><td colspan="9" style="color:var(--g3);padding:20px">Loading…</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="10" style="color:var(--g3);padding:20px">Loading…</td></tr>';
     fetch(MM_CAMPAIGN_URL + (query ? '?' + query : ''), {
         headers: { 'Accept': 'application/json' }
     })
     .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
     .then(mmCampaignRender)
     .catch(function () {
-        if (body) body.innerHTML = '<tr><td colspan="9" style="color:#b91c1c;padding:20px">Couldn\'t load students — please try again.</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="10" style="color:#b91c1c;padding:20px">Couldn\'t load students — please try again.</td></tr>';
     });
 }
 

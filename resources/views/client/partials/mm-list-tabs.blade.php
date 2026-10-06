@@ -23,6 +23,7 @@
     <table class="dtbl">
         <thead><tr>
             <th data-tip="Click a name for contact details.@if($tk !== 'convert') The grey line shows recent activity.@endif">Student</th>
+            <th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th>
             @if($tk === 'convert')
             <th data-tip="Conversion score 0 to 100 from mock tests, scored results, logins, notifications seen, profile, phone verified and an open checkout.">Score</th>
             <th data-tip="The activity and signals behind the score (last 14 days).">Why</th>
@@ -47,6 +48,7 @@
             @foreach($tab['rows'] as $r)
             <tr>
                 <td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div><div class="bh-acct-n">{{ $r['name'] }}</div>@if($tk !== 'convert')<div class="bh-acct-c">{{ $r['signals'] }}</div>@endif</div></div></td>
+                <td><span class="{{ $mmPlanClass($r['plan'] ?? '') }}">{{ $r['plan'] ?? '—' }}</span></td>
                 @if($tk === 'convert')
                 <td><span class="bh-pill {{ $scoreKind($r['score']) }}">{{ $r['score'] }}</span></td>
                 <td class="cg-why">{{ $r['signals'] }}</td>
