@@ -25,21 +25,21 @@
             <th data-tip="Click a name for contact details.@if($tk !== 'convert') The grey line shows recent activity.@endif">Student</th>
             <th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th>
             @if($tk === 'convert')
-            <th data-tip="Conversion score 0 to 100 from mock tests, scored results, logins, notifications seen, profile, phone verified and an open checkout.">Score</th>
+            <th data-tip="Conversion score 0 to 100 from mock tests, scored results, logins, notifications seen, profile, phone verified and an open checkout." data-mm-num-filter>Score</th>
             <th data-tip="The activity and signals behind the score (last 14 days).">Why</th>
             <th data-tip="Most recent mock test or login.">Last active</th>
             @elseif($tk === 'abandoned')
             <th data-tip="The package they started paying for.">Package</th>
-            <th data-tip="Price of the unpaid checkout.">Amount</th>
+            <th data-tip="Price of the unpaid checkout." data-mm-num-filter>Amount</th>
             <th data-tip="When the unpaid checkout was started, and how many tries.">Attempted</th>
             @elseif($tk === 'renewals')
             <th data-tip="The paid plan that is about to expire.">Package</th>
-            <th data-tip="When the plan runs out (within the next 30 days).">Expires</th>
-            <th data-tip="What they paid for this plan, or its list price if no payment is linked.">Value</th>
+            <th data-tip="When the plan runs out (within the next 30 days)." data-mm-num-filter>Expires</th>
+            <th data-tip="What they paid for this plan, or its list price if no payment is linked." data-mm-num-filter>Value</th>
             @else
             <th data-tip="The paid plan that lapsed.">Last package</th>
-            <th data-tip="How long ago the plan ran out (within the last 60 days).">Expired</th>
-            <th data-tip="What they paid for this plan, or its list price if no payment is linked.">Value</th>
+            <th data-tip="How long ago the plan ran out (within the last 60 days)." data-mm-num-filter>Expired</th>
+            <th data-tip="What they paid for this plan, or its list price if no payment is linked." data-mm-num-filter>Value</th>
             @endif
             <th data-tip="Suggested action based on their activity.">Next step</th>
             <th data-tip="Open a message composer to email or WhatsApp this student.">Action</th>
