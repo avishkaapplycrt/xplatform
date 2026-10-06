@@ -340,7 +340,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <button type="button" onclick="mmCampaignReset()" style="padding:7px 14px;border-radius:6px;border:1px solid var(--ln);color:var(--g3);font-size:12px;font-weight:600;cursor:pointer;background:#fff">Reset</button>
                         </form>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Renewal-ready students with a package. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-sort-key="value" onclick="mmCampaignSortBy('value')" data-tip="Amount paid for the selected Course" class="mm-sortable" style="cursor:pointer">Package value <span class="mm-sort-ind" data-for="value"></span></th><th data-sort-key="payment" onclick="mmCampaignSortBy('payment')" data-tip="Date of the payment linked to this package. Shows — if none is linked." class="mm-sortable" style="cursor:pointer">Payment date <span class="mm-sort-ind" data-for="payment"></span></th><th data-sort-key="stage" onclick="mmCampaignSortBy('stage')" data-tip="Active, Renewal Due (expired within the last 14 days), or Expired." class="mm-sortable" style="cursor:pointer">Stage <span class="mm-sort-ind" data-for="stage"></span></th><th data-sort-key="readiness" onclick="mmCampaignSortBy('readiness')" data-tip="Average score across all mock tests. 0 = no results" class="mm-sortable" style="cursor:pointer">Readiness <span class="mm-sort-ind" data-for="readiness"></span></th><th data-sort-key="trust" onclick="mmCampaignSortBy('trust')" data-tip="Based on the percentage of payments completed. 50 = no payment history." class="mm-sortable" style="cursor:pointer">Trust <span class="mm-sort-ind" data-for="trust"></span></th><th data-sort-key="approach" onclick="mmCampaignSortBy('approach')" data-tip="Proof-led when Trust is below 65; otherwise Offer-led." class="mm-sortable" style="cursor:pointer">Approach <span class="mm-sort-ind" data-for="approach"></span></th><th data-sort-key="last_active" onclick="mmCampaignSortBy('last_active')" data-tip="When they last logged in." class="mm-sortable" style="cursor:pointer">Last active <span class="mm-sort-ind" data-for="last_active"></span></th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
+                            <thead><tr><th data-tip="Renewal-ready students with a package. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-sort-key="value" data-mm-num-filter onclick="mmCampaignSortBy('value')" data-tip="Amount paid for the selected Course" class="mm-sortable" style="cursor:pointer">Package value <span class="mm-sort-ind" data-for="value"></span></th><th data-sort-key="payment" onclick="mmCampaignSortBy('payment')" data-tip="Date of the payment linked to this package. Shows — if none is linked." class="mm-sortable" style="cursor:pointer">Payment date <span class="mm-sort-ind" data-for="payment"></span></th><th data-sort-key="stage" onclick="mmCampaignSortBy('stage')" data-tip="Active, Renewal Due (expired within the last 14 days), or Expired." class="mm-sortable" style="cursor:pointer">Stage <span class="mm-sort-ind" data-for="stage"></span></th><th data-sort-key="readiness" data-mm-num-filter onclick="mmCampaignSortBy('readiness')" data-tip="Average score across all mock tests. 0 = no results" class="mm-sortable" style="cursor:pointer">Readiness <span class="mm-sort-ind" data-for="readiness"></span></th><th data-sort-key="trust" data-mm-num-filter onclick="mmCampaignSortBy('trust')" data-tip="Based on the percentage of payments completed. 50 = no payment history." class="mm-sortable" style="cursor:pointer">Trust <span class="mm-sort-ind" data-for="trust"></span></th><th data-sort-key="approach" onclick="mmCampaignSortBy('approach')" data-tip="Proof-led when Trust is below 65; otherwise Offer-led." class="mm-sortable" style="cursor:pointer">Approach <span class="mm-sort-ind" data-for="approach"></span></th><th data-sort-key="last_active" onclick="mmCampaignSortBy('last_active')" data-tip="When they last logged in." class="mm-sortable" style="cursor:pointer">Last active <span class="mm-sort-ind" data-for="last_active"></span></th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
                             <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
@@ -478,7 +478,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <div class="si-p">The prospects that need your attention right now, ranked by <b>buying readiness</b> and <b>intent</b>. Use this to decide who to call today versus who to nurture.</div>
                         </div>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Students whose packages are all $0 (free trial or coaching access) and who have never bought a paid package. Click a name for contact details.">Prospect</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Average overall mock test score (PTE scale, about 10 to 90). 0 = no scored tests yet.">Readiness</th><th data-tip="Readiness + 20 if their profile is complete, otherwise Readiness - 20 (minimum 10).">Intent</th><th data-tip="70 if they verified their phone number (OTP), otherwise 40.">Trust</th><th data-tip="Call when Readiness is 50 or more, otherwise Nurture.">Play</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose packages are all $0 (free trial or coaching access) and who have never bought a paid package. Click a name for contact details.">Prospect</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Average overall mock test score (PTE scale, about 10 to 90). 0 = no scored tests yet." data-mm-num-filter>Readiness</th><th data-tip="Readiness + 20 if their profile is complete, otherwise Readiness - 20 (minimum 10)." data-mm-num-filter>Intent</th><th data-tip="70 if they verified their phone number (OTP), otherwise 40." data-mm-num-filter>Trust</th><th data-tip="Call when Readiness is 50 or more, otherwise Nurture.">Play</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
                             <tbody>
                                 @forelse($slProspects as $p)
                                 <tr>
@@ -499,7 +499,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="sl-accounts" style="display:none">
                         <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Every prospect in your pipeline, in one place.</div></div>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Students whose packages are all $0 (free trial or coaching access) and who have never bought a paid package. Click a name for contact details.">Prospect</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Average overall mock test score (PTE scale, about 10 to 90). 0 = no scored tests yet.">Readiness</th><th data-tip="Readiness + 20 if their profile is complete, otherwise Readiness - 20 (minimum 10).">Intent</th><th data-tip="70 if they verified their phone number (OTP), otherwise 40.">Trust</th><th data-tip="Call when Readiness is 50 or more, otherwise Nurture.">Play</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose packages are all $0 (free trial or coaching access) and who have never bought a paid package. Click a name for contact details.">Prospect</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Average overall mock test score (PTE scale, about 10 to 90). 0 = no scored tests yet." data-mm-num-filter>Readiness</th><th data-tip="Readiness + 20 if their profile is complete, otherwise Readiness - 20 (minimum 10)." data-mm-num-filter>Intent</th><th data-tip="70 if they verified their phone number (OTP), otherwise 40." data-mm-num-filter>Trust</th><th data-tip="Call when Readiness is 50 or more, otherwise Nurture.">Play</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
                             <tbody>
                                 @forelse($slProspects as $p)
                                 <tr><td class="acctn" data-mm-stu data-sid="{{ $p['sid'] ?? '' }}" data-email="{{ $p['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($p['name']) }}">{{ $mmInitial($p['name']) }}</span><div class="bh-acct-n">{{ $p['name'] }}</div></div></td><td><span class="{{ $mmPlanClass($p['plan'] ?? '') }}">{{ $p['plan'] ?? '—' }}</span></td><td>{{ $p['readiness'] }}</td><td>{{ $p['intent'] }}</td><td>{{ $p['trust'] }}</td><td>{{ $p['play'] }}</td><td><button type="button" class="mm-act-btn" data-mm-compose="prospect" data-row="{{ json_encode($p) }}">View</button></td></tr>
@@ -661,7 +661,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <div class="si-p">Sorted by <b>churn risk × value at stake</b>. Click through and reach out before they lapse.</div>
                         </div>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Students whose package expires in the next 7 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in).">Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages.">Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100.">Risk score</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose package expires in the next 7 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in)." data-mm-num-filter>Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages." data-mm-num-filter>Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100." data-mm-num-filter>Risk score</th></tr></thead>
                             <tbody>
                                 @forelse($chAtRisk as $r)
                                 <tr>
@@ -696,7 +696,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="ch-watchlist" style="display:none">
                         <div class="stack-intro"><div class="si-h">WATCH — CHURN CREEPING UP</div><div class="si-p">Not urgent yet, but trending the wrong way.</div></div>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Students whose package expires in 8 to 30 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in).">Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages.">Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100.">Risk score</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose package expires in 8 to 30 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in)." data-mm-num-filter>Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages." data-mm-num-filter>Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100." data-mm-num-filter>Risk score</th></tr></thead>
                             <tbody>
                                 @forelse($chWatchlist as $r)
                                 <tr><td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td><span class="{{ $mmPlanClass($r['plan'] ?? '') }}">{{ $r['plan'] ?? '—' }}</span></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
@@ -1046,6 +1046,26 @@ th[data-mm-plan-filter]{white-space:nowrap}
 .mm-pf-dot.mm-plan.no-purchase,.mm-pf-dot.mm-plan.other{background:#d1d5db}
 .mm-pf-sep{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#9ca3af;padding:8px 10px 4px;margin-top:4px;border-top:1px solid #f0f1f5}
 tr.mm-pf-empty td{color:#9ca3af;padding:18px 14px;font-size:12.5px;text-align:center}
+/* Number filter menu (mmNumMenuOpen): compact — sort toggles + Min/Max steppers */
+th[data-mm-num-filter]{white-space:nowrap}
+.mm-pf-menu.mm-nf-menu{min-width:0;width:214px;padding:8px;display:flex;flex-direction:column;gap:6px}
+.mm-nf-sort{display:flex;gap:4px}
+.mm-nf-dir{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:4px;height:28px;padding:0 6px;border:1px solid #e2e5ee;border-radius:7px;background:#fff;color:#374151;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .12s,border-color .12s,color .12s}
+.mm-nf-dir svg{width:12px;height:12px}
+.mm-nf-dir:hover{background:#f5f3ff;border-color:#c4b5fd;color:#6d28d9}
+.mm-nf-dir.on{background:#7c3aed;border-color:#7c3aed;color:#fff}
+.mm-nf-dir:focus-visible,.mm-nf-step:focus-visible{outline:2px solid #c4b5fd;outline-offset:1px}
+.mm-nf-row{display:flex;align-items:center;gap:4px}
+.mm-nf-row label{width:28px;font-size:11.5px;font-weight:600;color:#6b7280}
+.mm-nf-step{width:24px;height:26px;flex-shrink:0;padding:0;border:1px solid #e2e5ee;border-radius:6px;background:#fff;color:#374151;font-size:14px;font-weight:600;line-height:1;cursor:pointer;font-family:inherit;transition:background .12s,border-color .12s,color .12s}
+.mm-nf-step:hover{background:#f5f3ff;border-color:#c4b5fd;color:#6d28d9}
+.mm-nf-step:active{background:#ede9fe}
+.mm-nf-row input{flex:1;min-width:0;height:26px;padding:0 6px;border:1px solid #e2e5ee;border-radius:6px;font-size:12px;font-family:inherit;color:#111827;text-align:center;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.mm-nf-row input::-webkit-outer-spin-button,.mm-nf-row input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.mm-nf-row input:focus{outline:none;border-color:#c4b5fd;box-shadow:0 0 0 2px #f5f3ff}
+.mm-nf-row input::placeholder{color:#c0c4d0}
+.mm-nf-clear{align-self:flex-end;border:none;background:none;padding:0 2px;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:2px}
+.mm-nf-clear:hover{color:#6d28d9}
 
 /* Action column "View" button + message composer (mmComposeOpen) */
 .mm-act-btn{padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit}
@@ -1410,15 +1430,33 @@ var MM_PF_MENU = null;
 var MM_PF_CHEVRON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
 var MM_PF_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
 
+/* Header row, Plan column (idx, -1 if none) and the data rows of a table.
+   "Nothing found" placeholder rows (a single colspan cell) are skipped. */
 function mmPfParts(table) {
-    var th = table.querySelector('th[data-mm-plan-filter]');
-    if (!th) return null;
-    var headRow = th.parentElement;
-    var idx = Array.prototype.indexOf.call(headRow.children, th);
+    var headRow = Array.prototype.find.call(table.querySelectorAll('tr'), function (tr) { return tr.querySelector('th'); });
+    if (!headRow) return null;
+    var th = headRow.querySelector('th[data-mm-plan-filter]');
+    var idx = th ? Array.prototype.indexOf.call(headRow.children, th) : -1;
     var rows = Array.prototype.filter.call(table.querySelectorAll('tr'), function (tr) {
-        return tr !== headRow && !tr.classList.contains('mm-pf-empty') && tr.children.length > idx;
+        if (tr === headRow || tr.classList.contains('mm-pf-empty')) return false;
+        return !(tr.children.length === 1 && tr.children[0].hasAttribute('colspan'));
     });
-    return { th: th, idx: idx, rows: rows, cols: headRow.children.length };
+    return { th: th, headRow: headRow, idx: idx, rows: rows, cols: headRow.children.length };
+}
+/* Number in a cell: "$1,299" → 1299, "21d" → 21, "in 5 days" → 5, "today" → 0, "—" → null. */
+function mmNumOf(td) {
+    if (!td) return null;
+    var t = (td.textContent || '').trim().toLowerCase();
+    if (!t || t === '—' || t === '-') return null;
+    if (/\btoday\b/.test(t)) return 0;
+    var m = t.replace(/,/g, '').match(/-?\d+(\.\d+)?/);
+    return m ? parseFloat(m[0]) : null;
+}
+function mmNumActive(f) { return !!f && (f.min !== null && f.min !== undefined || f.max !== null && f.max !== undefined); }
+function mmTableFiltersActive(table) {
+    var v = table.getAttribute('data-plan-filter');
+    var num = table.__mmNum || {};
+    return (v && v !== 'all') || !!table.__mmSort || Object.keys(num).some(function (k) { return mmNumActive(num[k]); });
 }
 function mmPfPlanOf(tr, idx) { return (tr.children[idx].textContent || '').trim(); }
 function mmPfMatches(plan, value) {
@@ -1429,61 +1467,188 @@ function mmPfMatches(plan, value) {
 function mmPfLabel(value) {
     return MM_PLAN_GROUPS[value] ? MM_PLAN_GROUPS[value].label : value;
 }
+/* Applies every filter on a table together: Plan + number ranges (a row must
+   pass all of them) and the number sort. Shared by the Plan and number menus. */
 function mmPlanFilterApply(table) {
     var p = mmPfParts(table);
     if (!p) return;
     var value = table.getAttribute('data-plan-filter') || 'all';
+    var num = table.__mmNum || {};
+    var ranges = Object.keys(num).filter(function (k) { return mmNumActive(num[k]); });
     var shown = 0;
     p.rows.forEach(function (tr) {
-        var ok = mmPfMatches(mmPfPlanOf(tr, p.idx), value);
+        var ok = p.idx < 0 || !tr.children[p.idx] || mmPfMatches(mmPfPlanOf(tr, p.idx), value);
+        for (var i = 0; ok && i < ranges.length; i++) {
+            var f = num[ranges[i]], v = mmNumOf(tr.children[ranges[i]]);
+            if (v === null || (f.min !== null && f.min !== undefined && v < f.min) || (f.max !== null && f.max !== undefined && v > f.max)) ok = false;
+        }
         if (tr.hidden === ok) tr.hidden = !ok;
         if (ok) shown++;
     });
-    // "Nothing found" row — only when a filter hides everything.
+
+    // Order: remember each row's original position, then sort (or restore it).
+    p.rows.forEach(function (tr) {
+        if (!tr.hasAttribute('data-mm-ord')) tr.setAttribute('data-mm-ord', table.__mmOrdSeq = (table.__mmOrdSeq || 0) + 1);
+    });
+    var s = table.__mmSort;
+    var ordOf = function (tr) { return +tr.getAttribute('data-mm-ord'); };
+    var want = p.rows.slice().sort(function (a, b) {
+        if (s) {
+            var va = mmNumOf(a.children[s.idx]), vb = mmNumOf(b.children[s.idx]);
+            if (va === null && vb !== null) return 1;
+            if (vb === null && va !== null) return -1;
+            if (va !== vb) return s.dir === 'desc' ? vb - va : va - vb;
+        }
+        return ordOf(a) - ordOf(b);
+    });
+    if (want.some(function (tr, i) { return tr !== p.rows[i]; })) {
+        want.forEach(function (tr) { tr.parentElement.appendChild(tr); });
+    }
+
+    // "Nothing found" row — only when the filters hide everything.
     var empty = table.querySelector('tr.mm-pf-empty');
-    var needEmpty = value !== 'all' && shown === 0 && p.rows.length > 0;
+    var needEmpty = (value !== 'all' || ranges.length > 0) && shown === 0 && p.rows.length > 0;
     if (needEmpty && !empty) {
         empty = document.createElement('tr');
         empty.className = 'mm-pf-empty';
-        empty.innerHTML = '<td colspan="' + p.cols + '">No students with this plan in this list.</td>';
-        (p.rows[p.rows.length - 1] || p.th.parentElement).parentElement.appendChild(empty);
+        empty.innerHTML = '<td colspan="' + p.cols + '">No students match these filters in this list.</td>';
+        (p.rows[p.rows.length - 1] || p.headRow).parentElement.appendChild(empty);
+    } else if (needEmpty && empty && empty.nextElementSibling) {
+        // Keep it last after re-sorting — only move it when it isn't already,
+        // otherwise the move itself re-triggers the observer in a loop.
+        empty.parentElement.appendChild(empty);
     } else if (!needEmpty && empty) {
         empty.remove();
     }
-    var btn = p.th.querySelector('.mm-pf-btn');
+
+    var btn = p.th && p.th.querySelector('.mm-pf-btn:not(.mm-nf-btn)');
     if (btn) {
         var on = value !== 'all';
         btn.classList.toggle('on', on);
         btn.setAttribute('aria-label', on ? 'Plan filter: ' + mmPfLabel(value) + ' (change)' : 'Filter by plan');
         btn.title = on ? 'Showing: ' + mmPfLabel(value) : 'Filter by plan';
     }
+    p.headRow.querySelectorAll('th[data-mm-num-filter]').forEach(function (th) {
+        var nb = th.querySelector('.mm-nf-btn');
+        if (!nb) return;
+        var i = Array.prototype.indexOf.call(p.headRow.children, th), f = num[i];
+        var parts = [];
+        if (mmNumActive(f)) parts.push(f.min !== null && f.max !== null ? f.min + ' to ' + f.max : (f.min !== null ? '≥ ' + f.min : '≤ ' + f.max));
+        if (s && s.idx === i) parts.push(s.dir === 'desc' ? 'decreasing' : 'increasing');
+        var sk = th.classList.contains('mm-sortable') ? th.getAttribute('data-sort-key') : null;
+        if (sk && typeof MM_CAMPAIGN_SORT !== 'undefined' && MM_CAMPAIGN_SORT.key === sk) parts.push(MM_CAMPAIGN_SORT.dir === 'desc' ? 'decreasing' : 'increasing');
+        nb.classList.toggle('on', parts.length > 0);
+        nb.title = parts.length ? 'Filtered: ' + parts.join(', ') : 'Sort or filter by number';
+        nb.setAttribute('aria-label', nb.title);
+    });
 }
 /* Adds the arrow to Plan headers inside scope; optional initial value. */
 function mmPlanFilterInit(scope, initial) {
     if (!scope) return;
-    scope.querySelectorAll('th[data-mm-plan-filter]').forEach(function (th) {
+    var tables = [];
+    scope.querySelectorAll('th[data-mm-plan-filter], th[data-mm-num-filter]').forEach(function (th) {
+        var isNum = th.hasAttribute('data-mm-num-filter');
         var table = th.closest('table');
         if (!th.querySelector('.mm-pf-btn')) {
             var btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'mm-pf-btn';
-            btn.setAttribute('aria-haspopup', 'listbox');
+            btn.className = isNum ? 'mm-pf-btn mm-nf-btn' : 'mm-pf-btn';
+            btn.setAttribute('aria-haspopup', isNum ? 'dialog' : 'listbox');
             btn.setAttribute('aria-expanded', 'false');
-            btn.setAttribute('aria-label', 'Filter by plan');
-            btn.title = 'Filter by plan';
+            btn.title = isNum ? 'Sort or filter by number' : 'Filter by plan';
+            btn.setAttribute('aria-label', btn.title);
             btn.innerHTML = MM_PF_CHEVRON;
             th.appendChild(btn);
         }
+        if (tables.indexOf(table) === -1) tables.push(table);
+    });
+    tables.forEach(function (table) {
         if (initial && !table.hasAttribute('data-plan-filter')) table.setAttribute('data-plan-filter', initial);
-        if (table.hasAttribute('data-plan-filter')) mmPlanFilterApply(table);
+        if (mmTableFiltersActive(table)) mmPlanFilterApply(table);
         // Re-apply when the rows are replaced (Campaign paging, filters, sorting).
         if (!table.__mmPfObs) {
             table.__mmPfObs = new MutationObserver(function () {
-                if (table.getAttribute('data-plan-filter') && table.getAttribute('data-plan-filter') !== 'all') mmPlanFilterApply(table);
+                if (mmTableFiltersActive(table)) mmPlanFilterApply(table);
             });
             table.__mmPfObs.observe(table, { childList: true, subtree: true });
         }
     });
+}
+
+/* Number menu for one column: sort (low/high/default) + Min/Max with − / + steppers. */
+function mmNumMenuOpen(btn) {
+    var table = btn.closest('table');
+    var p = mmPfParts(table);
+    if (!p) return;
+    var th = btn.closest('th');
+    var idx = Array.prototype.indexOf.call(p.headRow.children, th);
+    var label = (th.childNodes[0] && th.childNodes[0].textContent || th.textContent).trim();
+    var vals = p.rows.map(function (tr) { return mmNumOf(tr.children[idx]); }).filter(function (v) { return v !== null; });
+    var lo = vals.length ? Math.min.apply(null, vals) : 0, hi = vals.length ? Math.max.apply(null, vals) : 0;
+    var step = hi - lo > 200 ? 10 : 1;
+    var f = (table.__mmNum || {})[idx] || { min: null, max: null };
+    // The Campaign table sorts on the server (its header click); its menu drives that same sort.
+    var serverKey = th.classList.contains('mm-sortable') ? th.getAttribute('data-sort-key') : null;
+    var s = serverKey
+        ? (typeof MM_CAMPAIGN_SORT !== 'undefined' && MM_CAMPAIGN_SORT.key === serverKey ? MM_CAMPAIGN_SORT.dir : 'none')
+        : (table.__mmSort && table.__mmSort.idx === idx ? table.__mmSort.dir : 'none');
+
+    var dirBtn = function (dir, text, icon) {
+        var on = s === dir;
+        return '<button type="button" class="mm-nf-dir' + (on ? ' on' : '') + '" data-kind="sort" data-dir="' + dir + '" aria-pressed="' + on + '">' + icon + text + '</button>';
+    };
+    var stepper = function (which, text) {
+        var v = f[which];
+        return '<div class="mm-nf-row"><label for="mmNf-' + which + '">' + text + '</label>' +
+            '<button type="button" class="mm-nf-step" data-nf-step="-1" data-for="' + which + '" aria-label="Decrease ' + text.toLowerCase() + '">−</button>' +
+            '<input id="mmNf-' + which + '" type="number" inputmode="decimal" step="' + step + '" data-for="' + which + '" placeholder="' + (which === 'min' ? lo : hi) + '" value="' + (v === null || v === undefined ? '' : v) + '">' +
+            '<button type="button" class="mm-nf-step" data-nf-step="1" data-for="' + which + '" aria-label="Increase ' + text.toLowerCase() + '">+</button></div>';
+    };
+    var up = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>';
+    var down = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></svg>';
+    var html = '<div class="mm-nf-sort">' + dirBtn('asc', 'Increasing', up) + dirBtn('desc', 'Decreasing', down) + '</div>' +
+        stepper('min', 'Min') + stepper('max', 'Max') +
+        '<button type="button" class="mm-nf-clear">Reset</button>';
+
+    var el = document.createElement('div');
+    el.className = 'mm-pf-menu mm-nf-menu';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-label', 'Sort or filter ' + label);
+    el.innerHTML = html;
+    document.body.appendChild(el);
+    var r = btn.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = Math.min(Math.max(8, r.left - 8), window.innerWidth - w - 8) + 'px';
+    el.style.top = (r.bottom + 6 + h > window.innerHeight - 8 ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
+    MM_PF_MENU = { el: el, btn: btn, table: table, idx: idx, step: step, lo: lo, hi: hi, serverKey: serverKey };
+    var tip = document.getElementById('mmTip');
+    if (tip) tip.style.display = 'none';
+    btn.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
+    mmNumMenuCount();
+    requestAnimationFrame(function () { el.classList.add('show'); });
+    var first = el.querySelector('.mm-nf-dir');
+    if (first) first.focus({ preventScroll: true });
+}
+/* Reads the Min/Max boxes into the table's filters and re-applies. */
+function mmNumMenuSync() {
+    var m = MM_PF_MENU;
+    if (!m || m.idx === undefined) return;
+    var read = function (which) {
+        var raw = m.el.querySelector('input[data-for="' + which + '"]').value.trim();
+        return raw === '' || isNaN(+raw) ? null : +raw;
+    };
+    m.table.__mmNum = m.table.__mmNum || {};
+    m.table.__mmNum[m.idx] = { min: read('min'), max: read('max') };
+    mmPlanFilterApply(m.table);
+    mmNumMenuCount();
+}
+function mmNumMenuCount() {
+    var m = MM_PF_MENU;
+    if (!m || m.idx === undefined) return;
+    var p = mmPfParts(m.table);
+    var shown = p.rows.filter(function (tr) { return !tr.hidden; }).length;
+    var c = m.el.querySelector('.mm-nf-count');
+    if (c) c.textContent = shown + ' of ' + p.rows.length + ' shown';
 }
 function mmPlanMenuClose() {
     if (!MM_PF_MENU) return;
@@ -1546,7 +1711,52 @@ document.addEventListener('click', function (e) {
         e.stopPropagation();
         var reopen = !(MM_PF_MENU && MM_PF_MENU.btn === btn);
         mmPlanMenuClose();
-        if (reopen) mmPlanMenuOpen(btn);
+        if (reopen) { if (btn.classList.contains('mm-nf-btn')) mmNumMenuOpen(btn); else mmPlanMenuOpen(btn); }
+        return;
+    }
+    // Number menu: sort options, − / + steppers, Clear.
+    if (MM_PF_MENU && MM_PF_MENU.idx !== undefined && e.target.closest('.mm-nf-menu')) {
+        var m = MM_PF_MENU;
+        var so = e.target.closest('[data-kind="sort"]');
+        if (so) {
+            // Toggle: clicking the active direction turns sorting off again.
+            var dir = so.classList.contains('on') ? 'none' : so.getAttribute('data-dir');
+            if (m.serverKey) {
+                MM_CAMPAIGN_SORT.key = dir === 'none' ? null : m.serverKey;
+                MM_CAMPAIGN_SORT.dir = dir === 'none' ? 'asc' : dir;
+                mmCampaignSortIndicators();
+                mmCampaignGo(1);
+            } else {
+                m.table.__mmSort = dir === 'none' ? null : { idx: m.idx, dir: dir };
+                mmPlanFilterApply(m.table);
+            }
+            m.el.querySelectorAll('.mm-nf-dir').forEach(function (b) {
+                var on = b.getAttribute('data-dir') === dir;
+                b.classList.toggle('on', on);
+                b.setAttribute('aria-pressed', on);
+            });
+            return;
+        }
+        var st = e.target.closest('[data-nf-step]');
+        if (st) {
+            var input = m.el.querySelector('input[data-for="' + st.getAttribute('data-for') + '"]');
+            var cur = input.value.trim() === '' ? (st.getAttribute('data-for') === 'min' ? m.lo : m.hi) : +input.value;
+            input.value = Math.round((cur + (+st.getAttribute('data-nf-step')) * m.step) * 100) / 100;
+            mmNumMenuSync();
+            return;
+        }
+        if (e.target.closest('.mm-nf-clear')) {
+            if (m.table.__mmNum) delete m.table.__mmNum[m.idx];
+            if (m.table.__mmSort && m.table.__mmSort.idx === m.idx) m.table.__mmSort = null;
+            if (m.serverKey && MM_CAMPAIGN_SORT.key === m.serverKey) {
+                MM_CAMPAIGN_SORT.key = null; MM_CAMPAIGN_SORT.dir = 'asc';
+                mmCampaignSortIndicators();
+                mmCampaignGo(1);
+            }
+            mmPlanFilterApply(m.table);
+            mmPlanMenuClose();
+            return;
+        }
         return;
     }
     var opt = e.target.closest('.mm-pf-opt');
@@ -1563,6 +1773,10 @@ document.addEventListener('click', function (e) {
 document.addEventListener('keydown', function (e) {
     if (!MM_PF_MENU) return;
     if (e.key === 'Escape') { e.stopPropagation(); var b = MM_PF_MENU.btn; mmPlanMenuClose(); if (b) b.focus(); return; }
+    if (document.activeElement && document.activeElement.matches('.mm-nf-menu input')) {
+        if (e.key === 'Enter') { e.preventDefault(); mmNumMenuSync(); mmPlanMenuClose(); }
+        return; // arrow keys step the number natively
+    }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         var opts = Array.prototype.filter.call(MM_PF_MENU.el.querySelectorAll('.mm-pf-opt'), function (o) { return !o.disabled; });
@@ -1571,9 +1785,21 @@ document.addEventListener('keydown', function (e) {
         if (next) next.focus();
     }
 }, true);
+document.addEventListener('input', function (e) {
+    if (e.target.matches && e.target.matches('.mm-nf-menu input[data-for]')) mmNumMenuSync();
+});
 window.addEventListener('resize', mmPlanMenuClose);
 mmPlanFilterInit(document);
-document.addEventListener('scroll', function (e) { if (MM_PF_MENU && !(e.target.closest && e.target.closest('.mm-pf-menu'))) mmPlanMenuClose(); }, true);
+/* On scroll the open menu follows its arrow (filtering can shrink the table
+   and nudge the scroll position); it only closes once the arrow is out of view. */
+document.addEventListener('scroll', function (e) {
+    if (!MM_PF_MENU || (e.target.closest && e.target.closest('.mm-pf-menu'))) return;
+    var m = MM_PF_MENU, r = m.btn.getBoundingClientRect();
+    if (!m.btn.isConnected || r.bottom < 0 || r.top > window.innerHeight || (r.width === 0 && r.height === 0)) { mmPlanMenuClose(); return; }
+    var h = m.el.offsetHeight, w = m.el.offsetWidth;
+    m.el.style.left = Math.min(Math.max(8, r.left - 8), window.innerWidth - w - 8) + 'px';
+    m.el.style.top = (r.bottom + 6 + h > window.innerHeight - 8 ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
+}, true);
 
 /* Plan pill (Free trial / Paid / Coaching / Coaching + Paid / No purchase) — see MockMasterDataService::planFor(). */
 function mmPlanCell(r) {
