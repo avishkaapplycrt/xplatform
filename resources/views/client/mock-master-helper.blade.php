@@ -892,7 +892,8 @@ th[data-tip]{cursor:help}
 .risk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:10000;align-items:center;justify-content:center;padding:24px}
 .risk-modal-overlay.show{display:flex}
 .risk-modal{background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
-.risk-modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;color:#111827}
+.risk-modal-hd{display:flex;align-items:flex-start;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;color:#111827}
+.risk-modal-hd button{flex-shrink:0;margin-left:14px}
 .risk-modal-hd button{border:none;background:none;font-size:16px;color:#9ca3af;cursor:pointer;line-height:1;padding:4px}
 .risk-modal-hd button:hover{color:#111827}
 .risk-modal-body{overflow:auto;padding:12px 18px 18px}
@@ -2649,7 +2650,13 @@ function mmStudentOpen(index) {
             '<div style="font-size:11px;color:#6b7280;margin:4px 0 0 20px">' + escapeHtml(t.hint) + '</div></label>';
     }).join('');
 
-    document.getElementById('mmStudentTitle').textContent = s.name;
+    document.getElementById('mmStudentTitle').innerHTML =
+        escapeHtml(s.name) +
+        '<div style="font-size:11.5px;font-weight:500;color:#6b7280;margin-top:3px">' +
+            (s.email ? escapeHtml(s.email) : '<span style="color:#9ca3af">No email on file</span>') +
+            ' &nbsp;-&nbsp; ' +
+            (s.phone ? escapeHtml(s.phone) : '<span style="color:#9ca3af">No phone on file</span>') +
+        '</div>';
     document.getElementById('mmStudentBody').innerHTML =
         '<div id="mmMsgWrap" style="display:grid;grid-template-columns:1fr;gap:20px;align-items:start">' +
             '<div><div style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;margin-bottom:8px">Choose a message</div>' +
