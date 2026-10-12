@@ -661,7 +661,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <div class="si-p">Sorted by <b>churn risk × value at stake</b>. Click through and reach out before they lapse.</div>
                         </div>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Students whose package expires in the next 7 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in)." data-mm-num-filter>Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages." data-mm-num-filter>Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100." data-mm-num-filter>Risk score</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose package expires in the next 7 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in)." data-mm-num-filter>Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages." data-mm-num-filter>Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100." data-mm-num-filter>Risk score</th><th>Action</th></tr></thead>
                             <tbody>
                                 @forelse($chAtRisk as $r)
                                 <tr>
@@ -669,9 +669,10 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                                     <td>{{ $r['inactiveDays'] }}d</td>
                                     <td>{{ $r['valueAtRisk'] }}</td>
                                     <td><span style="color:var(--crit);font-weight:600">{{ $r['risk'] }}</span></td>
+                                    <td><button type="button" class="mm-act-btn" data-mm-compose="chAtRisk" data-row="{{ json_encode($r) }}">View</button></td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="5" style="color:var(--g3);padding:20px">Nothing urgent right now — no packages expiring in the next 7 days.</td></tr>
+                                <tr><td colspan="6" style="color:var(--g3);padding:20px">Nothing urgent right now — no packages expiring in the next 7 days.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -696,12 +697,12 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="ch-watchlist" style="display:none">
                         <div class="stack-intro"><div class="si-h">WATCH — CHURN CREEPING UP</div><div class="si-p">Not urgent yet, but trending the wrong way.</div></div>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Students whose package expires in 8 to 30 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in)." data-mm-num-filter>Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages." data-mm-num-filter>Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100." data-mm-num-filter>Risk score</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose package expires in 8 to 30 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in)." data-mm-num-filter>Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages." data-mm-num-filter>Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100." data-mm-num-filter>Risk score</th><th>Action</th></tr></thead>
                             <tbody>
                                 @forelse($chWatchlist as $r)
-                                <tr><td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td><span class="{{ $mmPlanClass($r['plan'] ?? '') }}">{{ $r['plan'] ?? '—' }}</span></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
+                                <tr><td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td><span class="{{ $mmPlanClass($r['plan'] ?? '') }}">{{ $r['plan'] ?? '—' }}</span></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td><td><button type="button" class="mm-act-btn" data-mm-compose="chWatchlist" data-row="{{ json_encode($r) }}">View</button></td></tr>
                                 @empty
-                                <tr><td colspan="5" style="color:var(--g3);padding:20px">Nothing trending toward churn right now.</td></tr>
+                                <tr><td colspan="6" style="color:var(--g3);padding:20px">Nothing trending toward churn right now.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
