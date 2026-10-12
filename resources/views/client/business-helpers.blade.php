@@ -187,6 +187,21 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
             </div>
         </div>
 
+        {{-- Popup for one account's profile, opened by clicking its name in a table --}}
+        <div class="bh-stu-overlay" id="bhStuOverlay" onclick="if(event.target===this) bhProfileClose()" role="dialog" aria-modal="true" aria-labelledby="bhStuName">
+            <div class="bh-stu-card">
+                <button type="button" class="bh-stu-x" onclick="bhProfileClose()" aria-label="Close">✕</button>
+                <div class="bh-stu-top">
+                    <div class="bh-stu-pic" id="bhStuPic"></div>
+                    <div class="bh-stu-id">
+                        <div class="bh-stu-name" id="bhStuName">Loading…</div>
+                        <div class="bh-stu-company" id="bhStuCompany"></div>
+                    </div>
+                </div>
+                <dl class="bh-stu-dl" id="bhStuBody"></dl>
+            </div>
+        </div>
+
     </div>
     </div>
 
@@ -511,6 +526,28 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 .risk-modal-body table{width:100%;border-collapse:collapse;font-size:12px}
 .risk-modal-body th,.risk-modal-body td{padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:left;white-space:nowrap}
 .risk-modal-body th{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;background:#f9fafb}
+
+.acctn{cursor:pointer}
+.bh-stu-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.5);z-index:10050;align-items:center;justify-content:center;padding:24px}
+.bh-stu-overlay.show{display:flex}
+.bh-stu-card{position:relative;background:#fff;border-radius:14px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.25);padding:22px 22px 18px}
+.bh-stu-x{position:absolute;top:12px;right:12px;border:none;background:none;font-size:15px;color:#9ca3af;cursor:pointer;padding:4px;line-height:1}
+.bh-stu-x:hover{color:#111827}
+.bh-stu-top{display:flex;align-items:center;gap:14px;margin-bottom:16px;padding-right:20px}
+.bh-stu-pic{width:64px;height:64px;border-radius:50%;flex-shrink:0;overflow:hidden;background:#eef2ff;display:grid;place-items:center}
+.bh-stu-ini{font-size:24px;font-weight:700;color:#4f46e5}
+.bh-stu-name{font-size:16px;font-weight:700;color:#111827;line-height:1.3}
+.bh-stu-company{display:inline-block;margin-top:5px;font-size:11px;font-weight:600;color:#4338ca;background:#eef2ff;border-radius:6px;padding:2px 8px}
+.bh-stu-company:empty{display:none}
+.bh-stu-dl{display:grid;grid-template-columns:auto 1fr;gap:0;margin:0;border:1px solid #e6e9f0;border-radius:10px;overflow:hidden}
+.bh-stu-dl dt,.bh-stu-dl dd{margin:0;padding:9px 12px;border-top:1px solid #e6e9f0;font-size:12.5px}
+.bh-stu-dl dt:first-of-type,.bh-stu-dl dt:first-of-type + dd{border-top:none}
+.bh-stu-dl dt{color:#64748b;font-weight:600;background:#f7f8fb;white-space:nowrap}
+.bh-stu-dl dd{color:#111827;display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.bh-stu-dl dd span{overflow-wrap:anywhere}
+.bh-stu-none{color:#9ca3af;font-style:italic}
+.bh-stu-copy{flex-shrink:0;font-size:10.5px;font-weight:600;color:#4338ca;background:#fff;border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;cursor:pointer}
+.bh-stu-copy:hover{background:#eef2ff}
 
 /* "Which customer?" name input in a Root cause answer bubble */
 #bhRoot .nmform{display:flex;gap:6px;margin-top:8px;align-items:stretch}
@@ -1827,7 +1864,7 @@ function renderMkCampaignTableHtml(accounts){
       : '<span class="bh-pill good">Offer-led</span>';
     var lastTouch = a.days_since_activity <= 7 ? 'This week' : a.days_since_activity + 'd ago';
     return '<tr>'
-      + '<td class="acctn">' + bhAcctCell(a.name, a.company) + '</td>'
+      + '<td class="acctn">' + bhAcctCell(a) + '</td>'
       + '<td>' + money(a.deal_value) + '</td>'
       + '<td>' + bhStagePill(a.stage_label) + '</td>'
       + '<td>' + a.buying_readiness + '</td>'
@@ -1844,15 +1881,60 @@ function scoreCol(v){ return v>=70?'#0e7a35':v>=50?'#9a6700':'#b42332'; }
    colour picked from the name, and a stage label shown as a coloured pill.
    They format the same values the tables already showed. */
 var BH_AV_COLORS = ['#3b5bdb','#7c5cfc','#f97316','#1e3a8a','#0284c7','#334155','#16a34a','#db2777','#0d9488'];
-function bhAcctCell(name, company){
-  var n = String(name || '');
+function bhAcctCell(a){
+  var n = String(a.name || '');
+  var company = a.company || '';
   var h = 0; for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
   var initial = (n.trim().charAt(0) || '?').toUpperCase();
-  return '<div class="bh-acct"><span class="bh-av" style="background:'+BH_AV_COLORS[h % BH_AV_COLORS.length]+'">'+escapeHtml(initial)+'</span>'
+  return '<div class="bh-acct" data-bh-acct="' + escapeHtml(JSON.stringify(a)) + '">'
+    + '<span class="bh-av" style="background:'+BH_AV_COLORS[h % BH_AV_COLORS.length]+'">'+escapeHtml(initial)+'</span>'
     + '<div class="bh-acct-txt"><div class="bh-acct-n">'+escapeHtml(n)+'</div>'
     + (company ? '<div class="bh-acct-c">('+escapeHtml(company)+')</div>' : '')
     + '</div></div>';
 }
+
+/* ── Account profile popup — opened by clicking a name rendered by
+   bhAcctCell(). All fields are already loaded client-side in the account
+   object, so this needs no extra request. ── */
+function bhStuRow(label, value, copy){
+  var v = value ? escapeHtml(value) : '<span class="bh-stu-none">Not on file</span>';
+  var btn = (value && copy) ? '<button type="button" class="bh-stu-copy" data-copy="' + escapeHtml(value) + '">Copy</button>' : '';
+  return '<dt>' + label + '</dt><dd><span>' + v + '</span>' + btn + '</dd>';
+}
+function bhProfileOpen(a){
+  var full = a.name || 'Unnamed account';
+  document.getElementById('bhStuName').textContent = full;
+  document.getElementById('bhStuCompany').textContent = a.company || '';
+  var initial = escapeHtml((a.name || '').trim().charAt(0).toUpperCase() || '?');
+  document.getElementById('bhStuPic').innerHTML = '<span class="bh-stu-ini">' + initial + '</span>';
+  document.getElementById('bhStuBody').innerHTML =
+    bhStuRow('Company', a.company) +
+    bhStuRow('Email', a.email, true) +
+    bhStuRow('Deal stage', a.stage_label) +
+    bhStuRow('Deal value', a.deal_value != null ? money(a.deal_value) : null) +
+    bhStuRow('Readiness', a.buying_readiness != null ? String(a.buying_readiness) : null) +
+    bhStuRow('Trust', a.trust != null ? String(a.trust) : null) +
+    bhStuRow('Last active', a.days_since_activity != null ? (a.days_since_activity <= 7 ? 'This week' : a.days_since_activity + 'd ago') : null);
+  document.getElementById('bhStuOverlay').classList.add('show');
+}
+function bhProfileClose(){
+  document.getElementById('bhStuOverlay').classList.remove('show');
+}
+document.addEventListener('click', function(e){
+  var copy = e.target.closest('.bh-stu-copy');
+  if (copy) {
+    var text = copy.getAttribute('data-copy');
+    var done = function(){ copy.textContent = 'Copied'; setTimeout(function(){ copy.textContent = 'Copy'; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function(){});
+    return;
+  }
+  var cell = e.target.closest('[data-bh-acct]');
+  if (!cell) return;
+  try { bhProfileOpen(JSON.parse(cell.getAttribute('data-bh-acct'))); } catch (err) {}
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape' && document.getElementById('bhStuOverlay').classList.contains('show')) bhProfileClose();
+});
 function bhStagePill(label){
   var l = String(label || '');
   var kind = /won/i.test(l) ? 'good' : /lost/i.test(l) ? 'bad' : /decision|bought/i.test(l) ? 'violet' : 'info';
@@ -1895,7 +1977,7 @@ function renderMarketingAccountsTable(accounts){
   var rows = accounts.map(function(a){
     var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
     var segColor = MK_SEGMENT_COLOR[a.segment] || '#6b7280';
-    return '<tr><td class="acctn">'+bhAcctCell(a.name, a.company)+'</td>'+
+    return '<tr><td class="acctn">'+bhAcctCell(a)+'</td>'+
       '<td><span class="segtag" style="background:'+segColor+'22;color:'+segColor+'">'+escapeHtml(segLabel)+'</span></td>'+
       '<td>'+money(a.deal_value)+'</td><td>'+a.buying_readiness+'</td><td>'+a.trust+'</td>'+
       '<td>'+bhStagePill(a.stage_label)+'</td><td>'+a.days_since_activity+'d ago</td></tr>';
