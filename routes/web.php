@@ -123,6 +123,7 @@ Route::middleware('throttle:20,1')->prefix('chat')->name('chat.')->group(functio
     Route::post('send',  [PublicChatController::class, 'send'])->name('send');
     Route::post('reset', [PublicChatController::class, 'reset'])->name('reset');
     Route::post('analyze-lead', [PublicChatController::class, 'analyzeWithLead'])->name('analyze-lead');
+    Route::post('compare', [PublicChatController::class, 'compare'])->name('compare');
 });
 
 // Premium Mira (/mira-premium): AEO questions about the visitor's own website, via OpenAI.

@@ -441,7 +441,7 @@ class WebsiteAnalyzerService
         'H1 heading'                 => 'Use exactly one H1 that states what the page is about; turn any other H1s into H2s.',
         'Heading order'              => 'Keep headings in order (H1 → H2 → H3) without skipping levels, so search engines and screen readers follow the structure.',
         'Word count'                 => 'Add more useful text (aim for 300+ words): what you offer, who it\'s for, and answers to common questions.',
-        'Image alt text'             => 'Give every meaningful image a short alt text describing it, e.g. alt="Blue sapphire engagement ring in white gold".',
+        'Image alt text'             => 'Give every meaningful image a short alt text describing it, e.g. alt="Customer using our app on a phone".',
         'HTTPS'                      => 'Serve the whole site over HTTPS with a valid SSL certificate and redirect all http:// pages to https://.',
         'Mixed content'              => 'Load every image, script and stylesheet over https://; mixed content triggers browser warnings and hurts trust.',
         'Mobile viewport'            => 'Add <meta name="viewport" content="width=device-width, initial-scale=1"> so the page scales properly on phones.',
@@ -544,7 +544,7 @@ class WebsiteAnalyzerService
     }
 
     /** The fix for a fail/warn check, or null when it passed (or has no advice yet). */
-    private function recommendationFor(array $check): ?string
+    public function recommendationFor(array $check): ?string
     {
         if (!in_array($check['status'], ['fail', 'warn'], true)) {
             return null;
