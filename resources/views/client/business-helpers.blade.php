@@ -358,6 +358,7 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 #bhRoot .stkbtn{font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:9px 14px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;border-radius:7px;white-space:nowrap}
 #bhRoot .stkbtn:hover{background:#000;border-color:#000}
 #bhRoot .stkbtn.ghost{background:#fff;color:var(--g2);border-color:var(--ln2)}
+#bhRoot .stkbtn.done{background:#ecfdf5;border-color:#a7f3d0;color:var(--sig);cursor:default}
 #bhRoot .stkbtn.ghost:hover{color:var(--ink);border-color:var(--ink)}
 #bhRoot .stk-actions{display:flex;flex-direction:column;gap:8px}
 @media(max-width:900px){#bhRoot .stkrow{grid-template-columns:1fr 1fr;grid-auto-flow:row}}
@@ -548,6 +549,8 @@ $initials   = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(expl
 .bh-stu-none{color:#9ca3af;font-style:italic}
 .bh-stu-copy{flex-shrink:0;font-size:10.5px;font-weight:600;color:#4338ca;background:#fff;border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;cursor:pointer}
 .bh-stu-copy:hover{background:#eef2ff}
+.mm-btn-spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:mmSpin .7s linear infinite}
+@keyframes mmSpin{to{transform:rotate(360deg)}}
 
 /* "Which customer?" name input in a Root cause answer bubble */
 #bhRoot .nmform{display:flex;gap:6px;margin-top:8px;align-items:stretch}
@@ -776,6 +779,7 @@ var RETENTION_AI_ENDPOINTS = {
 var SALES_ASK_ENDPOINT = @json(route('client.business-helpers.sales.ask'));
 var SALES_PROMPT_AI_ENDPOINT = @json(route('client.business-helpers.sales.prompt-insight'));
 var SALES_OBJECTION_PLAYBOOK_ENDPOINT = @json(route('client.business-helpers.sales.objection-playbook'));
+var SALES_SEND_EMAIL_ENDPOINT = @json(route('client.business-helpers.sales.send-email'));
 var SALES_PROMPT_AI_KEYS = [
   'understand:priority_changed',
   'craft:not_ready_response', 'craft:too_expensive_response', 'craft:competitor_response',
@@ -1912,18 +1916,15 @@ function bhProfileOpen(a){
   document.getElementById('bhStuPic').innerHTML = '<span class="bh-stu-ini">' + initial + '</span>';
   document.getElementById('bhStuBody').innerHTML =
     bhStuRow('Company', a.company) +
-    bhStuRow('Email', a.email, true) +
-    bhStuRow('Deal stage', a.stage_label) +
-    bhStuRow('Deal value', a.deal_value != null ? money(a.deal_value) : null) +
-    bhStuRow('Readiness', a.buying_readiness != null ? String(a.buying_readiness) : null) +
-    bhStuRow('Trust', a.trust != null ? String(a.trust) : null) +
-    bhStuRow('Last active', a.days_since_activity != null ? (a.days_since_activity <= 7 ? 'This week' : a.days_since_activity + 'd ago') : null);
+    bhStuRow('Email', a.email, true);
   document.getElementById('bhStuOverlay').classList.add('show');
 }
 function bhProfileClose(){
   document.getElementById('bhStuOverlay').classList.remove('show');
 }
 document.addEventListener('click', function(e){
+  var closeBtn = e.target.closest('.bh-stu-x');
+  if (closeBtn) { bhProfileClose(); return; }
   var copy = e.target.closest('.bh-stu-copy');
   if (copy) {
     var text = copy.getAttribute('data-copy');
@@ -2066,12 +2067,28 @@ function selectScriptAccount(name, chan){
   var a = ACCOUNTS.filter(function(x){ return x.name===name; })[0];
   var c = classifyFor(agent, a);
   var chanBtns = chans.map(function(ch){ return '<button type="button" class="'+(ch===scriptChan?'on':'')+'" onclick="selectScriptAccount(\''+nameAttr(name)+'\',\''+ch+'\')">'+ch+'</button>'; }).join('');
-  var beats = scriptBeats(agent, a, c, scriptChan);
-  document.getElementById('ssOut').innerHTML =
-    '<div class="ss-chan">'+chanBtns+'</div>'+
-    '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+' · '+escapeHtml(scriptChan.toUpperCase())+'</div>'+
-    beats.map(function(b){ return '<div class="ss-beat"><div class="ss-beat-l">'+b[0]+'</div>'+b[1]+'</div>'; }).join('') +
-    '</div>';
+  if (agent==='sl' && scriptChan==='email') {
+    // Email is editable before sending — subject/body prefill from the same
+    // script copy, but the account can hand-edit either before it goes out.
+    var content = salesEmailContent(a);
+    document.getElementById('ssOut').innerHTML =
+      '<div class="ss-chan">'+chanBtns+'</div>'+
+      '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+' · EMAIL (editable)</div>'+
+      '<div style="padding:14px 16px">'+
+        '<label style="display:block;font-size:10.5px;font-weight:700;color:var(--g3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Subject</label>'+
+        '<input type="text" id="bhEmailSubject" value="'+escapeHtml(content.subject)+'" style="width:100%;border:1px solid var(--ln2);border-radius:8px;padding:9px 11px;font-size:13px;font-family:var(--f1);margin-bottom:14px;box-sizing:border-box">'+
+        '<label style="display:block;font-size:10.5px;font-weight:700;color:var(--g3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Message</label>'+
+        '<textarea id="bhEmailBody" rows="11" style="width:100%;border:1px solid var(--ln2);border-radius:8px;padding:10px 11px;font-size:13px;font-family:var(--f1);line-height:1.65;box-sizing:border-box;resize:vertical">'+escapeHtml(content.body)+'</textarea>'+
+      '</div></div>'+
+      '<button type="button" class="stkbtn" style="margin-top:10px" onclick="bhSendScriptEmail(this,\''+nameAttr(name)+'\')">Send Email</button>';
+  } else {
+    var beats = scriptBeats(agent, a, c, scriptChan);
+    document.getElementById('ssOut').innerHTML =
+      '<div class="ss-chan">'+chanBtns+'</div>'+
+      '<div class="ss-script"><div class="ss-shd">'+escapeHtml(name.toUpperCase())+' · '+escapeHtml(scriptChan.toUpperCase())+'</div>'+
+      beats.map(function(b){ return '<div class="ss-beat"><div class="ss-beat-l">'+b[0]+'</div>'+b[1]+'</div>'; }).join('') +
+      '</div>';
+  }
   dashState.lead = name;
   // Quick-question buttons show [name] substituted from dashState.lead —
   // refresh them so they reflect whichever client was just selected here,
@@ -2318,6 +2335,87 @@ function nextBestAction(x){
   if (!stage) return {action:'Follow Up', detail:'No deal open yet — a follow-up touch is the next step.'};
   return {action:'Email', detail:'Send a check-in — confirm they\'re still moving and ask what\'s next.'};
 }
+/* Builds the real plain-text subject/body for the "Email" action above —
+   same copy as scriptBeats()'s chan==='email' branches, just as text
+   instead of HTML, since this one actually gets sent via Mail::raw(). */
+function salesEmailContent(a){
+  var s = a.scores, firstName = (a.name || '').split(' ')[0], company = a.company || 'your team';
+  if (s.trust < DTH.trust) {
+    return {
+      subject: 'Quick question about ' + company,
+      body: 'Hi ' + firstName + ',\n\n'
+        + 'I noticed your team\'s been checking us out a few times lately — usually a sign the problem\'s real, but something\'s still holding the decision back.\n\n'
+        + 'Companies in a similar spot to ' + company + ' typically see real results within the first 30-60 days, which is often what makes the case internally.\n\n'
+        + 'Happy to walk you through how that would look for your situation — would a quick 15-minute call this week work?\n\n'
+        + 'Best'
+    };
+  }
+  return {
+    subject: 'Checking in — ' + company,
+    body: 'Hi ' + firstName + ',\n\n'
+      + 'You\'ve clearly gotten real value out of this already, and I think you\'re in a great position to get even more from it.\n\n'
+      + 'Based on where things stand, the next plan up would likely pay for itself quickly for a team like ' + company + '\'s.\n\n'
+      + 'Want me to put together what that would look like and jump on a quick call this week?\n\n'
+      + 'Best'
+  };
+}
+/* Shared sender for both Email buttons (Pitch tab and Close & grow) — posts
+   to business-helpers/sales/send-email, which sends via the app's default
+   mailer (config/mail.php, driven by .env: MAIL_MAILER/MAIL_HOST/
+   MAIL_USERNAME/MAIL_PASSWORD/…) and logs to email_logs, same as Mock
+   Master's sender. */
+function bhPostSendEmail(btn, email, name, subject, body){
+  if (!email) { alert('No email address on file for this account.'); return; }
+  if (!subject || !subject.trim()) { alert('Subject cannot be empty.'); return; }
+  if (!body || !body.trim()) { alert('Message cannot be empty.'); return; }
+  btn.disabled = true;
+  var orig = btn.innerHTML;
+  btn.innerHTML = '<span class="mm-btn-spinner"></span>';
+  fetch(SALES_SEND_EMAIL_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+    },
+    body: JSON.stringify({ email: email, name: name, subject: subject, body: body })
+  })
+    .then(function(r){ return r.json().then(function(data){ return {status: r.status, data: data}; }); })
+    .then(function(res){
+      if (res.data && res.data.ok) {
+        btn.innerHTML = '&check; Sent';
+        btn.classList.add('done');
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+        alert((res.data && res.data.message) || 'The email could not be sent.');
+      }
+    })
+    .catch(function(){
+      btn.disabled = false;
+      btn.innerHTML = orig;
+      alert('The email could not be sent. Please check your connection and try again.');
+    });
+}
+/* Pitch tab · "Send Email" — sends whatever is currently in the editable
+   Subject/Message fields (prefilled from salesEmailContent(), but the user
+   may have changed either before sending). */
+function bhSendScriptEmail(btn, name){
+  var a = ACCOUNTS.filter(function(x){ return x.name===name; })[0];
+  if (!a) return;
+  var subjectEl = document.getElementById('bhEmailSubject');
+  var bodyEl = document.getElementById('bhEmailBody');
+  var subject = subjectEl ? subjectEl.value : '';
+  var body = bodyEl ? bodyEl.value : '';
+  bhPostSendEmail(btn, a.email, a.name, subject, body);
+}
+/* Close & grow · "Email" — no editable fields there, sends the generated
+   script copy as-is. */
+function bhSendCloseEmail(btn, name){
+  var a = ACCOUNTS.filter(function(x){ return x.name===name; })[0];
+  if (!a) return;
+  var content = salesEmailContent(a);
+  bhPostSendEmail(btn, a.email, a.name, content.subject, content.body);
+}
 function renderCloseGrowPlaybook(){
   var r = rankedFor('sl');
   var closing = r.filter(function(x){ return (x.c.play === 'call' || x.c.play === 'upsell') && x.a.mrr > 0; }).slice(0, 5);
@@ -2333,8 +2431,11 @@ function renderCloseGrowPlaybook(){
   html += '<div class="sectionh">TOP OPPORTUNITIES TO CLOSE<span>'+closing.length+' shown</span></div>';
   html += closing.length ? closing.map(function(x,i){
     var nba = nextBestAction(x);
+    var btn = nba.action === 'Email'
+      ? '<button type="button" class="stkbtn" data-bh-send-email data-name="'+nameAttr(x.a.name)+'" onclick="bhSendCloseEmail(this,\''+nameAttr(x.a.name)+'\')">Email</button>'
+      : '<button type="button" class="stkbtn" onclick="openScriptFor(\''+nameAttr(x.a.name)+'\')">'+escapeHtml(nba.action)+'</button>';
     return '<div class="stkrow-close"><div class="stk-n">'+String(i+1).padStart(2,'0')+'</div>'
-      + '<button type="button" class="stkbtn" onclick="openScriptFor(\''+nameAttr(x.a.name)+'\')">'+escapeHtml(nba.action)+'</button>'
+      + btn
       + '<div><div class="stk-acct">'+escapeHtml(x.a.name)+'</div>'
       + '<div class="stk-mrr">'+money(x.a.mrr)+' MRR · '+x.a.scores.buying_readiness+'% ready · '+x.a.scores.intent+'% intent · '+escapeHtml(x.a.deal_stage_label)+'</div></div>'
       + '<div class="stk-why">'+escapeHtml(nba.detail)+'</div></div>';
