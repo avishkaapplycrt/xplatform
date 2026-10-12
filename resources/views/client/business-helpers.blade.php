@@ -1881,12 +1881,15 @@ function scoreCol(v){ return v>=70?'#0e7a35':v>=50?'#9a6700':'#b42332'; }
    colour picked from the name, and a stage label shown as a coloured pill.
    They format the same values the tables already showed. */
 var BH_AV_COLORS = ['#3b5bdb','#7c5cfc','#f97316','#1e3a8a','#0284c7','#334155','#16a34a','#db2777','#0d9488'];
+var BH_ACCT_CACHE = {};
 function bhAcctCell(a){
   var n = String(a.name || '');
   var company = a.company || '';
   var h = 0; for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
   var initial = (n.trim().charAt(0) || '?').toUpperCase();
-  return '<div class="bh-acct" data-bh-acct="' + escapeHtml(JSON.stringify(a)) + '">'
+  var id = 'a' + Math.random().toString(36).slice(2, 9);
+  BH_ACCT_CACHE[id] = a;
+  return '<div class="bh-acct" data-bh-acct="' + id + '">'
     + '<span class="bh-av" style="background:'+BH_AV_COLORS[h % BH_AV_COLORS.length]+'">'+escapeHtml(initial)+'</span>'
     + '<div class="bh-acct-txt"><div class="bh-acct-n">'+escapeHtml(n)+'</div>'
     + (company ? '<div class="bh-acct-c">('+escapeHtml(company)+')</div>' : '')
@@ -1930,7 +1933,8 @@ document.addEventListener('click', function(e){
   }
   var cell = e.target.closest('[data-bh-acct]');
   if (!cell) return;
-  try { bhProfileOpen(JSON.parse(cell.getAttribute('data-bh-acct'))); } catch (err) {}
+  var a = BH_ACCT_CACHE[cell.getAttribute('data-bh-acct')];
+  if (a) bhProfileOpen(a);
 });
 document.addEventListener('keydown', function(e){
   if (e.key === 'Escape' && document.getElementById('bhStuOverlay').classList.contains('show')) bhProfileClose();
