@@ -661,7 +661,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <div class="si-p">Sorted by <b>churn risk × value at stake</b>. Click through and reach out before they lapse.</div>
                         </div>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Students whose package expires in the next 7 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in)." data-mm-num-filter>Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages." data-mm-num-filter>Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100." data-mm-num-filter>Risk score</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose package expires in the next 7 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in)." data-mm-num-filter>Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages." data-mm-num-filter>Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100." data-mm-num-filter>Risk score</th><th>Action</th></tr></thead>
                             <tbody>
                                 @forelse($chAtRisk as $r)
                                 <tr>
@@ -669,9 +669,10 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                                     <td>{{ $r['inactiveDays'] }}d</td>
                                     <td>{{ $r['valueAtRisk'] }}</td>
                                     <td><span style="color:var(--crit);font-weight:600">{{ $r['risk'] }}</span></td>
+                                    <td><button type="button" class="mm-act-btn" data-mm-compose="chAtRisk" data-row="{{ json_encode($r) }}">View</button></td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="5" style="color:var(--g3);padding:20px">Nothing urgent right now — no packages expiring in the next 7 days.</td></tr>
+                                <tr><td colspan="6" style="color:var(--g3);padding:20px">Nothing urgent right now — no packages expiring in the next 7 days.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -696,12 +697,12 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     <div class="mm-panel" data-panel="ch-watchlist" style="display:none">
                         <div class="stack-intro"><div class="si-h">WATCH — CHURN CREEPING UP</div><div class="si-p">Not urgent yet, but trending the wrong way.</div></div>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Students whose package expires in 8 to 30 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in)." data-mm-num-filter>Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages." data-mm-num-filter>Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100." data-mm-num-filter>Risk score</th></tr></thead>
+                            <thead><tr><th data-tip="Students whose package expires in 8 to 30 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in)." data-mm-num-filter>Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages." data-mm-num-filter>Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100." data-mm-num-filter>Risk score</th><th>Action</th></tr></thead>
                             <tbody>
                                 @forelse($chWatchlist as $r)
-                                <tr><td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td><span class="{{ $mmPlanClass($r['plan'] ?? '') }}">{{ $r['plan'] ?? '—' }}</span></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td></tr>
+                                <tr><td class="acctn" data-mm-stu data-sid="{{ $r['sid'] ?? '' }}" data-email="{{ $r['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($r['name']) }}">{{ $mmInitial($r['name']) }}</span><div class="bh-acct-n">{{ $r['name'] }}</div></div></td><td><span class="{{ $mmPlanClass($r['plan'] ?? '') }}">{{ $r['plan'] ?? '—' }}</span></td><td>{{ $r['inactiveDays'] }}d</td><td>{{ $r['valueAtRisk'] }}</td><td>{{ $r['risk'] }}</td><td><button type="button" class="mm-act-btn" data-mm-compose="chWatchlist" data-row="{{ json_encode($r) }}">View</button></td></tr>
                                 @empty
-                                <tr><td colspan="5" style="color:var(--g3);padding:20px">Nothing trending toward churn right now.</td></tr>
+                                <tr><td colspan="6" style="color:var(--g3);padding:20px">Nothing trending toward churn right now.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -891,7 +892,8 @@ th[data-tip]{cursor:help}
 .risk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:10000;align-items:center;justify-content:center;padding:24px}
 .risk-modal-overlay.show{display:flex}
 .risk-modal{background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
-.risk-modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;color:#111827}
+.risk-modal-hd{display:flex;align-items:flex-start;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;color:#111827}
+.risk-modal-hd button{flex-shrink:0;margin-left:14px}
 .risk-modal-hd button{border:none;background:none;font-size:16px;color:#9ca3af;cursor:pointer;line-height:1;padding:4px}
 .risk-modal-hd button:hover{color:#111827}
 .risk-modal-body{overflow:auto;padding:12px 18px 18px}
@@ -2667,7 +2669,13 @@ function mmStudentOpen(index) {
             '<div style="font-size:11px;color:#6b7280;margin:4px 0 0 20px">' + escapeHtml(t.hint) + '</div></label>';
     }).join('');
 
-    document.getElementById('mmStudentTitle').textContent = s.name;
+    document.getElementById('mmStudentTitle').innerHTML =
+        escapeHtml(s.name) +
+        '<div style="font-size:11.5px;font-weight:500;color:#6b7280;margin-top:3px">' +
+            (s.email ? escapeHtml(s.email) : '<span style="color:#9ca3af">No email on file</span>') +
+            ' &nbsp;-&nbsp; ' +
+            (s.phone ? escapeHtml(s.phone) : '<span style="color:#9ca3af">No phone on file</span>') +
+        '</div>';
     document.getElementById('mmStudentBody').innerHTML =
         '<div id="mmMsgWrap" style="display:grid;grid-template-columns:1fr;gap:20px;align-items:start">' +
             '<div><div style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;margin-bottom:8px">Choose a message</div>' +

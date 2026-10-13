@@ -2,15 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AskMiraVisitor;
 use App\Models\ChatBot;
 use App\Models\ChatBotUser;
 use App\Models\Industry;
 use App\Services\Llm\AnthropicException;
 use App\Services\Llm\AnthropicRefusedException;
 use App\Services\Llm\MarketingChatBotService;
+use App\Services\WebsiteAnalyzerException;
+use App\Services\WebsiteComparisonService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Backend for the public "Chat with AI" widget on the marketing site.
@@ -33,6 +38,19 @@ use Illuminate\Support\Facades\Log;
 class PublicChatController extends Controller
 {
     private const SESSION_KEY = 'public_chat_history';
+
+    /**
+     * Competitor comparison "how to fix" advice on the free homepage:
+     *   true  (for now) — the fixes are sent, and clicking "Try Premium Mira"
+     *         on the blurred section reveals them in place.
+     *   false — the fixes are never sent (a blur alone leaves them readable in
+     *         the page) and the button links to /mira-premium instead.
+     */
+    private const COMPARISON_FIXES_UNLOCKABLE = true;
+
+    /** Cookie holding the visitor's askmira_visitors.visitor_id (kept for a year). */
+    private const VISITOR_COOKIE         = 'askmira_vid';
+    private const VISITOR_COOKIE_MINUTES = 60 * 24 * 365;
 
     public function send(Request $request, MarketingChatBotService $bot): JsonResponse
     {
@@ -83,6 +101,59 @@ class PublicChatController extends Controller
         return response()->json(['reply' => $reply, 'report' => $report, 'suggestions' => $result['suggestions'] ?? []]);
     }
 
+    /**
+     * "Compare with a competitor" in the homepage Analyse tab: checks both
+     * sites and returns what to fix to catch up (WebsiteComparisonService).
+     * Visitors who aren't logged in give their name and email first and are
+     * saved as a lead, like analyzeWithLead().
+     */
+    public function compare(Request $request, WebsiteComparisonService $comparer): JsonResponse
+    {
+        $client = auth('client')->user();
+
+        $validated = $request->validate([
+            'url'            => 'required|url|max:2048',
+            'competitor_url' => 'required|url|max:2048|different:url',
+            'name'           => [$client ? 'nullable' : 'required', 'string', 'max:255'],
+            'email'          => [$client ? 'nullable' : 'required', 'email', 'max:255'],
+        ], [
+            'competitor_url.different' => "Your competitor's website must be different from yours.",
+        ]);
+
+        if ($client === null) {
+            ChatBotUser::create([
+                'name'        => $validated['name'],
+                'email'       => $validated['email'],
+                'website_url' => $validated['url'],
+            ]);
+            $this->recordVisitor($request, $validated['name'], $validated['email'], $validated['url']);
+        }
+
+        // Two full site checks can outlast the default 60s execution limit.
+        set_time_limit(120);
+
+        try {
+            $comparison = $comparer->compare($validated['url'], $validated['competitor_url']);
+        } catch (WebsiteAnalyzerException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        // The "how to fix" advice sits behind a blurred "Try Premium Mira" card
+        // on the homepage. See COMPARISON_FIXES_UNLOCKABLE.
+        $comparison['locked'] = true;
+        if (!self::COMPARISON_FIXES_UNLOCKABLE) {
+            $comparison['gaps'] = array_map(
+                fn ($gap) => array_diff_key($gap, ['recommendation' => true]),
+                $comparison['gaps']
+            );
+        }
+
+        return response()->json([
+            'reply'      => $comparer->replyFor($comparison),
+            'comparison' => $comparison,
+        ]);
+    }
+
     public function analyzeWithLead(Request $request, MarketingChatBotService $bot): JsonResponse
     {
         $validated = $request->validate([
@@ -98,6 +169,7 @@ class PublicChatController extends Controller
             'email'       => $validated['email'],
             'website_url' => $validated['url'],
         ]);
+        $this->recordVisitor($request, $validated['name'], $validated['email'], $validated['url']);
 
         $history  = $request->session()->get(self::SESSION_KEY, []);
         $client   = auth('client')->user();
@@ -138,6 +210,59 @@ class PublicChatController extends Controller
         $request->session()->put(self::SESSION_KEY, $bot->trim($history));
 
         return response()->json(['reply' => $reply, 'report' => $report, 'suggestions' => $result['suggestions'] ?? []]);
+    }
+
+    /**
+     * Saves the visitor from the "Before we analyze your site" form to
+     * askmira_visitors. One row per browser: visitor_id lives in a long-lived
+     * cookie, and a repeat visitor's row is updated with their latest name,
+     * email, website and date. Device comes from the user agent. Never blocks
+     * the analysis — failures are logged.
+     */
+    private function recordVisitor(Request $request, string $name, string $email, string $website): void
+    {
+        try {
+            $visitorId = $request->cookie(self::VISITOR_COOKIE);
+            if (!is_string($visitorId) || !preg_match('/^[0-9a-f-]{36}$/', $visitorId)) {
+                $visitorId = (string) Str::uuid();
+            }
+
+            AskMiraVisitor::updateOrCreate(
+                ['visitor_id' => $visitorId],
+                [
+                    'name'    => $name,
+                    'email'   => $email,
+                    'website' => mb_substr($website, 0, 2048),
+                    'date'    => now(),
+                    'device'  => $this->deviceFrom((string) $request->userAgent()),
+                ]
+            );
+
+            Cookie::queue(self::VISITOR_COOKIE, $visitorId, self::VISITOR_COOKIE_MINUTES);
+        } catch (\Throwable $e) {
+            Log::warning('Could not save Ask Mira visitor', ['message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * The visitor's operating system from their user agent, for
+     * askmira_visitors.device: Android / iOS / Windows / Mac / Linux / Other /
+     * Unknown. Order matters — Android user agents also say "Linux", and iOS
+     * ones say "like Mac OS X". Recent iPads present themselves as a Mac, so
+     * they're recorded as Mac (indistinguishable on the server).
+     */
+    private function deviceFrom(string $userAgent): string
+    {
+        return match (true) {
+            $userAgent === ''                                          => 'Unknown',
+            (bool) preg_match('/iphone|ipad|ipod/i', $userAgent)       => 'iOS',
+            (bool) preg_match('/android/i', $userAgent)                => 'Android',
+            (bool) preg_match('/windows/i', $userAgent)                => 'Windows',
+            (bool) preg_match('/macintosh|mac os x/i', $userAgent)     => 'Mac',
+            (bool) preg_match('/cros/i', $userAgent)                   => 'Other',   // ChromeOS
+            (bool) preg_match('/linux|x11/i', $userAgent)              => 'Linux',
+            default                                                    => 'Other',
+        };
     }
 
     public function reset(Request $request): JsonResponse

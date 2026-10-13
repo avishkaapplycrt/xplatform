@@ -163,7 +163,7 @@ img,svg{display:block}
    ::after   thin gradient light ring sweeping around
    .mira-orb-ripple  rings expanding outward and fading (two, offset in time)
    .mira-orb-orbit   tiny glowing particles circling the orb (two, opposite directions) */
-.mira-orb-wrap{position:relative;width:118px;height:118px;margin-bottom:22px;display:grid;place-items:center;isolation:isolate}
+.mira-orb-wrap{position:relative;width:118px;height:118px;margin:14px 0 56px;display:grid;place-items:center;isolation:isolate}
 .mira-orb-wrap .mira-orb{position:relative;z-index:2;margin:0}
 .mira-orb-wrap::before{content:"";position:absolute;inset:-42px;border-radius:50%;z-index:0;
   background:radial-gradient(circle,rgba(83,131,236,.30) 0%,rgba(196,132,252,.14) 42%,transparent 70%);
@@ -205,33 +205,33 @@ img,svg{display:block}
 .mira-chip.premium:hover{background:#fdf1d4;border-color:#d4af37}
 .mira-msg a{color:#5383EC;text-decoration:underline}
 
-.mira-input-row{display:flex;align-items:flex-end;gap:10px;background:#fff;border-radius:18px;margin:16px 24px 20px;padding:16px 16px 16px 20px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
-.mira-input{flex:1;border:none;outline:none;resize:none;font-family:'Inter',sans-serif;font-size:14px;color:#17181a;background:transparent;max-height:120px;line-height:1.5}
+.mira-input-row{display:flex;align-items:center;gap:10px;background:#fff;border-radius:18px;margin:16px 24px 20px;padding:10px 10px 10px 22px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.mira-input{flex:1;min-width:0;padding:9px 0;border:none;outline:none;resize:none;font-family:'Inter',sans-serif;font-size:14px;color:#17181a;background:transparent;max-height:120px;line-height:1.5}
 .mira-input::placeholder{color:#9a9a9e}
 .mira-send{flex-shrink:0;width:38px;height:38px;border-radius:50%;background:#5383EC;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .15s}
 .mira-send:hover{opacity:.9}
 .mira-send svg{width:16px;height:16px;fill:#fff}
 .mira-analyze-hint{font-family:'Inter',sans-serif;font-size:13px;color:#8f8f94;text-align:center;margin:0 24px 8px}
+/* Analyse tab: keep the orb, heading, hint, URL box(es) and compare button
+   together as one vertically centred group (the orb block doesn't stretch). */
+#miraPanelAnalyze{justify-content:center;padding:8px 0 4px}
+#miraPanelAnalyze .mira-empty{flex:0 0 auto;padding:6px 24px 0}
+#miraPanelAnalyze .mira-analyze-hint{margin:4px 24px 0}
+#miraPanelAnalyze .mira-input-row{margin:18px 24px 0}
+#miraPanelAnalyze .mira-compare .mira-input-row{margin-top:0}
+/* Comparing: hide the send button on "your website" (only the competitor box keeps one),
+   keeping the row the same height as the one below. */
+#miraPanelAnalyze.comparing > .mira-input-row > .mira-send{display:none}
+#miraPanelAnalyze.comparing > .mira-input-row{min-height:58px;padding-right:22px}
+#miraPanelAnalyze .mira-analyze-status{margin:2px 24px 14px}
 .mira-analyze-status{font-family:'Inter',sans-serif;font-size:13px;color:#6b6b70;text-align:center;margin:0 24px 12px;min-height:16px}
 .mira-analyze-status.err{color:#e0564c}
 
-.mira-sources{padding:4px 24px 26px;text-align:center}
-.mira-sources-label{font-family:'Inter',sans-serif;font-size:14px;font-weight:600;color:#17181a;margin-bottom:14px}
-.mira-sources-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
-.src-tile{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.src-tile svg{width:22px;height:22px}
-.src-tile.t-stripe{background:#eef8ff}
-.src-tile.t-shopify{background:#fffaef}
-.src-tile.t-globe{background:#fff3ee}
-.src-tile.t-hubspot{background:#eafbf9}
-.src-tile.t-mail{background:#fef3fd}
-.src-tile.t-bank{background:#edf5ff}
 
 @media (max-width:480px){
   .mira-empty h3{font-size:19px}
   .mira-orb{width:90px;height:90px}
   .mira-input-row{margin:12px 14px 16px}
-  .mira-sources{padding:4px 14px 20px}
 }
 
 /* ============ SECTION HEADINGS (shared, exact Figma spec: Space Grotesk 500 / 68px,
@@ -607,6 +607,97 @@ img,svg{display:block}
 .mira-report .a-upsell-btn{flex-shrink:0;background:#5383EC;color:#fff;border-radius:999px;padding:10px 20px}
 @media (max-width:640px){.mira-report{padding:20px 16px;border-radius:20px}.mira-report .chat-upsell-aside{flex-direction:column;align-items:flex-start}}
 .a-modal,.lead-modal{background:#fff;border-color:#ececef;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+
+/* ============ ASK MIRA — compare with a competitor ============ */
+/* "Compare with a competitor" pill: white face, thin blue-to-purple gradient
+   border (two-layer background) and a gradient icon circle. */
+.mira-compare-toggle{align-self:center;display:inline-flex;align-items:center;gap:10px;margin:16px auto 10px;padding:6px 14px 6px 6px;
+  border:1.5px solid transparent;border-radius:999px;cursor:pointer;font-family:'Inter',sans-serif;font-size:13.5px;font-weight:600;color:#1f2a44;
+  background:linear-gradient(#fff,#fff) padding-box,linear-gradient(135deg,#5383EC,#a78bfa) border-box;
+  box-shadow:0 4px 14px rgba(83,131,236,.18);transition:transform .15s,box-shadow .2s,color .2s}
+.mira-compare-toggle:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(83,131,236,.3)}
+.mira-compare-toggle:focus-visible{outline:2px solid #5383EC;outline-offset:3px}
+.mct-icon{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;
+  background:linear-gradient(135deg,#5383EC,#8b6cf6);box-shadow:0 2px 8px rgba(83,131,236,.4)}
+.mct-icon svg{width:14px;height:14px;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;grid-area:1/1}
+.mct-i-remove{display:none}
+/* On: a quiet grey "Back" pill. */
+.mira-compare-toggle.on{color:#4a4a50;background:linear-gradient(#fff,#fff) padding-box,linear-gradient(#dcdce0,#dcdce0) border-box;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.mira-compare-toggle.on .mct-icon{background:#ececef;box-shadow:none}
+.mira-compare-toggle.on .mct-icon svg{stroke:#6b6b70}
+.mira-compare-toggle.on .mct-i-compare{display:none}
+.mira-compare-toggle.on .mct-i-remove{display:block}
+.mira-compare-vs{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;color:#9a9a9e;text-transform:uppercase;margin:8px 0}
+.mira-compare-panel{background:#fff}
+.mira-compare-panel h4:first-of-type{margin-top:24px}
+.mira-compare-panel h4{font-size:16px;font-weight:700;color:#17181a;margin:26px 0 12px;display:flex;align-items:center;gap:8px}
+.mira-compare-panel h4 .count{font-size:12px;font-weight:600;color:#6b6b70;background:#f1f1f4;border-radius:999px;padding:2px 9px}
+.cmp-head{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:stretch}
+.cmp-site{background:#f5f5f7;border:1px solid #ececef;border-radius:18px;padding:18px 20px;min-width:0}
+.cmp-site.you{border-color:#c9d7f7;background:#f3f6fe}
+.cmp-who{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#9a9a9e}
+.cmp-site.you .cmp-who{color:#3f6fd8}
+.cmp-name{font-size:15px;font-weight:700;color:#17181a;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmp-url{font-size:12.5px;color:#6b6b70;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmp-score{display:flex;align-items:baseline;gap:8px;margin-top:12px;font-family:'Space Grotesk',sans-serif}
+.cmp-score b{font-size:40px;font-weight:700;line-height:1}
+.cmp-score span{font-size:13px;color:#6b6b70;font-family:'Inter',sans-serif}
+.cmp-vs-big{align-self:center;font-family:'Space Grotesk',sans-serif;font-weight:700;color:#b5b5ba;font-size:15px}
+.cmp-verdict{margin-top:14px;padding:12px 16px;border-radius:14px;background:#f5f5f7;font-size:14px;color:#2a2a2e;line-height:1.5}
+.cmp-cats{display:flex;flex-direction:column;gap:10px}
+.cmp-cat{display:grid;grid-template-columns:190px 1fr 1fr;gap:14px;align-items:center;font-size:13px}
+.cmp-cat-label{color:#2a2a2e;font-weight:500}
+.cmp-bar{display:flex;align-items:center;gap:8px;min-width:0}
+.cmp-bar-track{flex:1;height:8px;border-radius:99px;background:#ececef;overflow:hidden}
+.cmp-bar-fill{height:100%;border-radius:inherit}
+.cmp-bar-val{width:62px;flex-shrink:0;text-align:right;font-weight:600;color:#2a2a2e;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cmp-bar.win .cmp-bar-val::after{content:" \2713";color:#16a34a}
+.cmp-cat-key{display:grid;grid-template-columns:190px 1fr 1fr;gap:14px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#9a9a9e}
+.cmp-gaps{display:flex;flex-direction:column;gap:10px}
+.cmp-gap{border:1px solid #ececef;border-left:3px solid var(--gap-c);border-radius:14px;padding:14px 16px;background:#fff}
+.cmp-gap.fail{--gap-c:#e0564c}
+.cmp-gap.warn{--gap-c:#d97706}
+.cmp-gap-title{font-size:14px;font-weight:700;color:#17181a}
+.cmp-gap-title small{font-weight:500;color:#9a9a9e;margin-left:6px}
+.cmp-gap-rows{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.cmp-gap-side{background:#f7f7f9;border-radius:10px;padding:8px 10px;font-size:12.5px;color:#4a4a50;min-width:0;overflow-wrap:anywhere}
+.cmp-gap-side b{display:block;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:#9a9a9e;margin-bottom:3px}
+.cmp-gap-fix{font-size:13px;line-height:1.55;color:#2a2a2e}
+.cmp-gap-fix strong{color:#3f6fd8}
+.cmp-strengths{display:flex;flex-wrap:wrap;gap:8px}
+.cmp-strength{background:#edf8f1;border:1px solid #c8ebd5;color:#166534;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:500}
+.cmp-none{font-size:13.5px;color:#6b6b70}
+/* Locked section (free homepage): blurred, fading preview + centred upgrade card. */
+.cmp-locked{position:relative;min-height:420px}
+.cmp-locked-preview{filter:blur(6px);user-select:none;pointer-events:none;max-height:560px;overflow:hidden;
+  -webkit-mask-image:linear-gradient(#000 45%,transparent 100%);mask-image:linear-gradient(#000 45%,transparent 100%)}
+.cmp-lock{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px}
+.cmp-lock-card{max-width:440px;text-align:center;background:rgba(255,255,255,.94);border:1px solid #ecd38a;border-radius:22px;
+  padding:26px 28px;box-shadow:0 20px 50px rgba(23,24,26,.18)}
+.cmp-lock-icon{width:46px;height:46px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;font-size:20px;
+  background:linear-gradient(135deg,#fffaf0,#fdf1d4);border:1px solid #ecd38a}
+.cmp-lock-card h5{font-size:18px;font-weight:700;color:#17181a;margin:0 0 6px}
+.cmp-lock-card p{font-size:14px;line-height:1.55;color:#4a4a50;margin:0 0 18px}
+.cmp-lock-btn{display:inline-flex;align-items:center;gap:6px;padding:12px 26px;border-radius:999px;text-decoration:none;
+  background:linear-gradient(135deg,#f0d27a,#d4af37 55%,#b8902f);color:#1a1406;font-weight:700;font-size:15px;
+  box-shadow:0 6px 18px rgba(212,175,55,.4);transition:transform .15s,box-shadow .2s}
+.cmp-lock-btn:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(212,175,55,.5)}
+button.cmp-lock-btn{border:none;cursor:pointer;font-family:'Inter',sans-serif}
+/* Unlocked (Try Premium Mira clicked): blur fades away and the card fades out. */
+.cmp-locked-preview{transition:filter .5s ease}
+.cmp-lock{transition:opacity .35s ease}
+.cmp-locked.unlocked{min-height:0}
+.cmp-locked.unlocked .cmp-locked-preview{filter:none;max-height:none;-webkit-mask-image:none;mask-image:none;pointer-events:auto;user-select:auto}
+.cmp-locked.unlocked .cmp-lock{opacity:0;pointer-events:none}
+.cmp-premium{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:22px;padding:16px 20px;border-radius:18px;
+  background:linear-gradient(135deg,#fffaf0,#fdf1d4);border:1px solid #ecd38a}
+.cmp-premium p{font-size:14px;color:#5a4410;line-height:1.5}
+.cmp-premium p strong{display:block;color:#3d2e08;font-size:15px}
+.cmp-premium a{flex-shrink:0;background:linear-gradient(135deg,#f0d27a,#d4af37 55%,#b8902f);color:#1a1406;font-weight:600;font-size:14px;padding:10px 18px;border-radius:999px;text-decoration:none}
+@media (max-width:760px){
+  .cmp-head{grid-template-columns:1fr}.cmp-vs-big{justify-self:center}
+  .cmp-cat,.cmp-cat-key{grid-template-columns:1fr 1fr}.cmp-cat-label{grid-column:1 / -1}.cmp-cat-key span:first-child{display:none}
+  .cmp-gap-rows{grid-template-columns:1fr}.cmp-premium{flex-direction:column;align-items:flex-start}}
 </style>
 </head>
 <body>
@@ -682,8 +773,8 @@ img,svg{display:block}
       <div class="mira-main">
         <div class="mira-tabs">
           <div class="mira-tabswitch">
-            <button type="button" class="mira-tab" id="miraTabAnalyze" onclick="miraSwitchTab('analyze')">Analyse my website</button>
             <button type="button" class="mira-tab active" id="miraTabAsk" onclick="miraSwitchTab('ask')">Ask Mira</button>
+            <button type="button" class="mira-tab" id="miraTabAnalyze" onclick="miraSwitchTab('analyze')">Analyse my website</button>
           </div>
         </div>
 
@@ -715,37 +806,30 @@ img,svg{display:block}
             <h3>Paste your <span class="mira-accent">website.</span> I'll take a look</h3>
             <p>I'll run a quick check and tell you what stands out.</p>
           </div>
-          <p class="mira-analyze-hint">Paste your website URL and I'll analyse it for you.</p>
+          <p class="mira-analyze-hint" id="miraAnalyzeHint">Paste your website URL and I'll analyse it for you.</p>
           <div class="mira-input-row">
             <input type="text" id="miraAnalyzeInput" class="mira-input" placeholder="https://yourwebsite.com" onkeydown="if(event.key==='Enter'){event.preventDefault();miraSendAnalyze()}">
-            <button type="button" class="mira-send" onclick="miraSendAnalyze()"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+            <button type="button" class="mira-send" onclick="miraSendAnalyze()" aria-label="Analyse"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
           </div>
+          {{-- Competitor comparison: hidden until "Compare with a competitor" is clicked. --}}
+          <div class="mira-compare" id="miraCompareRow" hidden>
+            <div class="mira-compare-vs">vs</div>
+            <div class="mira-input-row">
+              <input type="text" id="miraCompetitorInput" class="mira-input" placeholder="Your competitor's website, e.g. https://competitor.com" onkeydown="if(event.key==='Enter'){event.preventDefault();miraSendAnalyze()}">
+              <button type="button" class="mira-send" onclick="miraSendAnalyze()" aria-label="Compare"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+            </div>
+          </div>
+          <button type="button" class="mira-compare-toggle" id="miraCompareToggle" onclick="miraToggleCompare()" aria-pressed="false">
+            <span class="mct-icon" aria-hidden="true">
+              {{-- Off: two opposing arrows (compare). On: left arrow (back to a single-site analysis). --}}
+              <svg class="mct-i-compare" viewBox="0 0 24 24"><path d="M7 4L3 8l4 4"/><path d="M3 8h13"/><path d="M17 20l4-4-4-4"/><path d="M21 16H8"/></svg>
+              <svg class="mct-i-remove" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M11 18l-6-6 6-6"/></svg>
+            </span>
+            <span class="mct-label" id="miraCompareLabel">Compare with a competitor</span>
+          </button>
           <p class="mira-analyze-status" id="miraAnalyzeStatus"></p>
         </div>
 
-        <div class="mira-sources">
-          <div class="mira-sources-label">Connect Sources</div>
-          <div class="mira-sources-row">
-            <span class="src-tile t-stripe" title="Payments">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#6ec3fa" stroke-width="2" stroke-linecap="round"><path d="M12 3a9 9 0 018 13"/><path d="M12 21a9 9 0 01-8-13"/><line x1="5" y1="12" x2="19" y2="12"/><line x1="7" y1="16" x2="15" y2="16"/><circle cx="19" cy="7" r="1" fill="#6ec3fa" stroke="none"/><circle cx="5" cy="17" r="1" fill="#6ec3fa" stroke="none"/></svg>
-            </span>
-            <span class="src-tile t-shopify" title="Shopify">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#f0b63f" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 8c0-2.2 1.8-4.5 4.5-4.5S16.5 5.8 16.5 8"/><path d="M6 8h12l1 12a2 2 0 01-2 2H7a2 2 0 01-2-2L6 8z"/><path d="M10.8 13c0-.7.6-1.1 1.3-1.1s1.3.4 1.3.9-.5.8-1.3 1c-.8.2-1.3.5-1.3 1.1s.6 1.1 1.3 1.1 1.3-.3 1.3-.9" stroke-width="1.2"/></svg>
-            </span>
-            <span class="src-tile t-globe" title="Website">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#ea6b3e" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
-            </span>
-            <span class="src-tile t-hubspot" title="CRM">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#39c7bb" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="15.5" r="3"/><line x1="12.8" y1="13" x2="17" y2="7.5"/><circle cx="18" cy="6.3" r="1.4" fill="#39c7bb" stroke="none"/><line x1="9.3" y1="16.8" x2="6" y2="18.3"/><circle cx="5" cy="18.8" r="1.2" fill="#39c7bb" stroke="none"/></svg>
-            </span>
-            <span class="src-tile t-mail" title="Email">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#ef8fe0" stroke-width="1.7"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 7l9 7 9-7"/></svg>
-            </span>
-            <span class="src-tile t-bank" title="Transactions">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#4f8ff7" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="1.5"/><line x1="8" y1="8.5" x2="8" y2="14"/><line x1="11" y1="8.5" x2="11" y2="14"/><line x1="14" y1="8.5" x2="14" y2="14"/><line x1="17" y1="9.5" x2="17" y2="14"/><path d="M7 16c1.2-1 2.7-1.5 4-1.5"/></svg>
-            </span>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -765,6 +849,9 @@ img,svg{display:block}
         <a href="{{ route('pricing') }}" class="a-upsell-btn">View Pricing</a>
       </aside>
     </div>
+
+    {{-- Competitor comparison result, built by miraRenderComparison(). --}}
+    <div class="mira-report mira-compare-panel" id="miraComparePanel" hidden></div>
   </div>
 </section>
 
@@ -1421,7 +1508,7 @@ function miraLooksLikeUrl(text) {
    Posts to route('chat.analyze-lead'), which saves the lead and returns the
    same reply + report as chat.send. `source` says where the URL came from
    ('chat' or 'analyze') so the result shows up in the right place. */
-var miraPendingUrl = null, miraPendingSource = null;
+var miraPendingUrl = null, miraPendingSource = null, miraPendingCompetitor = null;
 
 function miraOpenLead(url, source) {
   miraPendingUrl = url; miraPendingSource = source;
@@ -1445,6 +1532,13 @@ async function miraSubmitLead() {
   if (!/^\S+@\S+\.\S+$/.test(email)) { errEl.textContent = 'Please enter a valid email address.'; return; }
 
   var url = miraPendingUrl, source = miraPendingSource;
+  if (source === 'compare') {
+    var competitor = miraPendingCompetitor;
+    document.getElementById('leadModalOverlay').classList.remove('show');
+    miraPendingUrl = null; miraPendingSource = null; miraPendingCompetitor = null;
+    await miraRunCompare(url, competitor, name, email);
+    return;
+  }
   var btn = document.getElementById('leadModalSubmit');
   btn.disabled = true; btn.textContent = 'Analysing…';
   errEl.textContent = '';
@@ -1596,6 +1690,7 @@ async function miraSendChat() {
 }
 
 async function miraSendAnalyze() {
+  if (miraCompareMode) return miraSendCompare();
   var input = document.getElementById('miraAnalyzeInput'), url = input.value.trim();
   var status = document.getElementById('miraAnalyzeStatus');
   status.classList.remove('err');
@@ -1616,6 +1711,246 @@ async function miraSendAnalyze() {
     status.textContent = 'Could not reach the server. Check your connection and try again.';
     status.classList.add('err');
   }
+}
+
+/* ============ Compare with a competitor ============
+   The toggle reveals a second URL box. With it open, sending runs
+   route('chat.compare') (WebsiteComparisonService) instead of a single
+   analysis, and miraRenderComparison() draws the result under the widget.
+   All site text goes in via textContent only. */
+var miraCompareMode = false;
+
+function miraToggleCompare(forceOff) {
+  miraCompareMode = forceOff === true ? false : !miraCompareMode;
+  document.getElementById('miraCompareRow').hidden = !miraCompareMode;
+  var toggle = document.getElementById('miraCompareToggle');
+  document.getElementById('miraCompareLabel').textContent = miraCompareMode ? 'Back' : 'Compare with a competitor';
+  toggle.classList.toggle('on', miraCompareMode);
+  toggle.setAttribute('aria-pressed', miraCompareMode ? 'true' : 'false');
+  // One send button while comparing: the competitor box's (CSS hides the first one).
+  document.getElementById('miraPanelAnalyze').classList.toggle('comparing', miraCompareMode);
+  document.getElementById('miraAnalyzeHint').textContent = miraCompareMode
+    ? "Enter your website and a competitor's — I'll compare them and show you what to improve."
+    : "Paste your website URL and I'll analyse it for you.";
+  document.getElementById('miraAnalyzeInput').placeholder = miraCompareMode ? 'Your website, e.g. https://yourwebsite.com' : 'https://yourwebsite.com';
+  // Clear the previous result either way (a comparison's message makes no
+  // sense once the competitor is removed, and vice versa). Removing the
+  // competitor also clears its box and the comparison panel; the visitor's
+  // own URL stays for a normal analysis.
+  var status = document.getElementById('miraAnalyzeStatus');
+  status.textContent = ''; status.classList.remove('err');
+  if (miraCompareMode) {
+    document.getElementById('miraCompetitorInput').focus();
+  } else {
+    document.getElementById('miraCompetitorInput').value = '';
+    var comparePanel = document.getElementById('miraComparePanel');
+    comparePanel.hidden = true; comparePanel.innerHTML = '';
+  }
+}
+
+function miraSendCompare() {
+  var url = document.getElementById('miraAnalyzeInput').value.trim();
+  var competitor = document.getElementById('miraCompetitorInput').value.trim();
+  var status = document.getElementById('miraAnalyzeStatus');
+  status.classList.remove('err');
+  var fail = function (msg) { status.textContent = msg; status.classList.add('err'); };
+  if (!url) return fail('Enter your website URL first.');
+  if (!competitor) return fail("Enter your competitor's website URL.");
+  if (!/^https?:\/\//i.test(url) || !/^https?:\/\//i.test(competitor)) return fail('Include http:// or https:// at the start of both addresses.');
+  if (url.replace(/\/+$/, '').toLowerCase() === competitor.replace(/\/+$/, '').toLowerCase()) return fail("Your competitor's website must be different from yours.");
+  if (!MIRA_LOGGED_IN) { miraPendingCompetitor = competitor; miraOpenLead(url, 'compare'); return; }
+  miraRunCompare(url, competitor, null, null);
+}
+
+async function miraRunCompare(url, competitor, name, email) {
+  var status = document.getElementById('miraAnalyzeStatus');
+  status.classList.remove('err');
+  status.textContent = 'Comparing both websites — this can take up to a minute…';
+  try {
+    var res = await fetch('{{ route("chat.compare") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+      body: JSON.stringify({ url: url, competitor_url: competitor, name: name, email: email })
+    });
+    var data = await res.json();
+    if (res.ok) {
+      status.textContent = data.reply;
+      miraRenderComparison(data.comparison);
+    } else {
+      status.textContent = data.error || data.message || 'Something went wrong. Please try again.';
+      status.classList.add('err');
+    }
+  } catch (e) {
+    status.textContent = 'Could not reach the server. Check your connection and try again.';
+    status.classList.add('err');
+  }
+}
+
+function miraEl(tag, cls, text) {
+  var el = document.createElement(tag);
+  if (cls) el.className = cls;
+  if (text !== undefined && text !== null) el.textContent = text;
+  return el;
+}
+
+function miraRenderComparison(c) {
+  var panel = document.getElementById('miraComparePanel');
+  panel.innerHTML = '';
+  // A comparison replaces any single-site report.
+  document.getElementById('analysisPanel').classList.remove('show');
+  document.getElementById('chatUpsellAside').classList.remove('show');
+
+  // Head to head
+  var site = function (who, s, isYou) {
+    var card = miraEl('div', 'cmp-site' + (isYou ? ' you' : ''));
+    card.appendChild(miraEl('div', 'cmp-who', who));
+    card.appendChild(miraEl('div', 'cmp-name', s.name));
+    card.appendChild(miraEl('div', 'cmp-url', s.url.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '')));
+    var score = miraEl('div', 'cmp-score');
+    var b = miraEl('b', null, s.overall); b.style.color = scoreColor(s.overall);
+    score.appendChild(b); score.appendChild(miraEl('span', null, '/100 · Grade ' + s.grade));
+    card.appendChild(score);
+    return card;
+  };
+  var head = miraEl('div', 'cmp-head');
+  head.appendChild(site('Your website', c.you, true));
+  head.appendChild(miraEl('div', 'cmp-vs-big', 'VS'));
+  head.appendChild(site('Competitor', c.competitor, false));
+  panel.appendChild(head);
+
+  var diff = c.you.overall - c.competitor.overall;
+  panel.appendChild(miraEl('div', 'cmp-verdict', diff > 0
+    ? "You're " + diff + ' points ahead overall. Keep it that way by closing the gaps below.'
+    : diff < 0
+      ? 'Your competitor is ' + (-diff) + ' points ahead overall. Fix the gaps below to catch up.'
+      : "You're level overall. The gaps below are where they still edge ahead."));
+
+  // Section by section
+  panel.appendChild(miraEl('h4', null, 'Section by section'));
+  var key = miraEl('div', 'cmp-cat-key');
+  key.appendChild(miraEl('span', null, '')); key.appendChild(miraEl('span', null, 'You')); key.appendChild(miraEl('span', null, 'Competitor'));
+  var cats = miraEl('div', 'cmp-cats');
+  cats.appendChild(key);
+  var theirs = {};
+  c.competitor.categories.forEach(function (cat) { theirs[cat.key] = cat.score; });
+  var bar = function (score, win) {
+    var wrap = miraEl('div', 'cmp-bar' + (win ? ' win' : ''));
+    var track = miraEl('div', 'cmp-bar-track'), fill = miraEl('div', 'cmp-bar-fill');
+    fill.style.width = (score === null ? 0 : score) + '%';
+    fill.style.background = scoreColor(score);
+    track.appendChild(fill); wrap.appendChild(track);
+    wrap.appendChild(miraEl('span', 'cmp-bar-val', score === null ? '—' : score + '%'));
+    return wrap;
+  };
+  c.you.categories.forEach(function (cat) {
+    var mine = cat.score, them = cat.key in theirs ? theirs[cat.key] : null;
+    var row = miraEl('div', 'cmp-cat');
+    row.appendChild(miraEl('span', 'cmp-cat-label', cat.label));
+    row.appendChild(bar(mine, mine !== null && them !== null && mine > them));
+    row.appendChild(bar(them, mine !== null && them !== null && them > mine));
+    cats.appendChild(row);
+  });
+  panel.appendChild(cats);
+
+  // What to fix — the heading and count stay visible as a teaser; the fix
+  // cards and "Where you're ahead" are blurred behind a Mira Premium upgrade
+  // card. The server doesn't send the fixes to this free page (c.locked), so
+  // the blurred cards show the real findings with placeholder fix text.
+  var gapsTitle = miraEl('h4', null, 'Where your competitor is ahead — fix these');
+  gapsTitle.appendChild(miraEl('span', 'count', c.gaps.length));
+  panel.appendChild(gapsTitle);
+
+  var buildGapCard = function (g) {
+    var card = miraEl('div', 'cmp-gap ' + (g.you_status === 'fail' ? 'fail' : 'warn'));
+    var title = miraEl('div', 'cmp-gap-title', g.name);
+    title.appendChild(miraEl('small', null, g.section));
+    card.appendChild(title);
+    var rows = miraEl('div', 'cmp-gap-rows');
+    var side = function (label, detail) { var s = miraEl('div', 'cmp-gap-side'); s.appendChild(miraEl('b', null, label)); s.appendChild(document.createTextNode(detail)); return s; };
+    rows.appendChild(side('You', g.you_detail));
+    rows.appendChild(side('Competitor', g.them_detail));
+    card.appendChild(rows);
+    var fix = miraEl('p', 'cmp-gap-fix');
+    fix.appendChild(miraEl('strong', null, 'How to fix: '));
+    fix.appendChild(document.createTextNode(g.recommendation || 'Unlock Mira Premium to see the step-by-step fix for this check and the exact change to make on your website.'));
+    card.appendChild(fix);
+    return card;
+  };
+  var buildStrengths = function () {
+    var box = miraEl('div');
+    var t = miraEl('h4', null, "Where you're ahead");
+    t.appendChild(miraEl('span', 'count', c.strengths.length));
+    box.appendChild(t);
+    if (!c.strengths.length) {
+      box.appendChild(miraEl('p', 'cmp-none', 'No checks where you beat them yet — close the gaps above to get ahead.'));
+    } else {
+      var list = miraEl('div', 'cmp-strengths');
+      c.strengths.forEach(function (s) { list.appendChild(miraEl('span', 'cmp-strength', '✓ ' + s.name)); });
+      box.appendChild(list);
+    }
+    return box;
+  };
+
+  if (!c.gaps.length) {
+    // Nothing to fix, so nothing to lock: show the rest openly with a nudge.
+    panel.appendChild(miraEl('p', 'cmp-none', "Your competitor doesn't beat you on any check."));
+    panel.appendChild(buildStrengths());
+    var cta = miraEl('div', 'cmp-premium');
+    var p = miraEl('p');
+    p.appendChild(miraEl('strong', null, 'Stay ahead with Mira Premium'));
+    p.appendChild(document.createTextNode('Mira Premium reads your site and writes ready-to-use titles, descriptions, FAQ answers and schema to keep you ahead.'));
+    cta.appendChild(p);
+    var a = miraEl('a', null, '★ Try Mira Premium'); a.href = '{{ route("mira-premium") }}';
+    cta.appendChild(a);
+    panel.appendChild(cta);
+  } else {
+    var locked = miraEl('div', 'cmp-locked');
+    var preview = miraEl('div', 'cmp-locked-preview');
+    preview.setAttribute('aria-hidden', 'true');
+    preview.inert = true;
+    var gaps = miraEl('div', 'cmp-gaps');
+    // Fixes sent (PublicChatController::COMPARISON_FIXES_UNLOCKABLE): the
+    // button reveals the whole report in place. Not sent: a 3-card teaser
+    // and the button links to Mira Premium.
+    var unlockable = c.gaps.every(function (g) { return !!g.recommendation; });
+    (unlockable ? c.gaps : c.gaps.slice(0, 3)).forEach(function (g) { gaps.appendChild(buildGapCard(g)); });
+    preview.appendChild(gaps);
+    preview.appendChild(buildStrengths());
+    locked.appendChild(preview);
+
+    var lock = miraEl('div', 'cmp-lock');
+    var card = miraEl('div', 'cmp-lock-card');
+    card.appendChild(miraEl('div', 'cmp-lock-icon', '🔒'));
+    card.appendChild(miraEl('h5', null, 'Unlock your competitor gap report'));
+    card.appendChild(miraEl('p', null, 'See all ' + c.gaps.length + ' thing' + (c.gaps.length === 1 ? '' : 's') + ' ' + c.competitor.name.split(/\s[|\-–—]\s/)[0] + ' does better than you — and exactly how to fix each one.'));
+    var btn;
+    if (unlockable) {
+      btn = miraEl('button', 'cmp-lock-btn', '★ Try Premium Mira');
+      btn.type = 'button';
+      btn.addEventListener('click', function () {
+        locked.classList.add('unlocked');
+        preview.inert = false;
+        preview.removeAttribute('aria-hidden');
+        // Remove the card once it has faded out.
+        setTimeout(function () { lock.remove(); }, 400);
+      });
+    } else {
+      btn = miraEl('a', 'cmp-lock-btn', '★ Try Premium Mira');
+      btn.href = '{{ route("mira-premium") }}';
+    }
+    card.appendChild(btn);
+    lock.appendChild(card);
+    locked.appendChild(lock);
+    panel.appendChild(locked);
+  }
+
+  panel.hidden = false;
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* A normal single-site report replaces any comparison (hook called by renderAnalysisReport). */
+function onAnalysisReport() {
+  document.getElementById('miraComparePanel').hidden = true;
 }
 
 function miraAskSuggested(q) {
@@ -1639,6 +1974,11 @@ async function miraResetChat() {
   document.getElementById('analysisPanel').classList.remove('show');
   document.getElementById('chatUpsellAside').classList.remove('show');
   closeAnalysisModal();
+  // ...and any competitor comparison.
+  var comparePanel = document.getElementById('miraComparePanel');
+  comparePanel.hidden = true; comparePanel.innerHTML = '';
+  document.getElementById('miraCompetitorInput').value = '';
+  miraToggleCompare(true);
   miraSwitchTab('ask');
 }
 
