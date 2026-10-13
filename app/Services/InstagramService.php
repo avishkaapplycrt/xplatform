@@ -72,9 +72,12 @@ class InstagramService
 
     private function syncAccountInsight(SocialIntegration $connection, string $token, int $followers): void
     {
+        // metric_type=total_value is required for profile_views (without it the
+        // API silently leaves it out) and gives one total instead of a per-day list.
         $res = Http::get(self::BASE_URL . "/{$connection->account_id}/insights", [
             'metric'       => 'reach,profile_views',
             'period'       => 'day',
+            'metric_type'  => 'total_value',
             'access_token' => $token,
         ]);
 
@@ -93,8 +96,8 @@ class InstagramService
             ['social_integration_id' => $connection->id, 'date' => now()->toDateString()],
             [
                 'followers_count' => $followers,
-                'reach'           => data_get($byName->get('reach'), 'values.0.value', 0),
-                'profile_views'   => data_get($byName->get('profile_views'), 'values.0.value', 0),
+                'reach'           => data_get($byName->get('reach'), 'total_value.value', 0),
+                'profile_views'   => data_get($byName->get('profile_views'), 'total_value.value', 0),
             ]
         );
     }
