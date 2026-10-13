@@ -21,7 +21,11 @@ const CATEGORY_INFO = {
   links: "Are your links helping visitors and Google understand your site?",
   discoverability: "Can Google actually find and index your pages?",
   social: "How your page looks when shared on Facebook/Twitter.",
-  richresults: "Can your site show up with stars, prices, etc. in Google?"
+  richresults: "Which rich results (stars, FAQs, breadcrumbs, products) your markup qualifies for.",
+  crawl: "Can search engines index this page and read its content without running JavaScript?",
+  speed: "Core Web Vitals on mobile, from Google PageSpeed Insights.",
+  trust: "Freshness and trust signals: dates, authors, company pages, contact details and reviews.",
+  ai: "How easy it is for AI assistants and answer engines to read, understand and quote your site."
 };
 
 function openAnalysisModal(key, label, pct, checkRows, recommendations){
@@ -115,6 +119,15 @@ function renderModalRecommendations(checksEl, checkRows, recommendations){
     text.className='a-modal-rec-text';
     text.textContent=r.recommendation;
     li.appendChild(head);li.appendChild(text);
+    // "Why it matters" / "Check with" (CheckGuide), when the report has them.
+    [['Why it matters: ', r.why], ['Check with: ', r.check_with]].forEach(function(pair){
+      if(!pair[1]) return;
+      const line=document.createElement('p');
+      line.className='a-modal-rec-meta';
+      const b=document.createElement('b'); b.textContent=pair[0];
+      line.appendChild(b); line.appendChild(document.createTextNode(pair[1]));
+      li.appendChild(line);
+    });
     list.appendChild(li);
   });
   box.appendChild(list);
@@ -185,6 +198,63 @@ function buildPieCard(label, pct, checkRows, key, recommendations){
   return card;
 }
 
+// ---- Report extras: Google preview, rich results, "Needs connected data" ----
+// Shared with partials.ask-mira.compare-script. All text via textContent.
+function askMiraEl(tag, cls, text){
+  const el=document.createElement(tag);
+  if(cls) el.className=cls;
+  if(text!==undefined && text!==null) el.textContent=text;
+  return el;
+}
+
+// A Google search result: URL breadcrumb, title link, description.
+function askMiraSerpPreview(preview, caption){
+  const box=askMiraEl('div','serp');
+  if(caption) box.appendChild(askMiraEl('div','serp-caption',caption));
+  if(!preview){ box.appendChild(askMiraEl('div','serp-desc','No preview available.')); return box; }
+  box.appendChild(askMiraEl('div','serp-url',preview.display_url));
+  box.appendChild(askMiraEl('div','serp-title',preview.title));
+  box.appendChild(askMiraEl('div','serp-desc',preview.description || 'No description — Google will pick text from the page.'));
+  if(preview.description_source==='page_text') box.appendChild(askMiraEl('div','serp-note','No meta description, so Google will likely show page text like this.'));
+  return box;
+}
+
+// KPIs a scan can't measure: always "Not measured — connect <tool>", never a number.
+function askMiraNeedsData(list){
+  const box=askMiraEl('div','needs-data');
+  box.appendChild(askMiraEl('div','needs-data-title','Needs connected data'));
+  box.appendChild(askMiraEl('p','needs-data-sub',"These can't be measured by scanning a page. Connect the tool to track them."));
+  const ul=askMiraEl('ul','needs-data-list');
+  (list||[]).forEach(function(k){
+    const li=askMiraEl('li');
+    li.appendChild(askMiraEl('span','needs-data-kpi',k.kpi));
+    li.appendChild(askMiraEl('span','needs-data-status',k.status || ('Not measured — connect '+k.tool)));
+    ul.appendChild(li);
+  });
+  box.appendChild(ul);
+  return box;
+}
+
+function renderReportExtras(panel, report){
+  panel.querySelector('.a-extras')?.remove();
+  const extras=askMiraEl('div','a-extras');
+  if(report.serp_preview){
+    const serpBox=askMiraEl('div','a-extras-block');
+    serpBox.appendChild(askMiraEl('div','a-extras-title','How you look in Google'));
+    serpBox.appendChild(askMiraSerpPreview(report.serp_preview));
+    if(report.rich_result_types){
+      serpBox.appendChild(askMiraEl('p','a-extras-note', report.rich_result_types.length
+        ? 'Rich results this page qualifies for: '+report.rich_result_types.join(', ')
+        : 'This page doesn’t qualify for any rich results yet.'));
+    }
+    extras.appendChild(serpBox);
+  }
+  if(report.needs_connected_data && report.needs_connected_data.length){
+    extras.appendChild(askMiraNeedsData(report.needs_connected_data));
+  }
+  panel.appendChild(extras);
+}
+
 // Renders a WebsiteAnalyzerService report (real SEO/Technical checks)
 // as a grid of per-category donut chart cards — never as a giant chat bubble.
 // 'ai' when the report's recommendations were written by OpenAI, 'standard'
@@ -192,6 +262,13 @@ function buildPieCard(label, pct, checkRows, key, recommendations){
 let RECOMMENDATIONS_SOURCE='none';
 
 function renderAnalysisReport(report){
+  // Pages with the comparison report (the homepage and Premium Mira) show a
+  // single site in the same design; the classic homepage keeps the pie cards.
+  if(typeof miraRenderSiteReport==='function'){
+    miraRenderSiteReport(report);
+    if(typeof onAnalysisReport==='function') onAnalysisReport(report);
+    return;
+  }
   RECOMMENDATIONS_SOURCE=report.recommendations_source||'none';
   const panel=document.getElementById('analysisPanel');
   document.getElementById('analysisUrl').textContent=report.url;
@@ -209,13 +286,32 @@ function renderAnalysisReport(report){
 
   report.categories.forEach(function(cat){
     gridEl.appendChild(buildPieCard(cat.label, cat.score, (cat.checks||[]).map(function(ch){
-      return {name:ch.name, detail:ch.detail, status:ch.status, recommendation:ch.recommendation||null};
+      return {name:ch.name, detail:ch.detail, status:ch.status, recommendation:ch.recommendation||null, why:ch.why||null, check_with:ch.check_with||null};
     }), cat.key));
   });
 
+  renderReportExtras(panel, report);
   panel.classList.add('show');
   panel.scrollIntoView({behavior:'smooth',block:'nearest'});
   // Optional page hook — Premium Mira uses it to show the site in its "Your website" card.
   if(typeof onAnalysisReport==='function') onAnalysisReport(report);
   document.getElementById('chatUpsellAside')?.classList.add('show');   // absent on Premium Mira
 }
+
+// Spinner on the Analyse tab's status line while Mira is working. Rather than
+// every caller toggling it, this watches the status text: a "working" message
+// ("…this can take…", "Checking your site", "Comparing both websites") adds
+// .loading, which draws the spinner (partials.ask-mira.styles); any other text
+// (the result or an error) removes it.
+(function(){
+  var working = /this can take|^checking your site|^comparing both/i;
+  document.querySelectorAll('.analyze-status,.mira-analyze-status').forEach(function(el){
+    var update = function(){
+      var busy = working.test(el.textContent.trim());
+      el.classList.toggle('loading', busy);
+      el.setAttribute('aria-busy', busy ? 'true' : 'false');
+    };
+    new MutationObserver(update).observe(el, {childList:true, characterData:true, subtree:true});
+    update();
+  });
+})();

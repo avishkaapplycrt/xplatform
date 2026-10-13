@@ -114,6 +114,7 @@ class PublicChatController extends Controller
         $validated = $request->validate([
             'url'            => 'required|url|max:2048',
             'competitor_url' => 'required|url|max:2048|different:url',
+            'premium'        => 'sometimes|boolean',
             'name'           => [$client ? 'nullable' : 'required', 'string', 'max:255'],
             'email'          => [$client ? 'nullable' : 'required', 'email', 'max:255'],
         ], [
@@ -129,8 +130,8 @@ class PublicChatController extends Controller
             $this->recordVisitor($request, $validated['name'], $validated['email'], $validated['url']);
         }
 
-        // Two full site checks can outlast the default 60s execution limit.
-        set_time_limit(120);
+        // Two full site checks, each with a PageSpeed Insights call, can take a while.
+        set_time_limit(180);
 
         try {
             $comparison = $comparer->compare($validated['url'], $validated['competitor_url']);
@@ -140,11 +141,18 @@ class PublicChatController extends Controller
 
         // The "how to fix" advice sits behind a blurred "Try Premium Mira" card
         // on the homepage. See COMPARISON_FIXES_UNLOCKABLE.
-        $comparison['locked'] = true;
-        if (!self::COMPARISON_FIXES_UNLOCKABLE) {
+        // Premium Mira (premium flag, set by its page) always gets the full,
+        // open report.
+        $premium = (bool) ($validated['premium'] ?? false);
+        $comparison['locked'] = !$premium;
+        if (!$premium && !self::COMPARISON_FIXES_UNLOCKABLE) {
             $comparison['gaps'] = array_map(
                 fn ($gap) => array_diff_key($gap, ['recommendation' => true]),
                 $comparison['gaps']
+            );
+            $comparison['checks'] = array_map(
+                fn ($check) => array_diff_key($check, ['recommendation' => true]),
+                $comparison['checks']
             );
         }
 

@@ -79,12 +79,47 @@ async function submitLeadAndAnalyze(){
   if(!name){ errEl.textContent = 'Please enter your name.'; return; }
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ errEl.textContent = 'Please enter a valid email.'; return; }
 
-  const submitBtn = document.getElementById('leadModalSubmit');
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'Analyzing...';
+  // A competitor comparison is run by the page (Premium Mira defines onLeadCompare).
+  if(pendingAnalyzeSource === 'compare' && typeof onLeadCompare === 'function'){
+    const compareUrl = pendingAnalyzeUrl;
+    closeLeadModal();
+    onLeadCompare(compareUrl, name, email);
+    return;
+  }
 
   const url = pendingAnalyzeUrl;
   const source = pendingAnalyzeSource;
+
+  // Close the form straight away and show progress where the result will
+  // appear (like the homepage): the Analyse tab's status line (which gets
+  // the loading spinner) or a "Checking your site…" chat bubble.
+  closeLeadModal();
+  const status = document.getElementById('analyzeStatus');
+  const msgs = document.getElementById('chatMsgs');
+  let typing = null;
+  if(source === 'analyze'){
+    status.classList.remove('err');
+    status.textContent = 'Checking your site — this can take a moment…';
+  } else {
+    typing = document.createElement('div');
+    typing.className = 'chat-msg bot typing';
+    typing.textContent = 'Checking your site…';
+    msgs.appendChild(typing);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+  const show = function(text, isError){
+    if(typing) typing.remove();
+    if(source === 'analyze'){
+      status.textContent = text;
+      status.classList.toggle('err', !!isError);
+    } else {
+      const bEl = document.createElement('div');
+      bEl.className = 'chat-msg bot';
+      renderBotMessage(bEl, text);
+      msgs.appendChild(bEl);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+  };
 
   try{
     const res = await fetch('{{ route("chat.analyze-lead") }}', {method:'POST',
@@ -94,33 +129,14 @@ async function submitLeadAndAnalyze(){
     const data = await res.json();
 
     if(!res.ok){
-      errEl.textContent = data.error || 'Something went wrong. Please try again.';
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Continue';
+      show(data.error || data.message || 'Something went wrong. Please try again.', true);
       return;
     }
 
-    closeLeadModal();
-
-    if(source === 'analyze'){
-      const status = document.getElementById('analyzeStatus');
-      status.classList.remove('err');
-      status.textContent = data.reply;
-      if(data.report) renderAnalysisReport(data.report);
-    } else {
-      const msgs = document.getElementById('chatMsgs');
-      const bEl = document.createElement('div');
-      bEl.className = 'chat-msg bot';
-      renderBotMessage(bEl, data.reply);
-      msgs.appendChild(bEl);
-      if(data.report) renderAnalysisReport(data.report);
-      msgs.scrollTop = msgs.scrollHeight;
-    }
+    show(data.reply, false);
+    if(data.report) renderAnalysisReport(data.report);
   }catch(e){
-    errEl.textContent = 'Could not reach the server. Check your connection and try again.';
-  }finally{
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Continue';
+    show('Could not reach the server. Check your connection and try again.', true);
   }
 }
 

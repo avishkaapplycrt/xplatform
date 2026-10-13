@@ -59,6 +59,40 @@ a{color:inherit;text-decoration:none}
 
 @include('partials.ask-mira.styles')
 
+/* ============ Compare with a competitor (Analyse tab) ============ */
+@include('partials.ask-mira.compare-styles')
+/* Result panel: the shared .cx-* report in Premium's dark/gold colours. */
+#miraComparePanel{
+  --cx-bg:rgba(255,255,255,.035);--cx-surface:rgba(255,255,255,.055);--cx-surface2:rgba(0,0,0,.28);--cx-line:rgba(255,255,255,.09);
+  --cx-fg:#f4f1ea;--cx-muted:#9a968d;--cx-accent:#e8c468;--cx-accent-soft:rgba(232,196,104,.09);--cx-accent-line:rgba(232,196,104,.35);--cx-on-accent:#1a1406;--cx-comp:#a8a49b;
+  --cx-good:#3fc495;--cx-good-soft:rgba(63,196,149,.16);--cx-warn:#f0a73a;--cx-warn-soft:rgba(240,167,58,.16);--cx-bad:#f0726a;--cx-bad-soft:rgba(240,114,106,.16);
+  --cx-track:rgba(255,255,255,.08);--cx-serp-title:#8ab4f8;--cx-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 10px 30px rgba(0,0,0,.25);
+  margin-top:16px;border:1px solid var(--brd);border-radius:22px;padding:24px 26px;color:var(--white);font-family:var(--f1)}
+.mira-compare-vs{text-align:center;font-family:var(--fm);font-size:11px;font-weight:500;letter-spacing:2px;color:var(--g400);text-transform:uppercase;margin:2px 0 -2px}
+.mira-compare{display:flex;flex-direction:column;gap:12px}
+.mira-compare[hidden]{display:none}
+#panelAnalyze .analyze-status{--spin-c:var(--gold)}
+/* Google preview title in Google's dark-mode link colour. */
+#ask-mira,#miraComparePanel,.a-modal{--serp-title:#8ab4f8}
+/* Toggle: dark pill with a thin gold gradient border and a gold icon circle. */
+.mira-compare-toggle{align-self:center;display:inline-flex;align-items:center;gap:10px;padding:6px 16px 6px 6px;border:1.5px solid transparent;border-radius:999px;
+  cursor:pointer;font-family:var(--f1);font-size:13.5px;font-weight:600;color:var(--white);
+  background:linear-gradient(#141217,#141217) padding-box,linear-gradient(135deg,var(--gold-2),var(--gold-3)) border-box;
+  box-shadow:0 4px 16px rgba(232,196,104,.15);transition:transform .15s,box-shadow .2s}
+.mira-compare-toggle:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(232,196,104,.28)}
+.mira-compare-toggle:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.mct-icon{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;background:linear-gradient(135deg,var(--gold-2),var(--gold-3))}
+.mct-icon svg{width:14px;height:14px;fill:none;stroke:#17120a;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;grid-area:1/1}
+.mct-i-remove{display:none}
+.mira-compare-toggle.on{color:var(--g200);background:linear-gradient(#141217,#141217) padding-box,linear-gradient(var(--brd),var(--brd)) border-box;box-shadow:none}
+.mira-compare-toggle.on .mct-icon{background:rgba(255,255,255,.08)}
+.mira-compare-toggle.on .mct-icon svg{stroke:var(--g200)}
+.mira-compare-toggle.on .mct-i-compare{display:none}
+.mira-compare-toggle.on .mct-i-remove{display:block}
+/* Comparing: only the competitor box keeps a send button; the first box keeps its height. */
+#panelAnalyze.comparing .analyze-form > .chat-input-wrap > .chat-send{display:none}
+#panelAnalyze.comparing .analyze-form > .chat-input-wrap{min-height:62px;padding-right:18px}
+
 /* PANELS */
 .chat-sidebar,.chat-card{background:linear-gradient(180deg,var(--card-h),var(--card));border:1px solid var(--brd);border-radius:22px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .chat-sidebar{padding:20px;scrollbar-width:thin;scrollbar-color:#2a2a30 transparent}
@@ -262,11 +296,27 @@ a{color:inherit;text-decoration:none}
              page, driven by partials.ask-mira.script (chat.send / chat.analyze-lead). --}}
         <div class="chat-tab-panel" id="panelAnalyze" style="display:none">
           <div class="analyze-form">
-            <p class="analyze-hint">Paste your website URL — I'll run a real SEO, Technical and Speed check and show the full report below.</p>
+            <p class="analyze-hint" id="analyzeHint">Paste your website URL — I'll run a real SEO, Technical and Speed check and show the full report below.</p>
             <div class="chat-input-wrap">
-              <input type="text" class="chat-input" id="analyzeInput" placeholder="https://yourwebsite.com" onkeydown="if(event.key==='Enter'){event.preventDefault();sendAnalyzeUrl()}">
-              <button class="chat-send" onclick="sendAnalyzeUrl()"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+              <input type="text" class="chat-input" id="analyzeInput" placeholder="https://yourwebsite.com" onkeydown="if(event.key==='Enter'){event.preventDefault();premAnalyze()}">
+              <button class="chat-send" onclick="premAnalyze()" aria-label="Analyse"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
             </div>
+            {{-- Competitor comparison: hidden until "Compare with a competitor" is clicked. --}}
+            <div class="mira-compare" id="premCompareRow" hidden>
+              <div class="mira-compare-vs">vs</div>
+              <div class="chat-input-wrap">
+                <input type="text" class="chat-input" id="premCompetitorInput" placeholder="Your competitor's website, e.g. https://competitor.com" onkeydown="if(event.key==='Enter'){event.preventDefault();premAnalyze()}">
+                <button class="chat-send" onclick="premAnalyze()" aria-label="Compare"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+              </div>
+            </div>
+            <button type="button" class="mira-compare-toggle" id="premCompareToggle" onclick="premToggleCompare()" aria-pressed="false">
+              <span class="mct-icon" aria-hidden="true">
+                {{-- Off: two opposing arrows (compare). On: left arrow (back to a single-site analysis). --}}
+                <svg class="mct-i-compare" viewBox="0 0 24 24"><path d="M7 4L3 8l4 4"/><path d="M3 8h13"/><path d="M17 20l4-4-4-4"/><path d="M21 16H8"/></svg>
+                <svg class="mct-i-remove" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M11 18l-6-6 6-6"/></svg>
+              </span>
+              <span class="mct-label" id="premCompareLabel">Compare with a competitor</span>
+            </button>
             <p class="analyze-status" id="analyzeStatus"></p>
           </div>
           <div class="chat-footer">
@@ -284,6 +334,10 @@ a{color:inherit;text-decoration:none}
       </div>
       <div class="a-pie-grid" id="analysisPieGrid"></div>
     </div>
+
+    {{-- Competitor comparison result (open — Premium), drawn by
+         miraRenderComparison() in partials.ask-mira.compare-script. --}}
+    <div class="mira-compare-panel" id="miraComparePanel" hidden></div>
   </div>
 </section>
 
@@ -324,6 +378,9 @@ a{color:inherit;text-decoration:none}
      reuses renderBotMessage. --}}
 <script>
 @include('partials.ask-mira.script', ['premium' => true])
+
+/* Competitor comparison result (shared with the homepage): miraRenderComparison(). */
+@include('partials.ask-mira.compare-script')
 </script>
 
 <script>
@@ -400,6 +457,87 @@ function onAnalysisReport(report){
   setSite({title:title, url:report.url}, false);
 }
 
+/* ============ Analyse tab: compare with a competitor ============
+   Same feature as the homepage, unlocked: route('chat.compare') with
+   premium:true returns the full gap report with every fix, drawn by
+   miraRenderComparison() (partials.ask-mira.compare-script). Visitors who
+   aren't logged in give their name and email first (shared lead form, which
+   hands 'compare' submissions to onLeadCompare). */
+let premCompareMode=false, premPendingCompetitor=null;
+
+function premAnalyze(){
+  if(premCompareMode) premSendCompare(); else sendAnalyzeUrl();
+}
+
+function premToggleCompare(forceOff){
+  premCompareMode = forceOff===true ? false : !premCompareMode;
+  document.getElementById('premCompareRow').hidden=!premCompareMode;
+  const toggle=document.getElementById('premCompareToggle');
+  document.getElementById('premCompareLabel').textContent = premCompareMode ? 'Back' : 'Compare with a competitor';
+  toggle.classList.toggle('on', premCompareMode);
+  toggle.setAttribute('aria-pressed', premCompareMode ? 'true' : 'false');
+  document.getElementById('panelAnalyze').classList.toggle('comparing', premCompareMode);
+  document.getElementById('analyzeHint').textContent = premCompareMode
+    ? "Enter your website and a competitor's — I'll compare them and show you exactly what to fix to beat them."
+    : "Paste your website URL — I'll run a real SEO, Technical and Speed check and show the full report below.";
+  document.getElementById('analyzeInput').placeholder = premCompareMode ? 'Your website, e.g. https://yourwebsite.com' : 'https://yourwebsite.com';
+  const status=document.getElementById('analyzeStatus');
+  status.textContent=''; status.classList.remove('err');
+  if(premCompareMode){
+    document.getElementById('premCompetitorInput').focus();
+  }else{
+    document.getElementById('premCompetitorInput').value='';
+    // Clear a comparison, but keep a single-site report.
+    const panel=document.getElementById('miraComparePanel');
+    if(!panel.classList.contains('cx-single')){ panel.hidden=true; panel.innerHTML=''; }
+  }
+}
+
+function premSendCompare(){
+  const url=document.getElementById('analyzeInput').value.trim();
+  const competitor=document.getElementById('premCompetitorInput').value.trim();
+  const status=document.getElementById('analyzeStatus');
+  status.classList.remove('err');
+  const fail=function(msg){ status.textContent=msg; status.classList.add('err'); };
+  if(!url) return fail('Enter your website URL first.');
+  if(!competitor) return fail("Enter your competitor's website URL.");
+  if(!/^https?:\/\//i.test(url) || !/^https?:\/\//i.test(competitor)) return fail('Include http:// or https:// at the start of both addresses.');
+  if(url.replace(/\/+$/,'').toLowerCase()===competitor.replace(/\/+$/,'').toLowerCase()) return fail("Your competitor's website must be different from yours.");
+  if(!IS_LOGGED_IN){ premPendingCompetitor=competitor; openLeadModal(url, 'compare'); return; }
+  premRunCompare(url, competitor, null, null);
+}
+
+// Called by the shared lead form after a visitor gives their name and email.
+function onLeadCompare(url, name, email){
+  premRunCompare(url, premPendingCompetitor, name, email);
+  premPendingCompetitor=null;
+}
+
+async function premRunCompare(url, competitor, name, email){
+  const status=document.getElementById('analyzeStatus');
+  status.classList.remove('err');
+  status.textContent='Comparing both websites — this can take up to a minute…';
+  try{
+    const res=await postJson('{{ route("chat.compare") }}', {url:url, competitor_url:competitor, name:name, email:email, premium:true});
+    const data=await res.json();
+    if(res.ok){
+      status.textContent=data.reply;
+      miraRenderComparison(data.comparison);
+    }else{
+      status.textContent=data.error||data.message||'Something went wrong. Please try again.';
+      status.classList.add('err');
+    }
+  }catch(e){
+    status.textContent='Could not reach the server. Check your connection and try again.';
+    status.classList.add('err');
+  }
+}
+
+// Shared compare-script hook: show the visitor's own site in the sidebar card.
+function onComparisonReport(c){
+  setSite({title:c.you.name, url:c.you.url}, false);
+}
+
 async function sendPremium(){
   const input=document.getElementById('chatInput'),msg=input.value.trim();
   if(!msg||premiumBusy) return;
@@ -463,6 +601,10 @@ async function resetPremium(){
   document.getElementById('analyzeInput').value='';
   document.getElementById('analyzeStatus').textContent='';
   document.getElementById('analyzeStatus').classList.remove('err');
+  // ...and the website report or competitor comparison.
+  const reportPanel=document.getElementById('miraComparePanel');
+  reportPanel.hidden=true; reportPanel.innerHTML=''; reportPanel.classList.remove('cx-single');
+  premToggleCompare(true);
   switchChatTab('ask');
 }
 </script>

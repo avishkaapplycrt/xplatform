@@ -136,3 +136,29 @@
   .a-upsell{flex-direction:column;align-items:flex-start}
   .a-upsell-btn{width:100%;text-align:center}
 }
+/* Spinner before the Analyse tab's status line while checking (.loading is set by
+   the watcher at the end of partials.ask-mira.report-script). --spin-c sets its colour. */
+.analyze-status.loading::before,.mira-analyze-status.loading::before{content:"";display:inline-block;width:12px;height:12px;margin-right:8px;
+  vertical-align:-2px;border-radius:50%;border:2px solid var(--spin-c,currentColor);border-top-color:transparent;animation:askMiraSpin .8s linear infinite}
+@keyframes askMiraSpin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.analyze-status.loading::before,.mira-analyze-status.loading::before{animation-duration:2.4s}}
+/* Report extras (renderReportExtras / compare-script): Google preview, rich results,
+   "Needs connected data", and Why it matters / Check with lines. Page colours via
+   the usual variables; the preview title colour via --serp-title. */
+.a-extras{display:flex;flex-direction:column;gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid var(--brd)}
+.a-extras-title,.needs-data-title{font-size:14px;font-weight:700;color:var(--white);margin-bottom:10px}
+.a-extras-note{font-size:12.5px;color:var(--g300);margin-top:8px}
+.serp{background:var(--bg3);border:1px solid var(--brd);border-radius:12px;padding:12px 14px;font-family:Arial,Helvetica,sans-serif;min-width:0}
+.serp-caption{font-family:var(--f1);font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--g400);margin-bottom:6px}
+.serp-url{font-size:12px;color:var(--g200);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.serp-title{font-size:17px;line-height:1.3;color:var(--serp-title,#1a0dab);margin:3px 0 4px;overflow-wrap:anywhere}
+.serp-desc{font-size:13px;line-height:1.5;color:var(--g200);overflow-wrap:anywhere}
+.serp-note{font-family:var(--f1);font-size:11.5px;color:var(--amber);margin-top:6px}
+.needs-data{background:var(--bg3);border:1px dashed var(--g500);border-radius:12px;padding:14px 16px}
+.needs-data-sub{font-size:12.5px;color:var(--g300);margin:-4px 0 10px}
+.needs-data-list{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px 18px}
+.needs-data-list li{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--brd)}
+.needs-data-kpi{color:var(--g100);font-weight:600}
+.needs-data-status{color:var(--g400);text-align:right}
+.a-modal-rec-meta{font-size:12px;line-height:1.5;color:var(--g300);margin-top:4px}
+.a-modal-rec-meta b{color:var(--g200);font-weight:600}
