@@ -1845,6 +1845,7 @@ var MK_CAMPAIGN_STACK_INTRO =
     '<div class="si-h">WHAT YOU\'RE LOOKING AT</div>' +
     '<div class="si-p">Your real MQL-ready accounts, each with the campaign call that matters most for them: whether to lead with <b>proof</b> or an <b>offer</b>, based on their own real trust score against the 65-point line — not the pool average. Sorted by deal value, biggest first.</div>' +
   '</div>';
+var MK_CAMPAIGN_ACCOUNTS = [];
 function renderMarketingCampaignStack(){
   var el = document.getElementById('dashView');
   el.innerHTML = MK_CAMPAIGN_STACK_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">Loading real campaign data…</div>';
@@ -1856,12 +1857,13 @@ function renderMarketingCampaignStack(){
 }
 function renderMkCampaignTableHtml(accounts){
   var ready = accounts.filter(function(a){ return a.segment === 'mql_ready'; }).sort(function(x,y){ return y.deal_value - x.deal_value; });
+  MK_CAMPAIGN_ACCOUNTS = ready;
 
   if (!ready.length) {
     return '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts are MQL-ready right now.</div>';
   }
 
-  var rows = ready.map(function(a){
+  var rows = ready.map(function(a, i){
     var proofLed = a.trust < 65;
     var approach = proofLed
       ? '<span class="bh-pill warn">Proof-led</span>'
@@ -1875,10 +1877,116 @@ function renderMkCampaignTableHtml(accounts){
       + '<td>' + a.trust + '</td>'
       + '<td>' + approach + '</td>'
       + '<td>' + lastTouch + '</td>'
+      + '<td><button type="button" onclick="mkCampaignOpen(' + i + ')" style="padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">View</button></td>'
       + '</tr>';
   }).join('');
 
-  return '<table class="dtbl"><thead><tr><th>Account</th><th>Deal value</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  return '<table class="dtbl"><thead><tr><th>Account</th><th>Deal value</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+/* ── Marketing Campaign grid — "View" composer, same pattern as Mock
+   Master Helper's mmStudentOpen: pick one of 5 templates, edit subject/
+   body, send a real email via the shared send-email endpoint. No
+   WhatsApp here — crm_contacts has no phone column for these accounts. ── */
+var MK_CMP_TEMPLATES = [
+  { key: 'proof', label: 'Proof-led follow-up', hint: 'Trust below 65 — lead with evidence', subject: 'A quick result for teams like {company}',
+    body: 'Hi {first},\n\nCompanies in a similar spot to {company} typically see a real result within the first 30-60 days — happy to walk you through the numbers.\n\nWorth a quick 15-minute call this week?\n\nBest' },
+  { key: 'offer', label: 'Offer-led follow-up', hint: 'Trust 65+ — go direct', subject: 'Next step for {company}',
+    body: 'Hi {first},\n\nYou\'ve clearly found real value already, and I think {company} is in a great position to get even more from it.\n\nWant me to put together what the next plan would look like for you?\n\nBest' },
+  { key: 'reengage', label: 'Re-engage', hint: 'Gone quiet recently', subject: 'Checking in, {first}',
+    body: 'Hi {first},\n\nIt\'s been a little while since we last connected. Still happy to pick this back up whenever it\'s useful for {company} — just reply and I\'ll send the details.\n\nBest' },
+  { key: 'thanks', label: 'Thank you + case study ask', hint: 'Closed-won accounts', subject: 'Thanks from the team, {first}',
+    body: 'Hi {first},\n\nThanks again for choosing us — it\'s been great working with {company}. Would you be open to a short case study on the results so far?\n\nBest' },
+  { key: 'referral', label: 'Referral ask', hint: 'Happy, loyal accounts', subject: 'A quick favour, {first}',
+    body: 'Hi {first},\n\nGlad to hear things are going well at {company}. If you know another business owner who\'d benefit from this, I\'d love an introduction.\n\nBest' }
+];
+function mkFillTemplate(text, a){
+  var first = String(a.name || '').split(' ')[0] || 'there';
+  return String(text)
+    .replace(/\{first\}/g, first)
+    .replace(/\{company\}/g, a.company || 'your team')
+    .replace(/\{deal_value\}/g, money(a.deal_value || 0));
+}
+var MK_CMP_SELECTED = null;
+function mkCampaignOpen(i){
+  var a = MK_CAMPAIGN_ACCOUNTS[i];
+  if (!a) return;
+  mkCampaignOpenAccount(a);
+}
+function mkCampaignOpenAccount(a){
+  MK_CMP_SELECTED = a;
+
+  var overlay = document.getElementById('mkCmpModal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'mkCmpModal';
+    overlay.className = 'risk-modal-overlay';
+    overlay.onclick = function (e) { if (e.target === overlay) mkCampaignClose(); };
+    overlay.innerHTML =
+      '<div class="risk-modal" style="max-width:920px;width:100%">' +
+        '<div class="risk-modal-hd" style="align-items:flex-start"><span id="mkCmpTitle"></span>' +
+        '<button type="button" onclick="mkCampaignClose()" aria-label="Close">✕</button></div>' +
+        '<div class="risk-modal-body" id="mkCmpBody" style="padding:18px 22px 22px"></div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+  }
+
+  var chips = MK_CMP_TEMPLATES.map(function (t) {
+    return '<label style="display:block;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;cursor:pointer;background:#fff">' +
+      '<input type="radio" name="mkCmpTpl" value="' + t.key + '" onchange="mkPickTemplate(\'' + t.key + '\')" style="margin-right:6px">' +
+      '<b style="font-size:12.5px">' + escapeHtml(t.label) + '</b>' +
+      '<div style="font-size:11px;color:#6b7280;margin:4px 0 0 20px">' + escapeHtml(t.hint) + '</div></label>';
+  }).join('');
+
+  document.getElementById('mkCmpTitle').innerHTML =
+    escapeHtml(a.name) +
+    '<div style="font-size:11.5px;font-weight:500;color:#6b7280;margin-top:3px">' +
+      (a.email ? escapeHtml(a.email) : '<span style="color:#9ca3af">No email on file</span>') +
+    '</div>';
+  document.getElementById('mkCmpBody').innerHTML =
+    '<div id="mkCmpWrap" style="display:grid;grid-template-columns:1fr;gap:20px;align-items:start">' +
+      '<div><div style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;margin-bottom:8px">Choose a message</div>' +
+        '<div style="display:grid;gap:8px">' + chips + '</div></div>' +
+      '<div id="mkCmpArea" style="display:none">' +
+        '<div style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;margin-bottom:8px">Edit and send</div>' +
+        '<label style="font-size:11px;font-weight:700;color:#6b7280">Subject</label>' +
+        '<input id="mkCmpSubject" type="text" style="width:100%;margin:4px 0 10px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;box-sizing:border-box">' +
+        '<label style="font-size:11px;font-weight:700;color:#6b7280">Message</label>' +
+        '<textarea id="mkCmpMsg" rows="8" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box"></textarea>' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-top:14px;justify-content:flex-end">' +
+          '<span id="mkCmpStatus" style="font-size:11.5px"></span>' +
+          '<button type="button" id="mkCmpSend" disabled onclick="mkSendEmail()" style="display:inline-flex;align-items:center;justify-content:center;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;border:none;background:#2563eb;color:#fff;cursor:pointer">Email</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<p id="mkCmpHint" style="font-size:11.5px;color:#6b7280;margin:10px 0 0;text-align:right">Pick a message above to enable sending.</p>';
+
+  var sendBtn = document.getElementById('mkCmpSend');
+  sendBtn.disabled = !a.email;
+  if (!a.email) sendBtn.title = 'No email address on file for this account.';
+
+  overlay.classList.add('show');
+}
+function mkCampaignClose(){
+  var overlay = document.getElementById('mkCmpModal');
+  if (overlay) overlay.classList.remove('show');
+}
+function mkPickTemplate(key){
+  var t = MK_CMP_TEMPLATES.find(function (x) { return x.key === key; });
+  if (!t || !MK_CMP_SELECTED) return;
+  document.getElementById('mkCmpArea').style.display = 'block';
+  document.getElementById('mkCmpWrap').style.gridTemplateColumns = '1fr 1.4fr';
+  document.getElementById('mkCmpSubject').value = mkFillTemplate(t.subject, MK_CMP_SELECTED);
+  document.getElementById('mkCmpMsg').value = mkFillTemplate(t.body, MK_CMP_SELECTED);
+  document.getElementById('mkCmpHint').style.display = 'none';
+}
+function mkSendEmail(){
+  var a = MK_CMP_SELECTED;
+  if (!a || !a.email) return;
+  var btn = document.getElementById('mkCmpSend');
+  var subject = document.getElementById('mkCmpSubject').value;
+  var body = document.getElementById('mkCmpMsg').value;
+  bhPostSendEmail(btn, a.email, a.name, subject, body, 'mkCmpStatus');
 }
 function scoreCol(v){ return v>=70?'#0e7a35':v>=50?'#9a6700':'#b42332'; }
 /* Presentation-only helpers for the account tables: an initial avatar with a
@@ -1977,17 +2085,28 @@ var MK_ACCOUNTS_INTRO =
     '<b>At-risk</b> means an open deal has had no activity for 3+ months. <b>MQL-ready</b> means the customer is ready for Sales based on their Readiness score. <b>Other</b> means they are not currently at risk or sales-ready. ' +
     'Deal values and stages come directly from your data, with the highest-value deals shown first.</div>' +
   '</div>';
+var MK_PERF_ACCOUNTS = [];
 function renderMarketingAccountsTable(accounts){
+  MK_PERF_ACCOUNTS = accounts;
   if (!accounts.length) return MK_ACCOUNTS_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">No synced CRM contacts found.</div>';
-  var rows = accounts.map(function(a){
+  var rows = accounts.map(function(a, i){
     var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
     var segColor = MK_SEGMENT_COLOR[a.segment] || '#6b7280';
     return '<tr><td class="acctn">'+bhAcctCell(a)+'</td>'+
       '<td><span class="segtag" style="background:'+segColor+'22;color:'+segColor+'">'+escapeHtml(segLabel)+'</span></td>'+
       '<td>'+money(a.deal_value)+'</td><td>'+a.buying_readiness+'</td><td>'+a.trust+'</td>'+
-      '<td>'+bhStagePill(a.stage_label)+'</td><td>'+a.days_since_activity+'d ago</td></tr>';
+      '<td>'+bhStagePill(a.stage_label)+'</td><td>'+a.days_since_activity+'d ago</td>'+
+      '<td><button type="button" onclick="mkPerfOpen(' + i + ')" style="padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">View</button></td></tr>';
   }).join('');
-  return MK_ACCOUNTS_INTRO + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>Deal value</th><th>Readiness</th><th>Trust</th><th>Stage</th><th>Last active</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  return MK_ACCOUNTS_INTRO + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>Deal value</th><th>Readiness</th><th>Trust</th><th>Stage</th><th>Last active</th><th>Action</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+/* Performance grid's "View" — identical composer to the Campaign grid's
+   (mkCampaignOpen), just reading from MK_PERF_ACCOUNTS instead. Reuses the
+   same modal DOM (#mkCmpModal) and templates (MK_CMP_TEMPLATES). */
+function mkPerfOpen(i){
+  var a = MK_PERF_ACCOUNTS[i];
+  if (!a) return;
+  mkCampaignOpenAccount(a);
 }
 /* Marketing · Audience tab — the same real crm_contacts/crm_deals accounts
    as Performance, browsable one at a time with a real profile instead of
@@ -2763,6 +2882,11 @@ window.selectMkAudienceAccount = selectMkAudienceAccount;
 window.openScriptFor = openScriptFor;
 window.bhSendScriptEmail = bhSendScriptEmail;
 window.bhSendCloseEmail = bhSendCloseEmail;
+window.mkCampaignOpen = mkCampaignOpen;
+window.mkPerfOpen = mkPerfOpen;
+window.mkCampaignClose = mkCampaignClose;
+window.mkPickTemplate = mkPickTemplate;
+window.mkSendEmail = mkSendEmail;
 window.logOutcome = logOutcome;
 window.dashQuick = dashQuick;
 window.expandDashQuicks = expandDashQuicks;
