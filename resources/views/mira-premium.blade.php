@@ -6,7 +6,7 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Premium Mira &ndash; X Platforms</title>
 <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 /* Premium palette — light, like the basic (homepage) Ask Mira, with gold
@@ -481,7 +481,9 @@ a{color:inherit;text-decoration:none}
 <script>
 @include('partials.ask-mira.script', ['premium' => true])
 
-/* Competitor comparison result (shared with the homepage): miraRenderComparison(). */
+/* Competitor comparison result (shared with the homepage): miraRenderComparison().
+   Premium shows Google's stages as a metrics dashboard instead of cards. */
+window.MIRA_STAGE_DASHBOARD = true;
 @include('partials.ask-mira.compare-script')
 </script>
 
