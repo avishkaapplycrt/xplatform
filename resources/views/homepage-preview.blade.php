@@ -72,10 +72,63 @@ img,svg{display:block}
 .hero{position:relative;padding:70px 60px 110px;text-align:center;overflow:hidden;min-height:640px}
 @media (max-width:900px){.hero{padding:50px 24px 80px}}
 /* Real earth/space photo, extracted from Figma export */
-.hero-bg{position:absolute;inset:0;z-index:0;overflow:hidden;background:#000}
-.hero-bg img{width:100%;height:100%;object-fit:cover;object-position:center 30%;
+.hero-bg{position:absolute;inset:0;z-index:0;overflow:hidden;background:#000;container-type:size;
   -webkit-mask-image:linear-gradient(to bottom,black 60%,transparent 100%);
   mask-image:linear-gradient(to bottom,black 60%,transparent 100%);
+}
+/* Stage: sized and placed exactly like the photo's old object-fit:cover /
+   object-position:center 30% (photo is 1920x1557, ratio 1.2331), so the glow
+   layers below can be positioned in % of the photo and stay locked onto the
+   sun and the horizon at any viewport size. */
+.hero-stage{position:absolute;left:50%;aspect-ratio:1920/1557;
+  width:max(100cqw,100cqh * 1.2331);
+  top:calc((100cqh - max(100cqh,100cqw * .8109)) * .3);
+  translate:-50% 0;animation:heroDrift 26s ease-in-out infinite alternate}
+.hero-stage img{display:block;width:100%;height:100%}
+/* Very slow drift/zoom so the whole scene feels alive. */
+@keyframes heroDrift{from{transform:scale(1)}to{transform:scale(1.04) translateY(-.6%)}}
+
+/* Sun flare (sits on the photo's sun, at 30% / 53.2%): a breathing halo,
+   a bright core and slowly turning light rays. */
+.hero-sun{position:absolute;left:30%;top:53.2%;width:34%;aspect-ratio:1;translate:-50% -50%;pointer-events:none;mix-blend-mode:screen}
+.hero-sun::before{content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,236,200,.55) 0%,rgba(140,200,255,.28) 12%,rgba(255,170,90,.12) 30%,transparent 62%);
+  animation:heroSunPulse 5s ease-in-out infinite}
+.hero-sun::after{content:"";position:absolute;inset:14%;border-radius:50%;
+  background:repeating-conic-gradient(from 0deg,rgba(255,240,215,.22) 0deg 1.4deg,transparent 1.4deg 9deg);
+  -webkit-mask:radial-gradient(circle,#000 0%,rgba(0,0,0,.5) 22%,transparent 62%);
+          mask:radial-gradient(circle,#000 0%,rgba(0,0,0,.5) 22%,transparent 62%);
+  filter:blur(1.5px);animation:heroRays 60s linear infinite,heroRaysFlicker 3.8s ease-in-out infinite}
+@keyframes heroSunPulse{0%,100%{transform:scale(.9);opacity:.75}50%{transform:scale(1.12);opacity:1}}
+@keyframes heroRays{to{rotate:360deg}}
+@keyframes heroRaysFlicker{0%,100%{opacity:.65}50%{opacity:1}}
+
+/* Atmosphere rim: a circle whose top edge follows the earth's horizon
+   (radius 94.2% of photo width, top at 51.4%). A soft comet of light —
+   long faint tail on the left, bright warm-to-blue head on the right —
+   travels along the horizon from left to right by rotating the circle
+   clockwise, fading in at the left edge and out at the right, then pauses. */
+.hero-rim{position:absolute;left:-44.2%;top:51.4%;width:188.4%;aspect-ratio:1;border-radius:50%;pointer-events:none;mix-blend-mode:screen;
+  background:conic-gradient(from -22deg,transparent 0deg,rgba(255,190,120,.08) 6deg,rgba(255,200,140,.35) 14deg,rgba(255,224,180,.95) 19deg,rgba(170,215,255,.95) 21.5deg,rgba(150,205,255,0) 24deg,transparent 360deg);
+  -webkit-mask:radial-gradient(farthest-side,transparent 98.4%,#000 99.4%,#000 99.8%,transparent 100%);
+          mask:radial-gradient(farthest-side,transparent 98.4%,#000 99.4%,#000 99.8%,transparent 100%);
+  filter:blur(3px);will-change:rotate;opacity:0;animation:heroRimSweep 5s cubic-bezier(.45,.05,.35,1) infinite}
+/* Head starts just past the left edge of the photo and ends past the right;
+   the last 22% is a rest so each pass feels deliberate, not looping. */
+@keyframes heroRimSweep{
+  0%{rotate:-36deg;opacity:0}
+  12%{opacity:1}
+  66%{opacity:1}
+  78%{rotate:38deg;opacity:0}
+  100%{rotate:38deg;opacity:0}}
+/* Faint steady glow on the whole horizon that gently breathes. */
+.hero-rim-glow{position:absolute;left:-44.2%;top:51.4%;width:188.4%;aspect-ratio:1;border-radius:50%;pointer-events:none;mix-blend-mode:screen;
+  box-shadow:0 -6px 40px 4px rgba(120,180,255,.28),inset 0 10px 30px rgba(255,170,90,.18);
+  animation:heroRimBreathe 6s ease-in-out infinite}
+@keyframes heroRimBreathe{0%,100%{opacity:.45}50%{opacity:1}}
+
+@media (prefers-reduced-motion:reduce){
+  .hero-stage,.hero-sun::before,.hero-sun::after,.hero-rim,.hero-rim-glow{animation:none}
 }
 .hero-inner{position:relative;z-index:1}
 .hero h1{font-family:'Space Grotesk',sans-serif;font-size:160px;line-height:.86;font-weight:500;letter-spacing:-3.2px}
@@ -722,7 +775,14 @@ button.cmp-lock-btn{border:none;cursor:pointer;font-family:'Inter',sans-serif}
 
 {{-- ============ HERO ============ --}}
 <section class="hero">
-  <div class="hero-bg"><img src="{{ asset('images/homepage/hero-earth.jpg') }}" alt=""></div>
+  <div class="hero-bg" aria-hidden="true">
+    <div class="hero-stage">
+      <img src="{{ asset('images/homepage/hero-earth.jpg') }}" alt="">
+      <span class="hero-rim-glow"></span>
+      <span class="hero-rim"></span>
+      <span class="hero-sun"></span>
+    </div>
+  </div>
   <div class="hero-inner">
     <h1><span class="accent">AI Customer</span>Intelligence</h1>
     <p class="hero-sub">
