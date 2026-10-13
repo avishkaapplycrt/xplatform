@@ -327,6 +327,15 @@ class SocialConnectionController extends Controller
             $connection = SocialIntegration::updateOrCreate(['platform' => 'instagram'], $data);
             $connection->refresh();
 
+            // First sync right away, so instagram_media / instagram_account_insights
+            // fill without waiting for "Sync Now". A sync failure must not undo the
+            // connection — the job records it in last_error.
+            try {
+                \App\Jobs\SyncInstagramPosts::dispatchSync($connection->id);
+            } catch (\Throwable $e) {
+                Log::error('Instagram first sync failed', ['connection_id' => $connection->id, 'message' => $e->getMessage()]);
+            }
+
             return redirect()->route('client.social-connections')
                 ->with('success', 'Instagram connected successfully. Account: @' . $igUsername);
 
@@ -932,17 +941,29 @@ class SocialConnectionController extends Controller
                     break;
 
                 case 'instagram':
-                    // Real post/insight pulls paginate and can run long, so this
-                    // is queued (same shape as SyncHubSpotContacts) rather than
-                    // run inline — see App\Jobs\SyncInstagramPosts and
-                    // App\Services\InstagramService. Requires a queue worker
-                    // (`php artisan queue:work`) since QUEUE_CONNECTION=database.
-                    \App\Jobs\SyncInstagramPosts::dispatch($connection->id);
+                    // Run the sync now (not via the queue): with no queue worker
+                    // running, queued syncs never executed, so "Sync Now" stored
+                    // nothing. SyncInstagramPosts still owns status / error
+                    // tracking; App\Services\InstagramService does the API calls.
+                    try {
+                        \App\Jobs\SyncInstagramPosts::dispatchSync($connection->id);
+                    } catch (\Throwable $e) {
+                        Log::error('Instagram sync failed', ['connection_id' => $connection->id, 'message' => $e->getMessage()]);
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Instagram sync failed: ' . $e->getMessage(),
+                        ], 500);
+                    }
+
+                    $connection->refresh();
+                    $m = $connection->metrics ?? [];
 
                     return response()->json([
                         'success' => true,
-                        'message' => 'Instagram sync queued.',
-                        'status'  => 'syncing',
+                        'message' => 'Instagram synced: ' . ($m['posts_synced'] ?? 0) . ' posts, '
+                            . ($m['followers'] ?? 0) . ' followers.',
+                        'status'  => $connection->status,
                     ]);
 
                 case 'tiktok':
