@@ -1426,6 +1426,8 @@ var MM_PLAN_GROUPS = {
 };
 var MM_LIST_CURRENT = null;
 var MM_PF_MENU = null;
+// Campaign table: its Plan filter runs on the server across all candidates (like its sort).
+var MM_CAMPAIGN_PLAN = (function () { try { return new URLSearchParams(location.search).get('plan'); } catch (e) { return null; } })();
 
 var MM_PF_CHEVRON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
 var MM_PF_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -1663,6 +1665,9 @@ function mmPlanMenuOpen(btn) {
     var p = mmPfParts(table);
     if (!p) return;
     var current = table.getAttribute('data-plan-filter') || 'all';
+    // Campaign table: filtered on the server across every candidate, so
+    // per-page counts would mislead — show all options without counts.
+    var server = !!table.querySelector('#mmCampaignBody');
     var counts = {};
     p.rows.forEach(function (tr) { var pl = mmPfPlanOf(tr, p.idx); counts[pl] = (counts[pl] || 0) + 1; });
     var countOf = function (value) {
@@ -1672,16 +1677,17 @@ function mmPlanMenuOpen(btn) {
     };
     var item = function (value, label, desc, cls) {
         var n = countOf(value), sel = value === current;
-        return '<button type="button" role="option" class="mm-pf-opt' + (sel ? ' sel' : '') + '" aria-selected="' + sel + '" data-value="' + mmEsc(value) + '"' + (n === 0 && value !== 'all' ? ' disabled' : '') + '>' +
+        return '<button type="button" role="option" class="mm-pf-opt' + (sel ? ' sel' : '') + '" aria-selected="' + sel + '" data-value="' + mmEsc(value) + '"' + (!server && n === 0 && value !== 'all' && !sel ? ' disabled' : '') + '>' +
             (cls ? '<span class="mm-pf-dot ' + cls + '"></span>' : '') +
             '<span class="mm-pf-txt"><b>' + mmEsc(label) + '</b><small>' + mmEsc(desc) + '</small></span>' +
-            '<span class="mm-pf-n">' + n + '</span><span class="mm-pf-check">' + (sel ? MM_PF_CHECK : '') + '</span></button>';
+            (server ? '' : '<span class="mm-pf-n">' + n + '</span>') + '<span class="mm-pf-check">' + (sel ? MM_PF_CHECK : '') + '</span></button>';
     };
     var html = item('all', MM_PLAN_GROUPS.all.label, MM_PLAN_GROUPS.all.desc) +
         item('paid', MM_PLAN_GROUPS.paid.label, MM_PLAN_GROUPS.paid.desc) +
         item('unpaid', MM_PLAN_GROUPS.unpaid.label, MM_PLAN_GROUPS.unpaid.desc) +
-        '<div class="mm-pf-sep" role="presentation">By plan</div>' +
-        MM_PLAN_ORDER.filter(function (pl) { return counts[pl] || current === pl; }).map(function (pl) {
+        '<div class="mm-pf-sep" role="presentation">By plan' + (server ? ' · all students' : '') + '</div>' +
+        // Every plan is always listed (0 = none in this list), so none ever "goes missing".
+        MM_PLAN_ORDER.filter(function (pl) { return pl !== 'Other' || counts[pl] || current === pl; }).map(function (pl) {
             return item(pl, pl, MM_PLAN_DESC[pl] || '', 'mm-plan ' + pl.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
         }).join('');
 
@@ -1764,6 +1770,11 @@ document.addEventListener('click', function (e) {
         var table = MM_PF_MENU.table, value = opt.getAttribute('data-value');
         table.setAttribute('data-plan-filter', value);
         mmPlanFilterApply(table);
+        if (table.querySelector('#mmCampaignBody')) {
+            // Campaign: re-query the server so the filter covers every page.
+            MM_CAMPAIGN_PLAN = value === 'all' ? null : value;
+            mmCampaignGo(1);
+        }
         if (table.closest('#mmListModalBody') && MM_LIST_CURRENT) MM_LIST_CURRENT.planFilter = value;
         mmPlanMenuClose();
         return;
@@ -1790,6 +1801,14 @@ document.addEventListener('input', function (e) {
 });
 window.addEventListener('resize', mmPlanMenuClose);
 mmPlanFilterInit(document);
+// Campaign opened with ?plan=… (e.g. after a reload): show that filter as active.
+(function () {
+    var body = document.getElementById('mmCampaignBody');
+    if (body && MM_CAMPAIGN_PLAN) {
+        body.closest('table').setAttribute('data-plan-filter', MM_CAMPAIGN_PLAN);
+        mmPlanFilterApply(body.closest('table'));
+    }
+})();
 /* On scroll the open menu follows its arrow (filtering can shrink the table
    and nudge the scroll position); it only closes once the arrow is out of view. */
 document.addEventListener('scroll', function (e) {
@@ -2814,6 +2833,7 @@ function mmCampaignParams(page) {
         params.set('sort', MM_CAMPAIGN_SORT.key);
         params.set('dir', MM_CAMPAIGN_SORT.dir);
     }
+    if (typeof MM_CAMPAIGN_PLAN !== 'undefined' && MM_CAMPAIGN_PLAN && MM_CAMPAIGN_PLAN !== 'all') params.set('plan', MM_CAMPAIGN_PLAN); // Plan column dropdown
     return params;
 }
 
@@ -2836,6 +2856,9 @@ function mmCampaignReset() {
     if (form) form.querySelectorAll('select, input').forEach(function (el) { el.value = ''; });
     MM_CAMPAIGN_SORT = { key: null, dir: 'asc' };
     mmCampaignSortIndicators();
+    MM_CAMPAIGN_PLAN = null; // also clear the Plan column filter
+    var ct = document.getElementById('mmCampaignBody');
+    if (ct) { ct.closest('table').removeAttribute('data-plan-filter'); mmPlanFilterApply(ct.closest('table')); }
     mmCampaignLoad('');
     if (window.history && history.replaceState) {
         history.replaceState(null, '', window.location.pathname);

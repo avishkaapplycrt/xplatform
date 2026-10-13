@@ -447,6 +447,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'page' => 'nullable|integer|min:1',
             'sort' => 'nullable|in:value,payment,stage,readiness,trust,approach,last_active',
             'dir' => 'nullable|in:asc,desc',
+            'plan' => 'nullable|in:all,paid,unpaid,Free trial,Paid,Coaching,Coaching + Paid,No purchase,Other',
         ]);
 
         $palette = ['#3b5bdb', '#7c5cfc', '#f97316', '#1e3a8a', '#0284c7', '#334155', '#16a34a', '#db2777', '#0d9488'];
@@ -456,7 +457,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
         $paged = (new \App\Services\MockMaster\MockMasterDataService())->campaignStudentsPage(
             (int) ($filters['page'] ?? 1), 10, $filters['subscription'] ?? null, $filters['from'] ?? null, $filters['to'] ?? null,
-            $filters['sort'] ?? null, $filters['dir'] ?? 'asc'
+            $filters['sort'] ?? null, $filters['dir'] ?? 'asc', $filters['plan'] ?? null
         );
 
         $paged['students'] = array_map(fn ($s) => $s + [
@@ -490,8 +491,9 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'page' => 'nullable|integer|min:1',
+            'plan' => 'nullable|in:all,paid,unpaid,Free trial,Paid,Coaching,Coaching + Paid,No purchase,Other',
         ]);
-        $mkPaged = $mm->campaignStudentsPage((int) ($mkFilters['page'] ?? 1), 10, $mkFilters['subscription'] ?? null, $mkFilters['from'] ?? null, $mkFilters['to'] ?? null);
+        $mkPaged = $mm->campaignStudentsPage((int) ($mkFilters['page'] ?? 1), 10, $mkFilters['subscription'] ?? null, $mkFilters['from'] ?? null, $mkFilters['to'] ?? null, null, 'asc', $mkFilters['plan'] ?? null);
         $mkStudents = $mkPaged['students'];
         $mkSubscriptions = $mm->subscriptionOptions();
         $mkKpis = $mm->performanceKpis();
