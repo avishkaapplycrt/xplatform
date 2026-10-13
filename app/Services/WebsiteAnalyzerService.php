@@ -35,6 +35,8 @@ class WebsiteAnalyzerService
 {
     private const PAGESPEED_ENDPOINT = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed';
     private const USER_AGENT = 'Mozilla/5.0 (compatible; XPlatformsAnalyzer/1.0; +https://xplatforms.example)';
+    /** Second try when a site blocks the analyzer's own user agent (see fetchPage). */
+    private const BROWSER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
     private const AUDITS = [
         'first-contentful-paint'   => 'First Contentful Paint',
@@ -737,13 +739,42 @@ class WebsiteAnalyzerService
 
     private function fetchPage(string $url): ?Response
     {
-        try {
-            return Http::withHeaders(['User-Agent' => self::USER_AGENT])
-                ->timeout(20)
-                ->get($url);
-        } catch (\Throwable $e) {
-            return null;
+        // Bot protection (e.g. Cloudflare) sometimes blocks, rate-limits or
+        // stalls a request for a moment, so a blocked or failed request gets
+        // one more try as an ordinary browser before the site counts as unreachable.
+        $attempts = [self::USER_AGENT, self::BROWSER_USER_AGENT];
+        $response = null;
+        $error    = null;
+
+        foreach ($attempts as $i => $userAgent) {
+            try {
+                $response = Http::withHeaders([
+                    'User-Agent'      => $userAgent,
+                    'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language' => 'en-US,en;q=0.9',
+                ])->timeout(20)->get($url);
+                $error = null;
+            } catch (\Throwable $e) {
+                $response = null;
+                $error    = $e->getMessage();
+            }
+
+            $blocked = $response === null || in_array($response->status(), [403, 429, 503], true);
+            if (!$blocked) {
+                return $response;
+            }
+            if ($i < count($attempts) - 1) {
+                usleep(800_000);
+            }
         }
+
+        Log::warning('Website analysis: could not fetch page', [
+            'url'    => $url,
+            'status' => $response?->status(),
+            'error'  => $error,
+        ]);
+
+        return $response;
     }
 
     /** @return string[] H1–H3 texts, e.g. "H2: Our services", at most 25. */

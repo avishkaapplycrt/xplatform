@@ -509,6 +509,26 @@ Disallow: /
         $this->assertSame('info', $comparison['you']['vitals'][0]['status']);   // PageSpeed failed: not measured
     }
 
+    public function test_a_site_that_blocks_the_first_request_is_retried_as_a_browser(): void
+    {
+        Http::swap(new \Illuminate\Http\Client\Factory());
+        Http::fake([
+            'https://www.googleapis.com/*' => Http::response([], 500),
+            'https://*/robots.txt'         => Http::response('', 404),
+            'https://*/sitemap.xml'        => Http::response('', 404),
+            'https://*/llms.txt'           => Http::response('', 404),
+            // Bot protection blocks the analyzer's own user agent, lets a browser through.
+            'https://guarded.test/*'       => fn ($request) => str_contains($request->header('User-Agent')[0] ?? '', 'XPlatformsAnalyzer')
+                ? Http::response('Blocked', 403)
+                : Http::response($this->page($this->prose())),
+        ]);
+
+        $checks = (new WebsiteAnalyzerService())->analyzeSeoAndTechnical('https://guarded.test/?srsltid=abc');
+
+        $this->assertNotEmpty($checks);
+        $this->assertSame('pass', collect($checks)->firstWhere('name', 'HTTPS')['status']);
+    }
+
     // ---------------------------------------------------- API compatibility
 
     public function test_existing_report_fields_are_kept(): void
