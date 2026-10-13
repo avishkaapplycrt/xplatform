@@ -15,7 +15,7 @@ class EmailAnalyticsController extends Controller
     public function overview()
     {
         $client = Auth::guard('client')->user();
-        $period = request('period', '30d');
+        $period = request('period', '90d');
         $days = $this->getDaysFromPeriod($period);
 
         $sent      = $this->getTotalSent($client, $days);
@@ -45,7 +45,7 @@ class EmailAnalyticsController extends Controller
     public function campaigns()
     {
         $client = Auth::guard('client')->user();
-        $period = request('period', '30d');
+        $period = request('period', '90d');
         $days = $this->getDaysFromPeriod($period);
 
         $data = [
@@ -66,7 +66,7 @@ class EmailAnalyticsController extends Controller
     public function audience()
     {
         $client = Auth::guard('client')->user();
-        $period = request('period', '30d');
+        $period = request('period', '90d');
         $days = $this->getDaysFromPeriod($period);
 
         $recipients = $this->getAudienceData($client, $days);
@@ -88,7 +88,7 @@ class EmailAnalyticsController extends Controller
     public function engagement()
     {
         $client = Auth::guard('client')->user();
-        $period = request('period', '30d');
+        $period = request('period', '90d');
         $days = $this->getDaysFromPeriod($period);
 
         $opens = $this->getTotalOpens($client, $days);
@@ -109,7 +109,7 @@ class EmailAnalyticsController extends Controller
     public function deliverability()
     {
         $client = Auth::guard('client')->user();
-        $period = request('period', '30d');
+        $period = request('period', '90d');
         $days = $this->getDaysFromPeriod($period);
 
         $sent = $this->getTotalSent($client, $days);

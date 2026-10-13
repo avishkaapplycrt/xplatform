@@ -892,7 +892,8 @@ th[data-tip]{cursor:help}
 .risk-modal-overlay{display:none;position:fixed;inset:0;background:rgba(17,24,39,.45);z-index:10000;align-items:center;justify-content:center;padding:24px}
 .risk-modal-overlay.show{display:flex}
 .risk-modal{background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
-.risk-modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;color:#111827}
+.risk-modal-hd{display:flex;align-items:flex-start;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:13px;color:#111827}
+.risk-modal-hd button{flex-shrink:0;margin-left:14px}
 .risk-modal-hd button{border:none;background:none;font-size:16px;color:#9ca3af;cursor:pointer;line-height:1;padding:4px}
 .risk-modal-hd button:hover{color:#111827}
 .risk-modal-body{overflow:auto;padding:12px 18px 18px}
@@ -1427,6 +1428,8 @@ var MM_PLAN_GROUPS = {
 };
 var MM_LIST_CURRENT = null;
 var MM_PF_MENU = null;
+// Campaign table: its Plan filter runs on the server across all candidates (like its sort).
+var MM_CAMPAIGN_PLAN = (function () { try { return new URLSearchParams(location.search).get('plan'); } catch (e) { return null; } })();
 
 var MM_PF_CHEVRON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
 var MM_PF_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -1664,6 +1667,9 @@ function mmPlanMenuOpen(btn) {
     var p = mmPfParts(table);
     if (!p) return;
     var current = table.getAttribute('data-plan-filter') || 'all';
+    // Campaign table: filtered on the server across every candidate, so
+    // per-page counts would mislead — show all options without counts.
+    var server = !!table.querySelector('#mmCampaignBody');
     var counts = {};
     p.rows.forEach(function (tr) { var pl = mmPfPlanOf(tr, p.idx); counts[pl] = (counts[pl] || 0) + 1; });
     var countOf = function (value) {
@@ -1673,16 +1679,17 @@ function mmPlanMenuOpen(btn) {
     };
     var item = function (value, label, desc, cls) {
         var n = countOf(value), sel = value === current;
-        return '<button type="button" role="option" class="mm-pf-opt' + (sel ? ' sel' : '') + '" aria-selected="' + sel + '" data-value="' + mmEsc(value) + '"' + (n === 0 && value !== 'all' ? ' disabled' : '') + '>' +
+        return '<button type="button" role="option" class="mm-pf-opt' + (sel ? ' sel' : '') + '" aria-selected="' + sel + '" data-value="' + mmEsc(value) + '"' + (!server && n === 0 && value !== 'all' && !sel ? ' disabled' : '') + '>' +
             (cls ? '<span class="mm-pf-dot ' + cls + '"></span>' : '') +
             '<span class="mm-pf-txt"><b>' + mmEsc(label) + '</b><small>' + mmEsc(desc) + '</small></span>' +
-            '<span class="mm-pf-n">' + n + '</span><span class="mm-pf-check">' + (sel ? MM_PF_CHECK : '') + '</span></button>';
+            (server ? '' : '<span class="mm-pf-n">' + n + '</span>') + '<span class="mm-pf-check">' + (sel ? MM_PF_CHECK : '') + '</span></button>';
     };
     var html = item('all', MM_PLAN_GROUPS.all.label, MM_PLAN_GROUPS.all.desc) +
         item('paid', MM_PLAN_GROUPS.paid.label, MM_PLAN_GROUPS.paid.desc) +
         item('unpaid', MM_PLAN_GROUPS.unpaid.label, MM_PLAN_GROUPS.unpaid.desc) +
-        '<div class="mm-pf-sep" role="presentation">By plan</div>' +
-        MM_PLAN_ORDER.filter(function (pl) { return counts[pl] || current === pl; }).map(function (pl) {
+        '<div class="mm-pf-sep" role="presentation">By plan' + (server ? ' · all students' : '') + '</div>' +
+        // Every plan is always listed (0 = none in this list), so none ever "goes missing".
+        MM_PLAN_ORDER.filter(function (pl) { return pl !== 'Other' || counts[pl] || current === pl; }).map(function (pl) {
             return item(pl, pl, MM_PLAN_DESC[pl] || '', 'mm-plan ' + pl.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
         }).join('');
 
@@ -1765,6 +1772,11 @@ document.addEventListener('click', function (e) {
         var table = MM_PF_MENU.table, value = opt.getAttribute('data-value');
         table.setAttribute('data-plan-filter', value);
         mmPlanFilterApply(table);
+        if (table.querySelector('#mmCampaignBody')) {
+            // Campaign: re-query the server so the filter covers every page.
+            MM_CAMPAIGN_PLAN = value === 'all' ? null : value;
+            mmCampaignGo(1);
+        }
         if (table.closest('#mmListModalBody') && MM_LIST_CURRENT) MM_LIST_CURRENT.planFilter = value;
         mmPlanMenuClose();
         return;
@@ -1791,6 +1803,14 @@ document.addEventListener('input', function (e) {
 });
 window.addEventListener('resize', mmPlanMenuClose);
 mmPlanFilterInit(document);
+// Campaign opened with ?plan=… (e.g. after a reload): show that filter as active.
+(function () {
+    var body = document.getElementById('mmCampaignBody');
+    if (body && MM_CAMPAIGN_PLAN) {
+        body.closest('table').setAttribute('data-plan-filter', MM_CAMPAIGN_PLAN);
+        mmPlanFilterApply(body.closest('table'));
+    }
+})();
 /* On scroll the open menu follows its arrow (filtering can shrink the table
    and nudge the scroll position); it only closes once the arrow is out of view. */
 document.addEventListener('scroll', function (e) {
@@ -2169,7 +2189,8 @@ function mmCmpFill(text, v) {
         .replace(/ \(\{amount\}\)/g, '').replace(/\{amount\}/g, '');
 }
 function mmComposeOpen(ctx, row) {
-    var templates = MM_CMP_TEMPLATES[ctx] || MM_CMP_TEMPLATES.marketing;
+    // ctx may be a template set (e.g. "retention") or a list name (e.g. "chAtRisk").
+    var templates = MM_CMP_TEMPLATES[ctx] || MM_CMP_TEMPLATES[MM_CMP_DATASET_CTX[ctx]] || MM_CMP_TEMPLATES.marketing;
     MM_CMP = { ctx: ctx, row: row, templates: templates, contact: { email: row.email || null, phone: row.phone || null } };
 
     var overlay = document.getElementById('mmCmpOverlay');
@@ -2649,7 +2670,13 @@ function mmStudentOpen(index) {
             '<div style="font-size:11px;color:#6b7280;margin:4px 0 0 20px">' + escapeHtml(t.hint) + '</div></label>';
     }).join('');
 
-    document.getElementById('mmStudentTitle').textContent = s.name;
+    document.getElementById('mmStudentTitle').innerHTML =
+        escapeHtml(s.name) +
+        '<div style="font-size:11.5px;font-weight:500;color:#6b7280;margin-top:3px">' +
+            (s.email ? escapeHtml(s.email) : '<span style="color:#9ca3af">No email on file</span>') +
+            ' &nbsp;-&nbsp; ' +
+            (s.phone ? escapeHtml(s.phone) : '<span style="color:#9ca3af">No phone on file</span>') +
+        '</div>';
     document.getElementById('mmStudentBody').innerHTML =
         '<div id="mmMsgWrap" style="display:grid;grid-template-columns:1fr;gap:20px;align-items:start">' +
             '<div><div style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7280;margin-bottom:8px">Choose a message</div>' +
@@ -2815,6 +2842,7 @@ function mmCampaignParams(page) {
         params.set('sort', MM_CAMPAIGN_SORT.key);
         params.set('dir', MM_CAMPAIGN_SORT.dir);
     }
+    if (typeof MM_CAMPAIGN_PLAN !== 'undefined' && MM_CAMPAIGN_PLAN && MM_CAMPAIGN_PLAN !== 'all') params.set('plan', MM_CAMPAIGN_PLAN); // Plan column dropdown
     return params;
 }
 
@@ -2837,6 +2865,9 @@ function mmCampaignReset() {
     if (form) form.querySelectorAll('select, input').forEach(function (el) { el.value = ''; });
     MM_CAMPAIGN_SORT = { key: null, dir: 'asc' };
     mmCampaignSortIndicators();
+    MM_CAMPAIGN_PLAN = null; // also clear the Plan column filter
+    var ct = document.getElementById('mmCampaignBody');
+    if (ct) { ct.closest('table').removeAttribute('data-plan-filter'); mmPlanFilterApply(ct.closest('table')); }
     mmCampaignLoad('');
     if (window.history && history.replaceState) {
         history.replaceState(null, '', window.location.pathname);

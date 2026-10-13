@@ -7,6 +7,7 @@ use App\Models\SocialIntegration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -208,12 +209,17 @@ class SocialConnectionController extends Controller
                 ->with('error', 'Instagram App is not configured. Add INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET to your .env file.');
         }
 
+        // Return to this app's own callback on the address the user is on now
+        // (e.g. http://127.0.0.1:8000/...), so the login session and OAuth
+        // state are still there when Instagram sends the user back. This exact
+        // URL must be listed under "OAuth redirect URIs" in the Meta app.
+        $redirectUri = route('client.social.instagram.callback');
         $state = Str::random(40);
-        session(['instagram_oauth_state' => $state]);
+        session(['instagram_oauth_state' => $state, 'instagram_oauth_redirect' => $redirectUri]);
 
         $params = http_build_query([
             'client_id'     => $clientId,
-            'redirect_uri'  => config('services.instagram.redirect'),
+            'redirect_uri'  => $redirectUri,
             'state'         => $state,
             'response_type' => 'code',
             'scope'         => 'instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_insights,instagram_business_content_publish',
@@ -225,15 +231,20 @@ class SocialConnectionController extends Controller
     public function handleInstagramCallback(Request $request)
     {
         if ($request->filled('error')) {
+            Log::warning('Instagram OAuth: authorization cancelled or refused', $request->only('error', 'error_reason', 'error_description', 'error_message'));
             return redirect()->route('client.social.connect', ['platform' => 'instagram'])
                 ->with('error', 'Instagram authorization was cancelled: ' . $request->input('error_message', $request->input('error')));
         }
 
         if (!$request->filled('state') || $request->input('state') !== session('instagram_oauth_state')) {
+            Log::warning('Instagram OAuth: state mismatch (started outside the Connect button, or on another domain/session)', ['host' => $request->getHost(), 'has_state' => $request->filled('state'), 'session_has_state' => session()->has('instagram_oauth_state')]);
             return redirect()->route('client.social.connect', ['platform' => 'instagram'])
                 ->with('error', 'Invalid OAuth state. Please try connecting again.');
         }
-        session()->forget('instagram_oauth_state');
+        // Instagram requires the token request to use the exact redirect_uri
+        // that started the login.
+        $redirectUri = session('instagram_oauth_redirect', route('client.social.instagram.callback'));
+        session()->forget(['instagram_oauth_state', 'instagram_oauth_redirect']);
 
         if (!$request->filled('code')) {
             return redirect()->route('client.social.connect', ['platform' => 'instagram'])
@@ -245,7 +256,7 @@ class SocialConnectionController extends Controller
                 'client_id'     => config('services.instagram.client_id'),
                 'client_secret' => config('services.instagram.client_secret'),
                 'grant_type'    => 'authorization_code',
-                'redirect_uri'  => config('services.instagram.redirect'),
+                'redirect_uri'  => $redirectUri,
                 'code'          => $request->input('code'),
             ]);
 
@@ -319,7 +330,10 @@ class SocialConnectionController extends Controller
             return redirect()->route('client.social-connections')
                 ->with('success', 'Instagram connected successfully. Account: @' . $igUsername);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            // Any failure (incl. PHP errors, not only exceptions) goes back to the
+            // Connect page with the reason — never leave the user on the callback URL.
+            Log::error('Instagram OAuth: connection failed', ['message' => $e->getMessage(), 'type' => get_class($e), 'at' => $e->getFile() . ':' . $e->getLine()]);
             return redirect()->route('client.social.connect', ['platform' => 'instagram'])
                 ->with('error', 'Instagram connection failed: ' . $e->getMessage());
         }

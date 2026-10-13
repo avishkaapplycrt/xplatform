@@ -448,6 +448,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'page' => 'nullable|integer|min:1',
             'sort' => 'nullable|in:value,payment,stage,readiness,trust,approach,last_active',
             'dir' => 'nullable|in:asc,desc',
+            'plan' => 'nullable|in:all,paid,unpaid,Free trial,Paid,Coaching,Coaching + Paid,No purchase,Other',
         ]);
 
         $palette = ['#3b5bdb', '#7c5cfc', '#f97316', '#1e3a8a', '#0284c7', '#334155', '#16a34a', '#db2777', '#0d9488'];
@@ -457,7 +458,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
         $paged = (new \App\Services\MockMaster\MockMasterDataService())->campaignStudentsPage(
             (int) ($filters['page'] ?? 1), 10, $filters['subscription'] ?? null, $filters['from'] ?? null, $filters['to'] ?? null,
-            $filters['sort'] ?? null, $filters['dir'] ?? 'asc'
+            $filters['sort'] ?? null, $filters['dir'] ?? 'asc', $filters['plan'] ?? null
         );
 
         $paged['students'] = array_map(fn ($s) => $s + [
@@ -491,8 +492,9 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'page' => 'nullable|integer|min:1',
+            'plan' => 'nullable|in:all,paid,unpaid,Free trial,Paid,Coaching,Coaching + Paid,No purchase,Other',
         ]);
-        $mkPaged = $mm->campaignStudentsPage((int) ($mkFilters['page'] ?? 1), 10, $mkFilters['subscription'] ?? null, $mkFilters['from'] ?? null, $mkFilters['to'] ?? null);
+        $mkPaged = $mm->campaignStudentsPage((int) ($mkFilters['page'] ?? 1), 10, $mkFilters['subscription'] ?? null, $mkFilters['from'] ?? null, $mkFilters['to'] ?? null, null, 'asc', $mkFilters['plan'] ?? null);
         $mkStudents = $mkPaged['students'];
         $mkSubscriptions = $mm->subscriptionOptions();
         $mkKpis = $mm->performanceKpis();
@@ -671,6 +673,54 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             app(\App\Services\Llm\SalesPromptInsightsService::class)->objectionPlaybook($request->query('name'))
         );
     })->name('business-helpers.sales.objection-playbook');
+
+    // Sales · Close & grow "Email" action — actually sends the script shown
+    // in Pitch to the real crm_contacts email on file, instead of just
+    // previewing it. Recipient/subject/body all come from data already
+    // rendered to this client (ACCOUNTS, @json($realAccounts)), so this just
+    // validates and sends; logged to email_logs the same way Mock Master's
+    // sender is.
+    Route::post('business-helpers/sales/send-email', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'email' => 'required|email|max:255',
+            'name' => 'nullable|string|max:255',
+            'subject' => 'required|string|max:255',
+            'body' => 'required|string|max:5000',
+        ]);
+
+        $clientId = \Illuminate\Support\Facades\Auth::guard('client')->id();
+
+        $log = function (string $status, ?string $error = null) use ($clientId, $data) {
+            \Illuminate\Support\Facades\DB::table('email_logs')->insert([
+                'client_id' => $clientId,
+                'email_address' => $data['email'],
+                'recipient_name' => $data['name'] ?? null,
+                'subject' => mb_substr($data['subject'], 0, 255),
+                'body' => $data['body'],
+                'type' => 'single',
+                'bulk_count' => 1,
+                'status' => $status,
+                'error_message' => $error,
+                'sent_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        };
+
+        try {
+            \Illuminate\Support\Facades\Mail::raw($data['body'], function ($message) use ($data) {
+                $message->to($data['email'])->subject($data['subject']);
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            $log('failed', mb_substr($e->getMessage(), 0, 1000));
+            return response()->json(['ok' => false, 'message' => 'The email could not be sent. Please try again.'], 500);
+        }
+
+        $log('sent');
+
+        return response()->json(['ok' => true, 'message' => 'Email sent to ' . $data['email']]);
+    })->name('business-helpers.sales.send-email');
 
     // Customer Retention · Risk radar AI answers (crm_contacts + crm_deals +
     // email_logs_providers, written up by OpenAI when OPENAI_API_KEY is set —

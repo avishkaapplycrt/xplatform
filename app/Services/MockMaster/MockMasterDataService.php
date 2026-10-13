@@ -44,9 +44,16 @@ class MockMasterDataService
      *
      * @return array{students: array, total: int, page: int, last_page: int}
      */
-    public function campaignStudentsPage(int $page, int $perPage, ?string $subscription = null, ?string $from = null, ?string $to = null, ?string $sort = null, string $dir = 'asc'): array
+    public function campaignStudentsPage(int $page, int $perPage, ?string $subscription = null, ?string $from = null, ?string $to = null, ?string $sort = null, string $dir = 'asc', ?string $plan = null): array
     {
         $candidates = $this->campaignCandidates($subscription, $from, $to);
+
+        // Plan filter (the Plan column dropdown) — applied across every
+        // candidate before paging, not just the rows on one page.
+        if ($plan !== null && $plan !== '' && $plan !== 'all') {
+            $plans = $this->planFor($candidates->pluck('studentid')->all());
+            $candidates = $candidates->filter(fn ($r) => $this->planMatches($plans[(int) $r->studentid] ?? 'No purchase', $plan))->values();
+        }
         $total = $candidates->count();
         $lastPage = max(1, (int) ceil($total / $perPage));
         $page = min(max(1, $page), $lastPage);
@@ -1384,6 +1391,16 @@ class MockMasterDataService
         }
 
         return $out;
+    }
+
+    /** Plan filter value: a single plan label, or the groups "paid" / "unpaid". */
+    private function planMatches(string $studentPlan, string $value): bool
+    {
+        return match ($value) {
+            'paid' => in_array($studentPlan, ['Paid', 'Coaching + Paid'], true),
+            'unpaid' => in_array($studentPlan, ['Free trial', 'Coaching', 'No purchase'], true),
+            default => $studentPlan === $value,
+        };
     }
 
     /** Adds a 'plan' value to every row that carries a student id (sid). */
