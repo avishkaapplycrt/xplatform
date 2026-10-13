@@ -217,6 +217,11 @@ class MarketingChatBotService
     /** @return array{reply: string, report: array|null} */
     private function runAnalysis(string $url, bool $withRecommendations = false): array
     {
+        // Tracking parameters (utm_*, gclid, …) are neither analysed nor shown.
+        $url = WebsiteAnalyzerService::cleanUrl($url);
+        // The PageSpeed Insights check can take 20–40s on top of the page checks.
+        set_time_limit(120);
+
         try {
             $checks = $this->analyzer->analyzeSeoAndTechnical($url);
         } catch (WebsiteAnalyzerException $e) {

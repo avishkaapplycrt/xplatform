@@ -114,6 +114,8 @@ class PremiumMiraService
      */
     public function loadWebsite(string $url): array
     {
+        // Tracking parameters (utm_*, gclid, …) are neither read nor shown.
+        $url      = \App\Services\WebsiteAnalyzerService::cleanUrl($url);
         $response = $this->safeGet($url);
 
         if ($response === null || !$response->successful()) {

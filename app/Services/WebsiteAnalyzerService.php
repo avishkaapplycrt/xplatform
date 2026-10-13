@@ -2,6 +2,12 @@
 
 namespace App\Services;
 
+use App\Services\WebsiteAnalysis\CheckGuide;
+use App\Services\WebsiteAnalysis\CoreWebVitals;
+use App\Services\WebsiteAnalysis\ExtendedChecks;
+use App\Services\WebsiteAnalysis\SerpPreview;
+use App\Services\WebsiteAnalysis\StructuredData;
+use App\Services\WebsiteAnalysis\UrlCleaner;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -29,6 +35,8 @@ class WebsiteAnalyzerService
 {
     private const PAGESPEED_ENDPOINT = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed';
     private const USER_AGENT = 'Mozilla/5.0 (compatible; XPlatformsAnalyzer/1.0; +https://xplatforms.example)';
+    /** Second try when a site blocks the analyzer's own user agent (see fetchPage). */
+    private const BROWSER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
     private const AUDITS = [
         'first-contentful-paint'   => 'First Contentful Paint',
@@ -46,6 +54,10 @@ class WebsiteAnalyzerService
         'mobile'          => 'Mobile Friendliness',
         'links'           => 'Links',
         'discoverability' => 'Search Engine Visibility',
+        'crawl'           => 'Crawling & Indexing',
+        'speed'           => 'Page Speed',
+        'trust'           => 'Content Freshness & Trust',
+        'ai'              => 'AI Visibility (AEO/GEO)',
         'social'          => 'Social Sharing Preview',
         'richresults'     => 'Rich Results Eligibility',
     ];
@@ -53,6 +65,10 @@ class WebsiteAnalyzerService
     private ?string $apiKey;
 
     private SeoRecommendationService $recommender;
+
+    private CoreWebVitals $vitals;
+
+    private ExtendedChecks $extended;
 
     /**
      * Content of the page most recently checked by analyzeSeoAndTechnical(),
@@ -62,10 +78,22 @@ class WebsiteAnalyzerService
      */
     private ?array $lastPage = null;
 
-    public function __construct(?string $apiKey = null, ?SeoRecommendationService $recommender = null)
-    {
+    public function __construct(
+        ?string $apiKey = null,
+        ?SeoRecommendationService $recommender = null,
+        ?CoreWebVitals $vitals = null,
+        ?ExtendedChecks $extended = null,
+    ) {
         $this->apiKey      = $apiKey ?? (string) config('services.pagespeed.api_key') ?: null;
         $this->recommender = $recommender ?? new SeoRecommendationService();
+        $this->vitals      = $vitals ?? new CoreWebVitals($this->apiKey);
+        $this->extended    = $extended ?? new ExtendedChecks();
+    }
+
+    /** Tracking parameters (utm_*, gclid, …) removed — see UrlCleaner. */
+    public static function cleanUrl(string $url): string
+    {
+        return UrlCleaner::clean($url);
     }
 
     public function isConfigured(): bool
@@ -142,6 +170,7 @@ class WebsiteAnalyzerService
      */
     public function analyzeSeoAndTechnical(string $url): array
     {
+        $url      = self::cleanUrl($url);
         $response = $this->fetchPage($url);
 
         if ($response === null || !$response->successful()) {
@@ -154,11 +183,14 @@ class WebsiteAnalyzerService
         $isHttps = str_starts_with(strtolower($url), 'https://');
 
         // --- PAGE TITLES & DESCRIPTIONS ---
+        $titleLimits = config('website_checks.title_length', ['min' => 30, 'max' => 60]);
+        $descLimits  = config('website_checks.description_length', ['min' => 120, 'max' => 160]);
+
         $title = trim($xpath->query('//title')->item(0)?->textContent ?? '');
-        $checks[] = $this->lengthCheck('titles', 'Title tag', $title, 30, 60);
+        $checks[] = $this->lengthCheck('titles', 'Title tag', $title, $titleLimits['min'], $titleLimits['max']);
 
         $description = trim($this->metaContent($xpath, 'description') ?? '');
-        $checks[] = $this->lengthCheck('titles', 'Meta description', $description, 120, 160);
+        $checks[] = $this->lengthCheck('titles', 'Meta description', $description, $descLimits['min'], $descLimits['max']);
 
         $this->lastPage = [
             'url'         => $url,
@@ -180,13 +212,21 @@ class WebsiteAnalyzerService
             },
         ];
 
+        // Heading order: each heading at most one level deeper than the one
+        // before. The first heading is compared against H1 (there's no "H0").
         $headingNodes  = $xpath->query('//h1 | //h2 | //h3 | //h4 | //h5 | //h6');
-        $previousLevel = 0;
-        $skipDetail    = null;
+        $previousLevel = null;
+        $orderProblem  = null;
         foreach ($headingNodes as $heading) {
             $level = (int) substr($heading->nodeName, 1);
-            if ($level > $previousLevel + 1 && $skipDetail === null) {
-                $skipDetail = "h{$previousLevel} → h{$level}";
+            if ($orderProblem === null) {
+                if ($previousLevel === null && $level > 1) {
+                    $orderProblem = $h1Count === 0
+                        ? "No H1 found; first heading is H{$level}"
+                        : "Page starts with an H{$level} before its H1";
+                } elseif ($previousLevel !== null && $level > $previousLevel + 1) {
+                    $orderProblem = "Heading order skips a level (H{$previousLevel} → H{$level})";
+                }
             }
             $previousLevel = $level;
         }
@@ -194,12 +234,12 @@ class WebsiteAnalyzerService
             'category' => 'structure', 'name' => 'Heading order',
             'status'   => match (true) {
                 $headingNodes->length === 0 => 'info',
-                $skipDetail !== null        => 'warn',
+                $orderProblem !== null      => 'warn',
                 default                     => 'pass',
             },
             'detail'   => match (true) {
                 $headingNodes->length === 0 => 'No headings found',
-                $skipDetail !== null        => "Heading order skips a level ({$skipDetail})",
+                $orderProblem !== null      => $orderProblem,
                 default                     => 'Heading order is sequential',
             },
         ];
@@ -312,6 +352,13 @@ class WebsiteAnalyzerService
         ];
 
         // --- SOCIAL SHARING PREVIEW ---
+        // Some sites double-encode their tags ("&amp;amp;"), so decode what's left.
+        $og = fn (string $property) => html_entity_decode(trim($xpath->query("//meta[@property=\"{$property}\"]")->item(0)?->getAttribute('content') ?? ''), ENT_QUOTES | ENT_HTML5);
+        $this->lastPage['open_graph'] = [
+            'title'       => $og('og:title'),
+            'description' => $og('og:description'),
+            'image'       => $og('og:image'),
+        ];
         $ogTitle       = $xpath->query('//meta[@property="og:title"]')->length > 0;
         $ogDescription = $xpath->query('//meta[@property="og:description"]')->length > 0;
         $ogImage       = $xpath->query('//meta[@property="og:image"]')->length > 0;
@@ -333,15 +380,40 @@ class WebsiteAnalyzerService
             'detail'   => $hasTwitterCard ? 'twitter:card tag found' : 'No twitter:card tag found',
         ];
 
+        $structured = new StructuredData($xpath);
+
+        // --- CRAWLING & INDEXING ---
+        array_push($checks, ...$this->extended->crawl($response, $xpath));
+
+        // --- PAGE SPEED (Core Web Vitals via PageSpeed Insights; "Not measured" if unavailable) ---
+        array_push($checks, ...$this->vitals->checks($url));
+
+        // --- CONTENT FRESHNESS & TRUST ---
+        array_push($checks, ...$this->extended->trust($xpath, $structured));
+
+        // --- AI VISIBILITY (AEO/GEO) ---
+        $llms    = $this->fetchPage("{$origin}/llms.txt");
+        $hasLlms = $llms !== null && $llms->successful()
+            && !str_contains(strtolower($llms->header('Content-Type')), 'html') && trim($llms->body()) !== '';
+        array_push($checks, ...$this->extended->ai($xpath, $structured, $robotsOk ? $robotsTxt->body() : null, $hasLlms));
+
         // --- RICH RESULTS ELIGIBILITY ---
-        $schemaCount = $xpath->query('//script[@type="application/ld+json"]')->length;
+        // Which rich results the markup qualifies for, not just how many JSON-LD blocks there are.
+        $richTypes = $structured->richResultTypes();
         $checks[] = [
             'category' => 'richresults', 'name' => 'Structured data',
-            'status'   => $schemaCount > 0 ? 'pass' : 'warn',
-            'detail'   => $schemaCount > 0 ? "{$schemaCount} JSON-LD block(s) found" : 'No JSON-LD schema found',
+            'status'   => $richTypes !== [] ? 'pass' : 'warn',
+            'detail'   => match (true) {
+                $richTypes !== []                => 'Qualifies for: ' . implode(', ', $richTypes),
+                $structured->blockCount > 0      => "{$structured->blockCount} JSON-LD block(s), but none qualify for rich results",
+                default                          => 'No JSON-LD schema found',
+            },
+            'rich_result_types' => $richTypes,
         ];
+        $this->lastPage['rich_result_types'] = $richTypes;
 
-        return $checks;
+        // "Why it matters" / "Check with" for every check.
+        return array_map(fn ($check) => $check + CheckGuide::for($check['name']), $checks);
     }
 
     /**
@@ -351,20 +423,22 @@ class WebsiteAnalyzerService
      */
     public function scoreChecks(array $checks): array
     {
-        $weight     = ['pass' => 1.0, 'warn' => 0.5, 'fail' => 0.0];
+        // Only pass/warn/fail are scored (weights in config/website_checks.php);
+        // 'info' — observational, "Not measured", "not applicable" — never lowers a score.
+        $weight     = config('website_checks.status_weights', ['pass' => 1.0, 'warn' => 0.5, 'fail' => 0.0]);
         $counts     = ['pass' => 0, 'warn' => 0, 'fail' => 0];
         $byCategory = [];
 
         foreach ($checks as $check) {
-            if ($check['status'] !== 'info') {
-                $counts[$check['status']]++;
+            if (array_key_exists($check['status'], $weight)) {
+                $counts[$check['status']] = ($counts[$check['status']] ?? 0) + 1;
             }
             $byCategory[$check['category']][] = $check;
         }
 
         $categoryScores = [];
         foreach ($byCategory as $category => $categoryChecks) {
-            $scored = array_filter($categoryChecks, fn ($c) => $c['status'] !== 'info');
+            $scored = array_filter($categoryChecks, fn ($c) => array_key_exists($c['status'], $weight));
             if ($scored === []) {
                 $categoryScores[$category] = null;
                 continue;
@@ -376,15 +450,37 @@ class WebsiteAnalyzerService
         return ['categoryScores' => $categoryScores, 'counts' => $counts];
     }
 
+    /**
+     * Overall score: the weighted average of the categories that have a score
+     * (config website_checks.category_weights); unscored categories are left out.
+     *
+     * @param array<string, int|null> $categoryScores
+     */
+    public function overallScore(array $categoryScores): int
+    {
+        $weights = config('website_checks.category_weights', []);
+        $total = $weightSum = 0.0;
+        foreach ($categoryScores as $category => $score) {
+            if ($score === null) {
+                continue;
+            }
+            $w = (float) ($weights[$category] ?? 1.0);
+            $total     += $score * $w;
+            $weightSum += $w;
+        }
+
+        return $weightSum > 0 ? (int) round($total / $weightSum) : 0;
+    }
+
     public function grade(int $score): string
     {
-        return match (true) {
-            $score >= 90 => 'A',
-            $score >= 80 => 'B',
-            $score >= 70 => 'C',
-            $score >= 60 => 'D',
-            default      => 'F',
-        };
+        foreach (config('website_checks.grades', ['A' => 90, 'B' => 80, 'C' => 70, 'D' => 60, 'F' => 0]) as $grade => $minimum) {
+            if ($score >= $minimum) {
+                return $grade;
+            }
+        }
+
+        return 'F';
     }
 
     /**
@@ -394,13 +490,14 @@ class WebsiteAnalyzerService
      */
     public function summarizeFull(string $url, array $checks): string
     {
+        // How much each check matters when it isn't passing (config website_checks.check_severity).
+        $checks = array_map(fn ($c) => $c + ['severity' => config('website_checks.check_severity.' . $c['name'], 'minor')], $checks);
+
         $scored         = $this->scoreChecks($checks);
         $categoryScores = $scored['categoryScores'];
         $counts         = $scored['counts'];
 
-        $overallInputs = array_values(array_filter(array_values($categoryScores), fn ($v) => $v !== null));
-
-        $overall = $overallInputs !== [] ? (int) round(array_sum($overallInputs) / count($overallInputs)) : 0;
+        $overall = $this->overallScore($categoryScores);
         $grade   = $this->grade($overall);
 
         $lines   = [];
@@ -452,7 +549,20 @@ class WebsiteAnalyzerService
         'Canonical tag'              => 'Add <link rel="canonical"> pointing to this page\'s preferred URL to avoid duplicate-content issues.',
         'Open Graph tags'            => 'Add og:title, og:description and og:image so links to this page look good when shared on Facebook and LinkedIn.',
         'Twitter Card tags'          => 'Add twitter:card (summary_large_image), twitter:title and twitter:image for a rich preview on X/Twitter.',
-        'Structured data'            => 'Add JSON-LD structured data (Organization or LocalBusiness, plus FAQPage or Product where relevant) to qualify for rich results.',
+        'Structured data'            => 'Add JSON-LD structured data (Organization or LocalBusiness, plus FAQPage, Product, BreadcrumbList or AggregateRating where relevant) to qualify for rich results.',
+        'Indexing (noindex)'              => 'Remove "noindex" from the robots meta tag and the X-Robots-Tag header (unless you deliberately want this page out of Google).',
+        'Content without JavaScript'      => 'Render the main content in the HTML on the server (server-side rendering or pre-rendering) so crawlers see it without running JavaScript.',
+        'Largest Contentful Paint (LCP)'  => 'Speed up the main content: compress and correctly size the hero image, preload it, and cut render-blocking CSS/JS. Aim for 2.5 s or less.',
+        'Interaction to Next Paint (INP)' => 'Make taps and clicks respond faster: break up long JavaScript tasks and defer non-essential scripts. Aim for 200 ms or less.',
+        'Cumulative Layout Shift (CLS)'   => 'Stop content jumping: set width/height on images and embeds and reserve space for banners and ads. Aim for 0.1 or less.',
+        'Published / updated date'        => 'Show the published and last-updated date on the page and add datePublished / dateModified to the Article markup.',
+        'Author information'              => 'Show who wrote the content (name, role, link to a bio) and add author to the Article markup.',
+        'About / Contact / Privacy pages' => 'Link to your About, Contact and Privacy Policy pages from every page, usually in the footer.',
+        'Business address & phone'        => 'Show your business address and a clickable phone number (tel: link), and add them to Organization/LocalBusiness markup.',
+        'Review / rating schema'          => 'If you show genuine customer reviews, mark them up with Review / AggregateRating schema.',
+        'FAQ / question headings'         => 'Add an FAQ section, or phrase key headings as the questions your customers ask.',
+        'Short direct answers'            => 'Put a 20–60 word direct answer right under each question heading, then add detail below it.',
+        'FAQPage & Organization schema'   => 'Add Organization markup with sameAs links to your official profiles, and FAQPage markup for your FAQ section.',
     ];
 
     /** Most recommendations listed on the "Site Overview" card. */
@@ -478,6 +588,7 @@ class WebsiteAnalyzerService
      */
     public function buildReport(string $url, array $checks, bool $withRecommendations = false): array
     {
+        $url    = self::cleanUrl($url);
         $source = 'none';
 
         if ($withRecommendations) {
@@ -502,11 +613,12 @@ class WebsiteAnalyzerService
             }
         }
 
+        // How much each check matters when it isn't passing (config website_checks.check_severity).
+        $checks = array_map(fn ($c) => $c + ['severity' => config('website_checks.check_severity.' . $c['name'], 'minor')], $checks);
+
         $scored         = $this->scoreChecks($checks);
         $categoryScores = $scored['categoryScores'];
-
-        $overallInputs = array_values(array_filter(array_values($categoryScores), fn ($v) => $v !== null));
-        $overall = $overallInputs !== [] ? (int) round(array_sum($overallInputs) / count($overallInputs)) : 0;
+        $overall        = $this->overallScore($categoryScores);
 
         $categories = [];
 
@@ -527,17 +639,41 @@ class WebsiteAnalyzerService
         $actionable = array_values(array_filter($checks, fn ($c) => ($c['recommendation'] ?? null) !== null));
         usort($actionable, fn ($a, $b) => ($a['status'] === 'fail' ? 0 : 1) <=> ($b['status'] === 'fail' ? 0 : 1));
 
+        $page = ($this->lastPage['url'] ?? null) === $url ? $this->lastPage : null;
+
         return [
             'url'                 => $url,
             // Page <title>, for UIs that name the analysed site (e.g. Premium Mira's "Your website" card).
-            'title'               => ($this->lastPage['url'] ?? null) === $url ? $this->lastPage['title'] : '',
+            'title'               => $page['title'] ?? '',
+            // How the page would look as a Google search result.
+            'serp_preview'        => SerpPreview::build($url, $page['title'] ?? '', $page['description'] ?? '', $page['text'] ?? ''),
+            // Rich results the page's markup qualifies for (Product, Review stars, FAQ, Breadcrumb, Organization).
+            'rich_result_types'   => $page['rich_result_types'] ?? [],
+            // Open Graph title / description / image ('' when missing), for share previews.
+            'open_graph'          => $page['open_graph'] ?? ['title' => '', 'description' => '', 'image' => ''],
+            // KPIs a page scan can't measure — never estimated.
+            'needs_connected_data' => array_map(
+                fn ($k) => $k + ['status' => 'Not measured — connect ' . $k['tool']],
+                (array) config('website_checks.connected_kpis', [])
+            ),
+            // Google's pipeline stages grouping the categories, and the weights behind
+            // the scores (so a page can project a score as fixes are ticked off).
+            'stages'              => array_map(
+                fn ($st) => ['key' => $st['key'], 'label' => $st['label'], 'question' => $st['question'], 'categories' => $st['categories']],
+                (array) config('website_checks.stages', [])
+            ),
+            'scoring'             => [
+                'status_weights'   => config('website_checks.status_weights'),
+                'category_weights' => config('website_checks.category_weights'),
+            ],
             'overall'             => $overall,
             'grade'               => $this->grade($overall),
             'counts'              => $scored['counts'],
             'categories'          => $categories,
             'recommendations_source' => $source,   // 'ai' (OpenAI), 'standard' (fixed advice) or 'none' (free Ask Mira)
             'top_recommendations' => array_map(
-                fn ($c) => ['name' => $c['name'], 'status' => $c['status'], 'recommendation' => $c['recommendation']],
+                fn ($c) => ['name' => $c['name'], 'status' => $c['status'], 'recommendation' => $c['recommendation'],
+                            'why' => $c['why'] ?? null, 'check_with' => $c['check_with'] ?? null],
                 array_slice($actionable, 0, self::MAX_TOP_RECOMMENDATIONS)
             ),
         ];
@@ -603,13 +739,42 @@ class WebsiteAnalyzerService
 
     private function fetchPage(string $url): ?Response
     {
-        try {
-            return Http::withHeaders(['User-Agent' => self::USER_AGENT])
-                ->timeout(20)
-                ->get($url);
-        } catch (\Throwable $e) {
-            return null;
+        // Bot protection (e.g. Cloudflare) sometimes blocks, rate-limits or
+        // stalls a request for a moment, so a blocked or failed request gets
+        // one more try as an ordinary browser before the site counts as unreachable.
+        $attempts = [self::USER_AGENT, self::BROWSER_USER_AGENT];
+        $response = null;
+        $error    = null;
+
+        foreach ($attempts as $i => $userAgent) {
+            try {
+                $response = Http::withHeaders([
+                    'User-Agent'      => $userAgent,
+                    'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language' => 'en-US,en;q=0.9',
+                ])->timeout(20)->get($url);
+                $error = null;
+            } catch (\Throwable $e) {
+                $response = null;
+                $error    = $e->getMessage();
+            }
+
+            $blocked = $response === null || in_array($response->status(), [403, 429, 503], true);
+            if (!$blocked) {
+                return $response;
+            }
+            if ($i < count($attempts) - 1) {
+                usleep(800_000);
+            }
         }
+
+        Log::warning('Website analysis: could not fetch page', [
+            'url'    => $url,
+            'status' => $response?->status(),
+            'error'  => $error,
+        ]);
+
+        return $response;
     }
 
     /** @return string[] H1–H3 texts, e.g. "H2: Our services", at most 25. */

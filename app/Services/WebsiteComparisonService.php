@@ -20,6 +20,14 @@ class WebsiteComparisonService
     /** How good a check result is, for deciding who's ahead. 'info' checks aren't compared. */
     private const STATUS_RANK = ['fail' => 0, 'warn' => 1, 'pass' => 2];
 
+    /**
+     * Check names phrased as problems read oddly as a strength, so "Where
+     * you're ahead" shows these labels instead (rows keep `name` unchanged).
+     */
+    private const STRENGTH_LABELS = [
+        'Generic anchor text' => 'Descriptive anchor text',
+    ];
+
     public function __construct(private ?WebsiteAnalyzerService $analyzer = null)
     {
         $this->analyzer ??= new WebsiteAnalyzerService();
@@ -32,6 +40,13 @@ class WebsiteComparisonService
      */
     public function compare(string $yourUrl, string $competitorUrl): array
     {
+        // Tracking parameters (utm_*, gclid, …) are neither analysed nor shown.
+        $yourUrl       = WebsiteAnalyzerService::cleanUrl($yourUrl);
+        $competitorUrl = WebsiteAnalyzerService::cleanUrl($competitorUrl);
+        if (rtrim(strtolower($yourUrl), '/') === rtrim(strtolower($competitorUrl), '/')) {
+            throw new WebsiteAnalyzerException("Your competitor's website must be different from yours.");
+        }
+
         // Each report is built straight after its own analysis: buildReport()
         // reads the page title from the most recently analysed page.
         $yourChecks = $this->checksFor($yourUrl, 'your website');
@@ -48,9 +63,10 @@ class WebsiteComparisonService
             $theirsByName[$check['name']] = $check;
         }
 
-        $gaps = $strengths = [];
+        $gaps = $strengths = $all = [];
         foreach ($yourChecks as $mine) {
             $theirs = $theirsByName[$mine['name']] ?? null;
+            $all[] = $this->pairedCheck($mine, $theirs, $labels);
             $myRank    = self::STATUS_RANK[$mine['status']] ?? null;
             $theirRank = $theirs ? (self::STATUS_RANK[$theirs['status']] ?? null) : null;
             if ($myRank === null || $theirRank === null || $myRank === $theirRank) {
@@ -61,10 +77,14 @@ class WebsiteComparisonService
                 'category'     => $mine['category'],
                 'section'      => $labels[$mine['category']] ?? $mine['category'],
                 'name'         => $mine['name'],
+                // Display name for "Where you're ahead" (e.g. "Descriptive anchor text").
+                'label'        => self::STRENGTH_LABELS[$mine['name']] ?? $mine['name'],
                 'you_status'   => $mine['status'],
                 'you_detail'   => $mine['detail'],
                 'them_status'  => $theirs['status'],
                 'them_detail'  => $theirs['detail'],
+                'why'          => $mine['why'] ?? null,
+                'check_with'   => $mine['check_with'] ?? null,
             ];
 
             if ($theirRank > $myRank) {
@@ -84,6 +104,20 @@ class WebsiteComparisonService
             'competitor' => $this->summary($theirReport),
             'gaps'       => $gaps,
             'strengths'  => $strengths,
+            // KPIs a scan can't measure — "Not measured — connect <tool>", never estimated.
+            'needs_connected_data' => $yourReport['needs_connected_data'] ?? [],
+            // Every check side by side (incl. both passing / both failing), for the check-by-check report.
+            'checks'     => $all,
+            // Google's pipeline stages, each grouping some categories (config website_checks.stages).
+            'stages'     => array_map(
+                fn ($st) => ['key' => $st['key'], 'label' => $st['label'], 'question' => $st['question'], 'categories' => $st['categories']],
+                (array) config('website_checks.stages', [])
+            ),
+            // The weights behind the scores, so the page can project a score as fixes are ticked off.
+            'scoring'    => [
+                'status_weights'   => config('website_checks.status_weights'),
+                'category_weights' => config('website_checks.category_weights'),
+            ],
         ];
     }
 
@@ -116,6 +150,25 @@ class WebsiteComparisonService
         }
     }
 
+    /** One check for both sites: statuses, details, severity and (when you're not passing) the fix. */
+    private function pairedCheck(array $mine, ?array $theirs, array $labels): array
+    {
+        return array_filter([
+            'category'       => $mine['category'],
+            'section'        => $labels[$mine['category']] ?? $mine['category'],
+            'name'           => $mine['name'],
+            'label'          => self::STRENGTH_LABELS[$mine['name']] ?? $mine['name'],
+            'severity'       => config('website_checks.check_severity.' . $mine['name'], 'minor'),
+            'you_status'     => $mine['status'],
+            'you_detail'     => $mine['detail'],
+            'them_status'    => $theirs['status'] ?? null,
+            'them_detail'    => $theirs['detail'] ?? null,
+            'why'            => $mine['why'] ?? null,
+            'check_with'     => $mine['check_with'] ?? null,
+            'recommendation' => $this->analyzer->recommendationFor($mine),
+        ], fn ($v) => $v !== null);
+    }
+
     private function summary(array $report): array
     {
         $host = parse_url($report['url'], PHP_URL_HOST) ?: $report['url'];
@@ -130,6 +183,32 @@ class WebsiteComparisonService
                 fn ($c) => ['key' => $c['key'], 'label' => $c['label'], 'score' => $c['score']],
                 $report['categories']
             ),
+            'serp_preview'      => $report['serp_preview'] ?? null,
+            'rich_result_types' => $report['rich_result_types'] ?? [],
+            'open_graph'        => $report['open_graph'] ?? null,
+            // AI crawler => 'allowed' | 'blocked' (robots.txt), llms.txt detail, and Core Web Vitals checks.
+            'ai_crawlers'       => $this->checkField($report, 'AI crawler access', 'crawlers') ?? [],
+            'llms_txt'          => $this->checkField($report, 'llms.txt', 'detail'),
+            'vitals'            => array_values(array_map(
+                fn ($c) => array_intersect_key($c, array_flip(['name', 'status', 'detail', 'value', 'unit', 'limits', 'source'])),
+                array_filter($this->allChecks($report), fn ($c) => $c['category'] === 'speed')
+            )),
         ];
+    }
+
+    private function allChecks(array $report): array
+    {
+        return array_merge(...array_map(fn ($c) => $c['checks'], $report['categories']));
+    }
+
+    private function checkField(array $report, string $name, string $field): mixed
+    {
+        foreach ($this->allChecks($report) as $check) {
+            if ($check['name'] === $name) {
+                return $check[$field] ?? null;
+            }
+        }
+
+        return null;
     }
 }
