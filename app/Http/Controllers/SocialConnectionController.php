@@ -218,7 +218,6 @@ class SocialConnectionController extends Controller
         session(['instagram_oauth_state' => $state, 'instagram_oauth_redirect' => $redirectUri]);
 
         $params = http_build_query([
-            'force_reauth'  => 'true', // always show Instagram's login / account choice (as in Meta's embed URL)
             'client_id'     => $clientId,
             'redirect_uri'  => $redirectUri,
             'state'         => $state,
@@ -331,8 +330,10 @@ class SocialConnectionController extends Controller
             return redirect()->route('client.social-connections')
                 ->with('success', 'Instagram connected successfully. Account: @' . $igUsername);
 
-        } catch (\Exception $e) {
-            Log::error('Instagram OAuth: connection failed', ['message' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            // Any failure (incl. PHP errors, not only exceptions) goes back to the
+            // Connect page with the reason — never leave the user on the callback URL.
+            Log::error('Instagram OAuth: connection failed', ['message' => $e->getMessage(), 'type' => get_class($e), 'at' => $e->getFile() . ':' . $e->getLine()]);
             return redirect()->route('client.social.connect', ['platform' => 'instagram'])
                 ->with('error', 'Instagram connection failed: ' . $e->getMessage());
         }
