@@ -2080,7 +2080,10 @@ function selectScriptAccount(name, chan){
         '<label style="display:block;font-size:10.5px;font-weight:700;color:var(--g3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Message</label>'+
         '<textarea id="bhEmailBody" rows="11" style="width:100%;border:1px solid var(--ln2);border-radius:8px;padding:10px 11px;font-size:13px;font-family:var(--f1);line-height:1.65;box-sizing:border-box;resize:vertical">'+escapeHtml(content.body)+'</textarea>'+
       '</div></div>'+
-      '<button type="button" class="stkbtn" style="margin-top:10px" onclick="bhSendScriptEmail(this,\''+nameAttr(name)+'\')">Send Email</button>';
+      '<div style="display:flex;align-items:center;gap:10px;margin-top:10px">'+
+        '<button type="button" class="stkbtn" title="'+(a.email ? 'Send to ' + escapeHtml(a.email) : 'No email on file')+'" onclick="bhSendScriptEmail(this,\''+nameAttr(name)+'\')">Send Email</button>'+
+        '<span id="bhPitchEmailStatus" style="font-size:11.5px"></span>'+
+      '</div>';
   } else {
     var beats = scriptBeats(agent, a, c, scriptChan);
     document.getElementById('ssOut').innerHTML =
@@ -2364,36 +2367,68 @@ function salesEmailContent(a){
    mailer (config/mail.php, driven by .env: MAIL_MAILER/MAIL_HOST/
    MAIL_USERNAME/MAIL_PASSWORD/…) and logs to email_logs, same as Mock
    Master's sender. */
-function bhPostSendEmail(btn, email, name, subject, body){
-  if (!email) { alert('No email address on file for this account.'); return; }
-  if (!subject || !subject.trim()) { alert('Subject cannot be empty.'); return; }
-  if (!body || !body.trim()) { alert('Message cannot be empty.'); return; }
+function bhEmailStatus(statusElId, text, ok){
+  if (!statusElId) { if (!ok) alert(text); return; }
+  var el = document.getElementById(statusElId);
+  if (!el) { if (!ok) alert(text); return; }
+  el.textContent = text;
+  el.style.color = ok ? 'var(--sig)' : 'var(--crit)';
+}
+function bhPostSendEmail(btn, email, name, subject, body, statusElId){
+  if (!email) { bhEmailStatus(statusElId, 'No email address on file for this account.', false); return; }
+  if (!subject || !subject.trim()) { bhEmailStatus(statusElId, 'Subject cannot be empty.', false); return; }
+  if (!body || !body.trim()) { bhEmailStatus(statusElId, 'Message cannot be empty.', false); return; }
+  bhEmailStatus(statusElId, '', true);
   btn.disabled = true;
   var orig = btn.innerHTML;
   btn.innerHTML = '<span class="mm-btn-spinner"></span>';
+  var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  if (!csrfMeta) {
+    btn.disabled = false; btn.innerHTML = orig;
+    bhEmailStatus(statusElId, 'Could not find CSRF token on this page — refresh and try again.', false);
+    return;
+  }
   fetch(SALES_SEND_EMAIL_ENDPOINT, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+      'Accept': 'application/json',
+      'X-CSRF-TOKEN': csrfMeta.content
     },
     body: JSON.stringify({ email: email, name: name, subject: subject, body: body })
   })
-    .then(function(r){ return r.json().then(function(data){ return {status: r.status, data: data}; }); })
+    .then(function(r){
+      return r.text().then(function(raw){
+        var data = null;
+        try { data = JSON.parse(raw); } catch (e) { /* not JSON — handled below */ }
+        return { status: r.status, data: data, raw: raw };
+      });
+    })
     .then(function(res){
       if (res.data && res.data.ok) {
         btn.innerHTML = '&check; Sent';
         btn.classList.add('done');
-      } else {
-        btn.disabled = false;
-        btn.innerHTML = orig;
-        alert((res.data && res.data.message) || 'The email could not be sent.');
+        bhEmailStatus(statusElId, 'Sent to ' + email + '.', true);
+        return;
       }
-    })
-    .catch(function(){
       btn.disabled = false;
       btn.innerHTML = orig;
-      alert('The email could not be sent. Please check your connection and try again.');
+      if (res.data && res.data.message) {
+        bhEmailStatus(statusElId, res.data.message, false);
+      } else {
+        // Server returned something that isn't our expected JSON shape
+        // (e.g. a 419 CSRF page, a 500 error page, or a redirect to login —
+        // usually means the session expired). Log the raw body so it's
+        // diagnosable from the console instead of failing silently.
+        console.error('bhPostSendEmail: unexpected response', res.status, res.raw);
+        bhEmailStatus(statusElId, 'Send failed (HTTP ' + res.status + '). You may need to refresh the page and log in again.', false);
+      }
+    })
+    .catch(function(err){
+      console.error('bhPostSendEmail: network error', err);
+      btn.disabled = false;
+      btn.innerHTML = orig;
+      bhEmailStatus(statusElId, 'The email could not be sent — check your connection and try again.', false);
     });
 }
 /* Pitch tab · "Send Email" — sends whatever is currently in the editable
@@ -2406,7 +2441,7 @@ function bhSendScriptEmail(btn, name){
   var bodyEl = document.getElementById('bhEmailBody');
   var subject = subjectEl ? subjectEl.value : '';
   var body = bodyEl ? bodyEl.value : '';
-  bhPostSendEmail(btn, a.email, a.name, subject, body);
+  bhPostSendEmail(btn, a.email, a.name, subject, body, 'bhPitchEmailStatus');
 }
 /* Close & grow · "Email" — no editable fields there, sends the generated
    script copy as-is. */
@@ -2432,7 +2467,7 @@ function renderCloseGrowPlaybook(){
   html += closing.length ? closing.map(function(x,i){
     var nba = nextBestAction(x);
     var btn = nba.action === 'Email'
-      ? '<button type="button" class="stkbtn" data-bh-send-email data-name="'+nameAttr(x.a.name)+'" onclick="bhSendCloseEmail(this,\''+nameAttr(x.a.name)+'\')">Email</button>'
+      ? '<button type="button" class="stkbtn" data-bh-send-email data-name="'+nameAttr(x.a.name)+'" title="'+(x.a.email ? 'Send to ' + escapeHtml(x.a.email) : 'No email on file')+'" onclick="bhSendCloseEmail(this,\''+nameAttr(x.a.name)+'\')">Email</button>'
       : '<button type="button" class="stkbtn" onclick="openScriptFor(\''+nameAttr(x.a.name)+'\')">'+escapeHtml(nba.action)+'</button>';
     return '<div class="stkrow-close"><div class="stk-n">'+String(i+1).padStart(2,'0')+'</div>'
       + btn
@@ -2726,6 +2761,8 @@ window.showDashView = showDashView;
 window.selectScriptAccount = selectScriptAccount;
 window.selectMkAudienceAccount = selectMkAudienceAccount;
 window.openScriptFor = openScriptFor;
+window.bhSendScriptEmail = bhSendScriptEmail;
+window.bhSendCloseEmail = bhSendCloseEmail;
 window.logOutcome = logOutcome;
 window.dashQuick = dashQuick;
 window.expandDashQuicks = expandDashQuicks;
