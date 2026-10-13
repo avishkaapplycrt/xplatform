@@ -2189,7 +2189,8 @@ function mmCmpFill(text, v) {
         .replace(/ \(\{amount\}\)/g, '').replace(/\{amount\}/g, '');
 }
 function mmComposeOpen(ctx, row) {
-    var templates = MM_CMP_TEMPLATES[ctx] || MM_CMP_TEMPLATES.marketing;
+    // ctx may be a template set (e.g. "retention") or a list name (e.g. "chAtRisk").
+    var templates = MM_CMP_TEMPLATES[ctx] || MM_CMP_TEMPLATES[MM_CMP_DATASET_CTX[ctx]] || MM_CMP_TEMPLATES.marketing;
     MM_CMP = { ctx: ctx, row: row, templates: templates, contact: { email: row.email || null, phone: row.phone || null } };
 
     var overlay = document.getElementById('mmCmpOverlay');
