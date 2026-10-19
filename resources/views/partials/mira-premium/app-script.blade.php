@@ -87,6 +87,7 @@ const ENDPOINTS = {
   submitScan:     { m: 'POST',   p: () => '/scans',                             out: ['handle', 'valid_until', 'scan'] },
   scanReport:     { m: 'POST',   p: () => '/scans/report',                      out: ['scan'] },
   showScan:       { m: 'GET',    p: (a) => '/scans/' + a.id,                    out: ['scan'] },
+  shareScan:      { m: 'POST',   p: (a) => '/scans/' + a.id + '/share',         out: ['url', 'pdf_url', 'valid_until'] },
   createProject:  { m: 'POST',   p: () => '/projects',                          out: ['project'] },
   updateProject:  { m: 'PATCH',  p: (a) => '/projects/' + a.id,                 out: ['project'] },
   deleteProject:  { m: 'DELETE', p: (a) => '/projects/' + a.id,                 out: [] },
@@ -1118,12 +1119,48 @@ function renderAudit() {
         h('span', { text: '·' }), h('span', { text: fmt.date(scan.finished_at) }),
         h('span', { cls: 'badge ' + (scan.mode === 'premium' ? 'badge-plan' : 'badge-preview'), text: scan.mode === 'premium' ? 'Premium report' : 'Preview report' }));
       $('auditUpsell').hidden = scan.mode === 'premium';
+      wireAuditActions(scan);
       if (S.renderedReport !== scan.uuid && report) {
         S.renderedReport = scan.uuid;
         if (scan.kind === 'comparison') miraRenderComparison(report); else miraRenderSiteReport(report);
       }
     }
   }
+}
+// Report header buttons: a signed read-only link (Share), the same page in print mode (PDF), and a fresh audit.
+function wireAuditActions(scan) {
+  const busy = (btn, on) => { btn.disabled = on; btn.classList.toggle('loading', on); };
+  $('auditShare').onclick = async (e) => {
+    const btn = e.currentTarget;
+    busy(btn, true);
+    try {
+      const { url, valid_until } = await api('shareScan', { id: scan.id });
+      let copied = false;
+      try { await navigator.clipboard.writeText(url); copied = true; } catch (err) { copied = false; }
+      const open = h('a', { cls: 'btn btn-ghost btn-sm', href: url, target: '_blank', rel: 'noopener', text: 'Open' });
+      toast((copied ? 'Link copied. ' : 'Share this link: ' + url + ' — ') + 'Anyone with it can view this report until ' + fmt.date(valid_until) + '.', { action: open });
+    } catch (err) { toast(explain(err).msg, { error: true }); }
+    finally { busy(btn, false); }
+  };
+  $('auditPdf').onclick = async (e) => {
+    const btn = e.currentTarget;
+    // Open the tab now (inside the click) so it isn't blocked as a pop-up, then point it at the report.
+    const tab = window.open('', '_blank');
+    busy(btn, true);
+    try {
+      const { pdf_url } = await api('shareScan', { id: scan.id });
+      if (tab) tab.location = pdf_url; else location.href = pdf_url;
+    } catch (err) { if (tab) tab.close(); toast(explain(err).msg, { error: true }); }
+    finally { busy(btn, false); }
+  };
+  $('auditRerun').onclick = () => {
+    $('scanUrl').value = scan.url;
+    if (scan.competitor_url && !S.compare) $('compToggle').click();
+    if (scan.competitor_url) $('scanComp').value = scan.competitor_url;
+    S.freshScan = true;   // read once by submitScan
+    $('scanForm').requestSubmit();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 }
 function stateCard(iconPath, title, text, action) {
   return h('div', { cls: 'card state' }, h('span', { cls: 'icon' }, icon(iconPath)), h('h3', { text: title }), h('p', { text: text }), action || null);
@@ -1457,7 +1494,8 @@ async function submitScan(e) {
       } else projectId = null;
       if (projectId && projectId !== S.projectId) selectProject(projectId, true);
     }
-    const res = await api('submitScan', null, { url, competitor_url: competitor || null, project_id: projectId, turnstile_token: token });
+    const fresh = S.freshScan === true; S.freshScan = false;
+    const res = await api('submitScan', null, { url, competitor_url: competitor || null, project_id: projectId, turnstile_token: token, fresh });
     S.turnstileToken = null; $('turnstileSlot').innerHTML = '';
     track('scan_submit', { kind: competitor ? 'comparison' : 'site', reused: res.reused });
     S.scan = RD.loading({ url: res.scan.url, competitor: res.scan.competitor_url, started: Date.now() });

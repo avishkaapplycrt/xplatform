@@ -107,6 +107,9 @@ return [
     // reused for this long instead of running — and charging — a new one.
     'scan_reuse_minutes' => 30,
 
+    // How long a "Share report" link keeps working.
+    'share_days' => 30,
+
     // A scan stuck in queued/running for longer than this is marked failed.
     'scan_timeout_minutes' => 6,
 

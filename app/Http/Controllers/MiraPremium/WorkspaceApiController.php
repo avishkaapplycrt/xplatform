@@ -109,6 +109,7 @@ class WorkspaceApiController extends Controller
             'competitor_url'  => 'nullable|string|max:2048',
             'project_id'      => 'nullable|integer',
             'turnstile_token' => 'nullable|string|max:4096',
+            'fresh'           => 'nullable|boolean',   // "Re-run audit": skip the recent-result reuse
         ]);
 
         if (!$who->isPremium()) {
@@ -128,6 +129,21 @@ class WorkspaceApiController extends Controller
     public function showScan(Request $request, int $id): JsonResponse
     {
         return response()->json($this->scans->owned(Entitlement::forRequest($request), $id));
+    }
+
+    /** A read-only link to a finished scan, for "Share report" and "Download PDF". */
+    public function shareScan(Request $request, int $id): JsonResponse
+    {
+        return response()->json($this->scans->shareUrl(Entitlement::forRequest($request), $id));
+    }
+
+    /** The shared report page (signed link from shareScan). ?print=1 opens the print dialog for "Download PDF". */
+    public function sharedReport(Request $request, string $uuid)
+    {
+        $report = $this->scans->sharedReport($uuid);
+        abort_if($report === null, 404);
+
+        return view('ask-mira-report', ['report' => $report, 'premium' => true, 'autoPrint' => $request->boolean('print')]);
     }
 
     // ----------------------------------------------------------------- projects

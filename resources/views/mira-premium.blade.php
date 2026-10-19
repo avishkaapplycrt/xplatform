@@ -184,8 +184,21 @@
     <div id="auditState"></div>
     <div id="auditWrap" hidden>
       <div class="report-hd">
-        <h2 id="auditTitle">Site audit</h2>
-        <div class="meta" id="auditMeta"></div>
+        <div>
+          <h2 id="auditTitle">Site audit</h2>
+          <div class="meta" id="auditMeta"></div>
+        </div>
+        <div class="report-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="auditPdf" title="Open the report on its own page and save it as a PDF">
+            <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Download PDF
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" id="auditShare" title="Copy a read-only link anyone can open">
+            <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>Share report
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" id="auditRerun" title="Audit this website again">
+            <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.64-6.36M21 4v6h-6"/></svg>Re-run audit
+          </button>
+        </div>
       </div>
       <div class="upsell-strip" id="auditUpsell" hidden>
         <p><b>Preview report.</b> Mira Premium adds the exact fix for every failing check, written for your site, plus score tracking.</p>

@@ -43,6 +43,17 @@ class CheckGuide
         'Open Graph tags'                 => ['Controls how your link looks when shared on Facebook and LinkedIn.', 'Facebook Sharing Debugger'],
         'Twitter Card tags'               => ['Controls how your link looks when shared on X/Twitter.', 'An X/Twitter card preview tool'],
         'Structured data'                 => ['Markup makes pages eligible for rich results (stars, FAQs, breadcrumbs) that stand out.', 'Rich Results Test'],
+        'Broken links'                    => ['Dead links waste visitors\' clicks and tell Google the page isn\'t maintained.', 'Google Search Console (Pages → Not found) or a site crawler'],
+        'Redirects'                       => ['Each extra hop slows the page and can lose ranking signals along the way.', 'httpstatus.io or browser DevTools (Network)'],
+        'Readability'                     => ['Plain text keeps visitors reading and is easier for AI answers to quote.', 'Hemingway Editor or a Flesch reading-ease checker'],
+        'Language'                        => ['The lang attribute tells Google and screen readers which language the page is in.', 'Browser DevTools (Elements → <html>)'],
+        'Lighthouse Performance'          => ['Google\'s own lab score for how fast the page loads and responds.', 'PageSpeed Insights or Chrome DevTools (Lighthouse)'],
+        'Lighthouse Accessibility'        => ['Pages everyone can use reach more people and avoid legal risk.', 'PageSpeed Insights or Chrome DevTools (Lighthouse)'],
+        'Lighthouse Best Practices'       => ['Security and code-quality problems that browsers flag.', 'PageSpeed Insights or Chrome DevTools (Lighthouse)'],
+        'Pages with errors'               => ['Pages that error drop out of Google and lose the links pointing at them.', 'Google Search Console (Pages)'],
+        'Duplicate titles'                => ['Pages with the same title compete with each other in search results.', 'Google Search Console or a site crawler (e.g. Screaming Frog)'],
+        'Pages missing meta descriptions' => ['Without one, Google picks text from the page, often a menu or cookie notice.', 'A site crawler (e.g. Screaming Frog)'],
+        'Pages kept out of Google'        => ['noindex or a canonical pointing elsewhere keeps a page out of search; check it is on purpose.', 'Google Search Console (URL Inspection)'],
     ];
 
     /** @return array{why: string|null, check_with: string|null} */
