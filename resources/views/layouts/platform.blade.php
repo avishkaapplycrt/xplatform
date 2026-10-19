@@ -71,18 +71,6 @@
             </a>
         </div>
 
-        {{-- SEO + GEO audit (Mira Premium workspace, its own page) --}}
-        <div class="px-3 pt-1">
-            <a href="{{ route('mira-premium') }}#audit"
-               class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition text-gray-500 hover:bg-gray-50 hover:text-gray-900">
-                <svg class="w-3.5 h-3.5 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <circle cx="11" cy="11" r="7" stroke-width="2"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.3-4.3"/>
-                </svg>
-                <span class="truncate">Analyse My Website</span>
-            </a>
-        </div>
-
         {{-- Platform Layers Navigation --}}
         <div class="px-3 pt-3 flex-1 overflow-y-auto">
             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Platform Layers</p>
