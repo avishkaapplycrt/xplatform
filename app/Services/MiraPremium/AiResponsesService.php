@@ -1,0 +1,102 @@
+<?php
+
+namespace App\Services\MiraPremium;
+
+use App\Models\MiraPremium\MiraProject;
+use App\Models\MiraPremium\MiraVisibilityAnswer;
+use App\Models\MiraPremium\MiraVisibilityRun;
+
+/**
+ * The AI responses panel: how the project's brand shows up in AI answers in
+ * the window vs the previous one, from the visibility runs (VisibilityEngine).
+ *
+ *   responses  answers that name the brand ("mentions")
+ *   pages      distinct pages on the brand's own domain cited in those answers
+ *   answers    prompts answered in the window (the denominator)
+ *
+ * Only ChatGPT (OpenAI) is tracked today; the other platforms are listed so
+ * the panel is honest about coverage, marked "not tracked".
+ */
+class AiResponsesService
+{
+    /** Platforms shown in the table, in order. Only 'chatgpt' is measured. */
+    private const PLATFORMS = [
+        'chatgpt'      => 'ChatGPT',
+        'ai_overviews' => 'Google AI Overviews',
+        'ai_mode'      => 'Google AI Mode',
+        'gemini'       => 'Gemini',
+        'perplexity'   => 'Perplexity',
+        'copilot'      => 'Copilot',
+    ];
+
+    public function responses(MiraProject $project, Period $period): array
+    {
+        $runs = MiraVisibilityRun::where('project_id', $project->id)->where('status', 'done')
+            ->where('finished_at', '>=', $period->prevStart)->orderBy('finished_at')->get();
+
+        $current  = $runs->filter(fn ($r) => $r->finished_at >= $period->start);
+        $previous = $runs->filter(fn ($r) => $r->finished_at < $period->start);
+
+        $cur  = $this->totals($current->pluck('id')->all(), $project);
+        $prev = $this->totals($previous->pluck('id')->all(), $project);
+
+        $chatgpt = [
+            'key' => 'chatgpt', 'label' => 'ChatGPT', 'tracked' => true, 'model' => (string) config('mira_premium.visibility.model'),
+            'responses' => ['value' => $cur['mentions'], 'delta' => $previous->isEmpty() ? null : $cur['mentions'] - $prev['mentions']],
+            'pages'     => ['value' => $cur['pages'], 'delta' => $previous->isEmpty() ? null : $cur['pages'] - $prev['pages']],
+        ];
+
+        $latest = MiraVisibilityRun::where('project_id', $project->id)->where('status', 'done')->latest('finished_at')->first();
+
+        return [
+            'has_runs'  => $runs->isNotEmpty() || $latest !== null,
+            'runs'      => ['current' => $current->count(), 'previous' => $previous->count()],
+            'all'       => [
+                'responses' => $chatgpt['responses'],
+                'pages'     => $chatgpt['pages'],
+                'answers'   => ['value' => $cur['answers'], 'delta' => $previous->isEmpty() ? null : $cur['answers'] - $prev['answers']],
+                'rate'      => ['value' => $cur['answers'] ? round($cur['mentions'] / $cur['answers'] * 100, 1) : null,
+                                'delta' => $previous->isEmpty() || !$cur['answers'] || !$prev['answers'] ? null
+                                    : round($cur['mentions'] / $cur['answers'] * 100 - $prev['mentions'] / $prev['answers'] * 100, 1)],
+            ],
+            'platforms' => array_values(array_map(fn ($key, $label) => $key === 'chatgpt' ? $chatgpt
+                : ['key' => $key, 'label' => $label, 'tracked' => false, 'responses' => null, 'pages' => null],
+                array_keys(self::PLATFORMS), self::PLATFORMS)),
+            'cited_pages' => $cur['cited_pages'],
+            'share_of_voice' => $latest?->share_of_voice,
+            'trend'     => MiraVisibilityRun::where('project_id', $project->id)->where('status', 'done')
+                ->orderByDesc('finished_at')->limit(12)->get()->reverse()->values()->map(fn ($r) => [
+                    'date' => $r->finished_at?->toIso8601String(), 'mentions' => $r->mentions, 'answered' => $r->answered_count,
+                    'rate' => $r->answered_count ? round($r->mentions / $r->answered_count * 100, 1) : 0, 'share' => $r->share_of_voice,
+                ])->all(),
+        ];
+    }
+
+    private function totals(array $runIds, MiraProject $project): array
+    {
+        if ($runIds === []) {
+            return ['mentions' => 0, 'answers' => 0, 'pages' => 0, 'cited_pages' => []];
+        }
+
+        $answers = MiraVisibilityAnswer::whereIn('run_id', $runIds)->whereNull('error')->get(['brand_mentioned', 'cited_urls']);
+        $pages   = [];
+        foreach ($answers as $a) {
+            foreach ((array) $a->cited_urls as $url) {
+                $host = preg_replace('/^www\./', '', strtolower((string) parse_url($url, PHP_URL_HOST)));
+                if ($host === $project->domain || str_ends_with($host, '.' . $project->domain)) {
+                    // One page however it's linked: no scheme, www., query or trailing slash.
+                    $key = 'https://' . $host . rtrim((string) parse_url($url, PHP_URL_PATH), '/');
+                    $pages[$key] = ($pages[$key] ?? 0) + 1;
+                }
+            }
+        }
+        arsort($pages);
+
+        return [
+            'mentions'    => $answers->where('brand_mentioned', true)->count(),
+            'answers'     => $answers->count(),
+            'pages'       => count($pages),
+            'cited_pages' => array_map(fn ($u, $n) => ['url' => $u, 'citations' => $n], array_keys(array_slice($pages, 0, 5, true)), array_slice($pages, 0, 5, true)),
+        ];
+    }
+}

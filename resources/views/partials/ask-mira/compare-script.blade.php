@@ -235,7 +235,139 @@ function miraRenderReport(c) {
     });
     return mini;
   };
+  // Premium Mira (window.MIRA_STAGE_DASHBOARD): the stages as a metrics
+  // dashboard instead of cards, in the style of SEO-tool overviews. Left: an
+  // "All stages" panel with headline numbers and a stage table. Right: one
+  // tile per stage (donut, score, gap to the competitor, checks passing).
+  var passCount = function (st, side) {
+    var key = side === 'you' ? 'you_status' : 'them_status', pass = 0, total = 0;
+    checks.forEach(function (ch) {
+      if (st !== 'all' && st.categories.indexOf(ch.category) < 0) return;
+      if (!(ch[key] in weights)) return;
+      total++;
+      if (ch[key] === 'pass') pass++;
+    });
+    return { pass: pass, total: total };
+  };
+  // Your number minus the competitor's, as a pill: ▲n ahead, ▼n behind, = level
+  // (the arrow is drawn by CSS; aria-label spells it out).
+  var delta = function (y, k) {
+    if (single || y === null || k === null || y === undefined || k === undefined) return null;
+    var d = y - k;
+    var el = miraEl('span', 'cx-delta cx-num ' + (d > 0 ? 'up' : d < 0 ? 'down' : 'flat'), d ? Math.abs(d) : '=');
+    el.setAttribute('aria-label', d > 0 ? d + ' ahead' : d < 0 ? -d + ' behind' : 'level');
+    return el;
+  };
+  var toneCls = function (s) { return 'cx-tone-' + (s === null || s === undefined ? 'none' : s >= 80 ? 'good' : s >= 50 ? 'warn' : 'bad'); };
+  // Donuts and bars fill in once, when the report first appears — not on every stage click.
+  var dashAnimated = false;
+  var animateTo = function (el, prop, from, to) {
+    if (dashAnimated) { el.style[prop] = to; return; }
+    el.style[prop] = from;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.style[prop] = to; }); });
+  };
+  var info = function (text) {
+    var i = miraEl('span', 'cx-info', 'i');
+    i.title = text; i.setAttribute('aria-label', text);
+    return i;
+  };
+  var miniRing = function (score) {
+    var ns = 'http://www.w3.org/2000/svg', r = 15, circ = 2 * Math.PI * r;
+    var gid = 'cxg' + (miraRenderReport.ringId = (miraRenderReport.ringId || 0) + 1);
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 40 40'); svg.setAttribute('class', 'cx-mring ' + toneCls(score)); svg.setAttribute('aria-hidden', 'true');
+    // Gradient stroke coloured by the tone class (--c1 → --c2).
+    var defs = document.createElementNS(ns, 'defs'), grad = document.createElementNS(ns, 'linearGradient');
+    grad.setAttribute('id', gid); grad.setAttribute('x1', '0'); grad.setAttribute('y1', '0'); grad.setAttribute('x2', '1'); grad.setAttribute('y2', '1');
+    ['--c1', '--c2'].forEach(function (v, i) {
+      var stop = document.createElementNS(ns, 'stop');
+      stop.setAttribute('offset', i ? '1' : '0'); stop.setAttribute('style', 'stop-color:var(' + v + ')');
+      grad.appendChild(stop);
+    });
+    defs.appendChild(grad); svg.appendChild(defs);
+    ['#efeff2', 'url(#' + gid + ')'].forEach(function (stroke, i) {
+      var ci = document.createElementNS(ns, 'circle');
+      ci.setAttribute('cx', 20); ci.setAttribute('cy', 20); ci.setAttribute('r', r);
+      ci.setAttribute('fill', 'none'); ci.setAttribute('stroke-width', 4); ci.setAttribute('stroke', stroke);
+      if (i) {
+        ci.setAttribute('class', 'arc'); ci.setAttribute('stroke-linecap', 'round'); ci.setAttribute('stroke-dasharray', circ);
+        animateTo(ci, 'strokeDashoffset', circ, circ * (1 - (score || 0) / 100));
+      }
+      svg.appendChild(ci);
+    });
+    return svg;
+  };
+  // Thin score bar; a notch marks the competitor's score.
+  var scoreBar = function (y, k) {
+    var bar = miraEl('div', 'cx-tbar ' + toneCls(y)), fill = miraEl('i');
+    animateTo(fill, 'width', '0%', (y || 0) + '%');
+    bar.appendChild(fill);
+    if (!single && k !== null && k !== undefined) {
+      var mark = miraEl('u'); mark.style.left = k + '%'; mark.title = 'Competitor: ' + k;
+      bar.appendChild(mark);
+    }
+    return bar;
+  };
+  var num = function (v) { return v === null || v === undefined ? '—' : v; };
+  var renderDash = function () {
+    stagesBox.innerHTML = '';
+    stagesBox.className = 'cx-dash';
+    var select = function (key) { S.stage = key; S.section = null; renderAll(); };
+    var pressable = function (el, key) {
+      el.type = 'button';
+      el.setAttribute('aria-pressed', S.stage === key);
+      el.addEventListener('click', function () { select(key); });
+      return el;
+    };
+
+    // ---- All stages ----
+    // Headline score is the server's overall (as on the score cards), not a stage average.
+    var yAll = c.you.overall, kAll = single ? null : comp.overall;
+    var pAll = passCount('all', 'you'), qAll = passCount('all', 'comp');
+    var metric = function (label, value, d, sub) {
+      return miraH('div', 'cx-metric', miraEl('div', 'cx-metric-lbl', label),
+        miraH('div', 'cx-metric-val', miraEl('span', 'cx-big cx-num', value), d), sub);
+    };
+    var table = miraEl('div', 'cx-dash-table');
+    table.appendChild(miraH('div', 'cx-dash-tr head', miraEl('span', null, 'Stage'), miraEl('span', null, single ? 'Score' : 'You'), miraEl('span', null, single ? 'Passing' : 'Competitor')));
+    stages.forEach(function (st) {
+      var y = stageScore(st, 'you'), k = stageScore(st, 'comp'), p = passCount(st, 'you');
+      var dot = miraEl('i', 'cx-dot ' + toneCls(y));
+      table.appendChild(pressable(miraH('button', 'cx-dash-tr',
+        miraH('span', 'cx-dash-st', dot, st.label),
+        miraH('span', null, miraEl('b', 'cx-num', num(y)), delta(y, k)),
+        single ? miraEl('span', 'cx-num', p.pass + '/' + p.total) : miraEl('span', 'cx-num', num(k))), st.key));
+    });
+    stagesBox.appendChild(miraH('div', 'cx-dash-ov',
+      pressable(miraH('button', 'cx-dash-title', miraEl('span', null, 'All stages'), info('Every check across the ' + stages.length + ' stages'),
+        miraEl('span', 'cx-dash-tag', S.stage === 'all' ? 'Whole report' : 'Show all')), 'all'),
+      miraH('div', 'cx-dash-metrics',
+        metric('Overall score', num(yAll), delta(yAll, kAll),
+          single ? miraH('div', 'cx-sub', 'Grade ', miraEl('b', null, c.you.grade)) : miraH('div', 'cx-sub', 'Competitor ', miraEl('b', 'cx-num', num(kAll)))),
+        metric('Checks passing', pAll.pass, delta(pAll.pass, qAll.pass),
+          miraH('div', 'cx-sub', 'of ', miraEl('b', 'cx-num', pAll.total), ' scored'))),
+      table));
+
+    // ---- One tile per stage ----
+    var tiles = miraEl('div', 'cx-dash-tiles');
+    stages.forEach(function (st, i) {
+      var y = stageScore(st, 'you'), k = stageScore(st, 'comp');
+      var p = passCount(st, 'you'), q = passCount(st, 'comp'), open = p.total - p.pass;
+      var tail = single
+        ? miraEl('span', 'cx-delta cx-num note ' + (open ? 'down' : 'up'), open ? open + ' to fix' : 'all clear')
+        : delta(p.pass, q.pass);
+      tiles.appendChild(pressable(miraH('button', 'cx-tile',
+        miraH('div', 'cx-tile-lbl', miraEl('span', 'cx-tile-step cx-num', (i < 9 ? '0' : '') + (i + 1)), miraEl('span', null, st.label), info(st.question)),
+        miraH('div', 'cx-tile-val', miniRing(y), miraEl('span', 'cx-big cx-num', num(y)), delta(y, k)),
+        scoreBar(y, k),
+        miraH('div', 'cx-sub', 'Passing ', miraEl('b', 'cx-num', p.pass + '/' + p.total), tail)), st.key));
+    });
+    stagesBox.appendChild(tiles);
+    dashAnimated = true;
+  };
+
   var renderStages = function () {
+    if (window.MIRA_STAGE_DASHBOARD) { renderDash(); return; }
     stagesBox.innerHTML = '';
     var btn = function (key, step, name, q, st) {
       var b = miraH('button', 'cx-stage', miraEl('span', 'cx-step', step), miraEl('span', 'cx-name', name), miraEl('span', 'cx-q', q),

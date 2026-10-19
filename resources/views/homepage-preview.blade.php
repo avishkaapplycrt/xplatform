@@ -72,10 +72,63 @@ img,svg{display:block}
 .hero{position:relative;padding:70px 60px 110px;text-align:center;overflow:hidden;min-height:640px}
 @media (max-width:900px){.hero{padding:50px 24px 80px}}
 /* Real earth/space photo, extracted from Figma export */
-.hero-bg{position:absolute;inset:0;z-index:0;overflow:hidden;background:#000}
-.hero-bg img{width:100%;height:100%;object-fit:cover;object-position:center 30%;
+.hero-bg{position:absolute;inset:0;z-index:0;overflow:hidden;background:#000;container-type:size;
   -webkit-mask-image:linear-gradient(to bottom,black 60%,transparent 100%);
   mask-image:linear-gradient(to bottom,black 60%,transparent 100%);
+}
+/* Stage: sized and placed exactly like the photo's old object-fit:cover /
+   object-position:center 30% (photo is 1920x1557, ratio 1.2331), so the glow
+   layers below can be positioned in % of the photo and stay locked onto the
+   sun and the horizon at any viewport size. */
+.hero-stage{position:absolute;left:50%;aspect-ratio:1920/1557;
+  width:max(100cqw,100cqh * 1.2331);
+  top:calc((100cqh - max(100cqh,100cqw * .8109)) * .3);
+  translate:-50% 0;animation:heroDrift 26s ease-in-out infinite alternate}
+.hero-stage img{display:block;width:100%;height:100%}
+/* Very slow drift/zoom so the whole scene feels alive. */
+@keyframes heroDrift{from{transform:scale(1)}to{transform:scale(1.04) translateY(-.6%)}}
+
+/* Sun flare (sits on the photo's sun, at 30% / 53.2%): a breathing halo,
+   a bright core and slowly turning light rays. */
+.hero-sun{position:absolute;left:30%;top:53.2%;width:34%;aspect-ratio:1;translate:-50% -50%;pointer-events:none;mix-blend-mode:screen}
+.hero-sun::before{content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,236,200,.55) 0%,rgba(140,200,255,.28) 12%,rgba(255,170,90,.12) 30%,transparent 62%);
+  animation:heroSunPulse 5s ease-in-out infinite}
+.hero-sun::after{content:"";position:absolute;inset:14%;border-radius:50%;
+  background:repeating-conic-gradient(from 0deg,rgba(255,240,215,.22) 0deg 1.4deg,transparent 1.4deg 9deg);
+  -webkit-mask:radial-gradient(circle,#000 0%,rgba(0,0,0,.5) 22%,transparent 62%);
+          mask:radial-gradient(circle,#000 0%,rgba(0,0,0,.5) 22%,transparent 62%);
+  filter:blur(1.5px);animation:heroRays 60s linear infinite,heroRaysFlicker 3.8s ease-in-out infinite}
+@keyframes heroSunPulse{0%,100%{transform:scale(.9);opacity:.75}50%{transform:scale(1.12);opacity:1}}
+@keyframes heroRays{to{rotate:360deg}}
+@keyframes heroRaysFlicker{0%,100%{opacity:.65}50%{opacity:1}}
+
+/* Atmosphere rim: a circle whose top edge follows the earth's horizon
+   (radius 94.2% of photo width, top at 51.4%). A soft comet of light —
+   long faint tail on the left, bright warm-to-blue head on the right —
+   travels along the horizon from left to right by rotating the circle
+   clockwise, fading in at the left edge and out at the right, then pauses. */
+.hero-rim{position:absolute;left:-44.2%;top:51.4%;width:188.4%;aspect-ratio:1;border-radius:50%;pointer-events:none;mix-blend-mode:screen;
+  background:conic-gradient(from -22deg,transparent 0deg,rgba(255,190,120,.08) 6deg,rgba(255,200,140,.35) 14deg,rgba(255,224,180,.95) 19deg,rgba(170,215,255,.95) 21.5deg,rgba(150,205,255,0) 24deg,transparent 360deg);
+  -webkit-mask:radial-gradient(farthest-side,transparent 98.4%,#000 99.4%,#000 99.8%,transparent 100%);
+          mask:radial-gradient(farthest-side,transparent 98.4%,#000 99.4%,#000 99.8%,transparent 100%);
+  filter:blur(3px);will-change:rotate;opacity:0;animation:heroRimSweep 5s cubic-bezier(.45,.05,.35,1) infinite}
+/* Head starts just past the left edge of the photo and ends past the right;
+   the last 22% is a rest so each pass feels deliberate, not looping. */
+@keyframes heroRimSweep{
+  0%{rotate:-36deg;opacity:0}
+  12%{opacity:1}
+  66%{opacity:1}
+  78%{rotate:38deg;opacity:0}
+  100%{rotate:38deg;opacity:0}}
+/* Faint steady glow on the whole horizon that gently breathes. */
+.hero-rim-glow{position:absolute;left:-44.2%;top:51.4%;width:188.4%;aspect-ratio:1;border-radius:50%;pointer-events:none;mix-blend-mode:screen;
+  box-shadow:0 -6px 40px 4px rgba(120,180,255,.28),inset 0 10px 30px rgba(255,170,90,.18);
+  animation:heroRimBreathe 6s ease-in-out infinite}
+@keyframes heroRimBreathe{0%,100%{opacity:.45}50%{opacity:1}}
+
+@media (prefers-reduced-motion:reduce){
+  .hero-stage,.hero-sun::before,.hero-sun::after,.hero-rim,.hero-rim-glow{animation:none}
 }
 .hero-inner{position:relative;z-index:1}
 .hero h1{font-family:'Space Grotesk',sans-serif;font-size:160px;line-height:.86;font-weight:500;letter-spacing:-3.2px}
@@ -103,7 +156,7 @@ img,svg{display:block}
 
 .mira-widget{
   display:flex;background:#fff;border-radius:28px;overflow:hidden;
-  box-shadow:0 30px 80px -20px rgba(0,0,0,.55);min-height:560px;
+  box-shadow:0 30px 80px -20px rgba(0,0,0,.55);min-height:720px;
 }
 @media (max-width:760px){.mira-widget{flex-direction:column;border-radius:20px}}
 
@@ -190,6 +243,58 @@ img,svg{display:block}
 .mira-empty h3{font-family:'Inter',sans-serif;font-size:23px;font-weight:700;color:#121214;letter-spacing:-.2px}
 .mira-empty h3 .mira-accent{color:#5383EC}
 .mira-empty p{margin-top:8px;font-family:'Inter',sans-serif;font-size:14px;color:#8f8f94;max-width:360px;line-height:1.5}
+/* ---- Ask Mira home: starter cards ----
+   Topic tabs (Popular + four topics), question cards that send the question to
+   Mira, "See all questions", and a Mira Premium strip. Hidden with the
+   greeting once a chat starts. */
+#miraEmpty{justify-content:flex-start;padding:4px 28px 6px;gap:0}
+#miraEmpty .mira-orb-wrap{width:100px;height:100px;margin:22px 0 40px}
+#miraEmpty .mira-orb{width:100px;height:100px}
+#miraEmpty p{max-width:34rem}
+.mira-cats{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:18px}
+.mira-cat{border:0;background:#fff;border-radius:999px;padding:8px 14px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:#17181a;
+  cursor:pointer;box-shadow:0 1px 2px rgba(30,40,80,.04),0 6px 20px rgba(30,40,80,.05);transition:background .15s,color .15s}
+.mira-cat[aria-pressed="true"]{background:#5383EC;color:#fff}
+.mira-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;max-width:760px;margin-top:14px}
+.mira-qcard{border:0;background:#fff;border-radius:20px;padding:16px 18px;text-align:left;display:flex;gap:14px;align-items:flex-start;cursor:pointer;
+  font-family:'Inter',sans-serif;box-shadow:0 1px 2px rgba(30,40,80,.04),0 6px 20px rgba(30,40,80,.05);transition:transform .15s,box-shadow .15s}
+.mira-qcard:hover{transform:translateY(-2px);box-shadow:0 0 0 1.5px #d6e2fd inset,0 6px 20px rgba(30,40,80,.06)}
+.mira-qcard .tx{display:grid;gap:3px;min-width:0}
+.mira-qcard small{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#727786}
+.mira-qcard b{font-weight:600;font-size:14.5px;line-height:1.35;color:#16181d}
+.mira-qico{flex:none;width:34px;height:34px;border-radius:11px;display:grid;place-items:center}
+.mira-qico svg{width:18px;height:18px}
+.mira-qico.c-start{background:#eef3ff;color:#4f80f0}
+.mira-qico.c-premium{background:#fdf3d8;color:#b4891c}
+.mira-qico.c-xp{background:#eeeafd;color:#7a5af0}
+.mira-qico.c-grow{background:#e7f6ee;color:#1f9d57}
+.mira-qico.c-industry{background:#e6f4f8;color:#1b8aa8}
+.mira-cards.three{grid-template-columns:repeat(3,minmax(0,1fr));max-width:900px}
+.mira-cat.ind{display:inline-flex;align-items:center;gap:7px;box-shadow:0 0 0 1.5px #bfe3ee inset,0 6px 20px rgba(30,40,80,.05)}
+.mira-cat.ind svg{width:15px;height:15px}
+.mira-cat.ind[aria-pressed="true"]{background:#1b8aa8;color:#fff;box-shadow:none}
+.mira-ind-note{font-family:'Inter',sans-serif;font-size:13px;color:#727786;margin:10px 0 0}
+.mira-ind-note b{color:#16181d}
+/* Button under an answer (industry questions): analyse / premium / contact. */
+.mira-cta{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;margin:-4px 0 0;border:0;border-radius:999px;padding:9px 16px;
+  font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;text-decoration:none;background:#5383EC;color:#fff;transition:transform .15s}
+.mira-cta:hover{transform:translateY(-1px)}
+.mira-cta.gold{background:linear-gradient(90deg,#ead27a,#c79f36);color:#2b2306}
+.mira-more{border:0;background:transparent;color:#4f80f0;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;padding:8px;margin-top:4px;cursor:pointer}
+.mira-more:hover{text-decoration:underline}
+.mira-prem-strip{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;width:100%;max-width:760px;margin-top:6px;
+  background:#fdf6e3;border:1px solid #f0dfa8;border-radius:18px;padding:12px 16px;text-align:left;font-family:'Inter',sans-serif}
+.mira-prem-strip p{margin:0;max-width:none;font-size:13.5px;color:#6b5a26;line-height:1.5}
+.mira-prem-strip p b{color:#3a2f0d}
+.mira-prem-strip a{border:0;background:#16181d;color:#f4d77a;border-radius:999px;padding:9px 16px;font-weight:600;font-size:13px;white-space:nowrap;text-decoration:none;transition:transform .15s}
+.mira-prem-strip a:hover{transform:translateY(-1px)}
+/* Recent chats (sidebar) */
+.mira-recent{display:grid;gap:4px}
+.mira-recent-empty{font-size:12.5px;color:#8a8a8e;background:#fff;border-radius:12px;padding:12px 14px;border:1px dashed #dfe2ea;line-height:1.45}
+.mira-recent-item{border:0;background:transparent;text-align:left;padding:9px 12px;border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;color:#2c2d30;
+  cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mira-recent-item:hover{background:#fff}
+@media (max-width:860px){.mira-cards,.mira-cards.three{grid-template-columns:1fr}#miraEmpty{padding:4px 16px 6px}}
 
 .mira-messages{flex:1;overflow-y:auto;padding:22px 28px 6px;display:flex;flex-direction:column;gap:14px}
 .mira-msg{max-width:72%;padding:12px 16px;border-radius:16px;font-family:'Inter',sans-serif;font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -653,7 +758,14 @@ img,svg{display:block}
 
 {{-- ============ HERO ============ --}}
 <section class="hero">
-  <div class="hero-bg"><img src="{{ asset('images/homepage/hero-earth.jpg') }}" alt=""></div>
+  <div class="hero-bg" aria-hidden="true">
+    <div class="hero-stage">
+      <img src="{{ asset('images/homepage/hero-earth.jpg') }}" alt="">
+      <span class="hero-rim-glow"></span>
+      <span class="hero-rim"></span>
+      <span class="hero-sun"></span>
+    </div>
+  </div>
   <div class="hero-inner">
     <h1><span class="accent">AI Customer</span>Intelligence</h1>
     <p class="hero-sub">
@@ -681,7 +793,7 @@ img,svg{display:block}
         <div class="mira-group">
           <div class="mira-label">Industry</div>
           <div class="mira-select-wrap">
-            <select id="miraIndustry" class="mira-select" onchange="miraRenderStarters(this.value)">
+            <select id="miraIndustry" class="mira-select" onchange="miraIndustryChanged()">
               <option value="">All Industry</option>
               @foreach($industries as $industry)
                 <option value="{{ $industry->id }}">{{ $industry->name }}</option>
@@ -692,11 +804,10 @@ img,svg{display:block}
         </div>
 
         <div class="mira-group">
-          <div class="mira-label">Try Asking</div>
-          <div class="mira-starters" id="miraStarters">
-            @foreach(($chatQuestionsByIndustry['all'] ?? collect(['What does X Platform do?','How much does it cost?']))->take(8) as $q)
-              <button type="button" class="mira-starter" onclick="miraAskSuggested({{ \Illuminate\Support\Js::from($q) }})">{{ $q }}</button>
-            @endforeach
+          <div class="mira-label">Recent chats</div>
+          {{-- Filled by miraRenderRecent() from this browser's recent questions. --}}
+          <div class="mira-recent" id="miraRecent">
+            <div class="mira-recent-empty">Your conversations will appear here.</div>
           </div>
         </div>
       </aside>
@@ -717,12 +828,21 @@ img,svg{display:block}
               <img src="{{ asset('images/homepage/mira/orb.png') }}" class="mira-orb" alt="">
             </div>
             <h3>Hey, I'm <span class="mira-accent">Mira.</span> How can I help you today?</h3>
-            <p>Understand your customers, discover insights, and make smarter decisions.</p>
+            <p>Ask about your website, your competitors, or how to get found on Google and ChatGPT.</p>
+            {{-- Topic tabs and question cards: drawn by miraRenderHome(). --}}
+            <div class="mira-cats" id="miraCats" role="group" aria-label="Question topics"></div>
+            <p class="mira-ind-note" id="miraIndNote" hidden></p>
+            <div class="mira-cards" id="miraCards"></div>
+            <button type="button" class="mira-more" id="miraMore" onclick="miraToggleAllQuestions()"></button>
+            <div class="mira-prem-strip">
+              <p><b>&#9733; Get picked by Google and ChatGPT.</b> Step-by-step fixes, competitor gap reports and AI visibility tracking.</p>
+              <a href="{{ route('mira-premium') }}">Try Premium &rarr;</a>
+            </div>
           </div>
           <div class="mira-messages" id="miraMessages" style="display:none"></div>
 
           <div class="mira-input-row">
-            <textarea id="miraInput" class="mira-input" rows="1" placeholder="Ask Mira about your customers, data, insights, or predictions…" onkeydown="if(event.key==='Enter'&amp;&amp;!event.shiftKey){event.preventDefault();miraSendChat()}"></textarea>
+            <textarea id="miraInput" class="mira-input" rows="1" placeholder="Ask Mira about your website, competitors or getting found online…" onkeydown="if(event.key==='Enter'&amp;&amp;!event.shiftKey){event.preventDefault();miraSendChat()}"></textarea>
             <button type="button" class="mira-send" onclick="miraSendChat()"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
           </div>
         </div>
@@ -1423,7 +1543,6 @@ document.querySelectorAll('.faq-item').forEach(function (item) {
    route('chat.send') / route('chat.reset'). See
    App\Http\Controllers\PublicChatController for the request/response shape. */
 var MIRA_CHAT_QUESTIONS_BY_INDUSTRY = @json($chatQuestionsByIndustry ?? []);
-var MIRA_DEFAULT_STARTERS = ['What does X Platform do?', 'How much does it cost?'];
 var MIRA_LOGGED_IN = {{ !empty($loggedIn) ? 'true' : 'false' }};
 
 /* Website analysis report + category pop-up, shared with the classic
@@ -1511,20 +1630,190 @@ async function miraSubmitLead() {
   miraPendingUrl = null; miraPendingSource = null;
 }
 
-function miraRenderStarters(industryId) {
-  var key = industryId ? String(industryId) : 'all';
-  var questions = MIRA_CHAT_QUESTIONS_BY_INDUSTRY[key];
-  if (!questions || !questions.length) questions = MIRA_CHAT_QUESTIONS_BY_INDUSTRY['all'] || MIRA_DEFAULT_STARTERS;
-  var wrap = document.getElementById('miraStarters');
+/* ---- Ask Mira home: starter cards ----
+   Clicking a card sends its question to Mira (miraAskSuggested). "Popular"
+   shows the featured cards, each topic tab its own questions, and "See all
+   questions" every topic. Picking an industry adds a "For <industry>" tab
+   (and opens it) with that industry's questions: the three from
+   config/ask_mira_industry_questions.php plus any in chat_bot_questions
+   (MIRA_CHAT_QUESTIONS_BY_INDUSTRY), which Mira answers word for word. */
+var MIRA_STARTER_ICONS = {
+  start: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>',
+  premium: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.8 2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3-4.6-4.4 6.3-.9z"/></svg>',
+  xp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M10 21v-4h4v4"/></svg>',
+  grow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>',
+  industry: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg>'
+};
+var MIRA_STARTER_CATS = [
+  { id: 'start', name: 'Getting started' },
+  { id: 'premium', name: 'Mira Premium' },
+  { id: 'xp', name: 'X Platforms' },
+  { id: 'grow', name: 'Grow your reach' }
+];
+var MIRA_STARTER_QUESTIONS = [
+  { id: 'what', cat: 'start', q: 'What is Ask Mira?' },
+  { id: 'check', cat: 'start', q: 'What can Mira check on my website?' },
+  { id: 'compare', cat: 'start', q: 'How do I compare my website with a competitor?' },
+  { id: 'free', cat: 'start', q: 'Is Ask Mira free to use?' },
+  { id: 'premium', cat: 'premium', q: 'What do I get with Mira Premium?' },
+  { id: 'premsite', cat: 'premium', q: 'What can Mira Premium do for my website?' },
+  { id: 'xp', cat: 'xp', q: 'What does X Platforms do?' },
+  { id: 'xpgrow', cat: 'xp', q: 'How can X Platforms help my business grow?' },
+  { id: 'price', cat: 'xp', q: 'How much does it cost?' },
+  { id: 'trial', cat: 'xp', q: 'Is there a free trial?' },
+  { id: 'ai', cat: 'grow', q: 'How can my business show up in ChatGPT and Google answers?' },
+  { id: 'google', cat: 'grow', q: "Why isn't my website showing up on Google?" },
+  { id: 'social', cat: 'grow', q: 'How do I make my links look good when shared on social media?' }
+];
+var MIRA_FEATURED = ['what', 'premsite', 'xpgrow', 'ai'];
+var miraHome = { cat: 'all', showAll: false };
+
+function miraSelectedIndustry() {
+  var sel = document.getElementById('miraIndustry');
+  return sel && sel.value ? { id: sel.value, name: sel.options[sel.selectedIndex].text } : null;
+}
+
+function miraStarterExtras() {
+  // General chat_bot_questions not already listed join "X Platforms"; the
+  // selected industry's questions make up the "For <industry>" tab.
+  var known = MIRA_STARTER_QUESTIONS.map(function (x) { return x.q.toLowerCase(); });
+  var out = [];
+  (MIRA_CHAT_QUESTIONS_BY_INDUSTRY['all'] || []).forEach(function (q, i) {
+    if (known.indexOf(q.toLowerCase()) < 0) out.push({ id: 'db' + i, cat: 'xp', q: q });
+  });
+  var ind = miraSelectedIndustry();
+  if (ind) {
+    (MIRA_CHAT_QUESTIONS_BY_INDUSTRY[ind.id] || []).forEach(function (q, i) {
+      out.push({ id: 'ind' + i, cat: 'industry', q: q, industry: ind.name });
+    });
+  }
+  return out;
+}
+
+function miraRenderHome() {
+  var ind = miraSelectedIndustry();
+  if (miraHome.cat === 'industry' && !ind) miraHome.cat = 'all';
+  var all = MIRA_STARTER_QUESTIONS.concat(miraStarterExtras());
+  var byId = {};
+  all.forEach(function (x) { byId[x.id] = x; });
+  var list;
+  if (miraHome.cat !== 'all') {
+    list = all.filter(function (x) { return x.cat === miraHome.cat; });
+  } else if (miraHome.showAll) {
+    list = MIRA_STARTER_CATS.reduce(function (acc, c) { return acc.concat(all.filter(function (x) { return x.cat === c.id; })); }, []);
+  } else {
+    list = MIRA_FEATURED.map(function (id) { return byId[id]; });
+  }
+
+  var cats = document.getElementById('miraCats');
+  cats.innerHTML = '';
+  var tabs = (ind ? [{ id: 'industry', name: 'For ' + ind.name }] : []).concat([{ id: 'all', name: 'Popular' }], MIRA_STARTER_CATS);
+  tabs.forEach(function (c) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'mira-cat' + (c.id === 'industry' ? ' ind' : '');
+    if (c.id === 'industry') b.innerHTML = MIRA_STARTER_ICONS.industry;   // static SVG
+    b.appendChild(document.createTextNode(c.name));
+    b.setAttribute('aria-pressed', miraHome.cat === c.id ? 'true' : 'false');
+    b.addEventListener('click', function () { miraHome.cat = c.id; miraHome.showAll = false; miraRenderHome(); });
+    cats.appendChild(b);
+  });
+
+  var note = document.getElementById('miraIndNote');
+  note.hidden = miraHome.cat !== 'industry';
+  note.innerHTML = '';
+  if (miraHome.cat === 'industry') {
+    var nb = document.createElement('b'); nb.textContent = ind.name;
+    note.append('Questions picked for ', nb, ' businesses. Change the industry in the sidebar.');
+  }
+
+  var cards = document.getElementById('miraCards');
+  cards.innerHTML = '';
+  cards.classList.toggle('three', list.length === 3);
+  list.forEach(function (x) {
+    var cat = x.cat === 'industry' ? { name: x.industry } : MIRA_STARTER_CATS.filter(function (c) { return c.id === x.cat; })[0];
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'mira-qcard';
+    var ico = document.createElement('span');
+    ico.className = 'mira-qico c-' + x.cat; ico.innerHTML = MIRA_STARTER_ICONS[x.cat];   // static SVG
+    var tx = document.createElement('span'); tx.className = 'tx';
+    var small = document.createElement('small'); small.textContent = cat.name;
+    var q = document.createElement('b'); q.textContent = x.q;
+    tx.appendChild(small); tx.appendChild(q);
+    b.appendChild(ico); b.appendChild(tx);
+    b.addEventListener('click', function () { miraAskSuggested(x.q); });
+    cards.appendChild(b);
+  });
+
+  var more = document.getElementById('miraMore');
+  more.hidden = miraHome.cat !== 'all';
+  more.textContent = miraHome.showAll ? 'Show fewer questions' : 'See all questions';
+}
+
+/* Picking an industry opens its tab (back to Popular for "All Industry"),
+   returning to the question cards if a chat is under way. */
+function miraIndustryChanged() {
+  miraHome.cat = miraSelectedIndustry() ? 'industry' : 'all';
+  miraHome.showAll = false;
+  var msgs = document.getElementById('miraMessages');
+  if (msgs && msgs.style.display !== 'none') {
+    fetch('{{ route("chat.reset") }}', { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } }).catch(function () {});
+    msgs.innerHTML = ''; msgs.style.display = 'none';
+    document.getElementById('miraEmpty').style.display = 'flex';
+  }
+  miraSwitchTab('ask');
+  miraRenderHome();
+}
+
+/* The button under an answer that has one (industry questions). */
+function miraAddCta(cta) {
+  var labels = { analyse: 'Analyse my website', premium: 'Try Premium Mira', contact: 'Talk to X Platforms' };
+  if (!labels[cta]) return;
+  var el;
+  if (cta === 'analyse') {
+    el = document.createElement('button'); el.type = 'button';
+    el.addEventListener('click', function () { miraSwitchTab('analyze'); document.getElementById('miraAnalyzeInput').focus(); });
+  } else {
+    el = document.createElement('a');
+    el.href = cta === 'premium' ? '{{ route("mira-premium") }}' : '{{ route("book-demo") }}';
+  }
+  el.className = 'mira-cta' + (cta === 'premium' ? ' gold' : '');
+  el.textContent = labels[cta] + ' →';
+  var msgs = document.getElementById('miraMessages');
+  msgs.appendChild(el);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function miraToggleAllQuestions() {
+  miraHome.showAll = !miraHome.showAll;
+  miraRenderHome();
+}
+
+/* Recent chats: the visitor's last questions, kept in this browser only. */
+var MIRA_RECENT_KEY = 'askmira:recent';
+function miraRecentList() {
+  try { return JSON.parse(localStorage.getItem(MIRA_RECENT_KEY)) || []; } catch (e) { return []; }
+}
+function miraRememberQuestion(q) {
+  var list = [q].concat(miraRecentList().filter(function (x) { return x !== q; })).slice(0, 6);
+  try { localStorage.setItem(MIRA_RECENT_KEY, JSON.stringify(list)); } catch (e) {}
+  miraRenderRecent();
+}
+function miraRenderRecent() {
+  var wrap = document.getElementById('miraRecent');
   if (!wrap) return;
+  var list = miraRecentList();
   wrap.innerHTML = '';
-  questions.slice(0, 8).forEach(function (q) {
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'mira-starter';
-    btn.textContent = q;
-    btn.addEventListener('click', function () { miraAskSuggested(q); });
-    wrap.appendChild(btn);
+  if (!list.length) {
+    var empty = document.createElement('div');
+    empty.className = 'mira-recent-empty'; empty.textContent = 'Your conversations will appear here.';
+    wrap.appendChild(empty);
+    return;
+  }
+  list.forEach(function (q) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'mira-recent-item'; b.textContent = q; b.title = q;
+    b.addEventListener('click', function () { miraSwitchTab('ask'); miraAskSuggested(q); });
+    wrap.appendChild(b);
   });
 }
 
@@ -1607,6 +1896,7 @@ async function miraSendChat() {
   // Unused chips from earlier answers no longer fit the conversation.
   document.querySelectorAll('#miraMessages .mira-suggest').forEach(function (r) { r.remove(); });
   miraAddMessage('user', msg);
+  if (!miraLooksLikeUrl(msg)) miraRememberQuestion(msg);
   // A pasted website URL is analysed; visitors who aren't logged in give their details first.
   if (!MIRA_LOGGED_IN && miraLooksLikeUrl(msg)) { miraOpenLead(msg, 'chat'); return; }
   var typing = miraAddMessage('bot typing', 'Thinking…');
@@ -1615,6 +1905,7 @@ async function miraSendChat() {
     var result = await miraPostToChat(msg);
     typing.remove();
     miraAddMessage('bot', result.ok ? result.data.reply : (result.data.error || 'Something went wrong. Please try again.'));
+    if (result.ok && result.data.cta) miraAddCta(result.data.cta);
     if (result.ok && result.data.report) renderAnalysisReport(result.data.report);
     if (result.ok) miraAddSuggestions(result.data.suggestions);
   } catch (e) {
@@ -1760,6 +2051,9 @@ async function miraResetChat() {
   miraToggleCompare(true);
   miraSwitchTab('ask');
 }
+
+miraRenderHome();
+miraRenderRecent();
 
 var miraInputEl = document.getElementById('miraInput');
 if (miraInputEl) {

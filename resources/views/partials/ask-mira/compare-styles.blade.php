@@ -59,6 +59,99 @@
 .cx-mini .cx-t{height:5px;background:var(--cx-track);border-radius:9px;overflow:hidden}
 .cx-mini .cx-t i{display:block;height:100%;border-radius:9px}
 
+/* stages as a metrics deck (Premium Mira, window.MIRA_STAGE_DASHBOARD).
+   Light, in the manner of premium analytics products (Stripe, Mercury,
+   Linear): white cards on the report's soft grey, 1px hairlines, a whisper of
+   shadow, ink-coloured numbers, deep status colours that read on white, and
+   the page's gold used only for selection. "All stages" panel (headline
+   numbers + stage table) and a hairline grid of per-stage tiles (donut,
+   score, bar marking the competitor, ▲/▼ deltas). Colours are --dk-* with the
+   gold taken from the report's --cx-accent when the page sets one. */
+.cx-dash{
+  --dk-card:#fff;--dk-hover:#fafaf8;--dk-sel:#fdfaf1;--dk-line:#ececee;--dk-line2:#e2e2e6;
+  --dk-fg:#141417;--dk-muted:#6e6e76;--dk-dim:#a1a1a8;--dk-track:#efeff2;
+  --dk-gold:var(--cx-accent,#a8801f);--dk-gold-soft:#f7efd9;
+  --dk-good:#1f8a5b;--dk-warn:#b7791f;--dk-bad:#c8473f;
+  --dk-num:'Space Grotesk','Inter',system-ui,sans-serif;
+  --dk-shadow:0 1px 2px rgba(20,20,30,.04),0 8px 24px -12px rgba(20,20,30,.08);
+  display:grid;grid-template-columns:minmax(280px,.9fr) 2fr;gap:14px;margin-top:14px;color:var(--dk-fg)}
+
+.cx-dash-ov,.cx-dash-tiles{border-radius:18px;min-width:0;background:var(--dk-card);border:1px solid var(--dk-line);box-shadow:var(--dk-shadow)}
+.cx-dash-ov{padding:24px 26px;display:flex;flex-direction:column;gap:24px}
+.cx-dash button{color:var(--dk-fg)}
+.cx-dash button:focus-visible{outline:2px solid var(--dk-gold);outline-offset:2px}
+.cx-dash-title{display:flex;align-items:center;gap:5px;border:0;background:none;padding:0;font-weight:600;font-size:1rem;letter-spacing:-.01em;text-align:left;width:max-content}
+.cx-dash-tag{margin-left:8px;padding:3px 9px;border-radius:6px;font-size:.68rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--dk-gold);background:var(--dk-gold-soft)}
+.cx-dash-title[aria-pressed="false"] .cx-dash-tag{color:var(--dk-muted);background:#f3f3f5}
+.cx-dash-title[aria-pressed="false"]:hover .cx-dash-tag{color:var(--dk-gold);background:var(--dk-gold-soft)}
+.cx-info{align-self:flex-start;display:inline-grid;place-items:center;width:13px;height:13px;border-radius:50%;font-size:.54rem;font-weight:700;font-style:normal;line-height:1;
+  color:var(--dk-dim);box-shadow:inset 0 0 0 1px var(--dk-line2);cursor:help}
+.cx-info:hover{color:var(--dk-fg);box-shadow:inset 0 0 0 1px var(--dk-dim)}
+
+.cx-dash-metrics{display:grid;grid-template-columns:1fr 1fr}
+.cx-metric + .cx-metric{padding-left:22px;border-left:1px solid var(--dk-line)}
+.cx-metric-lbl{font-size:.68rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--dk-muted)}
+.cx-metric-val,.cx-tile-val{display:flex;align-items:baseline;gap:10px;margin:10px 0 6px}
+.cx-big{font-family:var(--dk-num);font-size:2.15rem;font-weight:500;line-height:1;letter-spacing:-.035em;color:var(--dk-fg);font-variant-numeric:tabular-nums}
+.cx-metric .cx-big{font-size:2.6rem}
+/* Deltas: coloured text with a small arrow — ▲ ahead, ▼ behind, = level. */
+.cx-delta{display:inline-flex;align-items:center;gap:3px;font-family:var(--dk-num);font-size:.8rem;font-weight:600;white-space:nowrap}
+.cx-delta.up{color:var(--dk-good)}
+.cx-delta.down{color:var(--dk-bad)}
+.cx-delta.flat{color:var(--dk-dim)}
+.cx-delta.up::before{content:"\25B2";font-size:.55em}
+.cx-delta.down::before{content:"\25BC";font-size:.55em}
+.cx-delta.note::before{content:none}
+.cx-delta.note{font-family:inherit;font-size:.74rem;padding:2px 8px;border-radius:999px}
+.cx-delta.note.down{background:#fbeceb}
+.cx-delta.note.up{background:#e7f4ed}
+.cx-sub{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;font-size:.8rem;color:var(--dk-muted)}
+.cx-sub b{font-family:var(--dk-num);font-weight:600;color:var(--dk-fg)}
+
+.cx-dash-table{display:grid}
+.cx-dash-tr{display:grid;grid-template-columns:1fr 6rem 4.6rem;gap:8px;align-items:center;padding:9px 10px;margin:0 -10px;width:calc(100% + 20px);
+  border:0;border-radius:10px;background:none;text-align:left;font-size:.88rem;transition:background .15s}
+.cx-dash-tr.head{font-size:.66rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--dk-dim);padding-bottom:10px;margin-bottom:4px;border-radius:0;
+  box-shadow:inset 0 -1px 0 var(--dk-line);pointer-events:none}
+.cx-dash-tr:not(.head):hover{background:var(--dk-hover)}
+.cx-dash-tr[aria-pressed="true"]{background:var(--dk-sel);box-shadow:inset 2px 0 0 var(--dk-gold)}
+.cx-dash-tr b{font-family:var(--dk-num);font-weight:600;color:var(--dk-fg)}
+.cx-dash-tr > span:last-child{font-family:var(--dk-num);color:var(--dk-muted)}
+.cx-dash-tr .cx-delta{margin-left:6px;font-size:.72rem}
+.cx-dash-st{display:flex;align-items:center;gap:10px;color:var(--dk-fg);font-weight:500}
+.cx-dot{width:7px;height:7px;border-radius:50%;flex:none}
+
+/* Tiles: 1px gaps over a line-coloured background draw the hairline grid. */
+.cx-dash-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background-color:var(--dk-line);overflow:hidden}
+.cx-tile{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:2px;border:0;padding:22px 24px 24px;text-align:left;background:var(--dk-card);transition:background .15s}
+.cx-tile:hover{background:var(--dk-hover)}
+.cx-tile[aria-pressed="true"]{background:var(--dk-sel)}
+.cx-tile[aria-pressed="true"]::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--dk-gold)}
+.cx-tile-lbl{display:flex;align-items:center;gap:8px;font-size:.92rem;font-weight:600;letter-spacing:-.005em}
+.cx-tile-step{font-family:var(--dk-num);font-size:.68rem;font-weight:600;letter-spacing:.06em;color:var(--dk-dim)}
+.cx-tile[aria-pressed="true"] .cx-tile-step{color:var(--dk-gold)}
+.cx-tile-val{align-items:center;gap:12px;margin:16px 0 14px}
+.cx-mring{width:40px;height:40px;flex:none;transform:rotate(-90deg)}
+.cx-mring circle:not(.arc){stroke:var(--dk-track)}
+.cx-mring .arc{transition:stroke-dashoffset .9s cubic-bezier(.16,1,.3,1)}
+/* Score bar; the notch marks the competitor's score. */
+.cx-tbar{position:relative;height:4px;margin:0 0 12px;border-radius:4px;background:var(--dk-track)}
+.cx-tbar i{position:absolute;inset:0 auto 0 0;border-radius:inherit;background:var(--c1);transition:width .9s cubic-bezier(.16,1,.3,1)}
+.cx-tbar u{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;border-radius:1px;background:#3d3d44;text-decoration:none}
+/* Tone colours (--c1/--c2 also feed the donut's gradient stops — kept equal for a flat stroke). */
+.cx-tone-good{--c1:var(--dk-good);--c2:var(--dk-good)}
+.cx-tone-warn{--c1:var(--dk-warn);--c2:var(--dk-warn)}
+.cx-tone-bad{--c1:var(--dk-bad);--c2:var(--dk-bad)}
+.cx-tone-none{--c1:#d4d4d9;--c2:#d4d4d9}
+.cx-dot.cx-tone-good{background:var(--dk-good)}
+.cx-dot.cx-tone-warn{background:var(--dk-warn)}
+.cx-dot.cx-tone-bad{background:var(--dk-bad)}
+.cx-dot.cx-tone-none{background:var(--dk-dim)}
+
+@media (max-width:960px){.cx-dash{grid-template-columns:1fr}}
+@media (max-width:620px){.cx-dash-tiles{grid-template-columns:1fr 1fr}.cx-tile{padding:16px}.cx-dash-ov{padding:18px}.cx-big{font-size:1.9rem}.cx-metric .cx-big{font-size:2.2rem}}
+@media (prefers-reduced-motion:reduce){.cx-mring .arc,.cx-tbar i{transition:none}}
+
 /* section rows */
 .cx-rows{display:grid;gap:4px;margin-top:14px}
 .cx-row{display:grid;grid-template-columns:minmax(170px,1.2fr) 1fr 3.4rem 1fr 3.4rem;gap:6px 14px;align-items:center;padding:8px 12px;border-radius:14px;border:0;background:transparent;text-align:left;width:100%}
