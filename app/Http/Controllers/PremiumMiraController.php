@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MiraPremium\MiraMessage;
+use App\Models\MiraPremium\MiraProject;
 use App\Services\Llm\OpenAiException;
 use App\Services\Llm\PremiumMiraService;
+use App\Services\MiraPremium\Entitlement;
+use App\Services\MiraPremium\UsageMeter;
 use App\Services\WebsiteAnalyzerException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,18 +24,26 @@ use Illuminate\Support\Facades\Log;
  * Public and unauthenticated like the free chat, so the routes are
  * rate-limited (see routes/web.php). Session keys are separate from
  * PublicChatController's so the two chats never mix.
+ *
+ * Plan-aware (config/mira_premium.php): every question answered by the model
+ * uses one "chat_messages" unit of the requester's quota (refunded if the
+ * model call fails). Subscribers who pass a project_id they own get the
+ * conversation saved to mira_messages for that project.
  */
 class PremiumMiraController extends Controller
 {
     private const SITE_KEY    = 'premium_mira_site';
     private const HISTORY_KEY = 'premium_mira_history';
 
-    public function send(Request $request, PremiumMiraService $mira): JsonResponse
+    public function send(Request $request, PremiumMiraService $mira, UsageMeter $meter): JsonResponse
     {
         $validated = $request->validate([
-            'message' => 'required|string|max:4000',
+            'message'    => 'required|string|max:4000',
+            'project_id' => 'nullable|integer',
         ]);
         $message = $validated['message'];
+        $who     = Entitlement::forRequest($request);
+        $project = $this->ownedProject($who, $validated['project_id'] ?? null);
 
         $url = $mira->extractUrl($message);
 
@@ -49,6 +61,7 @@ class PremiumMiraController extends Controller
                 ['role' => 'user', 'content' => $message],
                 ['role' => 'assistant', 'content' => $reply],
             ]);
+            $this->save($who, $project, $message, $reply);
 
             return response()->json([
                 'reply'       => $reply,
@@ -74,10 +87,14 @@ class PremiumMiraController extends Controller
 
         $history = $request->session()->get(self::HISTORY_KEY, []);
 
+        // Throws QuotaExceeded / NotEntitled (rendered as tagged JSON errors).
+        $meter->consume($who, 'chat_messages');
+
         try {
             $result = $mira->reply($message, $site, $history);
         } catch (OpenAiException $e) {
             Log::error('Premium Mira request failed', ['message' => $e->getMessage()]);
+            $meter->refund($who->subject, 'chat_messages', $who->limit('chat_messages')[1] ?? 'day');
 
             return response()->json([
                 'error' => 'The assistant is unavailable right now. Please try again in a moment.',
@@ -88,12 +105,34 @@ class PremiumMiraController extends Controller
         $history[] = ['role' => 'user', 'content' => $message];
         $history[] = ['role' => 'assistant', 'content' => $result['answer']];
         $request->session()->put(self::HISTORY_KEY, $mira->trim($history));
+        $this->save($who, $project, $message, $result['answer']);
 
         return response()->json([
             'reply'       => $result['answer'],
             'site'        => $this->siteSummary($site),
             'suggestions' => $result['suggestions'],
+            'usage'       => $meter->snapshot($who),
         ]);
+    }
+
+    /** A project the signed-in subscriber owns, or null (guests, lapsed plans, someone else's id). */
+    private function ownedProject(Entitlement $who, ?int $projectId): ?MiraProject
+    {
+        if ($projectId === null || $who->client === null || !$who->allows('projects')) {
+            return null;
+        }
+
+        return MiraProject::where('id', $projectId)->where('client_id', $who->client->id)->first();
+    }
+
+    private function save(Entitlement $who, ?MiraProject $project, string $question, string $answer): void
+    {
+        if ($project === null) {
+            return;
+        }
+
+        MiraMessage::create(['client_id' => $who->client->id, 'project_id' => $project->id, 'role' => 'user', 'content' => $question]);
+        MiraMessage::create(['client_id' => $who->client->id, 'project_id' => $project->id, 'role' => 'assistant', 'content' => $answer]);
     }
 
     public function reset(Request $request): JsonResponse

@@ -23,6 +23,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // token for this app, so this endpoint must stay exempt.
         $middleware->validateCsrfTokens(except: [
             'api/events/collect',
+            // Mira Premium's first-party analytics and client error beacons use
+            // navigator.sendBeacon, which cannot send a CSRF header. Both only
+            // write allow-listed, size-capped telemetry.
+            'mira-premium/api/event',
+            'mira-premium/api/error',
         ]);
 
         $middleware->redirectGuestsTo(function ($request) {
@@ -45,5 +50,6 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Mira Premium's tagged API errors: {"error": {"code", "message", ...}}.
+        $exceptions->render(fn (\App\Services\MiraPremium\MiraApiException $e) => response()->json($e->toArray(), $e->status()));
     })->create();

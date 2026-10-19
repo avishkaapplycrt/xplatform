@@ -76,18 +76,7 @@ Route::get('homepage-classic', fn() => view('welcome', $homepageChatData()))->na
 // under its original URL.
 Route::get('homepage-preview', fn() => view('homepage-preview', $homepageChatData()))->name('homepage.preview');
 
-Route::get('mira-premium', fn() => view('mira-premium', [
-    'premiumLive' => (new \App\Services\Llm\PremiumMiraService())->isConfigured(),
-    // "Try asking" sidebar questions from askmirap_predefined_prompts, by category (seo / aeo / geo).
-    'sidebarPrompts' => \App\Models\AskMiraPremiumPrompt::active()->placement('sidebar')->ordered()
-        ->get(['category', 'question'])
-        ->groupBy(fn ($p) => $p->category ?: 'other')
-        ->map(fn ($group) => $group->pluck('question')),
-    // For the "Analyse my website" tab, which reuses partials.ask-mira.script.
-    'miraLive'    => (new \App\Services\Llm\MarketingChatBotService())->isConfigured(),
-    'loggedIn'    => auth('client')->check(),
-    'chatQuestionsByIndustry' => [],
-]))->name('mira-premium');
+Route::get('mira-premium', [\App\Http\Controllers\MiraPremium\WorkspaceApiController::class, 'page'])->name('mira-premium');
 Route::get('simulator', fn() => view('simulator'))->name('simulator');
 Route::get('case-studies', fn() => view('case-studies'))->name('case-studies');
 Route::get('pricing', fn() => view('pricing'))->name('pricing');
@@ -131,6 +120,35 @@ Route::middleware('throttle:20,1')->prefix('mira-premium')->name('mira-premium.'
     Route::post('send',  [\App\Http\Controllers\PremiumMiraController::class, 'send'])->name('send');
     Route::post('reset', [\App\Http\Controllers\PremiumMiraController::class, 'reset'])->name('reset');
 });
+
+// Mira Premium workspace API (WorkspaceApiController): plan-aware scans (two-phase,
+// signed handles), projects, history, AI visibility and first-party telemetry.
+// Entitlement is resolved server-side on every call; see config/mira_premium.php.
+Route::prefix('mira-premium/api')->name('mira-premium.api.')
+    ->controller(\App\Http\Controllers\MiraPremium\WorkspaceApiController::class)->group(function () {
+        Route::middleware('throttle:60,1')->group(function () {
+            Route::get('me', 'me')->name('me');
+            Route::post('scans', 'submitScan')->name('scans.submit');
+            Route::post('scans/report', 'scanReport')->name('scans.report');
+            Route::get('scans/{id}', 'showScan')->whereNumber('id')->name('scans.show');
+            Route::post('projects', 'createProject')->name('projects.create');
+            Route::patch('projects/{id}', 'updateProject')->whereNumber('id')->name('projects.update');
+            Route::delete('projects/{id}', 'deleteProject')->whereNumber('id')->name('projects.delete');
+            Route::get('projects/{id}/history', 'history')->whereNumber('id')->name('projects.history');
+            Route::get('projects/{id}/messages', 'messages')->whereNumber('id')->name('projects.messages');
+            Route::get('projects/{id}/visibility', 'visibility')->whereNumber('id')->name('visibility');
+            Route::post('projects/{id}/prompts', 'addPrompt')->whereNumber('id')->name('prompts.add');
+            Route::post('projects/{id}/prompts/suggest', 'suggestPrompts')->whereNumber('id')->name('prompts.suggest');
+            Route::patch('prompts/{id}', 'updatePrompt')->whereNumber('id')->name('prompts.update');
+            Route::delete('prompts/{id}', 'deletePrompt')->whereNumber('id')->name('prompts.delete');
+            Route::post('projects/{id}/visibility/runs', 'startRun')->whereNumber('id')->name('visibility.run');
+            Route::get('projects/{id}/panels/{panel}', 'panel')->whereNumber('id')->whereIn('panel', ['ai', 'authority', 'search', 'traffic', 'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'ai_brand'])->name('panels');
+        });
+        Route::middleware('throttle:120,1')->group(function () {
+            Route::post('event', 'event')->name('event');
+            Route::post('error', 'clientError')->name('error');
+        });
+    });
 
 // Public API route for tracking script (no auth required - called from client websites)
 Route::get('/api/tracking/script', [WebsiteConnectionController::class, 'getTrackingScript'])

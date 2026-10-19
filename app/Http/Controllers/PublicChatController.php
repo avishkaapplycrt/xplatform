@@ -67,7 +67,7 @@ class PublicChatController extends Controller
             : null;
 
         try {
-            $result = $bot->reply($validated['message'], $history, $client, $industry, (bool) ($validated['premium'] ?? false));
+            $result = $bot->reply($validated['message'], $history, $client, $industry, $this->premium($request, $validated));
         } catch (AnthropicRefusedException $e) {
             Log::info('Public chat request declined', ['message' => $e->getMessage()]);
 
@@ -143,7 +143,7 @@ class PublicChatController extends Controller
         // on the homepage. See COMPARISON_FIXES_UNLOCKABLE.
         // Premium Mira (premium flag, set by its page) always gets the full,
         // open report.
-        $premium = (bool) ($validated['premium'] ?? false);
+        $premium = $this->premium($request, $validated);
         $comparison['locked'] = !$premium;
         if (!$premium && !self::COMPARISON_FIXES_UNLOCKABLE) {
             $comparison['gaps'] = array_map(
@@ -186,7 +186,7 @@ class PublicChatController extends Controller
             : null;
 
         try {
-            $result = $bot->reply($validated['url'], $history, $client, $industry, (bool) ($validated['premium'] ?? false));
+            $result = $bot->reply($validated['url'], $history, $client, $industry, $this->premium($request, $validated));
         } catch (AnthropicRefusedException $e) {
             Log::info('Public chat request declined', ['message' => $e->getMessage()]);
 
@@ -271,6 +271,17 @@ class PublicChatController extends Controller
             (bool) preg_match('/linux|x11/i', $userAgent)              => 'Linux',
             default                                                    => 'Other',
         };
+    }
+
+    /**
+     * Premium depth (AI fixes, the unlocked comparison) only when the page asks
+     * for it AND the requester's plan includes it — decided on the server by
+     * Mira Premium's Entitlement, never by the request's "premium" flag alone.
+     */
+    private function premium(Request $request, array $validated): bool
+    {
+        return (bool) ($validated['premium'] ?? false)
+            && \App\Services\MiraPremium\Entitlement::forRequest($request)->isPremium();
     }
 
     public function reset(Request $request): JsonResponse
