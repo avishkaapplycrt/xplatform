@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\InstagramAccountInsight;
 use App\Models\InstagramMedia;
+use App\Models\InstagramMessage;
 use App\Models\SocialIntegration;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
@@ -37,7 +38,13 @@ class InstagramService
         $followers = $this->syncProfile($connection, $token);
         $this->syncAccountInsight($connection, $token, $followers);
 
-        return $this->syncMedia($connection, $token);
+        $synced = $this->syncMedia($connection, $token);
+
+        // DMs need instagram_business_manage_messages; a connection made before
+        // that scope was added just logs a warning instead of failing the sync.
+        $this->syncMessages($connection, $token);
+
+        return $synced;
     }
 
     // ── Profile counts ───────────────────────────────────────────────────────
@@ -146,6 +153,130 @@ class InstagramService
                 : null;
 
         } while ($after);
+
+        return $synced;
+    }
+
+    // ── Direct messages ──────────────────────────────────────────────────────
+
+    /**
+     * Pages through every DM conversation and upserts its messages into
+     * instagram_messages. The API only exposes the 20 most recent messages of
+     * each conversation, so older history builds up across repeated syncs.
+     * Returns the number of messages synced.
+     */
+    public function syncMessages(SocialIntegration $connection, string $token): int
+    {
+        $synced = 0;
+        $after  = null;
+        $businessUsername = ltrim((string) $connection->username, '@');
+
+        // Without this permission Instagram answers /me/conversations with an
+        // empty list (not an error), so check what was granted at connect time.
+        $granted = $connection->settings['permissions'] ?? [];
+        if (!in_array('instagram_business_manage_messages', (array) $granted, true)) {
+            Log::warning('Instagram DMs not synced: messages permission not granted — reconnect Instagram', [
+                'connection_id' => $connection->id,
+                'granted'       => $granted,
+            ]);
+            $metrics = $connection->metrics ?? [];
+            $metrics['messages_synced']   = 0;
+            $metrics['messages_access']   = false;
+            $connection->update(['metrics' => $metrics]);
+            return 0;
+        }
+
+        do {
+            $params = ['platform' => 'instagram', 'fields' => 'id,updated_time', 'limit' => 50, 'access_token' => $token];
+            if ($after) {
+                $params['after'] = $after;
+            }
+
+            $res = Http::get(self::BASE_URL . '/me/conversations', $params);
+
+            if (!$res->successful()) {
+                Log::warning('Instagram conversations fetch failed (reconnect to grant instagram_business_manage_messages?)', [
+                    'connection_id' => $connection->id,
+                    'status'        => $res->status(),
+                    'body'          => $res->body(),
+                ]);
+                break;
+            }
+
+            foreach ($res->json('data', []) as $conversation) {
+                $synced += $this->syncConversation($connection, $token, $conversation['id'], $businessUsername);
+            }
+
+            $after = ($res->json('paging.next') && $res->json('paging.cursors.after'))
+                ? $res->json('paging.cursors.after')
+                : null;
+
+        } while ($after);
+
+        $metrics = $connection->metrics ?? [];
+        $metrics['messages_synced'] = $synced;
+        $metrics['messages_access'] = true;
+        $connection->update(['metrics' => $metrics]);
+
+        return $synced;
+    }
+
+    private function syncConversation(SocialIntegration $connection, string $token, string $conversationId, string $businessUsername): int
+    {
+        $res = Http::get(self::BASE_URL . "/{$conversationId}", ['fields' => 'messages', 'access_token' => $token]);
+
+        if (!$res->successful()) {
+            Log::warning('Instagram conversation fetch failed', [
+                'connection_id'   => $connection->id,
+                'conversation_id' => $conversationId,
+                'body'            => $res->body(),
+            ]);
+            return 0;
+        }
+
+        $synced = 0;
+
+        foreach ($res->json('messages.data', []) as $ref) {
+            $msg = Http::get(self::BASE_URL . "/{$ref['id']}", [
+                'fields'       => 'id,created_time,from,to,message,attachments',
+                'access_token' => $token,
+            ]);
+
+            // Some message types reject the attachments field — retry without it.
+            if (!$msg->successful()) {
+                $msg = Http::get(self::BASE_URL . "/{$ref['id']}", [
+                    'fields'       => 'id,created_time,from,to,message',
+                    'access_token' => $token,
+                ]);
+            }
+
+            if (!$msg->successful()) {
+                Log::warning('Instagram message fetch failed', ['message_id' => $ref['id'], 'body' => $msg->body()]);
+                continue;
+            }
+
+            $m      = $msg->json();
+            $fromId = data_get($m, 'from.id');
+
+            InstagramMessage::updateOrCreate(
+                ['message_id' => $m['id']],
+                [
+                    'social_integration_id' => $connection->id,
+                    'conversation_id'  => $conversationId,
+                    'from_id'          => $fromId,
+                    'from_username'    => data_get($m, 'from.username'),
+                    'to_id'            => data_get($m, 'to.data.0.id'),
+                    'to_username'      => data_get($m, 'to.data.0.username'),
+                    'is_from_business' => $fromId === (string) $connection->account_id
+                        || ($businessUsername !== '' && data_get($m, 'from.username') === $businessUsername),
+                    'message'          => $m['message'] ?? null,
+                    'attachments'      => data_get($m, 'attachments.data'),
+                    'sent_at'          => isset($m['created_time']) ? \Carbon\Carbon::parse($m['created_time']) : null,
+                    'synced_at'        => now(),
+                ]
+            );
+            $synced++;
+        }
 
         return $synced;
     }
