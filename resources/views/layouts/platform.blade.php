@@ -76,20 +76,10 @@
             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Platform Layers</p>
 
             <nav class="space-y-1">
-                {{-- Architecture Overview --}}
-                <a href="{{ route('client.architecture') }}"
-                   class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
-                          {{ request()->routeIs('client.architecture')
-                             ? 'bg-teal-50 text-teal-700 font-medium border-l-2 border-teal-400'
-                             : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
-                    <svg class="w-3.5 h-3.5 flex-shrink-0 {{ request()->routeIs('client.architecture') ? 'text-teal-500' : 'text-gray-400' }}"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M12 3l8 8-8 8-8-8 8-8z"/>
-                    </svg>
-                    <span class="truncate">Architecture Overview</span>
-                </a>
-
+                {{-- Architecture Overview — collapsible group, same toggle
+                     pattern as Revenue Optimization / Customer Success below:
+                     a button (no navigation of its own) that expands to show
+                     "Overview" + L1-L8, instead of always listing L1-L8 flat. --}}
                 @php
                 $allSidebarLayers = [
                     ['num'=>'L1','label'=>'Data Collection',        'color'=>'text-emerald-600','bg'=>'bg-emerald-50', 'route'=>'client.layer.l1'],
@@ -105,23 +95,45 @@
                 $sidebarLayers = empty($selectedLayerCodes)
                     ? $allSidebarLayers
                     : array_values(array_filter($allSidebarLayers, fn($l) => in_array($l['num'], $selectedLayerCodes)));
+                $archLayerRoutes = collect($sidebarLayers)->pluck('route')->push('client.data-collection')->all();
+                $isArchActive = request()->routeIs('client.architecture') || collect($archLayerRoutes)->contains(fn($r) => request()->routeIs($r));
                 @endphp
-
-                @foreach($sidebarLayers as $layer)
-                    @php
-                        $href     = route($layer['route']);
-                        $isActive = request()->routeIs($layer['route'])
-                                 || ($layer['num'] === 'L1' && request()->routeIs('client.data-collection'));
-                    @endphp
-                    <a href="{{ $href }}"
-                       class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
-                              {{ $isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
-                        <span class="text-[10px] font-bold {{ $layer['color'] }} {{ $layer['bg'] }} rounded px-1.5 py-0.5 leading-none flex-shrink-0">
-                            {{ $layer['num'] }}
-                        </span>
-                        <span class="truncate">{{ $layer['label'] }}</span>
-                    </a>
-                @endforeach
+                <div class="space-y-1">
+                    <button onclick="toggleArchMenu()"
+                            class="w-full flex items-center justify-between px-3 py-2 text-xs rounded-md transition
+                                   {{ $isArchActive ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0 {{ $isArchActive ? 'text-teal-500' : 'text-gray-400' }}"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M12 3l8 8-8 8-8-8 8-8z"/>
+                            </svg>
+                            <span class="truncate">Architecture Overview</span>
+                        </div>
+                        <svg id="archChevron" class="w-3 h-3 transition-transform"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    {{-- Always starts collapsed, same as Revenue Optimization
+                         / Customer Success below — no auto-expand on active
+                         route, only toggled by clicking the button above. --}}
+                    <div id="archSubmenu" class="hidden pl-7 space-y-1">
+                        @foreach($sidebarLayers as $layer)
+                            @php
+                                $href     = route($layer['route']);
+                                $isActive = request()->routeIs($layer['route'])
+                                         || ($layer['num'] === 'L1' && request()->routeIs('client.data-collection'));
+                            @endphp
+                            <a href="{{ $href }}"
+                               class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                      {{ $isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
+                                <span class="text-[10px] font-bold {{ $layer['color'] }} flex-shrink-0">{{ $layer['num'] }}</span>
+                                <span class="truncate">{{ $layer['label'] }}</span>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
 
                 {{-- Revenue Optimization Group --}}
                 @php
@@ -564,6 +576,18 @@
     function toggleReportsMenu() {
         var submenu = document.getElementById('reportsSubmenu');
         var chevron = document.getElementById('reportsChevron');
+        if (submenu.classList.contains('hidden')) {
+            submenu.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            submenu.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+
+    function toggleArchMenu() {
+        var submenu = document.getElementById('archSubmenu');
+        var chevron = document.getElementById('archChevron');
         if (submenu.classList.contains('hidden')) {
             submenu.classList.remove('hidden');
             chevron.classList.add('rotate-180');
