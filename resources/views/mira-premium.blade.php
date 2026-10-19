@@ -619,6 +619,7 @@ async function premRunCompare(url, competitor, name, email){
   const status=document.getElementById('analyzeStatus');
   status.classList.remove('err');
   status.textContent='Comparing both websites — this can take up to a minute…';
+  askMiraReportTab.prepare(true);   // the comparison opens in a new tab
   try{
     const res=await postJson('{{ route("chat.compare") }}', {url:url, competitor_url:competitor, name:name, email:email, premium:true});
     const data=await res.json();
@@ -633,6 +634,7 @@ async function premRunCompare(url, competitor, name, email){
     status.textContent='Could not reach the server. Check your connection and try again.';
     status.classList.add('err');
   }
+  askMiraReportTab.cancel();
 }
 
 // Shared compare-script hook: show the visitor's own site in the sidebar card.

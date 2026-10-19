@@ -1482,6 +1482,7 @@ async function miraSubmitLead() {
     typing = miraAddMessage('bot typing', 'Checking your site…');
   }
   document.getElementById('leadModalOverlay').classList.remove('show');
+  askMiraReportTab.prepare(false);   // the report opens in a new tab
 
   try {
     var res = await fetch('{{ route("chat.analyze-lead") }}', {
@@ -1505,6 +1506,7 @@ async function miraSubmitLead() {
     if (source === 'analyze') { status.textContent = 'Could not reach the server. Check your connection and try again.'; status.classList.add('err'); }
     else miraAddMessage('bot', 'Could not reach the server. Check your connection and try again.');
   }
+  askMiraReportTab.cancel();   // closes the waiting tab if no report came back
   btn.disabled = false; btn.textContent = 'Continue';
   miraPendingUrl = null; miraPendingSource = null;
 }
@@ -1608,6 +1610,7 @@ async function miraSendChat() {
   // A pasted website URL is analysed; visitors who aren't logged in give their details first.
   if (!MIRA_LOGGED_IN && miraLooksLikeUrl(msg)) { miraOpenLead(msg, 'chat'); return; }
   var typing = miraAddMessage('bot typing', 'Thinking…');
+  if (miraLooksLikeUrl(msg)) askMiraReportTab.prepare(false);   // a website report opens in a new tab
   try {
     var result = await miraPostToChat(msg);
     typing.remove();
@@ -1618,6 +1621,7 @@ async function miraSendChat() {
     typing.remove();
     miraAddMessage('bot', 'Could not reach the server. Check your connection and try again.');
   }
+  askMiraReportTab.cancel();
 }
 
 async function miraSendAnalyze() {
@@ -1629,6 +1633,7 @@ async function miraSendAnalyze() {
   if (!/^https?:\/\//i.test(url)) { status.textContent = 'Include http:// or https:// at the start.'; status.classList.add('err'); return; }
   if (!MIRA_LOGGED_IN) { miraOpenLead(url, 'analyze'); return; }
   status.textContent = 'Checking your site — this can take a moment…';
+  askMiraReportTab.prepare(false);
   try {
     var result = await miraPostToChat(url);
     if (result.ok) {
@@ -1642,6 +1647,7 @@ async function miraSendAnalyze() {
     status.textContent = 'Could not reach the server. Check your connection and try again.';
     status.classList.add('err');
   }
+  askMiraReportTab.cancel();
 }
 
 /* ============ Compare with a competitor ============
@@ -1698,6 +1704,7 @@ async function miraRunCompare(url, competitor, name, email) {
   var status = document.getElementById('miraAnalyzeStatus');
   status.classList.remove('err');
   status.textContent = 'Comparing both websites — this can take up to a minute…';
+  askMiraReportTab.prepare(false);
   try {
     var res = await fetch('{{ route("chat.compare") }}', {
       method: 'POST',
@@ -1716,6 +1723,7 @@ async function miraRunCompare(url, competitor, name, email) {
     status.textContent = 'Could not reach the server. Check your connection and try again.';
     status.classList.add('err');
   }
+  askMiraReportTab.cancel();
 }
 
 @include('partials.ask-mira.compare-script')

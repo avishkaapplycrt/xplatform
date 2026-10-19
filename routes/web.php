@@ -88,6 +88,17 @@ Route::get('mira-premium', fn() => view('mira-premium', [
     'loggedIn'    => auth('client')->check(),
     'chatQuestionsByIndustry' => [],
 ]))->name('mira-premium');
+// Ask Mira "Analyse my website" / "Compare with a competitor" results, each on
+// its own page (stored by App\Services\AskMiraReportStore). "pending" is the
+// tab opened on click, while Mira works; it then moves to the report.
+Route::get('mira/report/pending', fn() => view('ask-mira-report', ['report' => null, 'premium' => request()->boolean('premium')]))
+    ->name('mira.report.pending');
+Route::get('mira/report/{id}', function (string $id) {
+    $report = app(\App\Services\AskMiraReportStore::class)->find($id);
+    abort_if($report === null, 404);
+
+    return view('ask-mira-report', ['report' => $report, 'premium' => $report['premium']]);
+})->name('mira.report');
 Route::get('simulator', fn() => view('simulator'))->name('simulator');
 Route::get('case-studies', fn() => view('case-studies'))->name('case-studies');
 Route::get('pricing', fn() => view('pricing'))->name('pricing');

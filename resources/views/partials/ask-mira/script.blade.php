@@ -121,6 +121,7 @@ async function submitLeadAndAnalyze(){
     }
   };
 
+  askMiraReportTab.prepare(ASK_MIRA_PREMIUM);   // the report opens in a new tab (where supported)
   try{
     const res = await fetch('{{ route("chat.analyze-lead") }}', {method:'POST',
       headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content},
@@ -130,14 +131,14 @@ async function submitLeadAndAnalyze(){
 
     if(!res.ok){
       show(data.error || data.message || 'Something went wrong. Please try again.', true);
-      return;
+    }else{
+      show(data.reply, false);
+      if(data.report) renderAnalysisReport(data.report);
     }
-
-    show(data.reply, false);
-    if(data.report) renderAnalysisReport(data.report);
   }catch(e){
     show('Could not reach the server. Check your connection and try again.', true);
   }
+  askMiraReportTab.cancel();
 }
 
 @include('partials.ask-mira.report-script')
@@ -192,6 +193,7 @@ async function sendAnalyzeUrl(){
     return;
   }
   status.textContent='Checking your site — this can take a moment...';
+  askMiraReportTab.prepare(ASK_MIRA_PREMIUM);
   try{
     const {ok,data}=await postToChat(url);
     if(ok){
@@ -205,6 +207,7 @@ async function sendAnalyzeUrl(){
     status.textContent='Could not reach the server. Check your connection and try again.';
     status.classList.add('err');
   }
+  askMiraReportTab.cancel();
 }
 
 async function resetChat(){
