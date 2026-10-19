@@ -112,7 +112,29 @@ return [
         'FAQ / question headings'         => 'important',
         'FAQPage & Organization schema'   => 'important',
         'Mixed content'                   => 'important',
+        'Broken links'                    => 'important',
+        'Pages with errors'               => 'critical',
+        'Lighthouse Performance'          => 'important',
+        'Duplicate titles'                => 'important',
+        'Redirects'                       => 'minor',
+        'Readability'                     => 'minor',
+        'Language'                        => 'minor',
+        'Lighthouse Accessibility'        => 'minor',
+        'Lighthouse Best Practices'       => 'minor',
+        'Pages missing meta descriptions' => 'important',
     ],
+
+    // Broken links: how many of the page's links are tested, and how long each may take.
+    'broken_links' => ['max_links' => 30, 'timeout_seconds' => 8],
+
+    // Redirects followed before the chain counts as too long.
+    'redirects' => ['max_hops' => 5],
+
+    // Flesch reading ease: good at or above 'good', poor below 'poor'; scored from this many words of paragraph text.
+    'readability' => ['good' => 60, 'poor' => 30, 'min_words' => 100],
+
+    // "Pages analysed" (Mira Premium site audits): pages read per scan, from the sitemap or the page's links.
+    'crawl' => ['max_pages' => 25, 'timeout_seconds' => 12],
 
     // KPIs a page scan can't measure — shown as "Not measured — connect <tool>".
     // Never filled with estimates.

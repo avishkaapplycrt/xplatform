@@ -6,6 +6,7 @@ use App\Services\WebsiteAnalysis\CheckGuide;
 use App\Services\WebsiteAnalysis\CoreWebVitals;
 use App\Services\WebsiteAnalysis\ExtendedChecks;
 use App\Services\WebsiteAnalysis\SerpPreview;
+use App\Services\WebsiteAnalysis\SiteChecks;
 use App\Services\WebsiteAnalysis\StructuredData;
 use App\Services\WebsiteAnalysis\UrlCleaner;
 use Illuminate\Http\Client\Response;
@@ -70,6 +71,8 @@ class WebsiteAnalyzerService
 
     private ExtendedChecks $extended;
 
+    private SiteChecks $site;
+
     /**
      * Content of the page most recently checked by analyzeSeoAndTechnical(),
      * so buildReport() can give OpenAI something site-specific to work from.
@@ -83,11 +86,13 @@ class WebsiteAnalyzerService
         ?SeoRecommendationService $recommender = null,
         ?CoreWebVitals $vitals = null,
         ?ExtendedChecks $extended = null,
+        ?SiteChecks $site = null,
     ) {
         $this->apiKey      = $apiKey ?? (string) config('services.pagespeed.api_key') ?: null;
         $this->recommender = $recommender ?? new SeoRecommendationService();
         $this->vitals      = $vitals ?? new CoreWebVitals($this->apiKey);
         $this->extended    = $extended ?? new ExtendedChecks();
+        $this->site        = $site ?? new SiteChecks();
     }
 
     /** Tracking parameters (utm_*, gclid, …) removed — see UrlCleaner. */
@@ -252,6 +257,11 @@ class WebsiteAnalyzerService
             'detail'   => "{$wordCount} words",
         ];
 
+        // Language first: readability is only scored for English text.
+        $language = $this->site->language($xpath, $this->lastPage['text']);
+        $checks[] = $language;
+        $checks[] = $this->site->readability($xpath, $language['detected'] ?? null);
+
         // --- IMAGES ---
         $images     = $xpath->query('//img');
         $missingAlt = 0;
@@ -326,6 +336,8 @@ class WebsiteAnalyzerService
             'detail'   => $genericCount === 0 ? 'No generic anchor text found' : "{$genericCount} generic anchor(s) found (e.g. \"click here\")",
         ];
 
+        $checks[] = $this->site->brokenLinks($xpath, $url);
+
         // --- SEARCH ENGINE VISIBILITY ---
         $robotsTxt = $this->fetchPage("{$origin}/robots.txt");
         $robotsOk  = $robotsTxt !== null && $robotsTxt->successful() && trim($robotsTxt->body()) !== '';
@@ -384,6 +396,7 @@ class WebsiteAnalyzerService
 
         // --- CRAWLING & INDEXING ---
         array_push($checks, ...$this->extended->crawl($response, $xpath));
+        $checks[] = $this->site->redirects($url);
 
         // --- PAGE SPEED (Core Web Vitals via PageSpeed Insights; "Not measured" if unavailable) ---
         array_push($checks, ...$this->vitals->checks($url));
@@ -563,6 +576,16 @@ class WebsiteAnalyzerService
         'FAQ / question headings'         => 'Add an FAQ section, or phrase key headings as the questions your customers ask.',
         'Short direct answers'            => 'Put a 20–60 word direct answer right under each question heading, then add detail below it.',
         'FAQPage & Organization schema'   => 'Add Organization markup with sameAs links to your official profiles, and FAQPage markup for your FAQ section.',
+        'Broken links'                    => 'Fix or remove the broken links listed: point them at the page\'s new address (or add a 301 redirect on your own site).',
+        'Redirects'                       => 'Link straight to the final address and collapse redirect chains into one 301; make every http:// address forward to https://.',
+        'Readability'                     => 'Use shorter sentences (15–20 words) and everyday words, and break long paragraphs up with subheadings and lists.',
+        'Language'                        => 'Set the page language on the html tag, e.g. <html lang="en">, matching the language the page is written in.',
+        'Lighthouse Performance'          => 'Work through the Opportunities in PageSpeed Insights: compress images, remove unused JavaScript and CSS, and cache static files.',
+        'Lighthouse Accessibility'        => 'Fix the items PageSpeed Insights lists under Accessibility: colour contrast, alt text, form labels and button names.',
+        'Lighthouse Best Practices'       => 'Fix the items listed under Best Practices in PageSpeed Insights, such as console errors, insecure libraries and image aspect ratios.',
+        'Pages with errors'               => 'Restore the pages that return errors, or 301-redirect them to the closest live page and remove them from your sitemap.',
+        'Duplicate titles'                => 'Give every page its own title that names what is on that page; shared titles make pages compete with each other.',
+        'Pages missing meta descriptions' => 'Write a 120–160 character meta description for each page listed, saying what that page offers.',
     ];
 
     /** Most recommendations listed on the "Site Overview" card. */

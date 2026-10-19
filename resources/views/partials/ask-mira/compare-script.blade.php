@@ -49,7 +49,9 @@ function miraCmpGrade(s) { return s >= 90 ? 'A' : s >= 80 ? 'B' : s >= 70 ? 'C' 
 function miraCmpHost(url) { return String(url || '').replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, ''); }
 
 function miraRenderComparison(c) {
-  miraRenderReport(c);
+  // Opens on its own page (route mira.report) — see askMiraReportTab.
+  if (c.report_url && !window.ASK_MIRA_REPORT_PAGE) askMiraReportTab.open(c.report_url);
+  else miraRenderReport(c);
   // Optional page hook — Premium Mira shows the visitor's site in its "Your website" card.
   if (typeof onComparisonReport === 'function') onComparisonReport(c);
 }
@@ -70,7 +72,8 @@ function miraRenderSiteReport(report) {
       categories: report.categories.map(function (cat) { return { key: cat.key, label: cat.label, score: cat.score }; }),
       serp_preview: report.serp_preview, rich_result_types: report.rich_result_types || [], open_graph: report.open_graph,
       ai_crawlers: find('AI crawler access').crawlers || {}, llms_txt: find('llms.txt').detail,
-      vitals: all.filter(function (ch) { return ch.category === 'speed'; })
+      vitals: all.filter(function (ch) { return ch.category === 'speed'; }),
+      site: report.site || null
     },
     competitor: null,
     checks: [].concat.apply([], report.categories.map(function (cat) {
@@ -80,7 +83,7 @@ function miraRenderSiteReport(report) {
       });
     })),
     stages: report.stages || [], scoring: report.scoring, needs_connected_data: report.needs_connected_data || [],
-    gaps: [], locked: false
+    gaps: [], locked: !report.recommendations_source || report.recommendations_source === 'none'
   });
 }
 
@@ -90,7 +93,7 @@ function miraRenderReport(c) {
   var panel = document.getElementById('miraComparePanel');
   panel.innerHTML = '';
   // This report replaces the older pie-card report and its upsell (homepage only).
-  document.getElementById('analysisPanel').classList.remove('show');
+  document.getElementById('analysisPanel')?.classList.remove('show');
   document.getElementById('chatUpsellAside')?.classList.remove('show');
   var single = !c.competitor;
   var comp = c.competitor || { name: '', url: '', overall: 0, categories: [], vitals: [], ai_crawlers: {} };
@@ -519,8 +522,37 @@ function miraRenderReport(c) {
   sortSel.style.cssText = 'font:inherit;font-size:.86rem;background:var(--cx-surface);color:var(--cx-fg);border:0;border-radius:99px;padding:7px 12px;box-shadow:var(--cx-shadow);margin-left:6px';
   sortSel.addEventListener('change', function () { S.sort = sortSel.value; renderList(); });
 
+  // Spotlights (Google / share previews, Core Web Vitals, AI crawlers, data):
+  // created here so a locked single-site report can blur them too.
+  var spots = miraEl('div');
+  spots.style.cssText = 'display:grid;gap:16px';
+
   var gapCount = c.gaps ? c.gaps.length : 0;
-  if (c.locked && gapCount) {
+  if (single && c.locked && openToFix.length) {
+    // Free homepage "Analyse my website": the tabs stay as a teaser;
+    // everything from "Sort by" to the bottom of the report is blurred behind
+    // a Try Premium Mira card, and the button reveals it in place.
+    var sLocked = miraEl('div', 'cx-locked');
+    var sPreview = miraH('div', 'cx-locked-preview', tools, list, spots);
+    sPreview.setAttribute('aria-hidden', 'true');
+    sPreview.inert = true;
+    list.style.marginBottom = '16px';
+    var sBtn = miraEl('button', 'cx-lock-btn', '★ Try Premium Mira'); sBtn.type = 'button';
+    var sLock = miraEl('div', 'cx-lock');
+    sBtn.addEventListener('click', function () {
+      sLocked.classList.add('unlocked');
+      sPreview.inert = false;
+      sPreview.removeAttribute('aria-hidden');
+      // Remove the card once it has faded out.
+      setTimeout(function () { sLock.remove(); }, 400);
+    });
+    sLock.appendChild(miraH('div', 'cx-lock-card', miraEl('div', 'cx-lock-icon', '🔒'),
+      miraEl('h5', null, 'Unlock your full website report'),
+      miraEl('p', null, 'See how to fix all ' + openToFix.length + ' issue' + (openToFix.length === 1 ? '' : 's') + ' on your site — step by step, plus your Google preview, speed and AI visibility.'),
+      sBtn));
+    sLocked.append(sPreview, sLock);
+    issues.append(tabs, sLocked);
+  } else if (c.locked && gapCount) {
     // Free homepage: the check list is blurred behind a Mira Premium card.
     // Fixes sent (PublicChatController::COMPARISON_FIXES_UNLOCKABLE): the
     // button reveals it in place. Not sent: the button links to Mira Premium.
@@ -553,9 +585,7 @@ function miraRenderReport(c) {
   }
 
   // ---------- spotlights ----------
-  var spots = miraEl('div');
-  spots.style.cssText = 'display:grid;gap:16px';
-  panel.appendChild(spots);
+  if (!spots.parentNode) panel.appendChild(spots);
   var findCheck = function (name) { return checks.filter(function (ch) { return ch.name === name; })[0] || {}; };
   var flag = function (status, text) {
     var cls = status === 'pass' ? 'good' : status === 'fail' ? 'bad' : status === 'warn' ? 'warn' : 'info';
@@ -620,7 +650,23 @@ function miraRenderReport(c) {
 
     if (show('experience')) {
       var p2 = pane('Core Web Vitals', 'Experience stage · mobile');
-      var mine = c.you.vitals || [], theirs = comp.vitals || [];
+      var isLh = function (m) { return !!m.lighthouse; };
+      // Lighthouse scores (and Speed Index "load time") as tiles; LCP / INP / CLS on the scales below.
+      var lhMine = (c.you.vitals || []).filter(isLh), lhTheirs = (comp.vitals || []).filter(isLh);
+      if (lhMine.some(function (m) { return m.value !== undefined; })) {
+        var tiles = miraEl('div', 'cx-lh');
+        lhMine.forEach(function (m) {
+          var them = lhTheirs.filter(function (x) { return x.name === m.name; })[0] || {};
+          var load = m.unit === 'ms';
+          var tone = m.value === undefined ? 'none' : load ? (m.value <= 3400 ? 'good' : m.value <= 5800 ? 'warn' : 'bad')
+            : (m.status === 'pass' ? 'good' : m.status === 'warn' ? 'warn' : 'bad');
+          var shown = m.value === undefined ? '—' : load ? fmtVital(m.value, 'ms') : m.value;
+          tiles.appendChild(miraH('div', tone, miraEl('b', 'cx-num', shown), miraEl('span', null, m.name.replace('Lighthouse ', '')),
+            single || them.value === undefined ? null : miraEl('span', null, ' · Competitor ' + (load ? fmtVital(them.value, 'ms') : them.value))));
+        });
+        p2.appendChild(tiles);
+      }
+      var mine = (c.you.vitals || []).filter(function (m) { return !isLh(m); }), theirs = (comp.vitals || []).filter(function (m) { return !isLh(m); });
       var measured = mine.concat(theirs).filter(function (m) { return m.value !== undefined; });
       if (!measured.length) {
         p2.appendChild(miraEl('p', 'cx-note', single ? "Core Web Vitals weren't measured for this report, so Page Speed isn't counted in your score." : "Core Web Vitals weren't measured for this comparison, so Page Speed isn't counted in either score."));
@@ -661,6 +707,38 @@ function miraRenderReport(c) {
         var sources = measured.map(function (m) { return m.source; }).filter(function (v, i, a) { return v && a.indexOf(v) === i; });
         p2.append(leg, cwv, miraEl('p', 'cx-note', 'Mobile data from Google PageSpeed Insights' + (sources.length ? ' (' + sources.join(', ') + ')' : '') + '. Metrics without data aren\'t counted in the score.'));
       }
+    }
+
+    // Other pages of the same site (Mira Premium site audits), from SiteCrawler.
+    var site = c.you.site;
+    if (site && (show('crawl') || show('index'))) {
+      var pp = pane('Pages analysed', site.source === 'sitemap' ? 'Pages from your sitemap' : 'Pages linked from this page');
+      var tile = function (n, label, tone) { return miraH('div', tone, miraEl('b', 'cx-num', n), miraEl('span', null, label)); };
+      pp.appendChild(miraH('div', 'cx-lh',
+        tile(site.pages_analysed, 'Pages analysed', 'none'),
+        tile(site.indexed, 'Can be indexed', 'good'),
+        tile(site.not_indexed, 'Kept out of Google', site.not_indexed ? 'warn' : 'none'),
+        tile(site.errors, 'Errors', site.errors ? 'bad' : 'none')));
+      var notes = [];
+      if ((site.duplicate_titles || []).length) notes.push(site.duplicate_titles.length + ' title(s) used on more than one page');
+      if ((site.missing_descriptions || []).length) notes.push(site.missing_descriptions.length + ' page(s) without a meta description');
+      if ((site.multiple_h1 || []).length) notes.push(site.multiple_h1.length + ' page(s) with more than one H1');
+      pp.appendChild(miraEl('p', 'cx-note', notes.length ? notes.join(' · ') + '.' : 'No duplicate titles, missing descriptions or extra H1s across these pages.'));
+      var stateTag = function (p) {
+        return p.state === 'error' ? miraEl('span', 'cx-tag no', p.status ? 'Error ' + p.status : 'Unreachable')
+          : p.state === 'not_indexed' ? miraEl('span', 'cx-tag warn', 'Not indexed') : miraEl('span', 'cx-tag ok', 'Indexed');
+      };
+      var pb = miraEl('tbody');
+      (site.pages || []).forEach(function (p) {
+        var dup = (site.duplicate_titles || []).some(function (d) { return d.urls.indexOf(p.url) >= 0; });
+        var noDesc = (site.missing_descriptions || []).indexOf(p.url) >= 0;
+        var issues = [dup ? 'Duplicate title' : null, noDesc ? 'No description' : null].filter(Boolean).join(' · ');
+        var link = miraEl('a', null, miraCmpHost(p.url)); link.href = p.url; link.target = '_blank'; link.rel = 'noopener nofollow';
+        pb.appendChild(miraH('tr', null, miraH('td', 'url', link), miraH('td', null, stateTag(p)),
+          miraEl('td', 'cx-muted', p.title || '—'), miraEl('td', issues ? null : 'cx-muted', issues || '—')));
+      });
+      pp.appendChild(miraH('div', 'cx-tblwrap', miraH('table', 'cx-pages',
+        miraH('thead', null, miraH('tr', null, miraEl('th', null, 'Page'), miraEl('th', null, 'Status'), miraEl('th', null, 'Title'), miraEl('th', null, 'Issues'))), pb)));
     }
 
     if (show('ai')) {

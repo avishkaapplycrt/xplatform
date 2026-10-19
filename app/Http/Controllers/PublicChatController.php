@@ -6,6 +6,7 @@ use App\Models\AskMiraVisitor;
 use App\Models\ChatBot;
 use App\Models\ChatBotUser;
 use App\Models\Industry;
+use App\Services\AskMiraReportStore;
 use App\Services\Llm\AnthropicException;
 use App\Services\Llm\AnthropicRefusedException;
 use App\Services\Llm\MarketingChatBotService;
@@ -98,7 +99,12 @@ class PublicChatController extends Controller
 
         $request->session()->put(self::SESSION_KEY, $bot->trim($history));
 
-        return response()->json(['reply' => $reply, 'report' => $report, 'suggestions' => $result['suggestions'] ?? []]);
+        // The report opens on its own page (route mira.report).
+        if ($report !== null) {
+            $report['report_url'] = app(AskMiraReportStore::class)->store('analysis', $report, $this->premium($request, $validated));
+        }
+
+        return response()->json(['reply' => $reply, 'report' => $report, 'suggestions' => $result['suggestions'] ?? [], 'cta' => $result['cta'] ?? null]);
     }
 
     /**
@@ -155,6 +161,9 @@ class PublicChatController extends Controller
                 $comparison['checks']
             );
         }
+
+        // The comparison opens on its own page (route mira.report).
+        $comparison['report_url'] = app(AskMiraReportStore::class)->store('comparison', $comparison, $premium);
 
         return response()->json([
             'reply'      => $comparer->replyFor($comparison),
@@ -216,6 +225,11 @@ class PublicChatController extends Controller
         $history[] = ['role' => 'assistant', 'content' => $reply];
 
         $request->session()->put(self::SESSION_KEY, $bot->trim($history));
+
+        // The report opens on its own page (route mira.report).
+        if ($report !== null) {
+            $report['report_url'] = app(AskMiraReportStore::class)->store('analysis', $report, $this->premium($request, $validated));
+        }
 
         return response()->json(['reply' => $reply, 'report' => $report, 'suggestions' => $result['suggestions'] ?? []]);
     }

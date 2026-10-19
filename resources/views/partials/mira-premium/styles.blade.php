@@ -325,6 +325,7 @@ input,textarea,select{font:inherit;color:inherit}
 .report-hd{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 .report-hd h2{font-family:var(--f-num);font-weight:500;font-size:22px;letter-spacing:-.03em}
 .report-hd .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
+.report-actions{display:flex;flex-wrap:wrap;gap:8px}
 .upsell-strip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding:16px 20px;margin-bottom:16px;border-radius:var(--r-lg);
   background:linear-gradient(90deg,#141417,#2a2620);color:#f4efe2;box-shadow:var(--shadow)}
 .upsell-strip b{color:var(--gold-3)}

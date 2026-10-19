@@ -59,10 +59,24 @@ $homepageChatData = fn() => [
     'industries'  => \App\Models\Industry::orderBy('name')->get(['id', 'name']),
     'miraLive'    => (new \App\Services\Llm\MarketingChatBotService())->isConfigured(),
     'loggedIn'    => auth('client')->check(),
-    'chatQuestionsByIndustry' => \App\Models\ChatBotQuestion::orderBy('id')
-        ->get(['industry_id', 'question'])
-        ->groupBy(fn ($q) => $q->industry_id ?? 'all')
-        ->map(fn ($group) => $group->pluck('question')->values()),
+    // Starter questions: chat_bot_questions (general, or per industry), plus each
+    // industry's questions from config/ask_mira_industry_questions.php.
+    'chatQuestionsByIndustry' => (function () {
+        $byIndustry = \App\Models\ChatBotQuestion::orderBy('id')
+            ->get(['industry_id', 'question'])
+            ->groupBy(fn ($q) => $q->industry_id ?? 'all')
+            ->map(fn ($group) => $group->pluck('question')->values());
+        $ids = \App\Models\Industry::pluck('id', 'name');
+        foreach ((array) config('ask_mira_industry_questions.industries', []) as $industry) {
+            $id = $ids[$industry['name']] ?? null;
+            if ($id !== null) {
+                $byIndustry[$id] = collect(array_column($industry['questions'], 'question'))
+                    ->merge($byIndustry[$id] ?? [])->unique()->values();
+            }
+        }
+
+        return $byIndustry;
+    })(),
 ];
 
 Route::get('/', fn() => view('homepage-preview', $homepageChatData()))->name('home');
@@ -77,6 +91,20 @@ Route::get('homepage-classic', fn() => view('welcome', $homepageChatData()))->na
 Route::get('homepage-preview', fn() => view('homepage-preview', $homepageChatData()))->name('homepage.preview');
 
 Route::get('mira-premium', [\App\Http\Controllers\MiraPremium\WorkspaceApiController::class, 'page'])->name('mira-premium');
+// A shared Mira Premium audit: read-only, no sign-in, signed and expiring (ScanService::shareUrl).
+Route::get('mira-premium/shared/{uuid}', [\App\Http\Controllers\MiraPremium\WorkspaceApiController::class, 'sharedReport'])
+    ->middleware('signed')->whereUuid('uuid')->name('mira-premium.shared');
+// Ask Mira "Analyse my website" / "Compare with a competitor" results, each on
+// its own page (stored by App\Services\AskMiraReportStore). "pending" is the
+// tab opened on click, while Mira works; it then moves to the report.
+Route::get('mira/report/pending', fn() => view('ask-mira-report', ['report' => null, 'premium' => request()->boolean('premium')]))
+    ->name('mira.report.pending');
+Route::get('mira/report/{id}', function (string $id) {
+    $report = app(\App\Services\AskMiraReportStore::class)->find($id);
+    abort_if($report === null, 404);
+
+    return view('ask-mira-report', ['report' => $report, 'premium' => $report['premium']]);
+})->name('mira.report');
 Route::get('simulator', fn() => view('simulator'))->name('simulator');
 Route::get('case-studies', fn() => view('case-studies'))->name('case-studies');
 Route::get('pricing', fn() => view('pricing'))->name('pricing');
@@ -131,6 +159,7 @@ Route::prefix('mira-premium/api')->name('mira-premium.api.')
             Route::post('scans', 'submitScan')->name('scans.submit');
             Route::post('scans/report', 'scanReport')->name('scans.report');
             Route::get('scans/{id}', 'showScan')->whereNumber('id')->name('scans.show');
+            Route::post('scans/{id}/share', 'shareScan')->whereNumber('id')->name('scans.share');
             Route::post('projects', 'createProject')->name('projects.create');
             Route::patch('projects/{id}', 'updateProject')->whereNumber('id')->name('projects.update');
             Route::delete('projects/{id}', 'deleteProject')->whereNumber('id')->name('projects.delete');

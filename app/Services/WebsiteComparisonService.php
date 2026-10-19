@@ -190,7 +190,7 @@ class WebsiteComparisonService
             'ai_crawlers'       => $this->checkField($report, 'AI crawler access', 'crawlers') ?? [],
             'llms_txt'          => $this->checkField($report, 'llms.txt', 'detail'),
             'vitals'            => array_values(array_map(
-                fn ($c) => array_intersect_key($c, array_flip(['name', 'status', 'detail', 'value', 'unit', 'limits', 'source'])),
+                fn ($c) => array_intersect_key($c, array_flip(['name', 'status', 'detail', 'value', 'unit', 'limits', 'source', 'lighthouse'])),
                 array_filter($this->allChecks($report), fn ($c) => $c['category'] === 'speed')
             )),
         ];

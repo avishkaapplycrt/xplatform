@@ -222,7 +222,7 @@ class SocialConnectionController extends Controller
             'redirect_uri'  => $redirectUri,
             'state'         => $state,
             'response_type' => 'code',
-            'scope'         => 'instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_insights,instagram_business_content_publish',
+            'scope'         => 'instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_insights,instagram_business_content_publish,instagram_business_manage_messages',
         ]);
 
         return redirect('https://www.instagram.com/oauth/authorize?' . $params);
@@ -309,6 +309,8 @@ class SocialConnectionController extends Controller
                 'settings'         => [
                     'connected_via' => 'instagram_business_login',
                     'account_type'  => $profileResponse->json('account_type'),
+                    // What the user actually approved — DM sync needs instagram_business_manage_messages.
+                    'permissions'   => $tokenResponse->json('permissions') ?? [],
                 ],
                 'sync_config'      => [
                     'sync_frequency' => 'hourly',
@@ -962,7 +964,10 @@ class SocialConnectionController extends Controller
                     return response()->json([
                         'success' => true,
                         'message' => 'Instagram synced: ' . ($m['posts_synced'] ?? 0) . ' posts, '
-                            . ($m['followers'] ?? 0) . ' followers.',
+                            . ($m['followers'] ?? 0) . ' followers, '
+                            . (($m['messages_access'] ?? false)
+                                ? ($m['messages_synced'] ?? 0) . ' messages.'
+                                : 'messages not allowed — reconnect Instagram and allow message access.'),
                         'status'  => $connection->status,
                     ]);
 
