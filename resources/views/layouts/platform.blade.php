@@ -26,19 +26,41 @@
     {{-- Left Sidebar --}}
     <aside id="platformSidebar" class="w-[200px] bg-white border-r border-gray-200 flex flex-col h-full flex-shrink-0 transition-all duration-200">
 
-        {{-- Active Tenant --}}
+        {{-- Active Tenant: "Mock Master" shows Mock Master Helper, "Test Account" shows Business Helpers.
+             The helper page you are on decides first, then the last choice (route client.tenant.switch). --}}
+        @php
+            $tenants = ['mockmaster' => 'Mock Master', 'test' => 'Test Account'];
+            $activeTenant = request()->routeIs('client.mock-master-helper*') ? 'mockmaster'
+                : (request()->routeIs('client.business-helpers*') ? 'test' : session('active_tenant', 'test'));
+        @endphp
         <div class="px-3 pt-4 pb-3 border-b border-gray-100">
             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Active Tenant</p>
 
-            <button
-                class="w-full flex items-center justify-between bg-white border border-gray-200 rounded-md px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition">
-                <span>{{ auth('client')->user()?->company_name ?? 'Acme Retail' }}</span>
-                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                </svg>
-            </button>
+            <div class="relative" data-dd-wrap>
+                <button type="button" onclick="xpDd('tenantMenu')" aria-haspopup="menu"
+                    class="w-full flex items-center justify-between bg-white border border-gray-200 rounded-md px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition">
+                    <span>{{ $tenants[$activeTenant] }}</span>
+                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div id="tenantMenu" data-dd-menu role="menu" style="display:none"
+                     class="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 py-1">
+                    @foreach ($tenants as $key => $label)
+                        <a href="{{ route('client.tenant.switch', $key) }}" role="menuitem"
+                           class="flex items-center justify-between px-3 py-2 text-xs transition
+                                  {{ $activeTenant === $key ? 'text-teal-700 font-medium bg-teal-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                            <span>{{ $label }}</span>
+                            @if ($activeTenant === $key)
+                                <svg class="w-3.5 h-3.5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            @endif
+                        </a>
+                    @endforeach
+                </div>
+            </div>
         </div>
 
+        @if ($activeTenant === 'test')
         {{-- Business Helpers --}}
         <div class="px-3 pt-3">
             <a href="{{ route('client.business-helpers') }}"
@@ -54,9 +76,11 @@
                 <span class="truncate">Business Helpers</span>
             </a>
         </div>
+        @endif
 
+        @if ($activeTenant === 'mockmaster')
         {{-- Mock Master Helper --}}
-        <div class="px-3 pt-1">
+        <div class="px-3 pt-3">
             <a href="{{ route('client.mock-master-helper') }}"
                class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
                       {{ request()->routeIs('client.mock-master-helper')
@@ -70,6 +94,7 @@
                 <span class="truncate">Mock Master Helper</span>
             </a>
         </div>
+        @endif
 
         {{-- Platform Layers Navigation --}}
         <div class="px-3 pt-3 flex-1 overflow-y-auto">
