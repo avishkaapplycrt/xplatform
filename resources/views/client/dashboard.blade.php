@@ -128,8 +128,20 @@
                               transition">
             </div>
 
-            {{-- Bell + avatar + name --}}
+            {{-- Home + bell + avatar + name --}}
             <div class="flex items-center gap-3 flex-shrink-0">
+                {{-- Back to the public home page. --}}
+                <a href="{{ route('home') }}"
+                   style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1px solid #e5e7eb;
+                          background:#fff;color:#374151;font-size:12px;font-weight:500;text-decoration:none;transition:background .15s"
+                   onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='#fff'">
+                    <svg style="width:14px;height:14px" fill="none" stroke="currentColor"
+                         stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M3 12l9-8 9 8M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/>
+                    </svg>
+                    Home
+                </a>
                 <button class="relative p-1.5 rounded-lg hover:bg-gray-100 transition">
                     <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor"
                          stroke-width="1.8" viewBox="0 0 24 24">

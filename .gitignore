@@ -25,3 +25,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Never commit .env copies (backups hold real keys); only the template is tracked.
+.env.*
+!.env.example
