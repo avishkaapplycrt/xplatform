@@ -77,7 +77,7 @@ class MarketingChatBotService
     {
         $result = $this->answer($message, $history, $client, $industry, $premium);
 
-        return $result + ['suggestions' => $this->followUps($message, $result['report'] !== null)];
+        return $result + ['suggestions' => $result['related'] ?? $this->followUps($message, $result['report'] !== null)];
     }
 
     /**
@@ -139,6 +139,11 @@ class MarketingChatBotService
     /** @return array{reply: string, report: array|null} */
     private function answer(string $message, array $history, ?Client $client, ?string $industry, bool $premium): array
     {
+        // Ask Mira home industry questions are answered word for word.
+        if (($curated = $this->curatedAnswer($message)) !== null) {
+            return $curated;
+        }
+
         if ($this->wantsDeeperAnalysis($message)) {
             return ['reply' => $this->upgradeMessage(), 'report' => null];
         }
@@ -156,6 +161,49 @@ class MarketingChatBotService
         $messages[] = ['role' => 'user', 'content' => $message];
 
         return ['reply' => $this->client->chat($this->systemPrompt($client, $industry), $messages), 'report' => null];
+    }
+
+    /**
+     * The fixed answer to an Ask Mira home industry question
+     * (config/ask_mira_industry_questions.php), or null for any other message.
+     * Includes the answer's call-to-action button and, as follow-ups, the
+     * industry's other questions plus the AI-answers one.
+     *
+     * @return array{reply: string, report: null, cta: string, related: string[]}|null
+     */
+    private function curatedAnswer(string $message): ?array
+    {
+        $key = fn (string $q) => strtolower(trim($q, " \t\n\r?!."));
+        $asked = $key($message);
+
+        foreach ((array) config('ask_mira_industry_questions.industries', []) as $industry) {
+            foreach ($industry['questions'] as $item) {
+                if ($key($item['question']) !== $asked) {
+                    continue;
+                }
+                $others = array_values(array_filter(
+                    array_column($industry['questions'], 'question'),
+                    fn ($q) => $q !== $item['question']
+                ));
+
+                return [
+                    'reply'   => $this->plainText($item['answer']),
+                    'report'  => null,
+                    'cta'     => $item['cta'],
+                    'related' => array_merge($others, ['How can my business show up in ChatGPT and Google answers?']),
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /** Light markdown (**bold**, "- " bullets) as chat text: bullets become "•", bold markers go. */
+    private function plainText(string $markdown): string
+    {
+        $text = str_replace('**', '', $markdown);
+
+        return preg_replace('/^- /m', '• ', $text);
     }
 
     public function trim(array $history): array
@@ -278,6 +326,45 @@ class MarketingChatBotService
             || preg_match('/\b(aeo|geo)\b/', $text)) {
             return "More and more people get answers straight from Google's answer boxes, voice assistants and AI chatbots like ChatGPT, without clicking through to a website. Showing up there takes two things: AEO (Answer Engine Optimization: clear, question-and-answer content Google can quote) and GEO (Generative Engine Optimization: making sure AI assistants can read, trust and recommend your business).\n"
                 . "Mira Premium checks your website for both, shows exactly what's missing, and writes the fixes for you: {$premiumUrl}";
+        }
+
+        // Ask Mira home starter questions (homepage cards).
+        if (str_contains($text, 'ask mira') && str_contains($text, 'free')) {
+            return "Yes. Asking Mira questions, running a website check and comparing your site with a competitor are free on this page.\n"
+                . "For a deeper look, with step-by-step fixes written for your site and AI visibility tracking, try Mira Premium: {$premiumUrl}";
+        }
+        if (str_contains($text, 'what is ask mira') || $text === 'ask mira' || $text === 'ask mira?') {
+            return "Ask Mira is the AI assistant from X Platforms. Paste your website and Mira checks how it looks to Google, social media and AI tools like ChatGPT, then tells you what to fix in plain language.\n"
+                . "You can also compare your website with a competitor's to see where you're ahead and where you're behind. Open the \"Analyse my website\" tab to start.";
+        }
+        if (str_contains($text, 'mira check') || (str_contains($text, 'check') && str_contains($text, 'my website'))) {
+            return "Mira's website check covers the areas that decide whether people find you online:\n"
+                . "• Google basics: page titles, descriptions, headings, sitemap and robots.txt\n"
+                . "• Social sharing: how your links look on Facebook and LinkedIn\n"
+                . "• Speed and mobile: how fast your site loads and works on phones\n"
+                . "• Trust: HTTPS security and business details\n"
+                . "• AI visibility: whether ChatGPT and Google's AI answers can find and quote you\n"
+                . "Open the \"Analyse my website\" tab and paste your URL to see your scores.";
+        }
+        if (str_contains($text, 'compare') && str_contains($text, 'competitor')) {
+            return "Open the \"Analyse my website\" tab, paste your website, then click \"Compare with a competitor\" and paste their website.\n"
+                . "Mira scores both sites side by side and shows where your competitor is ahead, where you're ahead, and which fixes would close the gap fastest.";
+        }
+        if (str_contains($text, 'showing up on google') || str_contains($text, 'not on google') || (str_contains($text, 'google') && str_contains($text, "isn't"))) {
+            return "The most common reasons are:\n"
+                . "• Google hasn't found it yet: submit a sitemap in Google Search Console.\n"
+                . "• It's blocked by mistake: a noindex tag or a robots.txt rule can hide your site.\n"
+                . "• It's too new: new sites can take a few weeks to appear.\n"
+                . "• Competitors are stronger: clearer content, faster pages and more links from other sites help them rank.\n"
+                . "Run a free check in the \"Analyse my website\" tab to see which one applies to you.";
+        }
+        if (str_contains($text, 'social media') || (str_contains($text, 'link') && str_contains($text, 'shared'))) {
+            return "Add Open Graph tags to your website. They tell Facebook, LinkedIn and WhatsApp which title, description and image to show when someone shares your link; without them, your link may show no picture or random text.\n"
+                . "Mira checks this under \"Social Sharing Preview\" in the \"Analyse my website\" tab.";
+        }
+        if (str_contains($text, 'x platform') && (str_contains($text, 'grow') || str_contains($text, 'help my business'))) {
+            return "X Platforms connects your business data (website, email, CRM, social, call centre, payments) and tells you which customers are about to buy, churn or need attention, so you can act before it's too late.\n"
+                . "Its AI predicts purchase likelihood, churn and lifetime value, then suggests the next best action for each customer. Every plan starts with a free 30-day proof of concept on your own data: " . route('client.register');
         }
 
         if (str_contains($text, 'website url') || str_contains($text, 'enter your website') || str_contains($text, 'analyze') || str_contains($text, 'analyse')

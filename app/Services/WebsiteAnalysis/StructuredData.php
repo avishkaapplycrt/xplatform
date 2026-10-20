@@ -54,7 +54,7 @@ class StructuredData
 
     /**
      * Rich results the page's markup makes it eligible for, in a fixed order:
-     * Product, Review stars, FAQ, Breadcrumb, Organization.
+     * Product, Review stars, FAQ, Breadcrumb, Organization, Course, Event.
      *
      * @return string[]
      */
@@ -75,6 +75,12 @@ class StructuredData
         }
         if ($this->organizations() !== []) {
             $eligible[] = 'Organization';
+        }
+        if ($this->hasType('Course', 'CourseInstance')) {
+            $eligible[] = 'Course';
+        }
+        if ($this->hasType('Event', 'EducationEvent', 'BusinessEvent', 'SocialEvent')) {
+            $eligible[] = 'Event';
         }
 
         return $eligible;

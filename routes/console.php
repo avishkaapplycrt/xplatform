@@ -26,3 +26,6 @@ Schedule::command('insights:generate')->dailyAt('03:00')->withoutOverlapping();
 // Mira Premium: run AI visibility prompt sets whose daily / weekly / monthly
 // schedule is due. Each run is charged to the project owner's plan.
 Schedule::command('mira:visibility-scheduled')->hourly()->withoutOverlapping();
+
+// Mira Premium rank tracking: today's Google position for every tracked keyword.
+Schedule::command('mira:track-ranks')->dailyAt(config('mira_premium.rank_tracking.daily_at', '04:00'))->withoutOverlapping();

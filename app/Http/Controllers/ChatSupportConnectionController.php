@@ -683,17 +683,30 @@ class ChatSupportConnectionController extends Controller
             }
         }
 
-        // Real sync for Slack — pulls channels + message history. Queued
-        // (same shape as SyncInstagramPosts/SyncHubSpotContacts) since a
-        // full workspace history pull can run long. Requires a queue worker
-        // (`php artisan queue:work`) since QUEUE_CONNECTION=database.
+        // Real sync for Slack — pulls channels + message history. Run now, not
+        // via the queue: with no queue worker running, queued syncs never
+        // executed, so "Sync Now" stored nothing (same fix as Instagram).
         if ($provider === 'slack') {
-            \App\Jobs\SyncSlackMessages::dispatch($connection->id);
+            try {
+                \App\Jobs\SyncSlackMessages::dispatchSync($connection->id);
+            } catch (\Throwable $e) {
+                \Log::error('Slack sync failed', ['connection_id' => $connection->id, 'message' => $e->getMessage()]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Slack sync failed: ' . $e->getMessage(),
+                ], 500);
+            }
+
+            $connection->refresh();
+            $m = $connection->metrics ?? [];
+            $skipped = $m['channels_unreadable'] ?? [];
 
             return response()->json([
                 'success' => true,
-                'message' => 'Slack sync queued.',
-                'status'  => 'syncing',
+                'message' => 'Slack synced: ' . ($m['messages_synced'] ?? 0) . ' messages from ' . ($m['channels_read'] ?? 0) . ' channel(s).'
+                    . ($skipped ? ' Not readable: #' . implode(', #', $skipped) . ' — invite the bot (/invite @xplat) or add the channels:join scope.' : ''),
+                'status'  => $connection->status,
             ]);
         }
 

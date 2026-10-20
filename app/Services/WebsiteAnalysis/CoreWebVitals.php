@@ -26,6 +26,13 @@ class CoreWebVitals
         'Cumulative Layout Shift (CLS)'   => ['CUMULATIVE_LAYOUT_SHIFT_SCORE', 'cumulative-layout-shift', 'cls', 'score'],
     ];
 
+    /** Lighthouse category id => check name */
+    private const LIGHTHOUSE = [
+        'performance'    => 'Lighthouse Performance',
+        'accessibility'  => 'Lighthouse Accessibility',
+        'best-practices' => 'Lighthouse Best Practices',
+    ];
+
     public function __construct(private ?string $apiKey = null)
     {
         $this->apiKey ??= (string) config('services.pagespeed.api_key') ?: null;
@@ -39,13 +46,12 @@ class CoreWebVitals
         }
 
         try {
+            // category repeats (category=performance&category=accessibility…), which an
+            // array parameter would encode as category[0]=…, so the query is built by hand.
+            $query = http_build_query(['url' => $url, 'strategy' => 'mobile', 'key' => $this->apiKey])
+                . '&category=' . implode('&category=', array_keys(self::LIGHTHOUSE));
             $response = Http::timeout((int) config('website_checks.pagespeed.timeout_seconds', 45))
-                ->get(self::ENDPOINT, [
-                    'url'      => $url,
-                    'strategy' => 'mobile',
-                    'category' => 'performance',
-                    'key'      => $this->apiKey,
-                ]);
+                ->get(self::ENDPOINT . '?' . $query);
         } catch (\Throwable $e) {
             Log::warning('PageSpeed Insights request failed', ['message' => $e->getMessage()]);
             return $this->notMeasured('Not measured — PageSpeed Insights didn\'t respond');
@@ -99,13 +105,36 @@ class CoreWebVitals
             $checks[] = $check + ['value' => round($value, 3), 'unit' => $unit, 'limits' => $limits];
         }
 
+        // Lighthouse category scores (0–100), with Lighthouse's own bands: 90+ good, 50–89 needs work.
+        foreach (self::LIGHTHOUSE as $key => $name) {
+            $score = data_get($data, "lighthouseResult.categories.{$key}.score");
+            if ($score === null) {
+                $checks[] = $this->check($name, 'info', 'Not measured — PageSpeed Insights returned no score') + ['lighthouse' => true];
+                continue;
+            }
+            $score  = (int) round($score * 100);
+            $status = $score >= 90 ? 'pass' : ($score >= 50 ? 'warn' : 'fail');
+            $checks[] = $this->check($name, $status, "{$score}/100 (lab test; good is 90+)", 'lab test')
+                + ['lighthouse' => true, 'value' => $score, 'unit' => 'score100'];
+        }
+
+        // Time until the page looks complete (Lighthouse Speed Index), for the "load time" tile.
+        $speedIndex = data_get($audits, 'speed-index.numericValue');
+        if ($speedIndex !== null) {
+            $checks[] = $this->check('Load time', 'info', round($speedIndex / 1000, 1) . ' s until the page looks complete (Speed Index, lab test)', 'lab test')
+                + ['lighthouse' => true, 'value' => round($speedIndex), 'unit' => 'ms'];
+        }
+
         return $checks;
     }
 
-    /** @return list<array> the three metrics as 'info' with the same reason */
+    /** @return list<array> every metric and Lighthouse score as 'info' with the same reason */
     private function notMeasured(string $reason): array
     {
-        return array_map(fn ($name) => $this->check($name, 'info', $reason), array_keys(self::METRICS));
+        return array_merge(
+            array_map(fn ($name) => $this->check($name, 'info', $reason), array_keys(self::METRICS)),
+            array_map(fn ($name) => $this->check($name, 'info', $reason) + ['lighthouse' => true], array_values(self::LIGHTHOUSE))
+        );
     }
 
     private function check(string $name, string $status, string $detail, ?string $source = null): array

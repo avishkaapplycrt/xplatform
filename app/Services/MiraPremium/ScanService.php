@@ -5,10 +5,13 @@ namespace App\Services\MiraPremium;
 use App\Jobs\RunMiraScan;
 use App\Models\MiraPremium\MiraProject;
 use App\Models\MiraPremium\MiraScan;
+use App\Services\WebsiteAnalysis\CheckGuide;
+use App\Services\WebsiteAnalysis\SiteCrawler;
 use App\Services\WebsiteAnalyzerException;
 use App\Services\WebsiteAnalyzerService;
 use App\Services\WebsiteComparisonService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 /**
@@ -34,9 +37,11 @@ class ScanService
         private UrlGuard $urls,
         private ?WebsiteAnalyzerService $analyzer = null,
         private ?WebsiteComparisonService $comparer = null,
+        private ?SiteCrawler $crawler = null,
     ) {
         $this->analyzer ??= new WebsiteAnalyzerService();
         $this->comparer ??= new WebsiteComparisonService($this->analyzer);
+        $this->crawler  ??= new SiteCrawler($this->urls);
     }
 
     /** @return array{handle: string, valid_until: string, scan: array, reused: bool} */
@@ -68,7 +73,8 @@ class ScanService
             ->where('url', $url)
             ->where('competitor_url', $competitor)
             ->where('mode', $mode)
-            ->whereIn('status', ['queued', 'running', 'done'])
+            // "Re-run audit" (fresh) only reuses a scan that is still running.
+            ->whereIn('status', empty($input['fresh']) ? ['queued', 'running', 'done'] : ['queued', 'running'])
             ->where('created_at', '>=', now()->subMinutes((int) config('mira_premium.scan_reuse_minutes', 30)))
             ->latest('id')
             ->first();
@@ -114,6 +120,48 @@ class ScanService
         return $this->present($this->expireIfStuck($scan), true);
     }
 
+    /**
+     * A read-only link to one finished scan that anyone can open without
+     * signing in (route mira-premium.shared). Signed and expiring, so only
+     * the owner can mint one and it can't be altered to show another scan.
+     */
+    public function shareUrl(Entitlement $who, int $scanId): array
+    {
+        $scan = MiraScan::where('id', $scanId)->where('subject', $who->subject)->first();
+        if ($scan === null) {
+            throw new MiraApiException('NotFound', 'That scan was not found.');
+        }
+        if ($scan->status !== 'done') {
+            throw new MiraApiException('InvalidInput', 'Only a finished audit can be shared.');
+        }
+
+        $until = now()->addDays((int) config('mira_premium.share_days', 30));
+
+        return [
+            'url'         => URL::temporarySignedRoute('mira-premium.shared', $until, ['uuid' => $scan->uuid]),
+            // The same page opening the print dialog ("Download PDF"); print is part of the signature.
+            'pdf_url'     => URL::temporarySignedRoute('mira-premium.shared', $until, ['uuid' => $scan->uuid, 'print' => 1]),
+            'valid_until' => $until->toIso8601String(),
+        ];
+    }
+
+    /** The report page data for a shared link (see shareUrl), or null when the scan is gone or unfinished. */
+    public function sharedReport(string $uuid): ?array
+    {
+        $scan = MiraScan::where('uuid', $uuid)->where('status', 'done')->first();
+        $data = $scan?->reportData();
+        if (!$data) {
+            return null;
+        }
+
+        return [
+            'type'    => $scan->kind === 'comparison' ? 'comparison' : 'analysis',
+            'premium' => true,
+            'data'    => $data,
+            'shared'  => true,
+        ];
+    }
+
     /** A subscriber reopening a scan from their history (no handle needed — ownership is checked). */
     public function owned(Entitlement $who, int $scanId): array
     {
@@ -147,7 +195,17 @@ class ScanService
                 $competitorOverall = $report['competitor']['overall'] ?? null;
             } else {
                 $checks = $this->analyzer->analyzeSeoAndTechnical($scan->url);
+                // "Pages analysed": other pages of the same site. A crawl failure never fails the audit.
+                try {
+                    $crawl = $this->crawler->crawl($scan->url);
+                } catch (\Throwable $e) {
+                    Log::warning('Mira Premium site crawl failed', ['scan' => $scan->uuid, 'message' => $e->getMessage()]);
+                    $crawl = ['site' => null, 'checks' => []];
+                }
+                // Premium-only page checks: conversion & trust, hreflang.
+                $checks = array_merge($checks, $this->analyzer->premiumChecks(), array_map(fn ($c) => $c + CheckGuide::for($c['name']), $crawl['checks']));
                 $report = $this->analyzer->buildReport($scan->url, $checks, $scan->mode === 'premium' && $aiRecommendations);
+                $report['site'] = $crawl['site'];
                 $you    = $report;
                 $checks = array_merge(...array_map(fn ($c) => $c['checks'], $report['categories'] ?: [['checks' => []]]));
                 $competitorOverall = null;

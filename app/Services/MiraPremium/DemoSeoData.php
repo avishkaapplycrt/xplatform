@@ -13,6 +13,14 @@ class DemoSeoData
 {
     public static function result(string $path, array $task): array
     {
+        // Rank tracking calls carry no target: a Google results page and keyword facts.
+        if (str_ends_with($path, 'serp/google/organic/live/advanced')) {
+            return self::serp((string) ($task['keyword'] ?? ''), explode('|', (string) ($task['tag'] ?? 'example.com')));
+        }
+        if (str_ends_with($path, 'keyword_overview/live')) {
+            return ['items' => array_map([self::class, 'keywordFacts'], (array) ($task['keywords'] ?? []))];
+        }
+
         $target = (string) ($task['target'] ?? 'example.com');
         mt_srand(crc32($target . '|' . ($task['location_code'] ?? '')));
         $scale = $task['location_code'] ?? 2036;
@@ -142,9 +150,68 @@ class DemoSeoData
         ];
 
         return array_map(fn ($k) => ['keyword_data' => ['keyword' => $k[0], 'keyword_info' => ['search_volume' => $k[1], 'cpc' => mt_rand(50, 900) / 100],
+            'keyword_properties' => ['keyword_difficulty' => self::difficulty($k[0], $k[1])],
             'search_intent_info' => ['main_intent' => $k[3]]],
             'ranked_serp_element' => ['serp_item' => ['type' => $k[4], 'rank_group' => $k[2], 'etv' => $k[1] * [1 => .32, 2 => .18, 3 => .11, 4 => .08, 5 => .06, 6 => .05, 7 => .04, 8 => .035, 9 => .03][min(9, $k[2])] ?? .02 * 1,
                 'url' => "https://{$target}/"]]], $rows);
+    }
+
+    /** Sample keyword difficulty: stable per keyword, higher for big generic terms. */
+    private static function difficulty(string $keyword, ?int $volume = null): int
+    {
+        $base = crc32('kd|' . $keyword) % 60;
+        $size = $volume ? min(35, (int) round(log10(max(10, $volume)) * 7)) : 10;
+
+        return max(1, min(100, $base + $size - (str_word_count($keyword) > 3 ? 15 : 0)));
+    }
+
+    private static function keywordFacts(string $keyword): array
+    {
+        $volume  = [90, 140, 260, 390, 590, 880, 1300, 1900, 2900, 4400, 6600, 9900][crc32('vol|' . $keyword) % 12];
+        $intents = ['informational', 'commercial', 'transactional', 'navigational'];
+        $intent  = preg_match('/\b(buy|price|cost|cheap|book|order|download)\b/i', $keyword) ? 'transactional'
+            : (preg_match('/\b(best|top|vs|review|compare|alternative)\b/i', $keyword) ? 'commercial'
+            : (preg_match('/\b(how|what|why|when|guide|tips)\b/i', $keyword) ? 'informational' : $intents[crc32($keyword) % 4]));
+
+        return ['keyword' => $keyword, 'keyword_info' => ['search_volume' => $volume],
+            'keyword_properties' => ['keyword_difficulty' => self::difficulty($keyword, $volume)],
+            'search_intent_info' => ['main_intent' => $intent]];
+    }
+
+    /**
+     * A sample Google results page: each domain has a stable base position per
+     * keyword that drifts a little day to day, so tracking charts move.
+     */
+    private static function serp(string $keyword, array $domains): array
+    {
+        $day   = (int) floor(time() / 86400);
+        $taken = [];
+        foreach (array_values(array_filter($domains)) as $n => $d) {
+            $base = crc32($keyword . '|' . $d) % ($n === 0 ? 24 : 30) + 1;
+            $pos  = max(1, $base + (crc32($keyword . '|' . $d . '|' . $day) % 5) - 2);
+            if ($pos > 20 && crc32($d . $keyword) % 3 === 0) {
+                continue;   // some domains miss the first two pages entirely
+            }
+            while (isset($taken[$pos])) {
+                $pos++;
+            }
+            $taken[$pos] = $d;
+        }
+
+        $items = [];
+        for ($p = 1; $p <= 30; $p++) {
+            $d = $taken[$p] ?? 'site-' . $p . '.example';
+            $items[] = ['type' => 'organic', 'rank_group' => $p, 'rank_absolute' => $p, 'domain' => $d,
+                'url' => 'https://' . $d . '/' . trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($keyword)), '-')];
+        }
+        if (crc32($keyword) % 2 === 0) {
+            array_unshift($items, ['type' => 'people_also_ask']);
+        }
+        if (crc32($keyword) % 3 === 0) {
+            array_unshift($items, ['type' => 'ai_overview']);
+        }
+
+        return ['keyword' => $keyword, 'items' => $items];
     }
 
     private static function pages(string $target): array

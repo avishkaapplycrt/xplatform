@@ -59,6 +59,20 @@ class UrlGuard
         return preg_replace('/^www\./', '', strtolower((string) parse_url($url, PHP_URL_HOST)));
     }
 
+    /**
+     * True for an http(s) URL on a public host. For URLs the server fetches on
+     * its own (links found on a page, redirect hops, crawled pages), which
+     * never passed through normalize().
+     */
+    public function isPublicUrl(string $url): bool
+    {
+        $parts = parse_url($url);
+
+        return in_array(strtolower($parts['scheme'] ?? ''), ['http', 'https'], true)
+            && ($parts['host'] ?? '') !== ''
+            && $this->isPublicHost(strtolower($parts['host']));
+    }
+
     private function isPublicHost(string $host): bool
     {
         $host = trim($host, '[]');

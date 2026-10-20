@@ -89,6 +89,7 @@ const ENDPOINTS = {
   submitScan:     { m: 'POST',   p: () => '/scans',                             out: ['handle', 'valid_until', 'scan'] },
   scanReport:     { m: 'POST',   p: () => '/scans/report',                      out: ['scan'] },
   showScan:       { m: 'GET',    p: (a) => '/scans/' + a.id,                    out: ['scan'] },
+  shareScan:      { m: 'POST',   p: (a) => '/scans/' + a.id + '/share',         out: ['url', 'pdf_url', 'valid_until'] },
   createProject:  { m: 'POST',   p: () => '/projects',                          out: ['project'] },
   updateProject:  { m: 'PATCH',  p: (a) => '/projects/' + a.id,                 out: ['project'] },
   deleteProject:  { m: 'DELETE', p: (a) => '/projects/' + a.id,                 out: [] },
@@ -101,6 +102,10 @@ const ENDPOINTS = {
   deletePrompt:   { m: 'DELETE', p: (a) => '/prompts/' + a.id,                  out: [] },
   startRun:       { m: 'POST',   p: (a) => '/projects/' + a.id + '/visibility/runs', out: ['run'] },
   panel:          { m: 'GET',    p: (a) => '/projects/' + a.id + '/panels/' + a.panel + '?period=' + encodeURIComponent(a.period) + (a.refresh ? '&refresh=1' : ''), out: ['panel', 'period', 'data'] },
+  ranks:          { m: 'GET',    p: (a) => '/projects/' + a.id + '/ranks',                 out: ['ranks'] },
+  rankAdd:        { m: 'POST',   p: (a) => '/projects/' + a.id + '/ranks',                 out: ['added', 'ranks'] },
+  rankCheck:      { m: 'POST',   p: (a) => '/projects/' + a.id + '/ranks/check',           out: ['checked', 'ranks'] },
+  rankDelete:     { m: 'DELETE', p: (a) => '/projects/' + a.id + '/ranks/' + a.kw,       out: ['ranks'] },
   googleStatus:   { m: 'GET',    p: (a) => '/projects/' + a.id + '/google',     out: ['google'] },
   googleSelect:   { m: 'PATCH',  p: (a) => '/projects/' + a.id + '/google',     out: ['google'] },
   googleDisconnect: { m: 'POST', p: () => '/google/disconnect',                 out: ['google'] },
@@ -163,6 +168,7 @@ const S = {
   scan: RD.notAsked,          // {scan, report}
   history: RD.notAsked,       // {scans, timeline}
   vis: RD.notAsked,           // {prompts, report, caps}
+  ranks: RD.notAsked,         // rank tracking report (pid = project it belongs to)
   renderedReport: null, scanPoll: null, visPoll: null, turnstileToken: null,
   period: '30d', periodInfo: null, trafficMetric: 'visits',
   reports: {}, perfMetric: 'organic_traffic', perfYoy: false,
@@ -329,9 +335,10 @@ function setTab(tab, silent) {
   if (!silent) track('tab_open', { tab });
   if (tab === 'audit') renderAudit();
   if (tab === 'visibility') { loadVisibility(); }
-  if (tab === 'organic') { renderOrganic(); ['insights', 'countries', 'pages', 'competitors', 'paid', 'trends'].forEach((r) => loadReport(r)); }
+  if (tab === 'organic') { renderOrganic(); ['insights', 'difficulty', 'countries', 'pages', 'competitors', 'paid', 'trends'].forEach((r) => loadReport(r)); }
   if (tab === 'backlinks') { renderBacklinks(); loadReport('backlinks'); loadReport('links'); }
   if (tab === 'history') { loadHistory(); }
+  if (tab === 'ranks') { loadRanks(); }
   if (tab === 'chat') $('chatInput').focus();
   try { history.replaceState(null, '', '#' + tab); } catch (e) {}
 }
@@ -976,7 +983,7 @@ function niceMax(v) {
 const REPORT_VIEW = {
   performance: () => renderPerformance(), positions: () => renderPositions(),
   insights: () => renderOrganic(), countries: () => renderOrganic(), pages: () => renderOrganic(),
-  competitors: () => renderOrganic(), paid: () => renderOrganic(),
+  competitors: () => renderOrganic(), paid: () => renderOrganic(), difficulty: () => renderOrganic(),
   backlinks: () => renderBacklinks(), links: () => renderBacklinks(), trends: () => renderOrganic(),
   ai_brand: () => renderBrandRadar(),
 };
@@ -1025,7 +1032,10 @@ const tdn = (v) => h('td', { cls: 'r' }, h('span', { cls: 'num', text: v }));
 
 // Multi-series line chart over a shared date axis: legend toggles, hover lists every
 // series, optional vertical markers (Google updates).
-function multiLine(series, { height = 220, unit = '', notes = [], fmtV = fmt.compact } = {}) {
+function multiLine(series, { height = 220, unit = '', notes = [], fmtV = fmt.compact, daily = false } = {}) {
+  // daily: day-level points (rank tracking) are labelled by day, not month.
+  const axisFmt = daily ? { day: 'numeric', month: 'short' } : { month: 'short', year: '2-digit' };
+  const tipFmt = daily ? { day: 'numeric', month: 'long', year: 'numeric' } : { month: 'long', year: 'numeric' };
   const w = 680, padL = 40, padB = 22, padT = 10, innerH = height - padB - padT;
   const dates = [...new Set(series.flatMap((s) => s.points.map((p) => p.date)))].sort();
   const wrap = h('div', { cls: 'chart-wrap', style: { marginTop: '10px' } });
@@ -1059,7 +1069,7 @@ function multiLine(series, { height = 220, unit = '', notes = [], fmtV = fmt.com
     });
     [0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => n && a.indexOf(v) === i).forEach((i) => {
       const t = h('text', { x: x(i), y: height - 4, 'font-size': 10, fill: '#a2a0a7', 'text-anchor': i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle' });
-      t.textContent = new Date(dates[i]).toLocaleDateString(undefined, { month: 'short', year: '2-digit' }); svg.appendChild(t);
+      t.textContent = new Date(dates[i]).toLocaleDateString(undefined, axisFmt); svg.appendChild(t);
     });
     const guide = h('line', { y1: padT, y2: padT + innerH, stroke: '#141417', 'stroke-width': 1, 'stroke-dasharray': '2 3', opacity: 0 });
     svg.appendChild(guide);
@@ -1070,7 +1080,7 @@ function multiLine(series, { height = 220, unit = '', notes = [], fmtV = fmt.com
       const i = Math.max(0, Math.min(n - 1, Math.round((px - padL) / ((w - padL - 8) / Math.max(1, n - 1)))));
       guide.setAttribute('x1', x(i)); guide.setAttribute('x2', x(i)); guide.setAttribute('opacity', .35);
       tip.innerHTML = '';
-      tip.append(h('div', null, h('b', { text: new Date(dates[i]).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) })));
+      tip.append(h('div', null, h('b', { text: new Date(dates[i]).toLocaleDateString(undefined, tipFmt) })));
       vis.forEach((s) => { const p = s.points.find((q) => q.date === dates[i]); if (p) tip.append(h('div', null, s.name + ': ' + (p.value === null ? '—' : fmt.num(p.value) + unit))); });
       tip.style.left = (x(i) / w * 100) + '%'; tip.style.top = '30px'; tip.style.opacity = 1;
     });
@@ -1172,8 +1182,9 @@ function renderOrganic() {
   if (gateReport(body, 'organic', 'Every search signal,', 'explained.', 'Where your traffic comes from, which pages earn it, who you compete with, and what you pay for.',
     ['Traffic by search intent and branded vs non-branded', 'Traffic share across 10 markets', 'Top pages with the AI answers that cite them', 'Organic competitors and a monthly traffic race'])) return;
   const c = () => h('div', { cls: 'card pnl' });
-  const intent = c(), branded = c(), serp = c(), countries = c(), pages = c(), comps = c(), race = c(), paid = c(), sov = c(), trendsC = c();
+  const intent = c(), branded = c(), serp = c(), countries = c(), pages = c(), comps = c(), race = c(), paid = c(), sov = c(), trendsC = c(), kd = c();
   body.append(h('div', { cls: 'rep-grid three', style: { marginTop: 0 } }, intent, branded, serp),
+    h('div', { cls: 'rep-full' }, kd),
     h('div', { cls: 'rep-full' }, trendsC),
     h('div', { cls: 'rep-full' }, countries), h('div', { cls: 'rep-full' }, pages),
     h('div', { cls: 'rep-grid' }, comps, race), h('div', { cls: 'rep-full' }, sov), h('div', { cls: 'rep-full' }, paid));
@@ -1185,6 +1196,23 @@ function renderOrganic() {
     box.append(h('div', { cls: 'kv' }, d.intent.flatMap((r) => [h('span', { cls: 'k' }, h('s', { style: { background: intentColors[r.intent] } }), r.intent.charAt(0).toUpperCase() + r.intent.slice(1)),
       h('span', { cls: 'v', text: fmt.pct(r.share) }), h('span', { cls: 'm', text: fmt.compact(r.traffic) + ' visits' })])));
   }, ['Informational', 'Commercial']);
+  kd.classList.add('rank-table');
+  reportCard(kd, 'Keyword difficulty', null, 'difficulty', (box, d) => {
+    box.append(pnlHead('Keyword difficulty', d.note + ' 0–100: higher is harder.', sourceTag(d, 'DataForSEO')));
+    if (!d.scored) { box.append(h('p', { cls: 'muted', text: 'No difficulty scores for these keywords yet.' })); return; }
+    const total = d.bands.reduce((s, b) => s + b.keywords, 0) || 1;
+    box.append(h('div', { cls: 'mgrid three' },
+      metric('Average difficulty', 'Mean difficulty of the keywords the site ranks for', String(d.average), null, [h('span', { cls: 'kd-chip', style: { background: kdColor(d.average) }, text: kdBand(d.bands, d.average) })]),
+      metric('Easy wins', 'Difficulty under 30 and ranking 4–20: closest to the top 3', fmt.num(d.easy_wins.length), null, [h('span', { text: 'keywords to push first' })]),
+      metric('Keywords scored', 'Ranked keywords with a difficulty score', fmt.num(d.scored), null, [h('span', { text: 'of ' + fmt.num(d.sample) + ' analysed' })])));
+    box.append(h('div', { style: { marginTop: '16px' } }, h('div', { cls: 'm-sub', text: 'Keywords by difficulty' }),
+      h('div', { cls: 'stack' }, d.bands.map((b) => h('i', { title: b.label + ': ' + b.keywords + ' keywords', style: { width: (b.keywords / total * 100) + '%', background: kdColor(b.min + 1) } }))),
+      h('div', { cls: 'stack-legend' }, d.bands.map((b) => h('span', null, h('s', { style: { background: kdColor(b.min + 1) } }), b.label + ' · ' + b.keywords)))));
+    const rows = (d.easy_wins.length ? d.easy_wins : d.keywords).slice(0, 10);
+    box.append(h('div', { cls: 'm-sub', style: { marginTop: '18px' }, text: d.easy_wins.length ? 'Easy wins: low difficulty, already on page 1–2' : 'Top keywords by traffic' }),
+      table(['Keyword', 'Difficulty', 'Position', 'Volume', 'Intent'], rows.map((k) => h('tr', null,
+        td(k.keyword), h('td', null, kdChip(k.difficulty, k.band)), tdn(k.position ?? '—'), tdn(fmt.compact(k.volume)), td(k.intent || '—', 'muted'))), { right: [2, 3] }));
+  }, ['Average difficulty', 'Easy wins']);
   reportCard(branded, 'Branded vs non-branded', null, 'insights', (box, d) => {
     const b = d.branded;
     box.append(pnlHead('Branded vs non-branded', 'Traffic from searches that include your brand vs everything else. Non-branded is the growth engine.', sourceTag(d, 'DataForSEO')));
@@ -1437,12 +1465,48 @@ function renderAudit() {
         h('span', { cls: 'badge ' + (scan.mode === 'premium' ? 'badge-plan' : scan.mode === 'sample' ? 'badge-warn' : 'badge-preview'),
           text: scan.mode === 'premium' ? 'Premium report' : scan.mode === 'sample' ? 'Sample report' : 'Preview report' }));
       $('auditUpsell').hidden = scan.mode !== 'preview';
+      wireAuditActions(scan);
       if (S.renderedReport !== scan.uuid && report) {
         S.renderedReport = scan.uuid;
         if (scan.kind === 'comparison') miraRenderComparison(report); else miraRenderSiteReport(report);
       }
     }
   }
+}
+// Report header buttons: a signed read-only link (Share), the same page in print mode (PDF), and a fresh audit.
+function wireAuditActions(scan) {
+  const busy = (btn, on) => { btn.disabled = on; btn.classList.toggle('loading', on); };
+  $('auditShare').onclick = async (e) => {
+    const btn = e.currentTarget;
+    busy(btn, true);
+    try {
+      const { url, valid_until } = await api('shareScan', { id: scan.id });
+      let copied = false;
+      try { await navigator.clipboard.writeText(url); copied = true; } catch (err) { copied = false; }
+      const open = h('a', { cls: 'btn btn-ghost btn-sm', href: url, target: '_blank', rel: 'noopener', text: 'Open' });
+      toast((copied ? 'Link copied. ' : 'Share this link: ' + url + ' — ') + 'Anyone with it can view this report until ' + fmt.date(valid_until) + '.', { action: open });
+    } catch (err) { toast(explain(err).msg, { error: true }); }
+    finally { busy(btn, false); }
+  };
+  $('auditPdf').onclick = async (e) => {
+    const btn = e.currentTarget;
+    // Open the tab now (inside the click) so it isn't blocked as a pop-up, then point it at the report.
+    const tab = window.open('', '_blank');
+    busy(btn, true);
+    try {
+      const { pdf_url } = await api('shareScan', { id: scan.id });
+      if (tab) tab.location = pdf_url; else location.href = pdf_url;
+    } catch (err) { if (tab) tab.close(); toast(explain(err).msg, { error: true }); }
+    finally { busy(btn, false); }
+  };
+  $('auditRerun').onclick = () => {
+    $('scanUrl').value = scan.url;
+    if (scan.competitor_url && !S.compare) $('compToggle').click();
+    if (scan.competitor_url) $('scanComp').value = scan.competitor_url;
+    S.freshScan = true;   // read once by submitScan
+    $('scanForm').requestSubmit();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 }
 function stateCard(iconPath, title, text, action) {
   return h('div', { cls: 'card state' }, h('span', { cls: 'icon' }, icon(iconPath)), h('h3', { text: title }), h('p', { text: text }), action || null);
@@ -1459,6 +1523,140 @@ function progressCard(meta) {
 }
 
 // ------------------------------------------------------------- visibility
+// ------------------------------------------------------------ rank tracking
+// Keyword difficulty colours: green (easy) → red (very hard), one per band.
+const KD_COLORS = ['#2e9e5b', '#62b35a', '#c9a227', '#e58a2b', '#d6582f', '#b3261e'];
+const KD_MINS = [0, 15, 30, 50, 70, 85];
+function kdColor(v) { if (v === null || v === undefined) return '#bdbab2'; let i = 0; KD_MINS.forEach((m, k) => { if (v >= m) i = k; }); return KD_COLORS[i]; }
+function kdBand(bands, v) { let l = ''; (bands || []).forEach((b) => { if (v >= b.min) l = b.label; }); return l; }
+function kdChip(v, band) {
+  return v === null || v === undefined ? h('span', { cls: 'muted', text: '—' })
+    : h('span', { cls: 'kd-chip', title: band || '', style: { background: kdColor(v) } }, h('b', { text: String(v) }), band ? ' ' + band : '');
+}
+function moveTag(v) {
+  if (v === null || v === undefined) return h('span', { cls: 'muted', text: '—' });
+  if (v === 0) return h('span', { cls: 'delta flat', text: '±0' });
+  return h('span', { cls: 'delta ' + (v > 0 ? 'up' : 'down'), title: v > 0 ? 'Moved up' : 'Moved down', text: (v > 0 ? '▲ ' : '▼ ') + Math.abs(v) });
+}
+// Position sparkline: up is better, gaps where the site was outside the top 100.
+function posSpark(points) {
+  const w = 90, hgt = 26, vals = points.map((p) => p.position).filter((v) => v);
+  if (vals.length < 2) return h('span', { cls: 'muted', text: vals.length ? 'today only' : '—' });
+  const max = Math.max(...vals), min = Math.min(...vals), span = Math.max(1, max - min);
+  const x = (i) => 2 + i / Math.max(1, points.length - 1) * (w - 4);
+  const y = (v) => 3 + (v - min) / span * (hgt - 6);
+  const pts = points.map((p, i) => p.position ? x(i) + ',' + y(p.position) : null).filter(Boolean).join(' ');
+  return h('svg', { viewBox: `0 0 ${w} ${hgt}`, style: { width: w + 'px', height: hgt + 'px' }, role: 'img', 'aria-label': 'Position over time' },
+    h('polyline', { points: pts, fill: 'none', stroke: '#141417', 'stroke-width': 1.6, 'stroke-linejoin': 'round' }));
+}
+async function loadRanks(force) {
+  const p = project();
+  if (!premium() || !p) { renderRanks(); return; }
+  if (!force && S.ranks.pid === p.id && S.ranks.tag === 'Success') { renderRanks(); return; }
+  S.ranks = Object.assign(RD.loading(), { pid: p.id });
+  renderRanks();
+  try {
+    const res = await api('ranks', { id: p.id });
+    if (S.projectId !== p.id) return;
+    S.ranks = Object.assign(RD.success(res.ranks), { pid: p.id });
+  } catch (e) {
+    if (S.projectId !== p.id) return;
+    S.ranks = Object.assign(RD.failure(e), { pid: p.id });
+  }
+  renderRanks();
+}
+async function rankAction(btn, name, args, body, done) {
+  const p = project();
+  if (btn) { btn.disabled = true; btn.classList.add('loading'); }
+  try {
+    const res = await api(name, Object.assign({ id: p.id }, args || {}), body);
+    S.ranks = Object.assign(RD.success(res.ranks), { pid: p.id });
+    renderRanks();
+    if (done) done(res);
+  } catch (e) { toast(explain(e).msg, { error: true }); }
+  finally { if (btn) { btn.disabled = false; btn.classList.remove('loading'); } }
+}
+function renderRanks() {
+  const body = $('ranksBody');
+  if (!body || S.tab !== 'ranks') return;
+  if (gateReport(body, 'ranks', 'Know where you rank,', 'every day.', 'Track the Google position of the keywords that matter, see how hard each one is, and how your share of clicks compares with your competitors.',
+    ['Daily Google positions for your chosen keywords', 'Keyword difficulty and search volume for every keyword', 'Visibility and share of voice against competitors', 'Movement since yesterday and last week'])) return;
+  const st = S.ranks;
+  const c = () => h('div', { cls: 'card pnl' });
+  if (st.tag === 'NotAsked' || st.tag === 'Loading') { const k = c(); k.append(...skeletonPanel('Rank tracking')); body.append(k); return; }
+  if (st.tag === 'Failure') {
+    const k = c(); k.append(pnlHead('Rank tracking'), h('p', { cls: 'muted', text: explain(st.error).msg }),
+      h('button', { cls: 'btn btn-secondary btn-sm', type: 'button', style: { marginTop: '12px' }, on: { click: () => loadRanks(true) }, text: 'Retry' }));
+    body.append(k); return;
+  }
+  const d = st.data;
+  if (d.connected === false) { const k = c(); k.append(...connectCard('Rank tracking', null, d, ['Visibility', 'Average position', 'Top 10'])); body.append(k); return; }
+  const s = d.summary, me = d.domain;
+
+  // Add keywords + check now.
+  const addCard = c();
+  const input = h('textarea', { id: 'rankInput', cls: 'rank-input', rows: 2, placeholder: 'Add keywords, one per line or separated by commas', 'aria-label': 'Keywords to track' });
+  const addBtn = h('button', { cls: 'btn btn-primary btn-sm', type: 'button', text: 'Track keywords' });
+  addBtn.addEventListener('click', () => {
+    if (!input.value.trim()) { input.focus(); return; }
+    rankAction(addBtn, 'rankAdd', null, { keywords: input.value }, (res) => toast(res.added + ' keyword' + (res.added === 1 ? '' : 's') + ' added and checked.'));
+  });
+  const checkBtn = h('button', { cls: 'btn btn-secondary btn-sm', type: 'button', text: 'Check now', title: 'Re-check keywords not checked in the last hour' });
+  checkBtn.addEventListener('click', () => rankAction(checkBtn, 'rankCheck', null, null, (res) => toast(res.checked ? res.checked + ' keyword' + (res.checked === 1 ? '' : 's') + ' re-checked.' : 'Everything was checked in the last hour.')));
+  addCard.append(pnlHead('Tracked keywords', 'Checked automatically once a day. Positions are Google ' + (d.location ? 'for location ' + d.location.location_code : '') + ', top 100.', sourceTag(d, 'DataForSEO SERP')),
+    h('div', { cls: 'rank-add' }, input, h('div', { cls: 'rank-add-btns' }, addBtn, s.tracked ? checkBtn : null)),
+    h('div', { cls: 'm-sub', style: { marginTop: '8px' }, text: fmt.num(s.tracked) + ' of ' + fmt.num(d.limit) + ' keywords on your plan' + (d.fetched_at ? ' · last checked ' + fmt.date(d.fetched_at) : '') }));
+  if (d.suggestions && d.suggestions.length) {
+    addCard.append(h('div', { cls: 'rank-sugs' }, h('span', { cls: 'm-sub', text: 'You already rank for:' }),
+      d.suggestions.map((k) => h('button', { cls: 'chip rank-sug', type: 'button', title: 'Track this keyword', text: '+ ' + k,
+        on: { click: (e) => rankAction(e.currentTarget, 'rankAdd', null, { keywords: k }) } }))));
+  }
+  body.append(addCard);
+  if (!s.tracked) return;
+
+  // Summary.
+  const sum = c();
+  sum.append(h('div', { cls: 'mgrid six' },
+    metric('Visibility', 'Share of the clicks you would get if you ranked #1 for every tracked keyword', fmt.pct(s.visibility), null),
+    metric('Average position', 'Across keywords in the top 100', s.avg_position === null ? '—' : String(s.avg_position), null),
+    metric('Top 3', 'Keywords in positions 1–3', fmt.num(s.top3), null),
+    metric('Top 10', 'Keywords on page 1', fmt.num(s.top10), null),
+    metric('Ranking', 'Keywords in the top 100', fmt.num(s.ranking) + ' / ' + fmt.num(s.tracked), null),
+    metric('Since yesterday', 'Keywords that moved up / down', '▲ ' + s.improved + '  ▼ ' + s.declined, null)));
+  body.append(sum);
+
+  // Share of voice + visibility trend.
+  const sov = c(), trend = c();
+  const maxShare = Math.max(1, ...d.share_of_voice.map((x) => x.share));
+  sov.append(pnlHead('Share of voice', 'Each site\'s estimated clicks (search volume × click-through at its position) as a share of all tracked sites, on today\'s positions'),
+    h('div', { cls: 'sov' }, d.share_of_voice.map((x, i) => h('div', { cls: 'sov-row' + (x.domain === me ? ' you' : '') },
+      h('span', { cls: 'sov-name', text: x.domain + (x.domain === me ? ' (you)' : '') }),
+      h('span', { cls: 'sov-bar' }, h('i', { style: { width: (x.share / maxShare * 100) + '%', background: x.domain === me ? YOU : PALETTE[i % PALETTE.length] } })),
+      h('span', { cls: 'num', text: fmt.pct(x.share) })))));
+  if (d.domains.length < 2) sov.append(h('p', { cls: 'def', style: { marginTop: '10px' }, text: 'Add competitor websites to the project to compare share of voice.' }));
+  trend.append(pnlHead('Visibility over time', 'Daily visibility for you and each competitor'));
+  trend.append(d.trend.length > 1
+    ? multiLine(d.domains.map((dom, i) => ({ name: dom === me ? dom + ' (you)' : dom, color: dom === me ? YOU : PALETTE[i % PALETTE.length], bold: dom === me,
+        points: d.trend.map((p) => ({ date: p.date, value: p[dom] })) })), { height: 200, daily: true, fmtV: (v) => fmt.pct(v) })
+    : h('p', { cls: 'muted', text: 'The trend appears after the second daily check.' }));
+  body.append(h('div', { cls: 'rep-grid' }, sov, trend));
+
+  // Keyword table.
+  const tbl = h('div', { cls: 'card pnl rank-table' });
+  const comps = d.domains.filter((x) => x !== me);
+  tbl.append(pnlHead('Positions', 'Today\'s Google position, movement, best position in the last 30 days and the page that ranks'),
+    table(['Keyword', 'Difficulty', 'Volume', 'Position', '1 day', '7 days', 'Best', 'Last 30 days', ...comps.map((x) => x.split('.')[0]), ''], d.keywords.map((k) => h('tr', { title: k.url || '' },
+      td(h('span', null, h('b', { text: k.keyword }), k.url ? h('small', { cls: 'rank-url', text: shortUrl(k.url) }) : null, k.intent ? h('small', { cls: 'rank-url', text: k.intent }) : null)),
+      h('td', null, kdChip(k.difficulty, k.band)), tdn(fmt.compact(k.volume)),
+      h('td', { cls: 'r' }, h('b', { cls: 'num', text: k.position ?? '100+' })), h('td', { cls: 'r' }, moveTag(k.change_1d)), h('td', { cls: 'r' }, moveTag(k.change_7d)),
+      tdn(k.best ?? '—'), h('td', null, posSpark(k.history)),
+      ...comps.map((x) => tdn(k.competitors && k.competitors[x] ? k.competitors[x] : '—')),
+      h('td', { cls: 'r' }, h('button', { cls: 'btn btn-ghost btn-sm', type: 'button', title: 'Stop tracking', 'aria-label': 'Stop tracking ' + k.keyword, text: '×',
+        on: { click: (e) => rankAction(e.currentTarget, 'rankDelete', { kw: k.id }) } })))),
+      { right: [2, 3, 4, 5, 6, ...comps.map((_, i) => 8 + i)] }));
+  body.append(tbl);
+}
+
 function lockedFeature(from, title, em, text, bullets, preview) {
   return h('div', { cls: 'locked-card' },
     h('div', null,
@@ -1808,7 +2006,8 @@ async function submitScan(e) {
       } else projectId = null;
       if (projectId && projectId !== S.projectId) selectProject(projectId, true);
     }
-    const res = await api('submitScan', null, { url, competitor_url: competitor || null, project_id: projectId, turnstile_token: token });
+    const fresh = S.freshScan === true; S.freshScan = false;
+    const res = await api('submitScan', null, { url, competitor_url: competitor || null, project_id: projectId, turnstile_token: token, fresh });
     S.turnstileToken = null; $('turnstileSlot').innerHTML = '';
     track('scan_submit', { kind: competitor ? 'comparison' : 'site', reused: res.reused });
     S.scan = RD.loading({ url: res.scan.url, competitor: res.scan.competitor_url, started: Date.now() });
@@ -1858,7 +2057,7 @@ function upsertProject(p) {
 function selectProject(id, quiet) {
   S.projectId = id;
   try { localStorage.setItem(STORE_KEY, String(id)); } catch (e) {}
-  S.history = RD.notAsked; S.vis = RD.notAsked; S.chat.siteLoaded = false;
+  S.history = RD.notAsked; S.vis = RD.notAsked; S.ranks = RD.notAsked; S.chat.siteLoaded = false;
   for (const k of Object.keys(S.panels)) S.panels[k] = RD.notAsked;
   S.reports = {};
   renderProjectSwitch();
@@ -2042,7 +2241,7 @@ document.querySelectorAll('[data-ask]').forEach((b) => b.addEventListener('click
   renderOverview();
   if (!(premium() && S.projects.length)) renderPanels();
   const hash = location.hash.replace('#', '');
-  setTab(['overview', 'organic', 'backlinks', 'audit', 'visibility', 'chat', 'history'].includes(hash) ? hash : 'overview', true);
+  setTab(['overview', 'organic', 'ranks', 'backlinks', 'audit', 'visibility', 'chat', 'history'].includes(hash) ? hash : 'overview', true);
   track('page_view', { tier: S.sub.tier });
 })();
 })();

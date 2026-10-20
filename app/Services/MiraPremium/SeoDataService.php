@@ -249,6 +249,8 @@ class SeoDataService
             'paid'        => 'Paid keywords and ads',
             'links'       => 'Individual backlinks, most linked pages and broken backlinks',
             'trends'      => 'Search intent and SERP feature history',
+            'difficulty'  => 'Keyword difficulty and easy-win keywords',
+            'ranks'       => 'Daily rank tracking and share of voice',
         ];
 
         return [

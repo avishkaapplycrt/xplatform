@@ -48,6 +48,11 @@ class MiraProject extends Model
         return $this->hasMany(MiraVisibilityRun::class, 'project_id');
     }
 
+    public function trackedKeywords(): HasMany
+    {
+        return $this->hasMany(MiraTrackedKeyword::class, 'project_id');
+    }
+
     /** Brand terms, falling back to the project name. */
     public function brandTerms(): array
     {
