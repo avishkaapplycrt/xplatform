@@ -109,6 +109,7 @@ class WorkspaceApiController extends Controller
             'competitor_url'  => 'nullable|string|max:2048',
             'project_id'      => 'nullable|integer',
             'turnstile_token' => 'nullable|string|max:4096',
+            'fresh'           => 'nullable|boolean',   // "Re-run audit": skip the recent-result reuse
         ]);
 
         if (!$who->isPremium()) {
@@ -128,6 +129,67 @@ class WorkspaceApiController extends Controller
     public function showScan(Request $request, int $id): JsonResponse
     {
         return response()->json($this->scans->owned(Entitlement::forRequest($request), $id));
+    }
+
+    // ------------------------------------------------------------ rank tracking
+
+    /** Tracked keywords with today's positions, trend, visibility and share of voice. */
+    public function ranks(Request $request, int $id): JsonResponse
+    {
+        $who = Entitlement::forRequest($request);
+        $who->require('tracked_keywords', 'Rank tracking');
+
+        return response()->json(['ranks' => app(\App\Services\MiraPremium\RankTracker::class)->report($who, $this->ownedProject($who, $id))]);
+    }
+
+    /** Adds keywords (one per line or comma-separated) and checks them straight away. */
+    public function addRankKeywords(Request $request, int $id): JsonResponse
+    {
+        $who     = Entitlement::forRequest($request);
+        $project = $this->ownedProject($who, $id);
+        $in      = $this->input($request, ['keywords' => 'required|string|max:5000']);
+        $tracker = app(\App\Services\MiraPremium\RankTracker::class);
+
+        $added = $tracker->add($who, $project, $in['keywords']);
+
+        return response()->json(['added' => $added, 'ranks' => $tracker->report($who, $project)], 201);
+    }
+
+    public function deleteRankKeyword(Request $request, int $id, int $keywordId): JsonResponse
+    {
+        $who     = Entitlement::forRequest($request);
+        $project = $this->ownedProject($who, $id);
+        $tracker = app(\App\Services\MiraPremium\RankTracker::class);
+        $tracker->remove($project, $keywordId);
+
+        return response()->json(['ranks' => $tracker->report($who, $project)]);
+    }
+
+    /** "Check now": re-checks keywords not checked in the last hour. */
+    public function checkRanks(Request $request, int $id): JsonResponse
+    {
+        $who = Entitlement::forRequest($request);
+        $who->require('tracked_keywords', 'Rank tracking');
+        $project = $this->ownedProject($who, $id);
+        $tracker = app(\App\Services\MiraPremium\RankTracker::class);
+        $checked = $tracker->check($project);
+
+        return response()->json(['checked' => $checked, 'ranks' => $tracker->report($who, $project)]);
+    }
+
+    /** A read-only link to a finished scan, for "Share report" and "Download PDF". */
+    public function shareScan(Request $request, int $id): JsonResponse
+    {
+        return response()->json($this->scans->shareUrl(Entitlement::forRequest($request), $id));
+    }
+
+    /** The shared report page (signed link from shareScan). ?print=1 opens the print dialog for "Download PDF". */
+    public function sharedReport(Request $request, string $uuid)
+    {
+        $report = $this->scans->sharedReport($uuid);
+        abort_if($report === null, 404);
+
+        return view('ask-mira-report', ['report' => $report, 'premium' => true, 'autoPrint' => $request->boolean('print')]);
     }
 
     // ----------------------------------------------------------------- projects
@@ -271,7 +333,7 @@ class WorkspaceApiController extends Controller
             'authority' => app(SeoDataService::class)->authority($project, $period, $refresh),
             'search'    => app(SeoDataService::class)->search($project, $period, $refresh),
             'traffic'   => app(TrafficService::class)->traffic($project, $period),
-            'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks'
+            'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'difficulty'
                         => app(\App\Services\MiraPremium\SiteExplorerService::class)->{$panel}($project, $refresh),
             'ai_brand'  => app(\App\Services\MiraPremium\AiBrandService::class)->report($project),
             default     => throw new MiraApiException('NotFound', 'Unknown panel.'),

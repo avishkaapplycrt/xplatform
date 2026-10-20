@@ -8,6 +8,8 @@
   $isComparison = ($report['type'] ?? null) === 'comparison';
   $heading = $report === null ? 'Preparing your report' : ($isComparison ? 'Competitor comparison' : 'Website report');
   $backUrl = $premium ? route('mira-premium') : url('/') . '#chatbot-slot';
+  $shared  = (bool) ($report['shared'] ?? false);   // a Mira Premium "Share report" link
+  $autoPrint = (bool) ($autoPrint ?? false);       // "Download PDF": open the print dialog once drawn
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -62,7 +64,8 @@ a{color:inherit;text-decoration:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 .pending h2{font-size:20px;font-weight:700}
 .pending p{color:var(--muted);font-size:15px;max-width:420px;line-height:1.55}
-@media print{.nav-actions,body::before{display:none}#miraComparePanel{box-shadow:none}}
+@media print{.nav-actions,body::before{display:none}#miraComparePanel{box-shadow:none;border:0;padding:0}
+  .cx-panel,.cx-hero,.cx-verdict{break-inside:avoid}}
 @media (prefers-reduced-motion:reduce){.spinner{animation-duration:2.5s}}
 </style>
 </head>
@@ -79,9 +82,9 @@ a{color:inherit;text-decoration:none}
     </a>
     <div class="nav-actions">
       @if($report !== null)
-        <button type="button" class="btn" onclick="window.print()">Print / save PDF</button>
+        <button type="button" class="btn" onclick="window.print()">Download PDF</button>
       @endif
-      <a href="{{ $backUrl }}" class="btn">&larr; Back to Ask Mira</a>
+      <a href="{{ $backUrl }}" class="btn">{!! $shared ? 'Try Mira Premium &rarr;' : '&larr; Back to Ask Mira' !!}</a>
     </div>
   </nav>
 
@@ -118,6 +121,8 @@ window.ASK_MIRA_REPORT_PAGE = true;
   if (@json($isComparison)) miraRenderReport(data);
   else miraRenderSiteReport(data);
   window.scrollTo(0, 0);
+  // "Download PDF" opens this page with ?print=1: print once the report (and its fonts) are drawn.
+  if (@json($autoPrint)) window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 700); });
 })();
 </script>
 @endif

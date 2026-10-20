@@ -91,6 +91,9 @@ Route::get('homepage-classic', fn() => view('welcome', $homepageChatData()))->na
 Route::get('homepage-preview', fn() => view('homepage-preview', $homepageChatData()))->name('homepage.preview');
 
 Route::get('mira-premium', [\App\Http\Controllers\MiraPremium\WorkspaceApiController::class, 'page'])->name('mira-premium');
+// A shared Mira Premium audit: read-only, no sign-in, signed and expiring (ScanService::shareUrl).
+Route::get('mira-premium/shared/{uuid}', [\App\Http\Controllers\MiraPremium\WorkspaceApiController::class, 'sharedReport'])
+    ->middleware('signed')->whereUuid('uuid')->name('mira-premium.shared');
 // Ask Mira "Analyse my website" / "Compare with a competitor" results, each on
 // its own page (stored by App\Services\AskMiraReportStore). "pending" is the
 // tab opened on click, while Mira works; it then moves to the report.
@@ -156,6 +159,7 @@ Route::prefix('mira-premium/api')->name('mira-premium.api.')
             Route::post('scans', 'submitScan')->name('scans.submit');
             Route::post('scans/report', 'scanReport')->name('scans.report');
             Route::get('scans/{id}', 'showScan')->whereNumber('id')->name('scans.show');
+            Route::post('scans/{id}/share', 'shareScan')->whereNumber('id')->name('scans.share');
             Route::post('projects', 'createProject')->name('projects.create');
             Route::patch('projects/{id}', 'updateProject')->whereNumber('id')->name('projects.update');
             Route::delete('projects/{id}', 'deleteProject')->whereNumber('id')->name('projects.delete');
@@ -169,7 +173,11 @@ Route::prefix('mira-premium/api')->name('mira-premium.api.')
             Route::post('projects/{id}/visibility/runs', 'startRun')->whereNumber('id')->name('visibility.run');
             Route::put('projects/{id}/ga4', 'connectGa4')->whereNumber('id')->name('ga4.connect');
             Route::delete('projects/{id}/ga4', 'disconnectGa4')->whereNumber('id')->name('ga4.disconnect');
-            Route::get('projects/{id}/panels/{panel}', 'panel')->whereNumber('id')->whereIn('panel', ['ai', 'authority', 'search', 'traffic', 'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'ai_brand'])->name('panels');
+            Route::get('projects/{id}/ranks', 'ranks')->whereNumber('id')->name('ranks');
+            Route::post('projects/{id}/ranks', 'addRankKeywords')->whereNumber('id')->name('ranks.add');
+            Route::post('projects/{id}/ranks/check', 'checkRanks')->whereNumber('id')->name('ranks.check');
+            Route::delete('projects/{id}/ranks/{keywordId}', 'deleteRankKeyword')->whereNumber(['id', 'keywordId'])->name('ranks.delete');
+            Route::get('projects/{id}/panels/{panel}', 'panel')->whereNumber('id')->whereIn('panel', ['ai', 'authority', 'search', 'traffic', 'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'ai_brand', 'difficulty'])->name('panels');
         });
         Route::middleware('throttle:120,1')->group(function () {
             Route::post('event', 'event')->name('event');

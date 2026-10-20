@@ -495,9 +495,13 @@ Disallow: /
         $meta = collect($comparison['checks'])->firstWhere('name', 'Meta description');
         $this->assertNotEmpty($meta['recommendation']);   // you're not passing, so the fix is included
 
-        // Stages cover every category exactly once.
+        // Every category in the report belongs to exactly one stage. (Stages may
+        // also list categories only Mira Premium audits produce, e.g. conversion.)
         $stageCats = array_merge(...array_column($comparison['stages'], 'categories'));
-        $this->assertEqualsCanonicalizing(array_column($comparison['you']['categories'], 'key'), $stageCats);
+        $this->assertSame(count($stageCats), count(array_unique($stageCats)));
+        foreach (array_column($comparison['you']['categories'], 'key') as $key) {
+            $this->assertContains($key, $stageCats, "Category {$key} is in no stage");
+        }
         $this->assertSame(config('website_checks.status_weights'), $comparison['scoring']['status_weights']);
 
         // Site details for the spotlights.

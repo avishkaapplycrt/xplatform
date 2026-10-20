@@ -247,6 +247,8 @@ class SeoDataService
             'competitors' => 'Organic competitors and the traffic comparison',
             'insights'    => 'Search intent, branded traffic and SERP features',
             'paid'        => 'Paid keywords and ads',
+            'difficulty'  => 'Keyword difficulty and easy-win keywords',
+            'ranks'       => 'Daily rank tracking and share of voice',
         ];
 
         return [

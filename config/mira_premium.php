@@ -35,6 +35,7 @@ return [
                 'projects'        => [0, null],
                 'prompts'         => [0, null],
                 'competitors'     => [1, null],
+                'tracked_keywords' => [0, null],
             ],
             // Preview reports skip the AI-written, site-specific fixes.
             'ai_recommendations' => false,
@@ -48,6 +49,7 @@ return [
                 'projects'        => [1, null],
                 'prompts'         => [10, null],
                 'competitors'     => [2, null],
+                'tracked_keywords' => [10, null],
             ],
             'ai_recommendations' => true,
         ],
@@ -60,6 +62,7 @@ return [
                 'projects'        => [2, null],
                 'prompts'         => [20, null],
                 'competitors'     => [3, null],
+                'tracked_keywords' => [50, null],
             ],
             'ai_recommendations' => true,
         ],
@@ -72,6 +75,7 @@ return [
                 'projects'        => [10, null],
                 'prompts'         => [75, null],
                 'competitors'     => [5, null],
+                'tracked_keywords' => [200, null],
             ],
             'ai_recommendations' => true,
         ],
@@ -84,6 +88,7 @@ return [
                 'projects'        => [50, null],
                 'prompts'         => [300, null],
                 'competitors'     => [10, null],
+                'tracked_keywords' => [1000, null],
             ],
             'ai_recommendations' => true,
         ],
@@ -107,6 +112,32 @@ return [
     // A finished scan of the same URL (and competitor) by the same person is
     // reused for this long instead of running — and charging — a new one.
     'scan_reuse_minutes' => 30,
+
+    // Rank tracking (RankTracker): Google positions checked once a day by the scheduler
+    // (php artisan mira:track-ranks), or on "Check now" for keywords not checked
+    // within min_recheck_minutes. ctr = share of clicks by position, for visibility
+    // and share of voice (industry-average click-through curve; 11–20 share ctr_11_20).
+    'rank_tracking' => [
+        'depth'               => 100,
+        'history_days'        => 30,
+        'min_recheck_minutes' => 60,
+        'daily_at'            => '04:00',
+        'ctr'                 => [1 => 0.28, 2 => 0.15, 3 => 0.11, 4 => 0.08, 5 => 0.07, 6 => 0.05, 7 => 0.04, 8 => 0.03, 9 => 0.03, 10 => 0.025],
+        'ctr_11_20'           => 0.01,
+    ],
+
+    // Keyword difficulty (0–100) bands, lowest first: a keyword gets the last band whose min it reaches.
+    'keyword_difficulty_bands' => [
+        ['min' => 0,  'label' => 'Very easy'],
+        ['min' => 15, 'label' => 'Easy'],
+        ['min' => 30, 'label' => 'Possible'],
+        ['min' => 50, 'label' => 'Difficult'],
+        ['min' => 70, 'label' => 'Hard'],
+        ['min' => 85, 'label' => 'Very hard'],
+    ],
+
+    // How long a "Share report" link keeps working.
+    'share_days' => 30,
 
     // A scan stuck in queued/running for longer than this is marked failed.
     'scan_timeout_minutes' => 6,

@@ -238,6 +238,66 @@ class SiteExplorerService
 
     // --------------------------------------------------------------- insights
 
+    /**
+     * Keyword difficulty (0–100, DataForSEO's keyword_properties.keyword_difficulty)
+     * across the keywords the site ranks for: how many sit in each band, and
+     * "easy wins" — low-difficulty keywords already on page 1–2 but not in the
+     * top 3, where a small push pays most.
+     */
+    public function difficulty(MiraProject $project, bool $refresh = false): array
+    {
+        if (!$this->client->isConfigured()) {
+            return $this->seo->notConnected('difficulty');
+        }
+
+        $snap = $this->seo->searchSnapshot($project, $refresh);
+        $rows = [];
+        foreach ($snap['payload']['keywords'] ?? [] as $i) {
+            $kw = (string) data_get($i, 'keyword_data.keyword', '');
+            if ($kw === '' || isset($rows[$kw]) || data_get($i, 'ranked_serp_element.serp_item.type', 'organic') !== 'organic') {
+                continue;
+            }
+            $kd = data_get($i, 'keyword_data.keyword_properties.keyword_difficulty');
+            $rows[$kw] = [
+                'keyword'    => $kw,
+                'difficulty' => $kd === null ? null : (int) $kd,
+                'band'       => RankTracker::band($kd === null ? null : (int) $kd),
+                'position'   => data_get($i, 'ranked_serp_element.serp_item.rank_group'),
+                'volume'     => data_get($i, 'keyword_data.keyword_info.search_volume'),
+                'traffic'    => (int) round((float) data_get($i, 'ranked_serp_element.serp_item.etv', 0)),
+                'intent'     => data_get($i, 'keyword_data.search_intent_info.main_intent'),
+            ];
+        }
+        $rows   = array_values($rows);
+        $scored = array_values(array_filter($rows, fn ($r) => $r['difficulty'] !== null));
+
+        $bands = array_map(fn ($b) => ['label' => $b['label'], 'min' => $b['min'], 'keywords' => 0, 'traffic' => 0], RankTracker::bands());
+        foreach ($scored as $r) {
+            foreach (array_reverse(array_keys($bands)) as $k) {
+                if ($r['difficulty'] >= $bands[$k]['min']) {
+                    $bands[$k]['keywords']++;
+                    $bands[$k]['traffic'] += $r['traffic'];
+                    break;
+                }
+            }
+        }
+
+        $wins = array_values(array_filter($scored, fn ($r) => $r['difficulty'] < 30 && $r['position'] >= 4 && $r['position'] <= 20));
+        usort($wins, fn ($a, $b) => ($b['volume'] ?? 0) <=> ($a['volume'] ?? 0));
+        usort($rows, fn ($a, $b) => $b['traffic'] <=> $a['traffic']);
+
+        return [
+            'connected'  => true, 'sandbox' => $this->client->isSandbox(), 'fetched_at' => $snap['fetched_at'],
+            'sample'     => count($rows),
+            'scored'     => count($scored),
+            'average'    => $scored ? (int) round(array_sum(array_column($scored, 'difficulty')) / count($scored)) : null,
+            'bands'      => array_values($bands),
+            'easy_wins'  => array_slice($wins, 0, 10),
+            'keywords'   => array_slice($rows, 0, 15),
+            'note'       => 'Difficulty is how hard it is to reach the top 10, from the strength of the pages already there.',
+        ];
+    }
+
     public function insights(MiraProject $project, bool $refresh = false): array
     {
         if (!$this->client->isConfigured()) {

@@ -248,6 +248,16 @@
 .cx-tag.ok{background:var(--cx-good-soft);color:var(--cx-good)}.cx-tag.no{background:var(--cx-bad-soft);color:var(--cx-bad)}
 .cx-note{font-size:.84rem;color:var(--cx-muted);margin:10px 0 0}
 
+/* Lighthouse scores and "Pages analysed" counts: a row of small number tiles. */
+.cx-lh{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0 6px}
+.cx-lh > div{border:1px solid var(--cx-line);border-radius:14px;padding:12px 14px;text-align:center;background:var(--cx-surface)}
+.cx-lh b{display:block;font-size:1.6rem;font-weight:600;line-height:1.1}
+.cx-lh span{font-size:.78rem;color:var(--cx-muted)}
+.cx-lh .good b{color:var(--cx-good)}.cx-lh .warn b{color:var(--cx-warn)}.cx-lh .bad b{color:var(--cx-bad)}.cx-lh .none b{color:var(--cx-muted)}
+.cx-lh .bad{background:var(--cx-bad-soft);border-color:transparent}
+.cx-tag.warn{background:var(--cx-warn-soft);color:var(--cx-warn)}
+.cx-pages td.url{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
 /* Locked check list (free homepage): blurred, fading preview + centred upgrade card. */
 .cx-locked{position:relative;min-height:420px}
 .cx-locked-preview{filter:blur(6px);user-select:none;pointer-events:none;max-height:560px;overflow:hidden;transition:filter .5s ease;
