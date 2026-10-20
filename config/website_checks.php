@@ -40,6 +40,7 @@ return [
         'ai'              => 1.0,
         'social'          => 1.0,
         'richresults'     => 1.0,
+        'conversion'      => 1.0,
     ],
 
     // Minimum overall score for each grade, highest first.
@@ -85,7 +86,7 @@ return [
         ['key' => 'index',      'label' => 'Index',         'question' => 'Will Google store the right version?',  'categories' => ['richresults']],
         ['key' => 'rank',       'label' => 'Rank',          'question' => 'Is the content strong enough to rank?', 'categories' => ['structure', 'images', 'links', 'trust', 'security']],
         ['key' => 'serve',      'label' => 'Serve',         'question' => 'How does your link look when shown?',   'categories' => ['titles', 'social']],
-        ['key' => 'experience', 'label' => 'Experience',    'question' => 'Is it fast and mobile-friendly?',       'categories' => ['mobile', 'speed']],
+        ['key' => 'experience', 'label' => 'Experience',    'question' => 'Is it fast, mobile-friendly and easy to act on?', 'categories' => ['mobile', 'speed', 'conversion']],
         ['key' => 'ai',         'label' => 'AI Visibility', 'question' => 'Can AI assistants find and quote you?', 'categories' => ['ai']],
     ],
 
@@ -122,6 +123,12 @@ return [
         'Lighthouse Accessibility'        => 'minor',
         'Lighthouse Best Practices'       => 'minor',
         'Pages missing meta descriptions' => 'important',
+        'Calls to action'                 => 'important',
+        'Contact options'                 => 'important',
+        'Form labels'                     => 'minor',
+        'Trust proof'                     => 'minor',
+        'hreflang tags'                   => 'minor',
+        'Consistent phone number'         => 'minor',
     ],
 
     // Broken links: how many of the page's links are tested, and how long each may take.

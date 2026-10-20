@@ -120,6 +120,7 @@
   <nav class="tabs" role="tablist" aria-label="Workspace">
     <button class="tab" role="tab" data-tab="overview" aria-selected="true">Overview</button>
     <button class="tab" role="tab" data-tab="organic" aria-selected="false">Organic search <span class="badge badge-lock" data-lock><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span></button>
+    <button class="tab" role="tab" data-tab="ranks" aria-selected="false">Rank tracking <span class="badge badge-lock" data-lock><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span></button>
     <button class="tab" role="tab" data-tab="backlinks" aria-selected="false">Backlinks <span class="badge badge-lock" data-lock><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span></button>
     <button class="tab" role="tab" data-tab="audit" aria-selected="false">Site audit</button>
     <button class="tab" role="tab" data-tab="visibility" aria-selected="false">AI visibility <span class="badge badge-lock" data-lock><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span></button>
@@ -172,6 +173,11 @@
   {{-- ============ Organic search (Site Explorer: insights, countries, pages, competitors, paid) ============ --}}
   <section class="panel" id="tab-organic" role="tabpanel" hidden>
     <div id="orgBody"></div>
+  </section>
+
+  {{-- ============ Rank tracking (daily Google positions, keyword difficulty, share of voice) ============ --}}
+  <section class="panel" id="tab-ranks" role="tabpanel" hidden>
+    <div id="ranksBody"></div>
   </section>
 
   {{-- ============ Backlinks (profile, new/lost, authority distribution, referring domains, anchors) ============ --}}

@@ -130,6 +130,21 @@ class SiteCrawler
             ],
         ];
 
+        // Same phone number across pages: every page with a tel: link shares one number.
+        $withPhone = array_values(array_filter($pages, fn ($p) => $p['phones'] !== []));
+        $common    = $withPhone ? array_values(array_intersect(...array_map(fn ($p) => $p['phones'], $withPhone))) : [];
+        $allPhones = array_values(array_unique(array_merge(...array_map(fn ($p) => $p['phones'], $withPhone ?: [['phones' => []]]))));
+        $checks[] = [
+            'category' => 'trust', 'name' => 'Consistent phone number',
+            'status'   => $withPhone === [] ? 'info' : ($common !== [] ? 'pass' : 'warn'),
+            'detail'   => match (true) {
+                $withPhone === [] => 'No clickable phone number on the pages analysed',
+                $common !== []    => 'The same number appears on all ' . count($withPhone) . ' page(s) with a phone link',
+                default           => count($allPhones) . ' different numbers across ' . count($withPhone) . ' pages, with no number shared by all',
+            },
+        ];
+        $site['phone_pages'] = count($withPhone);
+
         return ['site' => $site, 'checks' => $checks];
     }
 
@@ -209,7 +224,7 @@ class SiteCrawler
                 $r = $responses[$u] ?? null;
                 $pages[] = $r instanceof Response ? $this->readPage($u, $r) : [
                     'url' => $u, 'status' => null, 'noindex' => false, 'canonical' => null,
-                    'title' => '', 'description' => '', 'h1' => 0, 'words' => 0,
+                    'title' => '', 'description' => '', 'h1' => 0, 'words' => 0, 'phones' => [],
                 ];
             }
         }
@@ -219,7 +234,7 @@ class SiteCrawler
 
     private function readPage(string $url, Response $r): array
     {
-        $page = ['url' => $url, 'status' => $r->status(), 'noindex' => false, 'canonical' => null, 'title' => '', 'description' => '', 'h1' => 0, 'words' => 0];
+        $page = ['url' => $url, 'status' => $r->status(), 'noindex' => false, 'canonical' => null, 'title' => '', 'description' => '', 'h1' => 0, 'words' => 0, 'phones' => []];
         if (!$r->successful() || !str_contains(strtolower((string) $r->header('Content-Type')), 'html')) {
             return $page;
         }
@@ -245,6 +260,11 @@ class SiteCrawler
         $page['title']       = $decode($x->query('//title')->item(0)?->textContent);
         $page['description'] = $decode($x->query('//meta[@name="description"]/@content')->item(0)?->nodeValue);
         $page['h1']          = $x->query('//h1')->length;
+        // Phone numbers in tel: links, digits only (last 9 digits, so +61 4… and 04… match).
+        $page['phones'] = array_values(array_unique(array_filter(array_map(
+            fn ($n) => substr(preg_replace('/\D/', '', $n->nodeValue), -9),
+            iterator_to_array($x->query('//a[starts-with(@href,"tel:")]/@href'))
+        ), fn ($p) => strlen($p) >= 6)));
         $page['words']       = str_word_count(preg_replace('/\s+/', ' ', implode(' ', array_map(
             fn ($n) => $n->nodeValue,
             iterator_to_array($x->query('//body//text()[not(ancestor::script) and not(ancestor::style)]'))

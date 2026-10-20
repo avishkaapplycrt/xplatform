@@ -61,6 +61,7 @@ class WebsiteAnalyzerService
         'ai'              => 'AI Visibility (AEO/GEO)',
         'social'          => 'Social Sharing Preview',
         'richresults'     => 'Rich Results Eligibility',
+        'conversion'      => 'Conversion & Trust',   // Mira Premium audits only (premiumChecks)
     ];
 
     private ?string $apiKey;
@@ -80,6 +81,9 @@ class WebsiteAnalyzerService
      * @var array{url: string, title: string, description: string, headings: string[], text: string}|null
      */
     private ?array $lastPage = null;
+
+    /** Parsed HTML of the page most recently checked, for premiumChecks(). */
+    private ?\DOMXPath $lastXpath = null;
 
     public function __construct(
         ?string $apiKey = null,
@@ -183,6 +187,7 @@ class WebsiteAnalyzerService
         }
 
         $xpath   = $this->parseHtml($response->body());
+        $this->lastXpath = $xpath;
         $checks  = [];
         $origin  = $this->originOf($url);
         $isHttps = str_starts_with(strtolower($url), 'https://');
@@ -430,6 +435,25 @@ class WebsiteAnalyzerService
     }
 
     /**
+     * Extra checks for Mira Premium site audits, on the page analyzeSeoAndTechnical()
+     * just read: conversion & trust (calls to action, contact options, form labels,
+     * trust proof) and hreflang. Empty when no page has been checked yet.
+     */
+    public function premiumChecks(): array
+    {
+        if ($this->lastXpath === null || $this->lastPage === null) {
+            return [];
+        }
+
+        $checks = array_merge(
+            $this->site->conversion($this->lastXpath, new StructuredData($this->lastXpath)),
+            [$this->site->hreflang($this->lastXpath, $this->lastPage['url'])]
+        );
+
+        return array_map(fn ($check) => $check + CheckGuide::for($check['name']), $checks);
+    }
+
+    /**
      * @param list<array{category: 'titles'|'structure'|'images'|'security'|'mobile'|'links'|'discoverability'|'social'|'richresults', name: string, status: string, detail: string}> $checks
      *
      * @return array{categoryScores: array<string, int|null>, counts: array{pass: int, warn: int, fail: int}}
@@ -586,6 +610,12 @@ class WebsiteAnalyzerService
         'Pages with errors'               => 'Restore the pages that return errors, or 301-redirect them to the closest live page and remove them from your sitemap.',
         'Duplicate titles'                => 'Give every page its own title that names what is on that page; shared titles make pages compete with each other.',
         'Pages missing meta descriptions' => 'Write a 120–160 character meta description for each page listed, saying what that page offers.',
+        'Calls to action'                 => 'Add one clear next step near the top of the page, e.g. a "Book a demo" or "Get started" button, and repeat it after key sections.',
+        'Contact options'                 => 'Offer at least two ways to reach you: a clickable phone number, an email or WhatsApp link, or a short enquiry form.',
+        'Form labels'                     => 'Give every form field a visible label (or aria-label) so people and screen readers know what to enter.',
+        'Trust proof'                     => 'Show proof near your calls to action: customer reviews or star ratings, testimonials, client logos or case studies, and any guarantee.',
+        'hreflang tags'                   => 'List every language version with a valid code (e.g. en-au), absolute URLs, a tag pointing back to this page and an x-default.',
+        'Consistent phone number'         => 'Use the same main phone number on every page and in your Google Business Profile, as a clickable tel: link.',
     ];
 
     /** Most recommendations listed on the "Site Overview" card. */

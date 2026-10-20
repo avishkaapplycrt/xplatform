@@ -53,6 +53,12 @@ class CheckGuide
         'Pages with errors'               => ['Pages that error drop out of Google and lose the links pointing at them.', 'Google Search Console (Pages)'],
         'Duplicate titles'                => ['Pages with the same title compete with each other in search results.', 'Google Search Console or a site crawler (e.g. Screaming Frog)'],
         'Pages missing meta descriptions' => ['Without one, Google picks text from the page, often a menu or cookie notice.', 'A site crawler (e.g. Screaming Frog)'],
+        'Calls to action'                 => ['A clear next step turns visits into leads; pages without one leak visitors.', 'Your analytics (conversion rate per page)'],
+        'Contact options'                 => ['More ways to get in touch means fewer people give up before contacting you.', 'Browse the page on a phone and try each contact route'],
+        'Form labels'                     => ['Unlabelled fields confuse visitors and block screen-reader users from submitting.', 'Lighthouse in PageSpeed Insights (Accessibility)'],
+        'Trust proof'                     => ['Reviews, client logos and guarantees reassure first-time visitors and lift enquiries.', 'Compare your page with your top competitors'],
+        'hreflang tags'                   => ['Shows Google which language or country version to rank where; mistakes show the wrong version.', 'Google Search Console (International targeting) or a site crawler'],
+        'Consistent phone number'         => ['One consistent number builds local trust and matches your Google Business Profile.', 'Your Google Business Profile and listings'],
         'Pages kept out of Google'        => ['noindex or a canonical pointing elsewhere keeps a page out of search; check it is on purpose.', 'Google Search Console (URL Inspection)'],
     ];
 

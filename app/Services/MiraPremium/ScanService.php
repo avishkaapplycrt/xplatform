@@ -202,7 +202,8 @@ class ScanService
                     Log::warning('Mira Premium site crawl failed', ['scan' => $scan->uuid, 'message' => $e->getMessage()]);
                     $crawl = ['site' => null, 'checks' => []];
                 }
-                $checks = array_merge($checks, array_map(fn ($c) => $c + CheckGuide::for($c['name']), $crawl['checks']));
+                // Premium-only page checks: conversion & trust, hreflang.
+                $checks = array_merge($checks, $this->analyzer->premiumChecks(), array_map(fn ($c) => $c + CheckGuide::for($c['name']), $crawl['checks']));
                 $report = $this->analyzer->buildReport($scan->url, $checks, $scan->mode === 'premium' && $aiRecommendations);
                 $report['site'] = $crawl['site'];
                 $you    = $report;

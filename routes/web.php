@@ -171,7 +171,11 @@ Route::prefix('mira-premium/api')->name('mira-premium.api.')
             Route::patch('prompts/{id}', 'updatePrompt')->whereNumber('id')->name('prompts.update');
             Route::delete('prompts/{id}', 'deletePrompt')->whereNumber('id')->name('prompts.delete');
             Route::post('projects/{id}/visibility/runs', 'startRun')->whereNumber('id')->name('visibility.run');
-            Route::get('projects/{id}/panels/{panel}', 'panel')->whereNumber('id')->whereIn('panel', ['ai', 'authority', 'search', 'traffic', 'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'ai_brand'])->name('panels');
+            Route::get('projects/{id}/ranks', 'ranks')->whereNumber('id')->name('ranks');
+            Route::post('projects/{id}/ranks', 'addRankKeywords')->whereNumber('id')->name('ranks.add');
+            Route::post('projects/{id}/ranks/check', 'checkRanks')->whereNumber('id')->name('ranks.check');
+            Route::delete('projects/{id}/ranks/{keywordId}', 'deleteRankKeyword')->whereNumber(['id', 'keywordId'])->name('ranks.delete');
+            Route::get('projects/{id}/panels/{panel}', 'panel')->whereNumber('id')->whereIn('panel', ['ai', 'authority', 'search', 'traffic', 'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'ai_brand', 'difficulty'])->name('panels');
         });
         Route::middleware('throttle:120,1')->group(function () {
             Route::post('event', 'event')->name('event');

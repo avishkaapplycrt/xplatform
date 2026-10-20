@@ -326,6 +326,27 @@ input,textarea,select{font:inherit;color:inherit}
 .report-hd h2{font-family:var(--f-num);font-weight:500;font-size:22px;letter-spacing:-.03em}
 .report-hd .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
 .report-actions{display:flex;flex-wrap:wrap;gap:8px}
+/* Rank tracking + keyword difficulty */
+.kd-chip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:999px;color:#fff;font-size:11.5px;font-weight:600;white-space:nowrap}
+.kd-chip b{font-family:var(--f-num)}
+#ranksBody > * + *{margin-top:16px}
+.rank-add{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.rank-input{flex:1 1 320px;min-height:44px;resize:vertical;border:1px solid var(--line-2);border-radius:12px;padding:10px 12px;background:var(--raise);font-size:14px}
+.rank-input:focus{outline:0;border-color:var(--gold-line);box-shadow:0 0 0 4px rgba(201,161,58,.12);background:var(--card)}
+.rank-add-btns{display:flex;gap:8px}
+.rank-sugs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}
+.rank-sug{border:0;cursor:pointer}
+.rank-sug:hover{background:var(--gold-soft);color:#7a5d14}
+.rank-url{display:block;color:var(--dim);font-size:11.5px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sov{display:grid;gap:10px}
+.sov-row{display:grid;grid-template-columns:minmax(110px,170px) 1fr 54px;gap:10px;align-items:center;font-size:13.5px}
+.sov-row.you .sov-name{font-weight:650}
+.sov-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sov-bar{height:10px;border-radius:10px;background:#efede7;overflow:hidden}
+.sov-bar i{display:block;height:100%;border-radius:10px}
+.sov-row .num{text-align:right}
+.rank-table .ptable th + th,.rank-table .ptable td + td{padding-left:14px}
+.rank-table .ptable td{vertical-align:middle}
 .upsell-strip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding:16px 20px;margin-bottom:16px;border-radius:var(--r-lg);
   background:linear-gradient(90deg,#141417,#2a2620);color:#f4efe2;box-shadow:var(--shadow)}
 .upsell-strip b{color:var(--gold-3)}

@@ -182,6 +182,119 @@ class SiteChecks
         }, "Flesch reading ease {$score} ({$label}; aim for {$limits['good']}+)") + ['value' => $score];
     }
 
+    // ----------------------------------------------------- conversion & trust
+
+    /**
+     * Can a visitor act on this page? Calls to action, ways to get in touch,
+     * labelled form fields and visible proof (reviews, clients, guarantees).
+     * Mira Premium audits only (ScanService).
+     */
+    public function conversion(\DOMXPath $xpath, StructuredData $structured): array
+    {
+        $checks = [];
+
+        // Calls to action: buttons and links whose text asks for an action.
+        $actions = '/\b(book|buy|order|sign ?up|get started|start|try|join|register|subscribe|contact us|call( us| now)?|enquire|enquiry|get a quote|quote|demo|apply|download|shop|enrol|enroll|free trial|request)\b/i';
+        $ctas = [];
+        foreach ($xpath->query('//a | //button | //input[@type="submit" or @type="button"]') as $el) {
+            $text = trim(preg_replace('/\s+/u', ' ', $el->nodeName === 'input' ? $el->getAttribute('value') : $el->textContent));
+            if ($text !== '' && mb_strlen($text) <= 40 && preg_match($actions, $text)) {
+                $ctas[mb_strtolower($text)] = $text;
+            }
+        }
+        $checks[] = $this->check('conversion', 'Calls to action', $ctas ? 'pass' : 'warn', $ctas
+            ? count($ctas) . ' call(s) to action, e.g. "' . implode('", "', array_slice(array_values($ctas), 0, 3)) . '"'
+            : 'No clear call to action (e.g. "Book a demo", "Get started", "Contact us")');
+
+        // Ways to get in touch.
+        $ways = array_filter([
+            'phone link'   => $xpath->query('//a[starts-with(@href,"tel:")]')->length > 0,
+            'email link'   => $xpath->query('//a[starts-with(@href,"mailto:")]')->length > 0,
+            'WhatsApp'     => $xpath->query('//a[contains(@href,"wa.me") or contains(@href,"api.whatsapp.com") or starts-with(@href,"whatsapp:")]')->length > 0,
+            'contact page' => $xpath->query('//a[contains(translate(@href,"CONTACT","contact"),"contact") or contains(translate(normalize-space(.),"CONTACT","contact"),"contact")]')->length > 0,
+            'form'         => $xpath->query('//form[.//input[@type="email" or @type="tel"] or .//textarea]')->length > 0,
+        ]);
+        $checks[] = $this->check('conversion', 'Contact options', match (true) {
+            count($ways) >= 2 => 'pass',
+            count($ways) === 1 => 'warn',
+            default => 'fail',
+        }, $ways ? 'Found: ' . implode(', ', array_keys($ways)) : 'No phone, email, WhatsApp, contact page or enquiry form found');
+
+        // Form fields people can understand (and screen readers can announce).
+        $fields = $xpath->query('//form//input[not(@type="hidden" or @type="submit" or @type="button" or @type="image" or @type="reset")] | //form//select | //form//textarea');
+        $unlabelled = 0;
+        foreach ($fields as $f) {
+            $id = $f->getAttribute('id');
+            $labelled = ($id !== '' && $xpath->query('//label[@for="' . str_replace('"', '', $id) . '"]')->length > 0)
+                || $xpath->query('ancestor::label', $f)->length > 0
+                || trim($f->getAttribute('aria-label') . $f->getAttribute('aria-labelledby') . $f->getAttribute('title') . $f->getAttribute('placeholder')) !== '';
+            if (!$labelled) {
+                $unlabelled++;
+            }
+        }
+        $checks[] = $this->check('conversion', 'Form labels', match (true) {
+            $fields->length === 0 => 'info',
+            $unlabelled === 0     => 'pass',
+            default               => 'warn',
+        }, match (true) {
+            $fields->length === 0 => 'No forms on this page',
+            $unlabelled === 0     => "All {$fields->length} form field(s) are labelled",
+            default               => "{$unlabelled} of {$fields->length} form field(s) have no label",
+        });
+
+        // Proof that others trust the business.
+        $text  = mb_strtolower(implode(' ', array_map(fn ($n) => $n->textContent, iterator_to_array($xpath->query('//body')))));
+        $proof = array_values(array_filter([
+            preg_match('/\b(testimonials?|what (our )?(customers|clients|students) say)\b/u', $text) ? 'testimonials' : null,
+            preg_match('/\b(reviews?|rated|ratings?|stars?)\b/u', $text) || $structured->hasRating() ? 'reviews or ratings' : null,
+            preg_match('/\b(trusted by|our clients|case stud(y|ies)|success stor(y|ies))\b/u', $text) ? 'clients or case studies' : null,
+            preg_match('/\b(guarantee|certified|accredited|award)/u', $text) ? 'guarantees or accreditations' : null,
+        ]));
+        $checks[] = $this->check('conversion', 'Trust proof', $proof ? 'pass' : 'warn', $proof
+            ? 'Shows ' . implode(', ', $proof)
+            : 'No testimonials, reviews, client logos or guarantees found on this page');
+
+        return $checks;
+    }
+
+    // ---------------------------------------------------------------- hreflang
+
+    /** Language versions: valid codes, absolute links, and a link back to this page. */
+    public function hreflang(\DOMXPath $xpath, string $pageUrl): array
+    {
+        $tags = $xpath->query('//link[@rel="alternate"][@hreflang]');
+        if ($tags->length === 0) {
+            return $this->check('discoverability', 'hreflang tags', 'info', 'No hreflang tags (only needed when the site has other language or country versions)');
+        }
+
+        $problems = [];
+        $codes    = [];
+        $self     = false;
+        $norm     = fn ($u) => rtrim(preg_replace('#^https?://(www\.)?#i', '', strtolower((string) $u)), '/');
+        foreach ($tags as $t) {
+            $code = trim($t->getAttribute('hreflang'));
+            $href = trim($t->getAttribute('href'));
+            if (!preg_match('/^(x-default|[a-z]{2,3}(-[a-z]{2}|-[a-z]{4}(-[a-z]{2})?)?)$/i', $code)) {
+                $problems[] = "invalid code \"{$code}\"";
+            }
+            if (!preg_match('#^https?://#i', $href)) {
+                $problems[] = "relative link for {$code}";
+            }
+            if (isset($codes[strtolower($code)])) {
+                $problems[] = "{$code} listed twice";
+            }
+            $codes[strtolower($code)] = true;
+            $self = $self || $norm($href) === $norm($pageUrl);
+        }
+        if (!$self) {
+            $problems[] = 'no tag pointing back to this page';
+        }
+
+        return $this->check('discoverability', 'hreflang tags', $problems ? 'warn' : 'pass', $problems
+            ? count($codes) . ' language version(s); ' . implode('; ', array_slice(array_unique($problems), 0, 3))
+            : count($codes) . ' language version(s), all valid' . (isset($codes['x-default']) ? ' (with x-default)' : ''));
+    }
+
     // --------------------------------------------------------------- language
 
     /** The page's declared <html lang> against the language its text is written in. */
