@@ -18,8 +18,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 {{-- Entity data for search engines and AI assistants (what the product is, who makes it). --}}
 <script type="application/ld+json">
+{{-- '@' . 'context': written split so Blade doesn't compile it as its @context directive. --}}
 {!! json_encode([
-  '@context' => 'https://schema.org',
+  '@' . 'context' => 'https://schema.org',
   '@type' => 'SoftwareApplication',
   'name' => 'Mira Premium',
   'applicationCategory' => 'BusinessApplication',
@@ -169,6 +170,7 @@
         <button type="button" role="radio" data-period="12m">12M</button>
       </div>
     </div>
+    <div class="src-strip" id="src-overview"></div>
     <div id="ovBody">
       <div class="ov-grid">
         <div class="card pnl" id="pnl-ai"></div>
@@ -176,6 +178,7 @@
         <div class="card pnl" id="pnl-search"></div>
       </div>
       <div class="card pnl pnl-wide" id="pnl-traffic"></div>
+      <div class="card pnl pnl-wide" id="pnl-gsc"></div>
       <div class="card pnl pnl-wide" id="pnl-keywords" hidden></div>
       <div class="card pnl pnl-wide" id="pnl-performance"></div>
       <div class="card pnl pnl-wide" id="pnl-positions"></div>
@@ -197,6 +200,7 @@
 
   {{-- ============ Organic search (Site Explorer: insights, countries, pages, competitors, paid) ============ --}}
   <section class="panel" id="tab-organic" role="tabpanel" hidden>
+    <div class="src-strip" id="src-organic"></div>
     <div id="orgBody"></div>
   </section>
 
@@ -207,11 +211,13 @@
 
   {{-- ============ Backlinks (profile, new/lost, authority distribution, referring domains, anchors) ============ --}}
   <section class="panel" id="tab-backlinks" role="tabpanel" hidden>
+    <div class="src-strip" id="src-backlinks"></div>
     <div id="blBody"></div>
   </section>
 
   {{-- ============ Site audit (shared .cx report renderer) ============ --}}
   <section class="panel" id="tab-audit" role="tabpanel" hidden>
+    <div class="src-strip" id="src-audit"></div>
     <div id="auditState"></div>
     <div id="auditWrap" hidden>
       <div class="report-hd">
@@ -246,11 +252,13 @@
 
   {{-- ============ AI visibility ============ --}}
   <section class="panel" id="tab-visibility" role="tabpanel" hidden>
+    <div class="src-strip" id="src-visibility"></div>
     <div id="visBody"></div>
   </section>
 
   {{-- ============ Ask Mira ============ --}}
   <section class="panel" id="tab-chat" role="tabpanel" hidden>
+    <div class="src-strip" id="src-chat"></div>
     <div class="card chat">
       <aside class="chat-side">
         <div>
@@ -297,6 +305,7 @@
 
   {{-- ============ History ============ --}}
   <section class="panel" id="tab-history" role="tabpanel" hidden>
+    <div class="src-strip" id="src-history"></div>
     <div id="historyBody"></div>
   </section>
 </main>

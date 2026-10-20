@@ -171,18 +171,27 @@ Route::prefix('mira-premium/api')->name('mira-premium.api.')
             Route::patch('prompts/{id}', 'updatePrompt')->whereNumber('id')->name('prompts.update');
             Route::delete('prompts/{id}', 'deletePrompt')->whereNumber('id')->name('prompts.delete');
             Route::post('projects/{id}/visibility/runs', 'startRun')->whereNumber('id')->name('visibility.run');
-            Route::put('projects/{id}/ga4', 'connectGa4')->whereNumber('id')->name('ga4.connect');
-            Route::delete('projects/{id}/ga4', 'disconnectGa4')->whereNumber('id')->name('ga4.disconnect');
             Route::get('projects/{id}/ranks', 'ranks')->whereNumber('id')->name('ranks');
             Route::post('projects/{id}/ranks', 'addRankKeywords')->whereNumber('id')->name('ranks.add');
             Route::post('projects/{id}/ranks/check', 'checkRanks')->whereNumber('id')->name('ranks.check');
             Route::delete('projects/{id}/ranks/{keywordId}', 'deleteRankKeyword')->whereNumber(['id', 'keywordId'])->name('ranks.delete');
-            Route::get('projects/{id}/panels/{panel}', 'panel')->whereNumber('id')->whereIn('panel', ['ai', 'authority', 'search', 'traffic', 'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'ai_brand', 'difficulty'])->name('panels');
+            Route::get('projects/{id}/panels/{panel}', 'panel')->whereNumber('id')->whereIn('panel', ['ai', 'authority', 'search', 'traffic', 'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'links', 'trends', 'ai_brand', 'gsc', 'difficulty'])->name('panels');
+            Route::get('projects/{id}/google', [\App\Http\Controllers\MiraPremium\GoogleIntegrationController::class, 'status'])->whereNumber('id')->name('google.status');
+            Route::patch('projects/{id}/google', [\App\Http\Controllers\MiraPremium\GoogleIntegrationController::class, 'select'])->whereNumber('id')->name('google.select');
+            Route::post('google/disconnect', [\App\Http\Controllers\MiraPremium\GoogleIntegrationController::class, 'disconnect'])->name('google.disconnect');
         });
         Route::middleware('throttle:120,1')->group(function () {
             Route::post('event', 'event')->name('event');
             Route::post('error', 'clientError')->name('error');
         });
+    });
+
+// Mira Premium "Connect Google" (read-only Search Console + Analytics 4). The callback
+// needs no session: its signed state names the client (see GoogleClient).
+Route::middleware('throttle:20,1')->prefix('app/integrations/google')->name('mira-premium.google.')
+    ->controller(\App\Http\Controllers\MiraPremium\GoogleIntegrationController::class)->group(function () {
+        Route::get('connect', 'connect')->name('connect');
+        Route::get('callback', 'callback')->name('callback');
     });
 
 // Public API route for tracking script (no auth required - called from client websites)
@@ -329,6 +338,12 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('layers/rl',      fn() => view('client.layers.rl'))->name('layer.rl');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
     Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), \App\Models\InstagramMedia::socialStats())))->name('data-collection');
+    // Active Tenant dropdown (layouts/platform): remember the choice, then open that tenant's helper.
+    Route::get('tenant/{tenant}', function (string $tenant) {
+        session(['active_tenant' => $tenant]);
+
+        return redirect()->route($tenant === 'mockmaster' ? 'client.mock-master-helper' : 'client.business-helpers');
+    })->whereIn('tenant', ['mockmaster', 'test'])->name('tenant.switch');
     Route::get('business-helpers', function () {
         $groupPrompts = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
             ->where('is_mock_master', false)

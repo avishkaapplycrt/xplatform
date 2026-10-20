@@ -72,6 +72,14 @@ return [
         'model'   => env('ANTHROPIC_MODEL', 'claude-opus-5'),
     ],
 
+    // Google OAuth (Mira Premium "Connect Google": Search Console + GA4). One web-application
+    // OAuth client for the whole app; each customer grants access to their own properties.
+    'google' => [
+        'client_id'     => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect'      => env('GOOGLE_REDIRECT_URI', rtrim((string) env('APP_URL'), '/') . '/app/integrations/google/callback'),
+    ],
+
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'model'   => env('OPENAI_MODEL', 'gpt-4.1-mini'),

@@ -63,7 +63,9 @@ function track(name, props) {
 function reportError(err, where) {
   beacon('/error', { message: (where ? where + ': ' : '') + (err && err.message || String(err)), stack: err && err.stack || '', url: location.href });
 }
-window.addEventListener('error', (e) => reportError(e.error || e.message, 'window'));
+// Browser extensions inject scripts near the top of the page (e.g. structured-data readers that
+// choke on the miraBoot JSON block); Mira's own code runs at the end of <body>, so ignore those.
+window.addEventListener('error', (e) => { if (e.lineno && e.lineno < 40) return; reportError(e.error || e.message, 'window'); });
 window.addEventListener('unhandledrejection', (e) => reportError(e.reason, 'promise'));
 // Declarative events: class="mira-ev-<name>" + data-ev-* props, no code needed per button.
 document.addEventListener('click', (e) => {
@@ -99,13 +101,14 @@ const ENDPOINTS = {
   updatePrompt:   { m: 'PATCH',  p: (a) => '/prompts/' + a.id,                  out: ['prompt'] },
   deletePrompt:   { m: 'DELETE', p: (a) => '/prompts/' + a.id,                  out: [] },
   startRun:       { m: 'POST',   p: (a) => '/projects/' + a.id + '/visibility/runs', out: ['run'] },
-  connectGa4:     { m: 'PUT',    p: (a) => '/projects/' + a.id + '/ga4',           out: ['project'] },
-  disconnectGa4:  { m: 'DELETE', p: (a) => '/projects/' + a.id + '/ga4',           out: ['project'] },
+  panel:          { m: 'GET',    p: (a) => '/projects/' + a.id + '/panels/' + a.panel + '?period=' + encodeURIComponent(a.period) + (a.refresh ? '&refresh=1' : ''), out: ['panel', 'period', 'data'] },
   ranks:          { m: 'GET',    p: (a) => '/projects/' + a.id + '/ranks',                 out: ['ranks'] },
   rankAdd:        { m: 'POST',   p: (a) => '/projects/' + a.id + '/ranks',                 out: ['added', 'ranks'] },
   rankCheck:      { m: 'POST',   p: (a) => '/projects/' + a.id + '/ranks/check',           out: ['checked', 'ranks'] },
   rankDelete:     { m: 'DELETE', p: (a) => '/projects/' + a.id + '/ranks/' + a.kw,       out: ['ranks'] },
-  panel:          { m: 'GET',    p: (a) => '/projects/' + a.id + '/panels/' + a.panel + '?period=' + encodeURIComponent(a.period), out: ['panel', 'period', 'data'] },
+  googleStatus:   { m: 'GET',    p: (a) => '/projects/' + a.id + '/google',     out: ['google'] },
+  googleSelect:   { m: 'PATCH',  p: (a) => '/projects/' + a.id + '/google',     out: ['google'] },
+  googleDisconnect: { m: 'POST', p: () => '/google/disconnect',                 out: ['google'] },
 };
 function csrf() { return document.querySelector('meta[name="csrf-token"]').content; }
 async function refreshCsrf() {
@@ -169,7 +172,7 @@ const S = {
   renderedReport: null, scanPoll: null, visPoll: null, turnstileToken: null,
   period: '30d', periodInfo: null, trafficMetric: 'visits',
   reports: {}, perfMetric: 'organic_traffic', perfYoy: false,
-  panels: { ai: RD.notAsked, authority: RD.notAsked, search: RD.notAsked, traffic: RD.notAsked },
+  panels: { ai: RD.notAsked, authority: RD.notAsked, search: RD.notAsked, traffic: RD.notAsked, gsc: RD.notAsked },
   chat: { busy: false, siteLoaded: false },
 };
 const premium = () => S.sub.premium;
@@ -335,8 +338,8 @@ function setTab(tab, silent) {
   if (!silent) track('tab_open', { tab });
   if (tab === 'audit') renderAudit();
   if (tab === 'visibility') { loadVisibility(); }
-  if (tab === 'organic') { renderOrganic(); ['insights', 'difficulty', 'countries', 'pages', 'competitors', 'paid'].forEach((r) => loadReport(r)); }
-  if (tab === 'backlinks') { renderBacklinks(); loadReport('backlinks'); }
+  if (tab === 'organic') { renderOrganic(); ['insights', 'difficulty', 'countries', 'pages', 'competitors', 'paid', 'trends'].forEach((r) => loadReport(r)); }
+  if (tab === 'backlinks') { renderBacklinks(); loadReport('backlinks'); loadReport('links'); }
   if (tab === 'history') { loadHistory(); }
   if (tab === 'ranks') { loadRanks(); }
   if (tab === 'chat') $('chatInput').focus();
@@ -457,7 +460,7 @@ function renderStages(sc, report) {
 // ------------------------------------------------------------ site overview
 // Four panels, each its own request (GET projects/{id}/panels/{panel}?period=),
 // rendered as they arrive. Every number shows the change vs the previous window.
-const PANELS = ['ai', 'authority', 'search', 'traffic'];
+const PANELS = ['ai', 'authority', 'search', 'traffic', 'gsc'];
 fmt.compact = (v) => v === null || v === undefined ? '—' : nf({ notation: 'compact', maximumFractionDigits: v >= 1000 ? 1 : 0 }).format(v);
 fmt.money = (v) => v === null || v === undefined ? '—' : nf({ style: 'currency', currency: 'USD', maximumFractionDigits: v >= 100 ? 0 : 2 }).format(v);
 fmt.duration = (s) => {
@@ -512,16 +515,16 @@ function setPeriod(key) {
   track('tab_open', { tab: 'overview', period: key });
   loadPanels();
 }
-async function loadPanels() {
+async function loadPanels(only, refresh) {
   const p = project();
-  renderPanels();
+  if (!only) renderPanels();
   if (!premium() || !p) return;
   const id = p.id, period = S.period;
-  PANELS.forEach(async (name) => {
+  (only || PANELS).forEach(async (name) => {
     S.panels[name] = RD.loading();
     renderPanel(name);
     try {
-      const res = await api('panel', { id, panel: name, period });
+      const res = await api('panel', { id, panel: name, period, refresh });
       if (S.projectId !== id || S.period !== period) return;     // a newer selection won
       S.periodInfo = res.period;
       S.panels[name] = RD.success(res.data);
@@ -531,7 +534,10 @@ async function loadPanels() {
     }
     $('ovPeriodLabel').textContent = S.periodInfo ? S.periodInfo.label : '';
     renderPanel(name);
+    // The Traffic card offers "Choose a GA4 property" once it knows Google is connected.
+    if (name === 'gsc' && S.panels.traffic.tag === 'Success' && !S.panels.traffic.data.connected) renderPanel('traffic');
   });
+  if (only) return;
   loadReport('performance');
   loadReport('positions');
 }
@@ -553,28 +559,29 @@ function renderPanels() {
   }
   if (gate) gate.remove();
   body.querySelector('.ov-grid').hidden = false;
-  ['pnl-traffic', 'pnl-performance', 'pnl-positions'].forEach((id) => { $(id).hidden = false; });
+  ['pnl-traffic', 'pnl-gsc', 'pnl-performance', 'pnl-positions'].forEach((id) => { $(id).hidden = false; });
   PANELS.forEach(renderPanel);
   renderPerformance();
   renderPositions();
 }
 function renderPanel(name) {
   const el = $('pnl-' + name), st = S.panels[name];
-  const titles = { ai: 'AI responses', authority: 'Authority', search: 'Search', traffic: 'Traffic analytics' };
+  const titles = { ai: 'AI responses', authority: 'Authority', search: 'Search', traffic: 'Traffic analytics', gsc: 'Search Console' };
   el.innerHTML = '';
   if (name === 'search') $('pnl-keywords').hidden = true;
   if (st.tag === 'NotAsked' || st.tag === 'Loading') { el.append(...skeletonPanel(titles[name])); return; }
   if (st.tag === 'Failure') {
     const ex = explain(st.error);
     el.append(pnlHead(titles[name]), h('p', { cls: 'muted', style: { fontSize: '13.5px' }, text: ex.msg }),
-      h('button', { cls: 'btn btn-secondary btn-sm', type: 'button', style: { marginTop: '12px' }, on: { click: loadPanels }, text: 'Retry' }));
+      h('button', { cls: 'btn btn-secondary btn-sm', type: 'button', style: { marginTop: '12px' }, on: { click: () => loadPanels([name]) }, text: 'Retry' }));
     return;
   }
-  ({ ai: renderAiPanel, authority: renderAuthorityPanel, search: renderSearchPanel, traffic: renderTrafficPanel })[name](el, st.data);
+  ({ ai: renderAiPanel, authority: renderAuthorityPanel, search: renderSearchPanel, traffic: renderTrafficPanel, gsc: renderGscPanel })[name](el, st.data);
 }
 
 function renderAiPanel(el, d) {
-  el.append(pnlHead('AI responses', 'How often AI answers name your brand and cite your pages. Modeled from your prompt set.', h('span', { cls: 'tag-src', text: 'Modeled' })));
+  el.append(pnlHead('AI responses', 'How often AI answers name your brand and cite your pages. Modeled from your prompt set.',
+    d.sample ? sourceTag({ demo: true }) : h('span', { cls: 'tag-src', text: 'Modeled' })));
   if (!d.has_runs) {
     el.append(h('div', { cls: 'connect' }, h('div', { cls: 'ghost-metrics' }, h('div', null, h('b', { text: '—' }), 'Responses'), h('div', null, h('b', { text: '—' }), 'Mention rate')),
       h('p', { text: 'No AI visibility runs yet. Add prompts and run a check to see how ChatGPT answers about your market.' }),
@@ -657,49 +664,19 @@ function renderSearchPanel(el, d) {
   wide.append(grid);
 }
 
-// GA4 not linked to this project yet: how to give Mira access, and the property ID box.
-function ga4ConnectCard(el, hint, d) {
-  const p = project();
-  const input = h('input', { placeholder: 'GA4 property ID, e.g. 412345678', inputmode: 'numeric', 'aria-label': 'GA4 property ID' });
-  const msg = h('p', { cls: 'muted', style: { fontSize: '13px', margin: 0 } });
-  const btn = h('button', { cls: 'btn btn-primary btn-sm', type: 'submit', text: 'Connect' });
-  const form = h('form', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }, on: { submit: async (e) => {
-    e.preventDefault();
-    if (!p || !input.value.trim()) { msg.textContent = 'Enter your GA4 property ID.'; return; }
-    setBusy(btn, true); msg.textContent = 'Checking access to the property…';
-    try {
-      const { project: updated } = await api('connectGa4', { id: p.id }, { property_id: input.value.trim() });
-      upsertProject(updated);
-      track('ga4_connect', {});
-      S.panels.traffic = RD.notAsked;
-      loadPanels();
-    } catch (err) { msg.textContent = explain(err).msg; setBusy(btn, false); }
-  } } }, h('div', { cls: 'field', style: { height: '40px', flex: '1', minWidth: '220px' } }, input), btn);
-  const email = d.ga4.service_account;
-  el.append(pnlHead('Traffic analytics', hint, h('span', { cls: 'tag-src', text: 'Google Analytics 4' })),
-    h('div', { cls: 'connect' },
-      h('div', { cls: 'ghost-metrics' }, ['Visits', 'Unique visitors', 'Page views', 'Bounce rate'].map((g) => h('div', null, h('b', { text: '—' }), g))),
-      h('p', { text: 'Connect your Google Analytics 4 property to see real visits and engagement for ' + (p ? p.domain : 'this site') + '.' }),
-      h('p', null, '1. In Google Analytics, open ', h('b', { text: 'Admin → Property access management' }), ' and add ', h('code', { text: email }), ' as a ', h('b', { text: 'Viewer' }), '.'),
-      h('p', null, '2. Copy the ', h('b', { text: 'Property ID' }), ' from ', h('b', { text: 'Admin → Property details' }), ' and paste it below.'),
-      form, msg));
-}
-
 function renderTrafficPanel(el, d) {
-  const hint = 'From your Google Analytics 4 property — real visits, not estimates.';
+  const ga4 = d.source === 'ga4';
+  const hint = ga4 ? 'Measured by Google Analytics 4 on your site — real sessions, not estimates.' : 'Measured by the X Platforms tracking script on your site — real visits, not estimates.';
   if (!d.connected) {
-    if (d.ga4 && d.ga4.available && project()) { ga4ConnectCard(el, hint, d); return; }
-    el.append(...connectCard('Traffic analytics', hint, d, ['Visits', 'Unique visitors', 'Page views', 'Bounce rate'])); return;
+    el.append(...connectCard('Traffic analytics', hint, d, ['Visits', 'Unique visitors', 'Page views', 'Bounce rate']));
+    const box = el.querySelector('.connect'), g = gscConnected();
+    if (d.reason === 'reconnect' && d.connect_url) box.append(h('div', null, googleButton(d.connect_url, 'Reconnect Google')));
+    else if (g) box.append(h('div', null, h('button', { cls: 'btn btn-secondary btn-sm', type: 'button', on: { click: () => openGooglePicker(el) } }, 'Choose a Google Analytics property')));
+    else if (d.google) box.append(h('div', null, googleButton(d.google, 'Connect Google Analytics')));
+    return;
   }
   const m = d.metrics;
-  const disconnect = h('button', { cls: 'btn btn-ghost btn-sm', type: 'button', text: 'Disconnect', title: 'Stop reading this GA4 property', on: { click: async () => {
-    const p = project();
-    if (!p || !window.confirm('Disconnect Google Analytics 4 property ' + d.property_id + ' from ' + p.domain + '?')) return;
-    try { const { project: updated } = await api('disconnectGa4', { id: p.id }); upsertProject(updated); S.panels.traffic = RD.notAsked; loadPanels(); }
-    catch (e) { toast(explain(e).msg, { error: true }); }
-  } } });
-  el.append(pnlHead('Traffic analytics', hint, d.demo ? sourceTag(d)
-    : h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '8px' } }, h('span', { cls: 'tag-src', text: 'GA4 · ' + d.property_id }), disconnect)));
+  el.append(pnlHead('Traffic analytics', hint, d.demo ? sourceTag(d) : h('span', { cls: 'tag-src', title: d.fetched_at ? 'Updated ' + fmt.date(d.fetched_at) : '', text: ga4 ? 'Google Analytics 4' : 'Tracking script · ' + d.site })));
   el.append(h('div', { cls: 'mgrid six' },
     metric('Visits', 'Sessions started in the window', fmt.compact(m.visits.value), change(m.visits.delta)),
     metric('Unique visitors', 'Distinct visitors', fmt.compact(m.unique_visitors.value), change(m.unique_visitors.delta)),
@@ -726,6 +703,232 @@ function renderTrafficPanel(el, d) {
   grid.append(h('div', { cls: 'grid', style: { gap: '20px', alignContent: 'start' } },
     list('Top pages', d.top_pages, 'path', 'views'), list('Sources', d.sources, 'source', 'visits'), list('Devices', d.devices, 'device', 'visits')));
   el.append(grid);
+}
+
+// ------------------------------------------------------------ data sources
+// "Where this data comes from" strip at the top of the DataForSEO tabs: one row per
+// report naming the provider and the exact data pulled, with the provider's current mode.
+const SOURCES = {
+  overview: [
+    ['AI responses', 'Your AI visibility runs · ChatGPT (OpenAI)', 'Brand mentions, cited pages and mention rate from your prompt set', 'ai'],
+    ['Authority', 'DataForSEO · Backlinks API', 'Summary: authority score, backlinks, referring domains · History: monthly growth, new vs lost', 'dfs'],
+    ['Search', 'DataForSEO · Labs API', 'Domain rank overview: keywords, traffic, value, positions · Historical rank overview: monthly trend · Ranked keywords: top keywords', 'dfs'],
+    ['Traffic analytics', 'X Platforms tracking script, or Google Analytics 4', 'Visits, visitors, engagement, sources, devices and AI-assistant referrals — measured, not estimated', 'own'],
+    ['Search Console', 'Google Search Console · your Google connection', 'Clicks, impressions, CTR, average position, top queries, pages, countries, devices', 'google'],
+    ['Performance · Positions', 'DataForSEO · reuses the Search and Authority data', 'Monthly organic traffic, keywords, value and links; ranking position bands — no extra calls', 'dfs'],
+  ],
+  organic: [
+    ['Search intent · Branded vs non-branded · SERP features', 'DataForSEO · Labs · Ranked keywords', 'Each ranking keyword’s intent, whether it names your brand, and the SERP features you own', 'dfs'],
+    ['Intent & SERP features over time', 'Daily saved DataForSEO snapshots', 'Built up from the ranked keywords saved each day — history grows from your first day', 'dfs'],
+    ['Traffic share by country', 'DataForSEO · Labs · Domain rank overview', 'Keywords and traffic in each of {markets} markets (one call per market)', 'dfs'],
+    ['Top pages', 'DataForSEO · Labs · Relevant pages', 'Pages earning the most organic traffic, plus AI citations from your visibility runs', 'dfs'],
+    ['Organic competitors', 'DataForSEO · Labs · Competitors domain', 'Sites ranking for the same keywords: common keywords, overlap, their traffic', 'dfs'],
+    ['Traffic vs competitors · Share of voice', 'DataForSEO · Labs · Historical rank overview', 'Monthly organic traffic for you and each tracked competitor', 'dfs'],
+    ['Paid keywords', 'DataForSEO · Labs · Ranked keywords (paid)', 'Keywords you buy Google Ads for, with position, volume and cost', 'dfs'],
+  ],
+  backlinks: [
+    ['Backlink profile · Referring domains · New & lost', 'DataForSEO · Backlinks · Summary + History', 'Totals, authority score and month-by-month new vs lost referring domains', 'dfs'],
+    ['Authority distribution · Followed vs nofollow · Top-level domains · Referring domains', 'DataForSEO · Backlinks · Referring domains', 'The strongest linking sites with their rank, link counts and first-seen date', 'dfs'],
+    ['Anchors', 'DataForSEO · Backlinks · Anchors', 'The link text other sites use when they link to you', 'dfs'],
+    ['Backlinks · Broken backlinks', 'DataForSEO · Backlinks · Backlinks', 'Individual links: source page, target page, follow status, and links to pages that no longer work', 'dfs'],
+    ['Most linked pages', 'DataForSEO · Backlinks · Domain pages summary', 'Your pages with the most referring domains and backlinks', 'dfs'],
+  ],
+  visibility: [
+    ['Answers · Share of voice · Mentions vs citations · Mentions by brand', 'ChatGPT (OpenAI) · your prompt set', 'Each prompt is asked to ChatGPT; we read every answer for brand mentions, position, links and sentiment', 'ai'],
+    ['Top-cited pages · Domains AI cites · Coverage by topic · By prompt tag', 'Calculated from those ChatGPT answers', 'Which of your pages and which other sites the answers link to, per topic and tag', 'ai'],
+    ['Estimated impressions', 'DataForSEO · Labs · Keyword overview', 'Monthly Google search volume for each prompt\u2019s keyword, used to weight mentions by real demand (checked about once a month per keyword)', 'dfs'],
+    ['AI traffic', 'X Platforms tracking script, or Google Analytics 4', 'Real visits from ChatGPT, Perplexity, Gemini, Copilot and Claude, by referrer or utm_source', 'own'],
+  ],
+  audit: [
+    ['Audit score · Stages · Issues', 'Mira crawler · fetches your pages directly', 'HTML, headings, meta tags, links, robots.txt, sitemap, structured data and AI-readiness checks', 'own'],
+    ['Speed & experience', 'Google PageSpeed Insights', 'Core Web Vitals and Lighthouse performance for the page', 'google'],
+    ['Recommendations', 'ChatGPT (OpenAI)', 'Prioritised fixes written from the audit findings', 'ai'],
+  ],
+  chat: [
+    ['Ask Mira answers', 'ChatGPT (OpenAI)', 'Answers about your site, grounded in its latest audit and the data on the other tabs', 'ai'],
+  ],
+  history: [
+    ['Audits · AI visibility runs', 'Saved in your workspace', 'Every audit and visibility run you have done, with the change since the one before', 'own'],
+  ],
+};
+function dfsChip() {
+  const d = (BOOT.sources || {}).dataforseo || {};
+  const map = {
+    live: ['Live', '', 'Real data for ' + d.market + ', refreshed once every ' + d.cache_hours + ' hours, the first time a report is opened.'],
+    sandbox: ['Sandbox · test numbers', ' sandbox', 'DATAFORSEO_SANDBOX=true: real response format with made-up numbers. Set it to false for real data.'],
+    sample: ['Sample data', ' sandbox', 'Generated numbers so every chart can be seen. Add DataForSEO credentials for real data.'],
+    off: ['Not connected', ' sandbox', 'Add DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD to .env.'],
+  }[d.mode || 'off'];
+  return { el: h('span', { cls: 'tag-src' + map[1], title: map[2], text: 'DataForSEO · ' + map[0] }), note: map[2] };
+}
+// Small source label for a report card heading, matching the Data sources bar.
+function srcLabel(kind, extra) {
+  if (kind === 'dfs') {
+    const mode = ((BOOT.sources || {}).dataforseo || {}).mode || 'off', chip = dfsChip();
+    return h('span', { cls: 'tag-src' + (mode === 'live' ? '' : ' sandbox'), title: chip.note, text: 'DataForSEO' + (extra ? ' · ' + extra : '') + (mode === 'live' ? '' : ' · ' + chip.el.textContent.replace('DataForSEO · ', '')) });
+  }
+  return h('span', { cls: 'tag-src', title: 'Answers from ChatGPT (OpenAI) to your prompt set', text: 'ChatGPT' + (extra ? ' · ' + extra : '') });
+}
+function renderSources(tab) {
+  const el = $('src-' + tab);
+  if (!el || el.childNodes.length) return;
+  const d = (BOOT.sources || {}).dataforseo || {}, chip = dfsChip();
+  const kind = { dfs: 'DataForSEO', ai: 'OpenAI', own: 'First-party', google: 'Google' };
+  const kinds = [...new Set(SOURCES[tab].map((r) => r[3]))];
+  const usesDfs = kinds.includes('dfs');
+  const rows = SOURCES[tab].map(([report, source, what, k]) => h('tr', null,
+    h('td', { cls: 'src-report', text: report }),
+    h('td', null, h('span', { cls: 'src-kind k-' + k, text: kind[k] }), h('span', { cls: 'src-name', text: source })),
+    h('td', { cls: 'src-what', text: what.replace('{markets}', d.markets || 10) })));
+  const details = h('details', { cls: 'src-details' },
+    h('summary', null, h('span', { cls: 'src-title', text: 'Data sources' }), usesDfs ? chip.el : null,
+      kinds.filter((k) => k !== 'dfs').map((k) => h('span', { cls: 'tag-src', text: { ai: 'ChatGPT · OpenAI', own: 'First-party', google: 'Google' }[k] })),
+      usesDfs && (d.mode === 'live' || d.mode === 'sandbox') ? h('span', { cls: 'src-market', text: 'Market: ' + d.market }) : null,
+      h('span', { cls: 'src-toggle', text: 'Show what’s pulled' })),
+    h('div', { cls: 'table-wrap' }, h('table', { cls: 'ptable src-table' },
+      h('thead', null, h('tr', null, h('th', { text: 'Report' }), h('th', { text: 'Source' }), h('th', { text: 'What is pulled' }))),
+      h('tbody', null, rows))),
+    usesDfs ? h('p', { cls: 'src-foot', text: chip.note + (d.mode === 'live' ? ' Estimates from DataForSEO are labelled as estimates; measured data (your tracking, Google) is labelled measured.' : '') }) : null);
+  details.addEventListener('toggle', () => { details.querySelector('.src-toggle').textContent = details.open ? 'Hide' : 'Show what’s pulled'; });
+  el.appendChild(details);
+}
+
+// ----------------------------------------------------------- search console
+// Google's own numbers through the customer's Google connection (GET panels/gsc).
+// Not connected → Connect Google; connected without a property → the picker.
+const COUNTRY3 = { aus: 'AU', usa: 'US', gbr: 'GB', nzl: 'NZ', can: 'CA', ind: 'IN', sgp: 'SG', deu: 'DE', irl: 'IE', zaf: 'ZA', fra: 'FR', esp: 'ES', ita: 'IT',
+  nld: 'NL', bra: 'BR', mex: 'MX', jpn: 'JP', kor: 'KR', chn: 'CN', hkg: 'HK', phl: 'PH', idn: 'ID', mys: 'MY', pak: 'PK', bgd: 'BD', are: 'AE', sau: 'SA',
+  swe: 'SE', nor: 'NO', dnk: 'DK', fin: 'FI', che: 'CH', aut: 'AT', bel: 'BE', pol: 'PL', prt: 'PT', tur: 'TR', nga: 'NG', ken: 'KE', egy: 'EG', vnm: 'VN', tha: 'TH' };
+let regionNames = null;
+function countryName(code3) {
+  const a2 = COUNTRY3[String(code3).toLowerCase()];
+  if (!a2) return String(code3).toUpperCase();
+  try { regionNames = regionNames || new Intl.DisplayNames(undefined, { type: 'region' }); return regionNames.of(a2); } catch (e) { return a2; }
+}
+function gscConnected() {
+  const st = S.panels.gsc;
+  return !!(st && st.tag === 'Success' && st.data && st.data.email && !st.data.demo && st.data.reason !== 'reconnect');
+}
+function googleButton(href, label) {
+  return h('a', { cls: 'btn btn-primary btn-sm mira-ev-google_connect', href }, h('span', { cls: 'g-mark', 'aria-hidden': 'true', text: 'G' }), label);
+}
+function renderGscPanel(el, d) {
+  const hint = 'Clicks, impressions, CTR and average position from Google Search Console — measured by Google, not estimated.';
+  if (!d.connected) {
+    el.append(pnlHead('Search Console', hint, h('span', { cls: 'tag-src', text: d.reason === 'pick_site' ? 'Connected · ' + (d.email || 'Google') : 'Not connected' })));
+    if (d.reason === 'pick_site') { googlePicker(el, { intro: d.message }); return; }
+    const box = h('div', { cls: 'connect' },
+      h('div', { cls: 'ghost-metrics four' }, ['Clicks', 'Impressions', 'Avg. CTR', 'Avg. position'].map((g) => h('div', null, h('b', { text: '—' }), g))),
+      h('p', { text: d.message }), d.setup ? h('p', null, h('code', { text: d.setup })) : null);
+    if (d.connect_url) {
+      box.append(h('div', { cls: 'g-actions' }, googleButton(d.connect_url, d.reason === 'reconnect' ? 'Reconnect Google' : 'Connect Google'),
+        h('span', { cls: 'muted', text: 'Read-only access to Search Console and Analytics. Disconnect any time.' })));
+    }
+    el.append(box);
+    return;
+  }
+  const m = d.metrics, prevNote = d.previous_complete ? null : 'Search Console keeps 16 months, so there is no full previous year to compare with.';
+  const actions = h('span', { cls: 'g-head-actions' });
+  if (d.demo) actions.append(sourceTag(d));
+  else {
+    actions.append(h('span', { cls: 'tag-src', title: (d.email ? 'Connected as ' + d.email + '. ' : '') + (d.fetched_at ? 'Updated ' + fmt.date(d.fetched_at) : ''), text: 'Google · ' + String(d.site).replace(/^sc-domain:/, '') }),
+      h('button', { cls: 'btn btn-ghost btn-sm', type: 'button', title: 'Change property or disconnect', on: { click: () => openGooglePicker(el) } }, 'Settings'));
+  }
+  el.append(pnlHead('Search Console', hint, actions));
+  if (d.demo && d.connect_url) {
+    el.append(h('div', { cls: 'note', style: { margin: '4px 0 14px', alignItems: 'center' } }, icon(ICONS.info),
+      h('span', { style: { flex: 1 }, text: 'Sample numbers. Connect Google to see what Search Console records for your site.' }), googleButton(d.connect_url, 'Connect Google')));
+  }
+  el.append(h('div', { cls: 'mgrid four' },
+    metric('Clicks', 'Clicks from Google Search to the site', fmt.compact(m.clicks.value), change(m.clicks.delta)),
+    metric('Impressions', 'Times the site appeared in Google results', fmt.compact(m.impressions.value), change(m.impressions.delta)),
+    metric('Avg. CTR', 'Clicks ÷ impressions', fmt.pct(m.ctr.value), change(m.ctr.delta, { pct: 'pts' })),
+    metric('Avg. position', 'Average top position in results — lower is better', m.position.value === null ? '—' : nf({ maximumFractionDigits: 1 }).format(m.position.value), change(m.position.delta, { invert: true }))));
+  if (prevNote) el.append(h('p', { cls: 'def', text: prevNote }));
+
+  const key = S.gscMetric || 'clicks', labels = { clicks: 'Clicks', impressions: 'Impressions', ctr: 'CTR', position: 'Position' };
+  const toggle = h('div', { cls: 'metric-toggle' }, Object.entries(labels).map(([k, label]) =>
+    h('button', { type: 'button', 'aria-pressed': String(k === key), text: label, on: { click: () => { S.gscMetric = k; renderPanel('gsc'); } } })));
+  const s = d.series, pts = (arr) => arr.map((p) => ({ date: p.date, value: p[key] }));
+  const grid = h('div', { cls: 'traffic-grid', style: { marginTop: '22px' } });
+  grid.append(h('div', null,
+    h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' } },
+      h('div', { cls: 'm-sub', text: labels[key] + ' per ' + s.bucket + (key === 'position' ? ' (lower is better)' : '') }), toggle),
+    compareChart(pts(s.current), d.previous_complete ? pts(s.previous) : null, { height: 200, unit: key === 'ctr' ? '%' : '' }),
+    h('div', { cls: 'chart-legend' }, h('span', null, h('i'), 'This period'), d.previous_complete ? h('span', null, h('i', { cls: 'prev' }), 'Previous period') : null,
+      d.data_through ? h('span', { cls: 'muted', text: 'Data through ' + new Date(d.data_through + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) + ' · Google reports with a 2–3 day delay' }) : null)));
+  const list = (title, rows, label) => {
+    const max = Math.max(1, ...rows.map((r) => r.clicks));
+    return h('div', null, h('div', { cls: 'side-h', text: title }), rows.length ? h('div', { cls: 'mini-list' }, rows.map((r) => h('div', { cls: 'row' },
+      h('span', { cls: 't', title: label(r), text: label(r) }), h('b', { cls: 'num', text: fmt.compact(r.clicks) }), h('span', { cls: 'bar' }, h('i', { style: { width: r.clicks / max * 100 + '%' } })))))
+      : h('p', { cls: 'muted', style: { fontSize: '13px' }, text: 'No data in this window.' }));
+  };
+  grid.append(h('div', { cls: 'grid', style: { gap: '20px', alignContent: 'start' } },
+    list('Countries · clicks', d.countries.slice(0, 6), (r) => countryName(r.country)),
+    list('Devices · clicks', d.devices, (r) => String(r.device).charAt(0) + String(r.device).slice(1).toLowerCase())));
+  el.append(grid);
+
+  const rowsOf = (rows, first) => rows.map((r) => h('tr', null, first(r), tdn(fmt.compact(r.clicks)), tdn(fmt.compact(r.impressions)), tdn(fmt.pct(r.ctr)), tdn(nf({ maximumFractionDigits: 1 }).format(r.position))));
+  const head = (first) => [first, 'Clicks', 'Impressions', 'CTR', 'Position'];
+  el.append(h('div', { cls: 'g-tables' },
+    h('div', null, h('div', { cls: 'side-h', text: 'Top queries' }), d.queries.length
+      ? table(head('Query'), rowsOf(d.queries, (r) => td(r.query)), { right: [1, 2, 3, 4] }) : h('p', { cls: 'muted', text: 'No queries in this window.' })),
+    h('div', null, h('div', { cls: 'side-h', text: 'Top pages' }), d.pages.length
+      ? table(head('Page'), rowsOf(d.pages, (r) => h('td', { title: r.url }, r.path)), { right: [1, 2, 3, 4] }) : h('p', { cls: 'muted', text: 'No pages in this window.' }))));
+}
+
+// Search Console property + GA4 property for the selected project, from the connected
+// Google account. Opened inside a panel (Search Console or Traffic); Save re-fetches both.
+function openGooglePicker(panel) {
+  const old = panel.querySelector('.g-picker');
+  if (old) { old.remove(); return; }
+  googlePicker(panel, { closable: true });
+}
+async function googlePicker(panel, { intro = null, closable = false } = {}) {
+  const p = project(), box = h('div', { cls: 'g-picker' }, h('div', { cls: 'skeleton', style: { height: '44px' } }));
+  panel.append(box);
+  let g;
+  try { ({ google: g } = await api('googleStatus', { id: p.id })); }
+  catch (e) { box.innerHTML = ''; box.append(h('p', { cls: 'muted', text: explain(e).msg })); return; }
+  box.innerHTML = '';
+  if (!g.connected) {
+    box.append(h('p', { cls: 'muted', text: 'Google is not connected.' }), googleButton(g.connect_url, 'Connect Google'));
+    return;
+  }
+  const opt = (value, label, selected) => h('option', { value, selected: selected ? 'selected' : null, text: label });
+  const gsc = h('select', { 'aria-label': 'Search Console property' }, opt('', g.sites.length ? 'Not used' : 'No Search Console properties on this account'),
+    g.sites.map((s) => opt(s.site_url, s.site_url.replace(/^sc-domain:/, 'Domain · ') + (s.site_url === g.suggested.gsc_site_url ? '  (matches ' + p.domain + ')' : ''),
+      s.site_url === (g.selected.gsc_site_url || g.suggested.gsc_site_url))));
+  const ga4 = h('select', { 'aria-label': 'Google Analytics 4 property' }, opt('', g.properties.length ? 'Not used — tracking script only' : 'No Analytics 4 properties on this account'),
+    g.properties.map((x) => opt(x.property, x.name + (x.account ? ' — ' + x.account : '') + ' (' + x.property.replace('properties/', '') + ')',
+      x.property === (g.selected.ga4_property || g.suggested.ga4_property))));
+  const save = h('button', { cls: 'btn btn-primary btn-sm', type: 'button' }, 'Save');
+  save.addEventListener('click', async () => {
+    setBusy(save, true);
+    try {
+      await api('googleSelect', { id: p.id }, { gsc_site_url: gsc.value || null, ga4_property: ga4.value || null });
+      p.gsc_site_url = gsc.value || null; p.ga4_property = ga4.value || null;
+      toast('Google properties saved.');
+      loadPanels(['gsc', 'traffic']);
+    } catch (e) { const ex = explain(e); toast(ex.msg, { error: true, action: ex.action }); }
+    finally { setBusy(save, false); }
+  });
+  const disconnect = h('button', { cls: 'btn btn-ghost btn-sm', type: 'button', text: 'Disconnect Google' });
+  disconnect.addEventListener('click', async () => {
+    if (!confirm('Disconnect Google? Search Console and Google Analytics data stop showing for every project until you connect again.')) return;
+    setBusy(disconnect, true);
+    try { await api('googleDisconnect'); toast('Google disconnected.'); loadPanels(['gsc', 'traffic']); }
+    catch (e) { toast(explain(e).msg, { error: true }); setBusy(disconnect, false); }
+  });
+  const errs = Object.values(g.errors || {});
+  box.append(...[
+    h('div', { cls: 'g-who' }, h('span', { cls: 'g-mark', 'aria-hidden': 'true', text: 'G' }), h('span', null, 'Connected as ', h('b', { text: g.email || 'your Google account' })),
+      closable ? h('button', { cls: 'btn btn-ghost btn-sm', type: 'button', style: { marginLeft: 'auto' }, on: { click: () => box.remove() }, text: 'Close' }) : null),
+    intro ? h('p', { cls: 'muted', style: { fontSize: '13.5px' }, text: intro }) : null,
+    errs.length ? h('div', { cls: 'note' }, icon(ICONS.alert), h('span', { text: errs.join(' ') })) : null,
+    h('label', { cls: 'g-row' }, h('span', null, 'Search Console', h('small', { text: 'Clicks, impressions, CTR and positions' })), gsc),
+    h('label', { cls: 'g-row' }, h('span', null, 'Google Analytics 4', h('small', { text: 'Traffic, when the tracking script isn’t installed' })), ga4),
+    h('div', { cls: 'g-actions' }, save, disconnect)].filter(Boolean));
 }
 
 // Line chart: current series (solid ink) over an optional previous series (dashed),
@@ -787,7 +990,8 @@ const REPORT_VIEW = {
   performance: () => renderPerformance(), positions: () => renderPositions(),
   insights: () => renderOrganic(), countries: () => renderOrganic(), pages: () => renderOrganic(),
   competitors: () => renderOrganic(), paid: () => renderOrganic(), difficulty: () => renderOrganic(),
-  backlinks: () => renderBacklinks(), ai_brand: () => renderBrandRadar(),
+  backlinks: () => renderBacklinks(), links: () => renderBacklinks(), trends: () => renderOrganic(),
+  ai_brand: () => renderBrandRadar(),
 };
 const PALETTE = ['#141417', '#3f6fd8', '#1f8a5b', '#b7791f', '#8a8890', '#c8473f'];
 const YOU = '#c9a13a';
@@ -984,11 +1188,12 @@ function renderOrganic() {
   if (gateReport(body, 'organic', 'Every search signal,', 'explained.', 'Where your traffic comes from, which pages earn it, who you compete with, and what you pay for.',
     ['Traffic by search intent and branded vs non-branded', 'Traffic share across 10 markets', 'Top pages with the AI answers that cite them', 'Organic competitors and a monthly traffic race'])) return;
   const c = () => h('div', { cls: 'card pnl' });
-  const intent = c(), branded = c(), serp = c(), countries = c(), pages = c(), comps = c(), race = c(), paid = c(), kd = c();
+  const intent = c(), branded = c(), serp = c(), countries = c(), pages = c(), comps = c(), race = c(), paid = c(), sov = c(), trendsC = c(), kd = c();
   body.append(h('div', { cls: 'rep-grid three', style: { marginTop: 0 } }, intent, branded, serp),
     h('div', { cls: 'rep-full' }, kd),
+    h('div', { cls: 'rep-full' }, trendsC),
     h('div', { cls: 'rep-full' }, countries), h('div', { cls: 'rep-full' }, pages),
-    h('div', { cls: 'rep-grid' }, comps, race), h('div', { cls: 'rep-full' }, paid));
+    h('div', { cls: 'rep-grid' }, comps, race), h('div', { cls: 'rep-full' }, sov), h('div', { cls: 'rep-full' }, paid));
 
   const intentColors = { informational: '#3f6fd8', commercial: '#c9a13a', transactional: '#1f8a5b', navigational: '#8a8890' };
   reportCard(intent, 'Traffic by search intent', null, 'insights', (box, d) => {
@@ -1037,10 +1242,13 @@ function renderOrganic() {
   }, ['Top country', 'Share']);
   reportCard(pages, 'Top pages', null, 'pages', (box, d) => {
     box.append(pnlHead('Top pages', 'Pages bringing the most organic search traffic, and how often AI answers cite each one.', sourceTag(d, 'DataForSEO')));
-    box.append(table(['Page', 'Traffic', 'Share', 'Keywords', 'Top 3', 'Value', 'AI citations'], d.pages.map((r) => h('tr', null,
+    const head = ['Page', 'Traffic', 'Share', 'Keywords', 'Top 3', 'Value', 'AI citations'].concat(d.ai_visits_tracked ? ['AI visits'] : []);
+    box.append(table(head, d.pages.map((r) => h('tr', null,
       td(h('a', { href: r.url, target: '_blank', rel: 'noopener noreferrer', cls: 'truncate', title: r.url, text: r.path })),
       tdn(fmt.compact(r.traffic)), tdn(fmt.pct(r.share)), tdn(fmt.compact(r.keywords)), tdn(fmt.num(r.top3)), tdn(fmt.money(r.value)),
-      h('td', { cls: 'r' }, r.ai_citations ? h('span', { cls: 'chip-you', style: { marginLeft: 0 }, text: r.ai_citations + ' answers' }) : h('span', { cls: 'muted', text: '—' })))), { right: [1, 2, 3, 4, 5, 6] }));
+      h('td', { cls: 'r' }, r.ai_citations ? h('span', { cls: 'chip-you', style: { marginLeft: 0 }, text: r.ai_citations + ' answers' }) : h('span', { cls: 'muted', text: '—' })),
+      d.ai_visits_tracked ? tdn(r.ai_visits ? fmt.compact(r.ai_visits) : '—') : null)), { right: [1, 2, 3, 4, 5, 6, 7] }));
+    if (d.ai_visits_tracked) box.append(h('p', { cls: 'def', style: { marginTop: '8px' }, text: 'AI visits: real visits from ChatGPT, Perplexity, Gemini and other assistants in the last 30 days, from your tracking script.' }));
   }, ['Top page', 'Traffic']);
   reportCard(comps, 'Organic competitors', null, 'competitors', (box, d) => {
     box.append(pnlHead('Organic competitors', 'Sites ranking for the same keywords as you. Overlap = shared keywords ÷ your keywords.', sourceTag(d, 'DataForSEO')));
@@ -1060,6 +1268,28 @@ function renderOrganic() {
       td(h('span', { cls: 'truncate', title: (r.title || '') + ' — ' + (r.url || ''), text: r.title || shortUrl(r.url) })))), { right: [1, 2, 3] }));
     if (!d.keywords.length) box.append(h('p', { cls: 'def', style: { marginTop: '8px' }, text: 'No paid search activity found for this market.' }));
   }, ['Paid keywords', 'Ads']);
+  reportCard(sov, 'Organic share of voice', null, 'competitors', (box, d) => {
+    box.append(pnlHead('Organic share of voice', 'Each site\u2019s share of the combined organic traffic of you and your tracked competitors, by month.', sourceTag(d, 'DataForSEO')));
+    const s = d.share_of_voice;
+    if (!s || s.domains.length < 2 || !s.series.length) { box.append(h('p', { cls: 'def', text: 'Add competitors with a domain under AI visibility \u2192 Brand & competitors to see your share of the market.' })); return; }
+    const colors = Object.fromEntries(s.domains.map((dm, i) => [dm, dm === project().domain ? YOU : PALETTE[i % PALETTE.length]]));
+    const last = s.series[s.series.length - 1];
+    box.append(h('div', { cls: 'mgrid', style: { gridTemplateColumns: `repeat(${Math.min(5, s.domains.length)},1fr)` } }, s.domains.slice(0, 5).map((dm) =>
+      metric(dm === project().domain ? dm + ' (you)' : dm, null, fmt.pct(last[dm]), s.series.length > 1 ? change(Math.round((last[dm] - s.series[0][dm]) * 10) / 10, { pct: 'pts' }) : null, null, { small: true }))));
+    box.append(h('div', { style: { marginTop: '14px' } }, columns(s.series.map((m) => Object.assign({ label: monthLabel(m.date) }, m)), s.domains.map((dm) => ({ key: dm, color: colors[dm] })), { height: 200 })));
+  }, ['You', 'Competitors']);
+  reportCard(trendsC, 'Search intent & SERP features over time', null, 'trends', (box, d) => {
+    box.append(pnlHead('Search intent & SERP features over time', d.note, sourceTag(d, 'DataForSEO')));
+    if (d.points.length < 2) { box.append(h('p', { cls: 'def', text: `Tracking since ${d.since || 'today'}. History builds by one point a day — check back tomorrow for a trend.` })); }
+    const grid = h('div', { cls: 'traffic-grid' });
+    grid.append(h('div', null, h('div', { cls: 'm-sub', text: 'Traffic share by intent (%)' }),
+      columns(d.points.map((p) => Object.assign({ label: new Date(p.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) }, p.intent)),
+        [{ key: 'informational', color: '#3f6fd8' }, { key: 'commercial', color: '#c9a13a' }, { key: 'transactional', color: '#1f8a5b' }, { key: 'navigational', color: '#8a8890' }], { height: 180 })));
+    grid.append(h('div', null, h('div', { cls: 'm-sub', text: 'SERP features owned' }),
+      multiLine([['featured_snippet', 'Featured snippets', '#141417'], ['ai_overview_reference', 'AI Overview citations', YOU], ['local_pack', 'Local pack', '#3f6fd8']].map(([k, label, color]) =>
+        ({ name: label, color, points: d.points.map((p) => ({ date: p.date, value: p.features[k] ?? 0 })) })), { height: 180, fmtV: (v) => String(v) })));
+    box.append(grid);
+  }, ['Intent', 'SERP features']);
 }
 
 // ----------------------------------------------------------------- Backlinks
@@ -1069,8 +1299,32 @@ function renderBacklinks() {
   if (gateReport(body, 'backlinks', 'See who vouches for', 'you.', 'Every site linking to you, how strong it is, what it says about you — and what you gained or lost.',
     ['Referring domains growth and new vs lost, month by month', 'Authority distribution of linking sites', 'Referring domains and anchor text tables', 'Followed vs nofollow and link types'])) return;
   const c = () => h('div', { cls: 'card pnl' });
-  const kpi = c(), growth = c(), newlost = c(), dist = c(), follow = c(), tld = c(), domains = c(), anchors = c();
-  body.append(kpi, h('div', { cls: 'rep-grid' }, growth, newlost), h('div', { cls: 'rep-grid three' }, dist, follow, tld), h('div', { cls: 'rep-grid' }, domains, anchors));
+  const kpi = c(), growth = c(), newlost = c(), dist = c(), follow = c(), tld = c(), domains = c(), anchors = c(), linksC = c(), linkedC = c(), brokenC = c();
+  body.append(kpi, h('div', { cls: 'rep-grid' }, growth, newlost), h('div', { cls: 'rep-grid three' }, dist, follow, tld), h('div', { cls: 'rep-full' }, linksC),
+    h('div', { cls: 'rep-grid' }, linkedC, brokenC), h('div', { cls: 'rep-grid' }, domains, anchors));
+  reportCard(linksC, 'Backlinks', null, 'links', (box, d) => {
+    box.append(pnlHead('Backlinks', 'The strongest link from each linking site: where it sits, what it says, and where it points.', sourceTag(d, 'DataForSEO')));
+    box.append(table(['Referring page', 'Authority', 'Anchor & context', 'Target', 'Type'], d.backlinks.slice(0, 25).map((r) => h('tr', null,
+      td(h('div', null, h('div', { cls: 'truncate', style: { maxWidth: '260px', fontWeight: 500 }, title: r.from, text: r.from_title || shortUrl(r.from) }), h('div', { cls: 'muted truncate', style: { maxWidth: '260px', fontSize: '12px' }, text: shortUrl(r.from) }))),
+      tdn(r.authority ?? '—'),
+      td(h('span', { cls: 'def' }, (r.text_pre ? '\u2026' + r.text_pre.slice(-40) + ' ' : ''), h('b', { text: r.anchor || '(image / empty)' }), (r.text_post ? ' ' + r.text_post.slice(0, 40) + '\u2026' : ''))),
+      td(h('span', { cls: 'truncate', style: { maxWidth: '180px' }, title: r.to, text: shortUrl(r.to) })),
+      td([r.dofollow ? h('span', { cls: 'badge badge-good', text: 'follow' }) : h('span', { cls: 'badge badge-preview', text: 'nofollow' }), r.type !== 'anchor' ? h('span', { cls: 'chip', style: { marginLeft: '6px' }, text: r.type }) : null]))), { right: [1] }));
+  }, ['Links']);
+  reportCard(linkedC, 'Most linked pages', null, 'links', (box, d) => {
+    box.append(pnlHead('Most linked pages', 'Your pages that attract the most linking sites — your link magnets.', sourceTag(d, 'DataForSEO')));
+    box.append(table(['Page', 'Ref. domains', 'Backlinks', 'Broken'], d.pages.slice(0, 12).map((r) => h('tr', null,
+      td(h('span', { cls: 'truncate', style: { maxWidth: '240px' }, title: r.url, text: shortUrl(r.url) })), tdn(fmt.compact(r.referring_domains)), tdn(fmt.compact(r.backlinks)),
+      h('td', { cls: 'r' }, r.broken ? h('span', { cls: 'badge badge-bad', text: r.broken }) : h('span', { cls: 'muted', text: '0' })))), { right: [1, 2, 3] }));
+  }, ['Pages']);
+  reportCard(brokenC, 'Broken backlinks', null, 'links', (box, d) => {
+    box.append(pnlHead('Broken backlinks', 'Links to pages that error. Redirect each target to a live page to win the authority back.', sourceTag(d, 'DataForSEO')));
+    if (!d.broken.length) { box.append(h('p', { cls: 'def', text: 'No broken backlinks found — every link points at a live page.' })); return; }
+    box.append(table(['From', 'Authority', 'Broken target', 'Status'], d.broken.slice(0, 15).map((r) => h('tr', null,
+      td(h('span', { cls: 'truncate', style: { maxWidth: '180px' }, title: r.from, text: r.domain || shortUrl(r.from) })), tdn(r.authority ?? '—'),
+      td(h('span', { cls: 'truncate', style: { maxWidth: '200px' }, title: r.to, text: shortUrl(r.to) })), td(h('span', { cls: 'badge badge-bad', text: String(r.status || 'error') })))), { right: [1] }));
+    box.append(h('p', { cls: 'def', style: { marginTop: '10px' }, text: 'Fix: add a 301 redirect from each broken target to its closest live page.' }));
+  }, ['Broken']);
   const H = 'Link data from DataForSEO. Authority is our 0–100 link score, not Ahrefs DR.';
   reportCard(kpi, 'Backlink profile', H, 'backlinks', (box, d) => {
     const s = d.summary;
@@ -1133,27 +1387,51 @@ function renderBrandRadar() {
   host.innerHTML = '';
   if (st.tag !== 'Success' || !st.data.has_runs) return;
   const d = st.data;
+  if (d.sample) host.appendChild(h('div', { cls: 'note', style: { marginBottom: '14px', background: 'var(--warn-soft)', borderColor: '#f0d9b0', color: 'var(--warn)' } }, icon(ICONS.info),
+    h('span', { text: 'Includes sample AI visibility history (php artisan mira:sample-data). Remove it with --purge before showing real results.' })));
   const c = () => h('div', { cls: 'card pnl' });
-  const mc = c(), bot = c(), pagesC = c(), domainsC = c(), topicsC = c(), gapC = c(), brandsC = c();
-  host.append(h('div', { cls: 'rep-grid' }, mc, bot), h('div', { cls: 'rep-grid three' }, pagesC, domainsC, topicsC), h('div', { cls: 'rep-grid' }, gapC, brandsC));
-  mc.append(pnlHead('Mentions vs citations', 'Monthly totals across your runs.'),
+  const mc = c(), bot = c(), pagesC = c(), domainsC = c(), topicsC = c(), gapC = c(), brandsC = c(), impC = c(), tagC = c(), aiTrafC = c();
+  host.append(h('div', { cls: 'rep-grid three' }, impC, aiTrafC, tagC), h('div', { cls: 'rep-grid' }, mc, bot), h('div', { cls: 'rep-grid three' }, pagesC, domainsC, topicsC), h('div', { cls: 'rep-grid' }, gapC, brandsC));
+  const imp = d.impressions;
+  impC.append(pnlHead('Estimated impressions', 'Answers that name you, weighted by the monthly Google search volume behind each prompt — potential exposure, not measured reach.', h('span', { cls: 'g-head-actions' }, srcLabel('dfs', 'search volume'), h('span', { cls: 'tag-src', text: 'Modeled' }))));
+  if (!imp) impC.append(h('p', { cls: 'def', text: 'Appears once prompt search volumes are known (needs the SEO data provider). Volumes refresh monthly on each run.' }));
+  else {
+    impC.append(h('div', { cls: 'mgrid' }, metric('Your impressions', null, fmt.compact(imp.brand), null, [h('span', { text: 'of' }), h('b', { text: fmt.compact(imp.possible) }), h('span', { text: 'possible' })]),
+      metric('Impression share', null, fmt.pct(imp.share), null, null)));
+    impC.append(h('div', { cls: 'sov', style: { marginTop: '14px' } }, imp.entities.map((e) => h('div', { cls: 'sov-row' + (e.is_brand ? ' you' : '') },
+      h('span', { cls: 'nm' }, h('span', { cls: 'dot' }), e.name), h('span', { cls: 'track' }, h('i', { style: { width: e.share + '%' } })), h('span', { cls: 'v', text: fmt.pct(e.share) })))));
+  }
+  const tr = S.panels.traffic && S.panels.traffic.tag === 'Success' ? S.panels.traffic.data : null;
+  aiTrafC.append(pnlHead('AI traffic', 'Real visits from AI assistants (referrer or utm_source), measured by your tracking script or Google Analytics 4.', tr && tr.demo ? sourceTag(tr) : h('span', { cls: 'tag-src', text: 'Measured' + (tr && tr.source === 'ga4' ? ' · Google Analytics 4' : tr && tr.connected ? ' · tracking script' : '') })));
+  if (!tr || !tr.connected || !tr.ai_traffic) aiTrafC.append(h('p', { cls: 'def', text: 'Install the X Platforms tracking script or connect Google Analytics 4 to see visits from ChatGPT, Perplexity, Gemini and others.' }));
+  else {
+    const a = tr.ai_traffic, max = Math.max(1, ...a.platforms.map((p) => p.visits));
+    aiTrafC.append(metric('AI-referred visits', null, fmt.compact(a.visits.value), change(a.visits.delta), [h('span', { text: S.periodInfo ? S.periodInfo.label : '' })]));
+    aiTrafC.append(h('div', { cls: 'mini-list', style: { marginTop: '12px' } }, a.platforms.slice(0, 5).map((p) => h('div', { cls: 'row' },
+      h('span', { cls: 't', text: p.platform }), h('b', { cls: 'num', text: fmt.compact(p.visits) }), h('span', { cls: 'bar' }, h('i', { style: { width: p.visits / max * 100 + '%', background: YOU } }))))));
+  }
+  tagC.append(pnlHead('By prompt tag', 'Mention rate for each tag in the latest run. Tag prompts by topic, funnel stage or campaign.', srcLabel('ai')));
+  tagC.append(d.tags.length ? h('div', { cls: 'mini-list' }, d.tags.map((t) => h('div', { cls: 'row' }, h('span', { cls: 't', text: '#' + t.tag }), h('b', { cls: 'num', text: t.mentions + '/' + t.answers }),
+    h('span', { cls: 'bar' }, h('i', { style: { width: t.rate + '%', background: '#141417' } })))))
+    : h('p', { cls: 'def', text: 'No tagged prompts yet. Add tags when you add a prompt.' }));
+  mc.append(pnlHead('Mentions vs citations', 'Monthly totals across your runs.', srcLabel('ai')),
     h('p', { cls: 'def' }, h('b', { text: 'Mentions' }), ' — your brand name appears in an AI answer. ', h('b', { text: 'Citations' }), ' — the answer links to your pages as a source.'),
     columns(d.monthly.map((m) => ({ label: monthLabel(m.month), mentions: m.mentions, citations: m.citations })), [{ key: 'mentions', color: '#141417' }, { key: 'citations', color: YOU }],
       { height: 180, labels: { mentions: 'Mentions', citations: 'Citations' } }));
-  bot.append(pnlHead('Mentions by brand', 'How often each tracked brand is named, run by run.'),
+  bot.append(pnlHead('Mentions by brand', 'How often each tracked brand is named, run by run.', srcLabel('ai')),
     multiLine(d.brands_over_time.map((b, i) => ({ name: b.you ? b.name + ' (you)' : b.name, color: b.you ? YOU : PALETTE[i % PALETTE.length], bold: b.you,
       points: b.series.map((p) => ({ date: p.date, value: p.mentions })) })), { height: 200, fmtV: (v) => String(v) }));
-  pagesC.append(pnlHead('Top-cited pages', 'Your pages AI answers link to, and the average position among cited sources.'),
+  pagesC.append(pnlHead('Top-cited pages', 'Your pages AI answers link to, and the average position among cited sources.', srcLabel('ai')),
     table(['Page', 'Cited in', 'Avg pos.'], d.cited_pages.map((p) => h('tr', null, td(h('span', { cls: 'truncate', style: { maxWidth: '200px' }, title: p.url, text: shortUrl(p.url) })), tdn(p.cited_in), tdn('#' + p.avg_position))), { right: [1, 2] }));
-  domainsC.append(pnlHead('Top-cited domains', `Domains most often cited in answers that mention ${d.brand}.`),
+  domainsC.append(pnlHead('Top-cited domains', `Domains most often cited in answers that mention ${d.brand}.`, srcLabel('ai')),
     table(['Domain', 'Answers'], d.cited_domains.map((r) => h('tr', null, td([r.domain, r.kind === 'you' ? h('span', { cls: 'chip-you', text: 'you' }) : null]), tdn(r.answers))), { right: [1] }));
-  topicsC.append(pnlHead('Topics', `Topics where AI mentions ${d.brand} most (latest run).`),
+  topicsC.append(pnlHead('Topics', `Topics where AI mentions ${d.brand} most (latest run).`, srcLabel('ai')),
     h('div', { cls: 'mini-list' }, d.topics.map((t) => h('div', { cls: 'row' }, h('span', { cls: 't', text: t.topic }), h('b', { cls: 'num', text: t.mentions + '/' + t.answers }), h('span', { cls: 'bar' }, h('i', { style: { width: t.rate + '%', background: YOU } }))))));
-  gapC.append(pnlHead('Mention gaps', 'Prompts where a competitor is named and you aren’t — your clearest content opportunities.'),
+  gapC.append(pnlHead('Mention gaps', 'Prompts where a competitor is named and you aren’t — your clearest content opportunities.', srcLabel('ai')),
     d.gaps.length ? h('div', null, d.gaps.map((g) => h('div', { cls: 'gap-row' }, h('span', null, g.prompt, g.topic ? h('span', { cls: 'chip', style: { marginLeft: '8px' }, text: g.topic }) : null),
       h('span', null, g.competitors.map((x) => h('span', { cls: 'chip-comp', text: x })))))) : h('p', { cls: 'def', text: 'No gaps in the latest run — every answer naming a competitor also named you.' }));
   const s = d.sentiment, total = s.analyzed || 1;
-  brandsC.append(pnlHead('Most mentioned brands', 'Every brand the latest answers named — including ones you don’t track yet.'),
+  brandsC.append(pnlHead('Most mentioned brands', 'Every brand the latest answers named — including ones you don’t track yet.', srcLabel('ai')),
     d.most_mentioned.length ? h('div', { cls: 'mini-list' }, d.most_mentioned.map((b) => h('div', { cls: 'row' }, h('span', { cls: 't' }, b.name, b.kind === 'you' ? h('span', { cls: 'chip-you', text: 'you' }) : b.kind === 'competitor' ? h('span', { cls: 'chip-comp', text: 'tracked' }) : null),
       h('b', { cls: 'num', text: b.answers }), h('span', { cls: 'bar' }, h('i', { style: { width: b.answers / Math.max(1, d.latest.answers) * 100 + '%', background: b.kind === 'you' ? YOU : '#141417' } })))))
       : h('p', { cls: 'def', text: 'Brand extraction runs from the next visibility check.' }),
@@ -1190,8 +1468,9 @@ function renderAudit() {
       meta.innerHTML = '';
       meta.append(h('span', { text: fmt.host(scan.url) + (scan.competitor_url ? ' vs ' + fmt.host(scan.competitor_url) : '') }),
         h('span', { text: '·' }), h('span', { text: fmt.date(scan.finished_at) }),
-        h('span', { cls: 'badge ' + (scan.mode === 'premium' ? 'badge-plan' : 'badge-preview'), text: scan.mode === 'premium' ? 'Premium report' : 'Preview report' }));
-      $('auditUpsell').hidden = scan.mode === 'premium';
+        h('span', { cls: 'badge ' + (scan.mode === 'premium' ? 'badge-plan' : scan.mode === 'sample' ? 'badge-warn' : 'badge-preview'),
+          text: scan.mode === 'premium' ? 'Premium report' : scan.mode === 'sample' ? 'Sample report' : 'Preview report' }));
+      $('auditUpsell').hidden = scan.mode !== 'preview';
       wireAuditActions(scan);
       if (S.renderedReport !== scan.uuid && report) {
         S.renderedReport = scan.uuid;
@@ -1461,8 +1740,9 @@ function renderVisibility() {
   const vu = usageOf('visibility_runs');
   body.appendChild(h('div', { cls: 'card', style: { marginTop: '14px' } },
     h('div', { cls: 'card-hd' }, h('div', null, h('h3', { text: 'Prompt set · ' + prompts.filter((x) => x.is_active).length + ' active' }),
-      h('span', { cls: 'sub', text: `${prompts.length} of ${caps.prompts} prompts · up to ${caps.prompts_per_run} answered per run · ${Math.max(0, vu.limit - vu.used)} runs left this month` })),
-      h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
+      h('span', { cls: 'sub', text: `${prompts.length} of ${caps.prompts} prompts · up to ${caps.prompts_per_run} answered per run · ${Math.max(0, vu.limit - vu.used)} runs left this month` }),
+        h('div', { style: { marginTop: '6px' } }, srcLabel('dfs', 'keyword volumes'))),
+      h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' } }, scheduleControl(p),
         h('button', { cls: 'btn btn-secondary', type: 'button', on: { click: suggestPrompts } }, icon(ICONS.spark), 'Suggest prompts'), runBtn)),
     run ? h('div', { cls: 'card-bd' }, h('div', { cls: 'progress', style: { width: '100%', justifyItems: 'start' } }, h('div', { cls: 'track' }, h('i')),
       h('span', { cls: 'muted', style: { fontSize: '13px' }, text: run.status === 'queued' ? 'Starting…' : `Asking the AI engine · ${run.progress || 0} of ${run.prompts_count} prompts answered` }))) : null));
@@ -1475,16 +1755,16 @@ function renderVisibility() {
   if (!latest) {
     right.appendChild(stateCard(ICONS.chart, 'No visibility data yet', prompts.length ? 'Run a visibility check to see how AI answers your prompts.' : 'Suggest prompts or add your own, then run a check.'));
   } else {
-    right.appendChild(h('div', { cls: 'card' }, h('div', { cls: 'card-hd' }, h('h3', { text: 'Share of voice' }), h('span', { cls: 'sub', text: fmt.ago(latest.finished_at) })),
+    right.appendChild(h('div', { cls: 'card' }, h('div', { cls: 'card-hd' }, h('h3', { text: 'Share of voice' }), h('span', { cls: 'g-head-actions' }, h('span', { cls: 'sub', text: fmt.ago(latest.finished_at) }), srcLabel('ai'))),
       h('div', { cls: 'card-bd' }, h('div', { cls: 'sov' }, sum.entities.map((e) => h('div', { cls: 'sov-row' + (e.is_brand ? ' you' : '') },
         h('span', { cls: 'nm', title: e.name }, h('span', { cls: 'dot' }), e.name), h('span', { cls: 'track' }, h('i', { style: { width: (e.share || 0) + '%' } })),
         h('span', { cls: 'v', text: e.share === null ? '—' : fmt.pct(e.share) })))),
         report.timeline.length > 1 ? h('div', { style: { marginTop: '18px' } }, h('div', { cls: 'side-h', text: 'Mentions per run' }), lineChart(report.timeline.map((t) => ({ v: t.answered ? Math.round(t.mentions / t.answered * 100) : 0 })), 'v', { h: 120 })) : null)));
-    right.appendChild(h('div', { cls: 'card' }, h('div', { cls: 'card-hd' }, h('h3', { text: 'Domains AI cites' }), h('span', { cls: 'sub', text: 'Who gets the link instead of you' })),
+    right.appendChild(h('div', { cls: 'card' }, h('div', { cls: 'card-hd' }, h('h3', { text: 'Domains AI cites' }), srcLabel('ai')),
       h('div', { cls: 'card-bd' }, sum.top_domains.length ? h('table', { cls: 'table' }, h('thead', null, h('tr', null, h('th', { text: 'Domain' }), h('th', { cls: 'r', text: 'Answers' }))),
         h('tbody', null, sum.top_domains.map((d) => h('tr', null, h('td', null, d.domain, ' ', d.kind !== 'other' ? h('span', { cls: 'badge ' + (d.kind === 'you' ? 'badge-plan' : 'badge-info'), text: d.kind === 'you' ? 'you' : 'competitor' }) : null), h('td', { cls: 'r num', text: d.count })))))
         : h('p', { cls: 'muted', text: 'No sources were cited in this run.' }))));
-    right.appendChild(h('div', { cls: 'card' }, h('div', { cls: 'card-hd' }, h('h3', { text: 'Coverage by topic' })),
+    right.appendChild(h('div', { cls: 'card' }, h('div', { cls: 'card-hd' }, h('h3', { text: 'Coverage by topic' }), srcLabel('ai')),
       h('div', { cls: 'card-bd' }, h('div', { cls: 'stages' }, sum.topics.map((t) => h('div', { cls: 'stage-row' },
         h('span', { cls: 'lbl', text: t.topic }), h('span', { cls: 'track' }, h('i', { cls: 'tone-' + tone(t.rate), style: { width: t.rate + '%' } })),
         h('span', { cls: 'val', text: t.mentions + '/' + t.prompts })))))));
@@ -1511,7 +1791,7 @@ function answersCard(latest, p) {
     box.append(text.slice(last));
     return box;
   };
-  return h('div', { cls: 'card' }, h('div', { cls: 'card-hd' }, h('h3', { text: 'Answers' }), h('span', { cls: 'sub', text: 'What AI said, prompt by prompt' })),
+  return h('div', { cls: 'card' }, h('div', { cls: 'card-hd' }, h('h3', { text: 'Answers' }), h('span', { cls: 'g-head-actions' }, h('span', { cls: 'sub', text: 'What AI said, prompt by prompt' }), srcLabel('ai'))),
     h('div', { cls: 'card-bd' }, latest.answers.map((a) => h('details', { cls: 'answer' },
       h('summary', null, h('span', { cls: 'flag ' + (a.brand_mentioned ? 'yes' : 'no'), text: a.brand_mentioned ? '#' + a.brand_position : '–' }),
         h('span', null, a.prompt, h('div', { cls: 'chips', style: { marginTop: '6px' } }, a.topic ? h('span', { cls: 'chip', text: a.topic }) : null,
@@ -1519,8 +1799,28 @@ function answersCard(latest, p) {
         h('span', { cls: 'muted', style: { fontSize: '12px' }, text: a.error ? 'no answer' : 'view' })),
       a.error ? h('p', { cls: 'muted', style: { marginTop: '10px' }, text: a.error }) : highlight(a.answer || '')))));
 }
+// Off / daily / weekly / monthly runs of the prompt set (artisan mira:visibility-scheduled, hourly).
+function scheduleControl(p) {
+  const sel = h('select', { 'aria-label': 'Run schedule', style: { height: '40px', border: '1px solid var(--line-2)', borderRadius: '999px', background: 'var(--card)', padding: '0 14px', fontSize: '13px', fontWeight: '600' } },
+    [['off', 'Manual runs'], ['daily', 'Run daily'], ['weekly', 'Run weekly'], ['monthly', 'Run monthly']].map(([v, l]) => h('option', { value: v, text: l, selected: (p.visibility_schedule || 'off') === v ? 'selected' : null })));
+  sel.addEventListener('change', async () => {
+    try {
+      const { project: updated } = await api('updateProject', { id: p.id }, { visibility_schedule: sel.value });
+      upsertProject(updated);
+      toast(sel.value === 'off' ? 'Scheduled runs turned off.' : `Runs ${sel.value} — first one within the hour. Each run uses one AI visibility run from your plan.`);
+      renderVisibility();
+    } catch (e) { const ex = explain(e); toast(ex.msg, { error: true, action: ex.action }); sel.value = p.visibility_schedule || 'off'; }
+  });
+  const next = p.visibility_schedule && p.visibility_schedule !== 'off' && p.next_visibility_run_at
+    ? h('span', { cls: 'muted', style: { fontSize: '12px' }, text: 'Next ' + fmt.ago(p.next_visibility_run_at) }) : null;
+  return h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '8px' } }, sel, next);
+}
 function brandEditor(p) {
   const terms = h('input', { value: p.brand_terms.join(', '), placeholder: 'Acme, Acme Analytics' });
+  const excludes = h('input', { value: (p.exclude_terms || []).join(', '), placeholder: 'e.g. apple pie, apple juice' });
+  let caseSensitive = p.match_mode === 'case_sensitive';
+  const caseBtn = h('button', { cls: 'switch', type: 'button', role: 'switch', 'aria-checked': String(caseSensitive), 'aria-label': 'Match brand case-sensitively' });
+  caseBtn.addEventListener('click', () => { caseSensitive = !caseSensitive; caseBtn.setAttribute('aria-checked', String(caseSensitive)); });
   const rows = h('div', { cls: 'grid', style: { gap: '8px' } });
   const addRow = (c) => {
     const n = h('input', { value: c ? c.name : '', placeholder: 'Competitor name' });
@@ -1538,7 +1838,8 @@ function brandEditor(p) {
     try {
       const competitors = [...rows.children].map((r) => r._v()).filter((c) => c.name.length >= 2);
       const brand_terms = terms.value.split(',').map((t) => t.trim()).filter((t) => t.length >= 2);
-      const { project: updated } = await api('updateProject', { id: p.id }, { brand_terms, competitors });
+      const exclude_terms = excludes.value.split(',').map((t) => t.trim()).filter((t) => t.length >= 2);
+      const { project: updated } = await api('updateProject', { id: p.id }, { brand_terms, competitors, exclude_terms, match_mode: caseSensitive ? 'case_sensitive' : 'word' });
       upsertProject(updated);
       toast('Brand and competitors saved. They apply from the next run.');
       renderVisibility();
@@ -1548,6 +1849,9 @@ function brandEditor(p) {
   return h('div', { cls: 'card' }, h('div', { cls: 'card-hd' }, h('h3', { text: 'Brand & competitors' }), h('span', { cls: 'sub', text: `up to ${S.caps.competitors} competitors` })),
     h('div', { cls: 'card-bd editor' },
       h('label', null, 'How your brand is named', h('span', { cls: 'field' }, terms)),
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' } }, caseBtn,
+        h('span', null, h('b', { text: 'Exact case only' }), h('span', { cls: 'muted', text: ' — count "Apple", not "apple"' }))),
+      h('label', null, 'Never count these phrases', h('span', { cls: 'field' }, excludes)),
       h('div', null, h('div', { cls: 'side-h', text: 'Competitors' }), rows),
       h('div', { style: { display: 'flex', gap: '8px', justifyContent: 'space-between' } },
         h('button', { cls: 'btn btn-ghost btn-sm', type: 'button', on: { click: () => { if (rows.children.length < S.caps.competitors) addRow(null); else toast(`Your plan tracks up to ${S.caps.competitors} competitors.`); } } }, icon(ICONS.plus), 'Add competitor'), save)));
@@ -1563,7 +1867,12 @@ function promptManager(prompts, caps) {
       catch (e) { toast(explain(e).msg, { error: true }); }
     });
     list.appendChild(h('div', { cls: 'prompt' + (pr.is_active ? '' : ' off') }, sw,
-      h('div', null, pr.prompt, h('div', { cls: 'meta' }, pr.topic ? h('span', { cls: 'chip', text: pr.topic }) : null, pr.source === 'seed' ? h('span', { cls: 'chip', text: 'suggested' }) : null)),
+      h('div', null, pr.prompt, h('div', { cls: 'meta', style: { flexWrap: 'wrap' } },
+        pr.topic ? h('span', { cls: 'chip', text: pr.topic }) : null,
+        pr.source === 'seed' ? h('span', { cls: 'chip', text: 'suggested' }) : null,
+        pr.source === 'sample' ? h('span', { cls: 'chip', style: { background: 'var(--warn-soft)', color: 'var(--warn)' }, text: 'sample' }) : null,
+        (pr.tags || []).map((t) => h('span', { cls: 'chip you', text: '#' + t })),
+        pr.keyword ? h('span', { cls: 'chip', title: 'Search keyword behind this prompt — weights Estimated impressions', text: pr.keyword + (pr.search_volume !== null && pr.search_volume !== undefined ? ' · ' + fmt.compact(pr.search_volume) + '/mo' : '') }) : null)),
       h('button', { cls: 'btn btn-ghost btn-sm', type: 'button', 'aria-label': 'Delete prompt', on: { click: async () => {
         try { await api('deletePrompt', { id: pr.id }); S.vis.data.prompts = S.vis.data.prompts.filter((x) => x.id !== pr.id); renderVisibility(); }
         catch (e) { toast(explain(e).msg, { error: true }); }
@@ -1572,13 +1881,15 @@ function promptManager(prompts, caps) {
   const input = h('input', { placeholder: 'e.g. What is the best analytics tool for small shops?', maxlength: '300' });
   const topic = h('select', { 'aria-label': 'Topic' }, h('option', { value: '', text: 'Topic' }), ['Discovery', 'Comparison', 'Pricing', 'Trust', 'How-to', 'Local'].map((t) => h('option', { value: t, text: t })));
   const add = h('button', { cls: 'btn btn-secondary', type: 'submit' }, icon(ICONS.plus), 'Add');
-  const form = h('form', { cls: 'add-row' }, h('label', { cls: 'field' }, input), topic, add);
+  const tagsIn = h('input', { placeholder: 'tags, comma separated', maxlength: '120', style: { maxWidth: '170px' }, 'aria-label': 'Tags' });
+  const form = h('form', { cls: 'add-row', style: { flexWrap: 'wrap' } }, h('label', { cls: 'field', style: { minWidth: '240px' } }, input), h('label', { cls: 'field', style: { flex: '0 0 auto' } }, tagsIn), topic, add);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (input.value.trim().length < 8) return;
     setBusy(add, true);
     try {
-      const { prompt } = await api('addPrompt', { id: p.id }, { prompt: input.value, topic: topic.value || null });
+      const tags = tagsIn.value.split(',').map((t) => t.trim()).filter(Boolean);
+      const { prompt } = await api('addPrompt', { id: p.id }, { prompt: input.value, topic: topic.value || null, tags });
       S.vis.data.prompts.push(prompt); track('prompt_add'); renderVisibility();
     } catch (err) { const ex = explain(err); toast(ex.msg, { error: true, action: ex.action }); }
     finally { setBusy(add, false); }
@@ -1646,7 +1957,7 @@ function renderHistory() {
       h('td', { cls: 'r num c-' + tone(s.overall), text: s.overall ?? '—' }),
       h('td', { cls: 'r' }, deltaEl(s.delta.overall) || '—'),
       h('td', { cls: 'r num', text: s.open_issues ?? '—' }),
-      h('td', null, h('span', { cls: 'badge ' + (s.status === 'done' ? 'badge-good' : s.status === 'failed' ? 'badge-bad' : 'badge-preview'), text: s.status })))))))));
+      h('td', null, s.mode === 'sample' ? h('span', { cls: 'badge badge-warn', text: 'sample' }) : h('span', { cls: 'badge ' + (s.status === 'done' ? 'badge-good' : s.status === 'failed' ? 'badge-bad' : 'badge-preview'), text: s.status })))))))));
 }
 async function openScan(id) {
   try { S.scan = RD.success(await api('showScan', { id })); setTab('audit'); renderOverview(); track('report_open', { from: 'history' }); }
@@ -1906,14 +2217,32 @@ document.querySelectorAll('[data-ask]').forEach((b) => b.addEventListener('click
 // =================================================================== start
 (function init() {
   renderTopbar();
+  if (!S.sub.signed_in) {
+    // Projects (and everything saved to them) belong to an account — say so up front.
+    document.querySelector('.hero').insertAdjacentElement('afterend', h('div', { cls: 'note', style: { margin: '0 0 16px', alignItems: 'center' } }, icon(ICONS.info),
+      h('span', { style: { flex: 1 }, text: 'You\u2019re viewing as a visitor. Sign in to see your projects, AI visibility history and saved reports.' }),
+      h('a', { cls: 'btn btn-primary btn-sm', href: LOGIN_URL, text: 'Sign in' })));
+  }
   chatEmpty();
   renderChatQuota();
   // Every visit starts fresh: an empty website box and no earlier project or
-  // scan opened. Saved projects stay in the project switcher, past scans in
-  // History, and auditing a site picks its project automatically.
+  // scan opened (saved projects stay in the project switcher, past scans in
+  // History). The exception is coming back from "Connect Google", which
+  // reopens the project that was just connected and says how it went.
+  const qs = new URLSearchParams(location.search);
+  let googleProject = null;
+  if (qs.has('google') || qs.has('project')) {
+    googleProject = parseInt(qs.get('project'), 10) || null;
+    if (qs.get('google') === 'connected') toast(qs.get('google_message') || 'Google connected. Search Console and Analytics data will appear in the overview.', { error: !!qs.get('google_message') });
+    else if (qs.get('google') === 'error') toast(qs.get('google_message') || 'Google connection failed.', { error: true });
+    track('google_return', { result: qs.get('google') || '' });
+    history.replaceState(null, '', location.pathname + location.hash);
+  }
   try { localStorage.removeItem(STORE_KEY); } catch (e) {}
   $('scanUrl').value = '';
   $('scanComp').value = '';
+  if (premium() && googleProject && S.projects.some((p) => p.id === googleProject)) selectProject(googleProject);
+  Object.keys(SOURCES).forEach(renderSources);
   renderOverview();
   renderPanels();
   const hash = location.hash.replace('#', '');

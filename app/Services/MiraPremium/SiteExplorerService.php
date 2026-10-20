@@ -164,6 +164,7 @@ class SiteExplorerService
         ])['items'] ?? []);
 
         $ai    = $this->aiCitationsByPath($project);
+        $aiVisits = app(TrafficService::class)->aiVisitsByPath($project, Period::fromKey('30d'));
         $total = array_sum(array_map(fn ($i) => $i['metrics']['organic']['etv'] ?? 0, $snap['payload']));
 
         return [
@@ -181,8 +182,10 @@ class SiteExplorerService
                     'top3'      => (int) (($o['pos_1'] ?? 0) + ($o['pos_2_3'] ?? 0)),
                     'value'     => round($o['estimated_paid_traffic_cost'] ?? 0, 2),
                     'ai_citations' => $ai[$path] ?? 0,
+                    'ai_visits'    => $aiVisits[$path] ?? null,   // real AI-referred visits (30d), when tracking is installed
                 ];
             }, $snap['payload']),
+            'ai_visits_tracked' => $aiVisits !== [],
         ];
     }
 
@@ -229,10 +232,30 @@ class SiteExplorerService
                 'series' => array_map(fn ($p) => ['date' => $p['date'], 'traffic' => $p['organic_traffic']], $this->seo->searchHistory(['history' => $h['payload']]))];
         }
 
+        // Organic share of voice: each site's share of the race's combined monthly traffic.
+        $months = [];
+        foreach ($race as $r) {
+            foreach ($r['series'] as $pt) {
+                if ($pt['traffic'] !== null) {
+                    $months[$pt['date']][$r['domain']] = $pt['traffic'];
+                }
+            }
+        }
+        ksort($months);
+        $sov = [];
+        foreach ($months as $date => $byDomain) {
+            if (count($byDomain) < count($race)) {
+                continue;   // only months where every site has data, so shares are comparable
+            }
+            $total = array_sum($byDomain) ?: 1;
+            $sov[] = ['date' => $date] + array_map(fn ($t) => round($t / $total * 100, 1), $byDomain);
+        }
+
         return [
             'connected' => true, 'sandbox' => $this->client->isSandbox(), 'fetched_at' => $snap['fetched_at'],
             'own_keywords' => $ownKw, 'competitors' => array_slice($rows, 0, (int) config('mira_premium.dataforseo.organic_competitors', 10)),
             'race' => $race,
+            'share_of_voice' => ['domains' => array_column($race, 'domain'), 'series' => $sov],
         ];
     }
 
@@ -304,8 +327,15 @@ class SiteExplorerService
             return $this->seo->notConnected('insights');
         }
 
-        $snap  = $this->seo->searchSnapshot($project, $refresh);
-        $items = $snap['payload']['keywords'] ?? [];
+        $snap = $this->seo->searchSnapshot($project, $refresh);
+
+        return ['connected' => true, 'sandbox' => $this->client->isSandbox(), 'fetched_at' => $snap['fetched_at']]
+            + $this->computeInsights($snap['payload']['keywords'] ?? [], $project);
+    }
+
+    /** Intent split, branded split and owned SERP features for a set of ranked keywords. */
+    public function computeInsights(array $items, MiraProject $project): array
+    {
         $brand = array_map('mb_strtolower', array_merge($project->brandTerms(), [explode('.', $project->domain)[0]]));
 
         $intent  = array_fill_keys(self::INTENTS, ['keywords' => 0, 'traffic' => 0]);
@@ -343,7 +373,6 @@ class SiteExplorerService
         $labels = ['featured_snippet' => 'Featured snippet', 'local_pack' => 'Local pack', 'ai_overview_reference' => 'AI Overview citation'];
 
         return [
-            'connected' => true, 'sandbox' => $this->client->isSandbox(), 'fetched_at' => $snap['fetched_at'],
             'sample'    => count($seen),
             'intent'    => array_map(fn ($k) => ['intent' => $k, 'keywords' => $intent[$k]['keywords'], 'traffic' => (int) round($intent[$k]['traffic']),
                 'share' => $intentTotal ? round($intent[$k]['traffic'] / $intentTotal * 100, 1) : 0], self::INTENTS),
@@ -446,6 +475,83 @@ class SiteExplorerService
             ], $snap['payload']['anchors'] ?? []),
             'tlds'  => array_slice((array) ($s['referring_links_tld'] ?? []), 0, 8, true),
             'types' => (array) ($s['referring_links_types'] ?? []),
+        ];
+    }
+
+    // ------------------------------------------------------------------ links
+
+    /** Individual backlinks (best one per linking domain), most linked pages, and broken backlinks. */
+    public function links(MiraProject $project, bool $refresh = false): array
+    {
+        if (!$this->client->isConfigured()) {
+            return $this->seo->notConnected('links');
+        }
+
+        $snap = $this->store->remember($project, 'links', $refresh, fn () => [
+            'backlinks' => $this->client->live('backlinks/backlinks/live', [
+                'target' => $project->domain, 'mode' => 'one_per_domain', 'rank_scale' => 'one_hundred',
+                'limit' => 50, 'order_by' => ['domain_from_rank,desc'],
+            ])['items'] ?? [],
+            'broken' => $this->client->live('backlinks/backlinks/live', [
+                'target' => $project->domain, 'rank_scale' => 'one_hundred', 'limit' => 30,
+                'filters' => ['is_broken', '=', true], 'order_by' => ['domain_from_rank,desc'],
+            ])['items'] ?? [],
+            'pages' => $this->client->live('backlinks/domain_pages_summary/live', [
+                'target' => $project->domain, 'rank_scale' => 'one_hundred', 'limit' => 20, 'order_by' => ['referring_domains,desc'],
+            ])['items'] ?? [],
+        ]);
+
+        $link = fn ($i) => [
+            'from' => $i['url_from'] ?? null, 'from_title' => $i['page_from_title'] ?? null, 'domain' => $i['domain_from'] ?? null,
+            'authority' => $i['domain_from_rank'] ?? null, 'page_rank' => $i['page_from_rank'] ?? null,
+            'to' => $i['url_to'] ?? null, 'anchor' => $i['anchor'] ?? '', 'text_pre' => $i['text_pre'] ?? '', 'text_post' => $i['text_post'] ?? '',
+            'dofollow' => (bool) ($i['dofollow'] ?? false), 'type' => $i['item_type'] ?? 'anchor',
+            'first_seen' => $i['first_seen'] ?? null, 'status' => $i['url_to_status_code'] ?? null,
+        ];
+
+        return [
+            'connected' => true, 'sandbox' => $this->client->isSandbox(), 'fetched_at' => $snap['fetched_at'],
+            'backlinks' => array_map($link, $snap['payload']['backlinks'] ?? []),
+            'broken'    => array_map($link, $snap['payload']['broken'] ?? []),
+            'pages'     => array_map(fn ($p) => [
+                'url' => $p['url'] ?? null, 'referring_domains' => (int) ($p['referring_domains'] ?? 0),
+                'backlinks' => (int) ($p['backlinks'] ?? 0), 'broken' => (int) ($p['broken_backlinks'] ?? 0), 'authority' => $p['rank'] ?? null,
+            ], $snap['payload']['pages'] ?? []),
+        ];
+    }
+
+    // ----------------------------------------------------------------- trends
+
+    /**
+     * Search intent and SERP-feature history. DataForSEO's history has no intent or
+     * SERP-feature data, so this is built from the project's own stored daily
+     * search snapshots — one point per day since tracking began.
+     */
+    public function trends(MiraProject $project, bool $refresh = false): array
+    {
+        if (!$this->client->isConfigured()) {
+            return $this->seo->notConnected('trends');
+        }
+
+        $this->seo->searchSnapshot($project, $refresh);   // make sure today's snapshot exists
+
+        $points = [];
+        foreach (\App\Models\MiraPremium\MiraSeoSnapshot::where('project_id', $project->id)->where('kind', 'search')->orderBy('fetched_at')->get() as $snap) {
+            $day = $snap->fetched_at->toDateString();
+            $i   = $this->computeInsights($snap->payload['keywords'] ?? [], $project);
+            $points[$day] = [
+                'date'     => $day,
+                'intent'   => array_column($i['intent'], 'share', 'intent'),
+                'features' => array_column($i['serp_features'], 'owned', 'type'),
+                'branded'  => $i['branded']['branded']['share'],
+            ];
+        }
+
+        return [
+            'connected' => true, 'sandbox' => $this->client->isSandbox(),
+            'since'     => array_key_first($points),
+            'points'    => array_values($points),
+            'note'      => 'Built from Mira\'s daily snapshots since tracking began — history grows by one point a day.',
         ];
     }
 

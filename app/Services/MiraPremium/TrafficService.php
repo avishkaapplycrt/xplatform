@@ -3,203 +3,134 @@
 namespace App\Services\MiraPremium;
 
 use App\Models\MiraPremium\MiraProject;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
- * The Traffic analytics panel, from the project's Google Analytics 4 property
- * (Ga4Client, Google Analytics Data API). A project reads only the property
- * its owner connected (mira_projects.ga4_property_id), which Mira can read
- * only once the owner has given the service account Viewer access.
+ * The Traffic analytics panel, from the app's own first-party tracking
+ * (analytics_sites / analytics_sessions / analytics_pageviews, written by the
+ * X Platforms tracking script). A project uses the tracked site whose domain
+ * matches and that belongs to the same client — never another client's data.
  *
- *   visits          GA4 sessions
- *   unique visitors GA4 totalUsers
- *   page views      GA4 screenPageViews
+ *   visits          sessions started in the window
+ *   unique visitors distinct visitor ids among those sessions
+ *   page views      page views recorded in the window
  *   pages / visit   page views ÷ visits
- *   visit duration  GA4 averageSessionDuration (seconds)
- *   bounce rate     GA4 bounceRate (% of sessions that weren't engaged)
+ *   visit duration  mean session duration (seconds)
+ *   bounce rate     % of sessions marked as a bounce
  *
- * Windows are whole days ending today (GA4 reports by date): the last N days
- * vs the N before. Reports are cached for config mira_premium.ga4.cache_minutes.
- * Measured, not estimated.
+ * Windows are half-open [start, end), so a visit on a boundary counts once.
+ * Measured, not estimated. Google Analytics 4 (GoogleDataService::ga4Traffic) is
+ * the source for sites without the script, once the project has a GA4 property.
  */
 class TrafficService
 {
-    public function __construct(private ?Ga4Client $ga4 = null)
+    public function traffic(MiraProject $project, Period $period, bool $refresh = false): array
     {
-        $this->ga4 ??= app(Ga4Client::class);
-    }
+        $site = DB::table('analytics_sites')
+            ->where('client_id', $project->client_id)
+            ->whereIn('domain', [$project->domain, 'www.' . $project->domain])
+            ->first(['id', 'domain', 'is_active', 'created_at']);
 
-    public function traffic(MiraProject $project, Period $period): array
-    {
-        $propertyId = (string) $project->ga4_property_id;
+        // No tracking script: Google Analytics 4, when the project has a GA4 property chosen.
+        if ($site === null && ($ga4 = app(GoogleDataService::class)->ga4Traffic($project, $period, $refresh)) !== null) {
+            return $ga4;
+        }
 
-        if ($propertyId === '' && (bool) config('mira_premium.dataforseo.demo') && !app()->environment('production')) {
+        if ($site === null && (bool) config('mira_premium.dataforseo.demo') && !app()->environment('production')) {
             return $this->sample($project, $period);
         }
 
-        if (!$this->ga4->isConfigured()) {
+        if ($site === null) {
             return [
                 'connected' => false,
                 'source'    => null,
-                'ga4'       => ['available' => false],
-                'message'   => 'Visits, visitors and engagement come from Google Analytics 4, which is not set up on this server.',
-                'setup'     => 'Create a Google Cloud service account with the Google Analytics Data API enabled and set GA4_CREDENTIALS to its JSON key file.',
+                'message'   => "Visits, visitors and engagement need the X Platforms tracking script on {$project->domain} — or a Google Analytics 4 connection.",
+                'setup'     => 'Add the site under Websites → Connect, then install the tracking script.',
+                'google'    => app(GoogleClient::class)->isConfigured() ? route('mira-premium.google.connect', ['project' => $project->id]) : null,
             ];
         }
 
-        if ($propertyId === '') {
-            return [
-                'connected' => false,
-                'source'    => null,
-                'ga4'       => ['available' => true, 'service_account' => $this->ga4->serviceAccountEmail()],
-                'message'   => "Connect the Google Analytics 4 property for {$project->domain} to see its visits, visitors and engagement.",
-            ];
-        }
+        $cur  = $this->totals($site->id, $period->start, $period->end);
+        $prev = $this->totals($site->id, $period->prevStart, $period->start);
 
-        $minutes = (int) config('mira_premium.ga4.cache_minutes', 60);
-        $key = "mira_ga4:{$project->id}:{$propertyId}:{$period->key}:" . now()->toDateString();
-
-        return Cache::remember($key, now()->addMinutes($minutes), fn () => $this->report($project, $propertyId, $period));
-    }
-
-    /**
-     * Checks Mira can read a GA4 property (a one-day sessions report).
-     *
-     * @throws MiraApiException InvalidInput with the reason when it can't
-     */
-    public function verifyProperty(string $propertyId): void
-    {
-        $this->ga4->runReport($propertyId, [
-            'dateRanges' => [['startDate' => 'yesterday', 'endDate' => 'today']],
-            'metrics'    => [['name' => 'sessions']],
-        ]);
-    }
-
-    /** Forgets cached reports for a project (after its property changes). */
-    public function forget(MiraProject $project, ?string $propertyId): void
-    {
-        foreach (array_keys((array) config('mira_premium.periods')) as $periodKey) {
-            Cache::forget("mira_ga4:{$project->id}:{$propertyId}:{$periodKey}:" . now()->toDateString());
-        }
-    }
-
-    private function report(MiraProject $project, string $propertyId, Period $period): array
-    {
-        [$cur, $prev] = $this->ranges($period);
-        $top = (int) config('mira_premium.ga4.top_rows', 8);
-
-        $totals = fn (array $range) => $this->totals($propertyId, $range);
-        $c = $totals($cur);
-        $p = $totals($prev);
         $metrics = [];
-        foreach ($c as $k => $v) {
-            $metrics[$k] = ['value' => $v, 'previous' => $p[$k], 'delta' => Period::delta($v, $p[$k])];
+        foreach ($cur as $key => $value) {
+            $metrics[$key] = ['value' => $value, 'previous' => $prev[$key], 'delta' => Period::delta($value, $prev[$key])];
         }
 
-        $list = function (string $dimension, array $metricNames, callable $map) use ($propertyId, $cur, $top) {
-            $res = $this->ga4->runReport($propertyId, [
-                'dateRanges' => [$cur],
-                'dimensions' => [['name' => $dimension]],
-                'metrics'    => array_map(fn ($m) => ['name' => $m], $metricNames),
-                'orderBys'   => [['metric' => ['metricName' => $metricNames[0]], 'desc' => true]],
-                'limit'      => $top,
-            ]);
-
-            return array_map(fn ($row) => $map(
-                $row['dimensionValues'][0]['value'] ?? '',
-                array_map(fn ($v) => (float) ($v['value'] ?? 0), $row['metricValues'] ?? [])
-            ), $res['rows'] ?? []);
-        };
-
         return [
-            'connected'   => true,
-            'source'      => 'ga4',
-            'site'        => $project->domain,
-            'property_id' => $propertyId,
-            'active'      => true,
-            'metrics'     => $metrics,
-            'series'      => $this->series($propertyId, $period, $cur, $prev),
-            'top_pages'   => $list('pagePath', ['screenPageViews', 'totalUsers'],
-                fn ($path, $m) => ['path' => $path, 'views' => (int) $m[0], 'visitors' => (int) ($m[1] ?? 0)]),
-            'sources'     => $list('sessionSource', ['sessions'],
-                fn ($source, $m) => ['source' => $source === '(direct)' ? 'Direct' : $source, 'visits' => (int) $m[0]]),
-            'devices'     => $list('deviceCategory', ['sessions'],
-                fn ($device, $m) => ['device' => $device, 'visits' => (int) $m[0]]),
-        ];
-    }
-
-    /** [current, previous] GA4 date ranges: the last N whole days ending today, and the N before. */
-    private function ranges(Period $period): array
-    {
-        $today = Carbon::today();
-        $start = $today->copy()->subDays($period->days - 1);
-        $prevEnd = $start->copy()->subDay();
-
-        return [
-            ['startDate' => $start->toDateString(), 'endDate' => $today->toDateString()],
-            ['startDate' => $prevEnd->copy()->subDays($period->days - 1)->toDateString(), 'endDate' => $prevEnd->toDateString()],
-        ];
-    }
-
-    private function totals(string $propertyId, array $range): array
-    {
-        $res = $this->ga4->runReport($propertyId, [
-            'dateRanges' => [$range],
-            'metrics'    => array_map(fn ($m) => ['name' => $m], ['sessions', 'totalUsers', 'screenPageViews', 'averageSessionDuration', 'bounceRate']),
-        ]);
-        $v = array_map(fn ($x) => (float) ($x['value'] ?? 0), $res['rows'][0]['metricValues'] ?? []);
-        $visits = (int) ($v[0] ?? 0);
-        $views  = (int) ($v[2] ?? 0);
-
-        return [
-            'visits'          => $visits,
-            'unique_visitors' => (int) ($v[1] ?? 0),
-            'page_views'      => $views,
-            'pages_per_visit' => $visits ? round($views / $visits, 2) : null,
-            'visit_duration'  => $visits ? (int) round($v[3] ?? 0) : null,
-            'bounce_rate'     => $visits ? round(($v[4] ?? 0) * 100, 1) : null,
+            'connected'  => true,
+            'ai_traffic' => $this->aiTraffic($site->id, $period),
+            'source'     => 'tracking_script',
+            'site'       => $site->domain,
+            'active'     => (bool) $site->is_active,
+            'metrics'    => $metrics,
+            'series'     => $this->series($site->id, $period),
+            'top_pages'  => DB::table('analytics_pageviews')->where('site_id', $site->id)
+                ->where('created_at', '>=', $period->start)->where('created_at', '<', $period->end)
+                ->selectRaw('path, count(*) as views, count(distinct visitor_id) as visitors')
+                ->groupBy('path')->orderByDesc('views')->limit(8)->get()->map(fn ($r) => (array) $r)->all(),
+            'sources'    => DB::table('analytics_pageviews')->where('site_id', $site->id)
+                ->where('created_at', '>=', $period->start)->where('created_at', '<', $period->end)
+                ->selectRaw("coalesce(nullif(utm_source, ''), nullif(referrer_domain, ''), 'Direct') as source, count(distinct session_id) as visits")
+                ->groupBy('source')->orderByDesc('visits')->limit(6)->get()->map(fn ($r) => (array) $r)->all(),
+            'devices'    => DB::table('analytics_sessions')->where('site_id', $site->id)
+                ->where('started_at', '>=', $period->start)->where('started_at', '<', $period->end)
+                ->selectRaw("coalesce(nullif(device_type, ''), 'unknown') as device, count(*) as visits")
+                ->groupBy('device')->orderByDesc('visits')->get()->map(fn ($r) => (array) $r)->all(),
         ];
     }
 
     /**
-     * Daily (weekly for 90d, monthly for 12m) visits and page views for the
-     * window and the previous one, aligned bucket by bucket for the chart.
+     * Visits referred by AI assistants (config mira_premium.ai_referrers), matched
+     * on the referrer domain or the utm_source they add, e.g. ChatGPT's
+     * utm_source=chatgpt.com. Visits = distinct sessions. Measured, not estimated.
      */
-    private function series(string $propertyId, Period $period, array $cur, array $prev): array
+    public function aiTraffic(int $siteId, Period $period): array
     {
-        $bucket = $period->days > 120 ? 'month' : ($period->days > 31 ? 'week' : 'day');
-        $step   = ['day' => 1, 'week' => 7, 'month' => 30][$bucket];
-        $count  = (int) ceil($period->days / $step);
+        $map    = (array) config('mira_premium.ai_referrers');
+        $hosts  = array_keys($map);
+        $hostsW = array_merge($hosts, array_map(fn ($h) => 'www.' . $h, $hosts));
+        $base   = fn ($from, $to) => DB::table('analytics_pageviews')->where('site_id', $siteId)
+            ->where('created_at', '>=', $from)->where('created_at', '<', $to)
+            ->where(fn ($q) => $q->whereIn('referrer_domain', $hostsW)->orWhereIn('utm_source', $hostsW));
 
-        $fill = function (array $range) use ($propertyId, $step, $count) {
-            $res = $this->ga4->runReport($propertyId, [
-                'dateRanges' => [$range],
-                'dimensions' => [['name' => 'date']],
-                'metrics'    => [['name' => 'sessions'], ['name' => 'screenPageViews']],
-                'limit'      => 400,
-            ]);
-            $byDay = [];
-            foreach ($res['rows'] ?? [] as $row) {
-                $byDay[$row['dimensionValues'][0]['value']] = [(int) $row['metricValues'][0]['value'], (int) $row['metricValues'][1]['value']];
-            }
-            $from = Carbon::parse($range['startDate']);
+        $count = function ($from, $to) use ($base, $map) {
             $out = [];
-            for ($i = 0; $i < $count; $i++) {
-                $a = $from->copy()->addDays($i * $step);
-                $visits = $views = 0;
-                for ($d = 0; $d < $step; $d++) {
-                    [$s, $pv] = $byDay[$a->copy()->addDays($d)->format('Ymd')] ?? [0, 0];
-                    $visits += $s;
-                    $views  += $pv;
-                }
-                $out[] = ['date' => $a->toDateString(), 'visits' => $visits, 'page_views' => $views];
+            foreach ($base($from, $to)->selectRaw('coalesce(nullif(utm_source, \'\'), referrer_domain) as src, count(distinct session_id) as visits')->groupBy('src')->get() as $r) {
+                $platform = $map[preg_replace('/^www\./', '', strtolower((string) $r->src))] ?? 'Other AI';
+                $out[$platform] = ($out[$platform] ?? 0) + (int) $r->visits;
             }
 
             return $out;
         };
+        $cur  = $count($period->start, $period->end);
+        $prev = $count($period->prevStart, $period->start);
 
-        return ['bucket' => $bucket, 'current' => $fill($cur), 'previous' => $fill($prev)];
+        $platforms = [];
+        foreach (array_unique(array_merge(array_keys($cur), array_keys($prev))) as $name) {
+            $platforms[] = ['platform' => $name, 'visits' => $cur[$name] ?? 0, 'delta' => ($cur[$name] ?? 0) - ($prev[$name] ?? 0)];
+        }
+        usort($platforms, fn ($a, $b) => $b['visits'] <=> $a['visits']);
+
+        return [
+            'visits'    => ['value' => array_sum($cur), 'delta' => array_sum($cur) - array_sum($prev)],
+            'platforms' => $platforms,
+            'pages'     => $base($period->start, $period->end)->selectRaw('path, count(distinct session_id) as visits')
+                ->groupBy('path')->orderByDesc('visits')->limit(8)->get()->map(fn ($r) => (array) $r)->all(),
+        ];
+    }
+
+    /** path => AI-referred visits in the window, for the Top pages report. */
+    public function aiVisitsByPath(MiraProject $project, Period $period): array
+    {
+        $site = DB::table('analytics_sites')->where('client_id', $project->client_id)
+            ->whereIn('domain', [$project->domain, 'www.' . $project->domain])->value('id');
+        if ($site === null) {
+            return [];
+        }
+
+        return collect($this->aiTraffic($site, $period)['pages'])->mapWithKeys(fn ($r) => [rtrim((string) $r['path'], '/') ?: '/' => (int) $r['visits']])->all();
     }
 
     /**
@@ -247,7 +178,58 @@ class TrafficService
             'sources' => array_map(fn ($src, $share) => ['source' => $src, 'visits' => (int) ($v * $share)],
                 ['google.com', 'Direct', 'chatgpt.com', 'linkedin.com', 'bing.com', 'perplexity.ai'], [.46, .27, .07, .06, .04, .02]),
             'devices' => [['device' => 'desktop', 'visits' => (int) ($v * .58)], ['device' => 'mobile', 'visits' => (int) ($v * .37)], ['device' => 'tablet', 'visits' => (int) ($v * .05)]],
+            'ai_traffic' => [
+                'visits'    => ['value' => (int) ($v * .11), 'delta' => (int) ($v * .03)],
+                'platforms' => [['platform' => 'ChatGPT', 'visits' => (int) ($v * .07), 'delta' => (int) ($v * .02)], ['platform' => 'Perplexity', 'visits' => (int) ($v * .02), 'delta' => (int) ($v * .006)],
+                    ['platform' => 'Gemini', 'visits' => (int) ($v * .012), 'delta' => (int) ($v * .003)], ['platform' => 'Copilot', 'visits' => (int) ($v * .006), 'delta' => -1], ['platform' => 'Claude', 'visits' => (int) ($v * .002), 'delta' => 1]],
+                'pages'     => [['path' => '/pricing', 'visits' => (int) ($v * .03)], ['path' => '/', 'visits' => (int) ($v * .025)], ['path' => '/blog/team-communication', 'visits' => (int) ($v * .02)], ['path' => '/integrations', 'visits' => (int) ($v * .012)]],
+            ],
         ];
     }
 
+    private function totals(int $siteId, $from, $to): array
+    {
+        $s = DB::table('analytics_sessions')->where('site_id', $siteId)->where('started_at', '>=', $from)->where('started_at', '<', $to)
+            ->selectRaw('count(*) as visits, count(distinct visitor_id) as visitors, avg(duration_seconds) as duration, avg(case when is_bounce then 1 else 0 end) as bounce')
+            ->first();
+        $views  = DB::table('analytics_pageviews')->where('site_id', $siteId)->where('created_at', '>=', $from)->where('created_at', '<', $to)->count();
+        $visits = (int) $s->visits;
+
+        return [
+            'visits'          => $visits,
+            'unique_visitors' => (int) $s->visitors,
+            'page_views'      => $views,
+            'pages_per_visit' => $visits ? round($views / $visits, 2) : null,
+            'visit_duration'  => $visits ? (int) round((float) $s->duration) : null,
+            'bounce_rate'     => $visits ? round((float) $s->bounce * 100, 1) : null,
+        ];
+    }
+
+    /**
+     * Daily (or weekly for 90d, monthly for 12m) visits and page views for the
+     * window and the previous one, aligned bucket by bucket for the chart.
+     */
+    private function series(int $siteId, Period $period): array
+    {
+        $bucket = $period->days > 120 ? 'month' : ($period->days > 31 ? 'week' : 'day');
+        $step   = ['day' => 1, 'week' => 7, 'month' => 30][$bucket];
+        $count  = (int) ceil($period->days / $step);
+
+        $fill = function ($from) use ($siteId, $step, $count) {
+            $out = [];
+            for ($i = 0; $i < $count; $i++) {
+                $a = $from->copy()->addDays($i * $step);
+                $b = $a->copy()->addDays($step);
+                $out[] = [
+                    'date'       => $a->toDateString(),
+                    'visits'     => DB::table('analytics_sessions')->where('site_id', $siteId)->where('started_at', '>=', $a)->where('started_at', '<', $b)->count(),
+                    'page_views' => DB::table('analytics_pageviews')->where('site_id', $siteId)->where('created_at', '>=', $a)->where('created_at', '<', $b)->count(),
+                ];
+            }
+
+            return $out;
+        };
+
+        return ['bucket' => $bucket, 'current' => $fill($period->start), 'previous' => $fill($period->prevStart)];
+    }
 }

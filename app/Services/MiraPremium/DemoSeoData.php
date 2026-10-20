@@ -38,6 +38,10 @@ class DemoSeoData
             str_ends_with($path, 'ranked_keywords/live')       => ['items' => self::keywords($brand, $target, $task['item_types'] ?? ['organic'])],
             str_ends_with($path, 'relevant_pages/live')        => ['items' => self::pages($target)],
             str_ends_with($path, 'competitors_domain/live')    => ['items' => self::competitors($target)],
+            str_ends_with($path, 'keyword_overview/live')      => ['items' => array_map(fn ($k) => ['keyword' => $k,
+                'keyword_info' => ['search_volume' => (int) (abs(crc32($k)) % 9000) + 90]], (array) ($task['keywords'] ?? []))],
+            str_ends_with($path, 'backlinks/backlinks/live')   => ['items' => self::backlinks($target, !empty($task['filters']))],
+            str_ends_with($path, 'domain_pages_summary/live')  => ['items' => self::linkedPages($target)],
             default => [],
         };
     }
@@ -220,6 +224,33 @@ class DemoSeoData
             return ['page_address' => "https://{$target}/{$p}", 'metrics' => ['organic' => ['etv' => $etv, 'count' => mt_rand(40, 900),
                 'pos_1' => mt_rand(0, 30), 'pos_2_3' => mt_rand(2, 40), 'estimated_paid_traffic_cost' => $etv * mt_rand(8, 30) / 10]]];
         }, $paths, array_keys($paths));
+    }
+
+    private static function backlinks(string $target, bool $broken): array
+    {
+        $paths = ['', 'pricing', 'features', 'blog/team-communication', 'integrations', 'download', 'old-landing', 'webinar-2023'];
+        $out = [];
+        for ($i = 0; $i < ($broken ? 12 : 50); $i++) {
+            $domain = ['news', 'review', 'tech', 'guide', 'hub', 'journal', 'insider', 'weekly'][$i % 8] . '-' . ($i + 1) . '.example';
+            $to = $broken ? ['old-landing', 'webinar-2023', 'docs/v1', 'promo'][$i % 4] : $paths[$i % 6];
+            $out[] = ['url_from' => "https://{$domain}/" . ['best-tools', 'reviews/' . $target, 'remote-work-stack', 'top-10-apps'][$i % 4],
+                'page_from_title' => ['The best tools for modern teams', 'Honest review', 'Our remote work stack', 'Top 10 apps this year'][$i % 4],
+                'domain_from' => $domain, 'domain_from_rank' => max(3, 94 - $i - mt_rand(0, 4)), 'page_from_rank' => mt_rand(10, 70),
+                'url_to' => "https://{$target}/{$to}", 'anchor' => [ucfirst(explode('.', $target)[0]), 'this tool', $target, 'team chat', ''][$i % 5],
+                'text_pre' => 'For distributed teams we recommend', 'text_post' => 'because it keeps every conversation searchable.',
+                'dofollow' => $i % 4 !== 3, 'item_type' => $i % 7 === 0 ? 'image' : 'anchor',
+                'first_seen' => now()->subDays(mt_rand(5, 1500))->format('Y-m-d') . ' 00:00:00 +00:00',
+                'url_to_status_code' => $broken ? [404, 410, 404, 500][$i % 4] : 200];
+        }
+
+        return $out;
+    }
+
+    private static function linkedPages(string $target): array
+    {
+        return array_map(fn ($p, $i) => ['url' => "https://{$target}/{$p}", 'referring_domains' => (int) (900 / ($i + 1.3)), 'backlinks' => (int) (9000 / ($i + 1.1)),
+            'broken_backlinks' => $i === 5 ? mt_rand(20, 90) : mt_rand(0, 6), 'rank' => max(5, 80 - $i * 6)],
+            ['', 'pricing', 'blog/team-communication', 'features', 'integrations', 'old-landing', 'security', 'customers'], range(0, 7));
     }
 
     private static function competitors(string $target): array

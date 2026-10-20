@@ -56,6 +56,11 @@ class DataForSeoClient
             throw new MiraApiException('Unavailable', 'The SEO data provider could not be reached. Try again shortly.');
         }
 
+        // Every live call is billed; log what it cost so spend per project stays visible.
+        if (!$this->isSandbox() && $res->json('cost') !== null) {
+            Log::info('DataForSEO cost', ['path' => $path, 'target' => $task['target'] ?? null, 'cost' => (float) $res->json('cost')]);
+        }
+
         $taskData = $res->json('tasks.0');
         // 20000 = ok at the request level; each task carries its own status (20000 ok, 40102 = no results).
         if (!$res->successful() || (int) $res->json('status_code') !== 20000 || !is_array($taskData)) {

@@ -13,13 +13,25 @@ class MiraProject extends Model
 {
     protected $table = 'mira_projects';
 
-    protected $fillable = ['client_id', 'name', 'url', 'domain', 'brand_terms', 'competitors', 'last_scanned_at', 'ga4_property_id'];
+    protected $fillable = ['client_id', 'name', 'url', 'domain', 'brand_terms', 'competitors', 'last_scanned_at',
+        'visibility_schedule', 'next_visibility_run_at', 'match_mode', 'exclude_terms', 'gsc_site_url', 'ga4_property'];
+
+    /** Schedules a project's prompt set can run on, and the gap between runs. */
+    public const SCHEDULES = ['off' => null, 'daily' => 1, 'weekly' => 7, 'monthly' => 30];
 
     protected $casts = [
         'brand_terms'     => 'array',
         'competitors'     => 'array',
         'last_scanned_at' => 'datetime',
+        'next_visibility_run_at' => 'datetime',
+        'exclude_terms'   => 'array',
     ];
+
+    /** Phrases that never count as a brand mention (e.g. "apple pie" for Apple). */
+    public function excludeTerms(): array
+    {
+        return array_values(array_filter(array_map('trim', (array) $this->exclude_terms), fn ($t) => mb_strlen($t) >= 2));
+    }
 
     public function scans(): HasMany
     {

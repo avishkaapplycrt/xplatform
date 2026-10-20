@@ -7,13 +7,14 @@ use App\Models\MiraPremium\MiraProject;
 use App\Models\MiraPremium\MiraSeoSnapshot;
 use App\Models\MiraPremium\MiraVisibilityAnswer;
 use App\Models\MiraPremium\MiraVisibilityRun;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
  * Mira Premium overview panels (GET mira-premium/api/projects/{id}/panels/{panel}):
- * traffic from Google Analytics 4, AI responses from visibility runs, and
+ * traffic from first-party tracking, AI responses from visibility runs, and
  * Authority / Search from DataForSEO — each for a window vs the previous one.
  */
 class MiraPremiumOverviewTest extends TestCase
@@ -31,12 +32,12 @@ class MiraPremiumOverviewTest extends TestCase
             'database/migrations/2026_10_15_000001_create_mira_premium_tables.php',
             'database/migrations/2026_10_16_000001_create_mira_seo_snapshots_table.php',
             'database/migrations/2026_10_17_000001_add_insights_to_mira_visibility_answers.php',
-            'database/migrations/2026_10_20_000001_add_ga4_property_to_mira_projects.php',
+            'database/migrations/2026_10_19_000001_add_tracking_controls_to_mira_tables.php',
+            'database/migrations/2026_10_20_000001_create_mira_google_connections_table.php',
             'database/migrations/2026_10_16_000001_create_mira_seo_snapshots_table.php',
         ]]);
 
-        config(['mira_premium.dataforseo.demo' => false, 'mira_premium.unlock_all' => null, 'mira_premium.dataforseo.login' => null, 'mira_premium.dataforseo.password' => null,
-            'mira_premium.ga4.credentials' => null]);
+        config(['mira_premium.dataforseo.demo' => false, 'mira_premium.unlock_all' => null, 'mira_premium.dataforseo.login' => null, 'mira_premium.dataforseo.password' => null]);
 
         $this->owner = Client::forceCreate(['name' => 'Ria', 'company_name' => 'Acme', 'email' => 'r@acme.test',
             'password' => bcrypt('x'), 'status' => 'active', 'plan' => 'professional']);
@@ -55,116 +56,55 @@ class MiraPremiumOverviewTest extends TestCase
         return $this->getJson("/mira-premium/api/projects/{$this->project->id}/panels/{$panel}?period={$period}");
     }
 
-    // ------------------------------------------------------------------ traffic (GA4)
-
-    /** A throwaway service-account key file, so the GA4 client can sign its token request. */
-    private function ga4Key(): string
+    private function visit(int $siteId, string $when, array $attrs = []): void
     {
-        $opts = ['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA];
-        $key  = @openssl_pkey_new($opts) ?: openssl_pkey_new($opts + ['config' => 'C:/xampp/php/extras/ssl/openssl.cnf']);
-        openssl_pkey_export($key, $pem, null, is_file('C:/xampp/php/extras/ssl/openssl.cnf') ? ['config' => 'C:/xampp/php/extras/ssl/openssl.cnf'] : []);
-        $path = tempnam(sys_get_temp_dir(), 'ga4');
-        file_put_contents($path, json_encode(['client_email' => 'mira@xp-test.iam.gserviceaccount.com', 'private_key' => $pem]));
-        config(['mira_premium.ga4.credentials' => $path]);
-
-        return $path;
+        $sid = (string) Str::uuid();
+        DB::table('analytics_sessions')->insert(array_merge([
+            'site_id' => $siteId, 'session_id' => $sid, 'visitor_id' => 'v-' . $sid, 'pageviews' => 2, 'first_page' => 'https://acme.test/p1',
+            'duration_seconds' => 60, 'is_bounce' => 0, 'device_type' => 'desktop', 'started_at' => $when,
+        ], $attrs));
+        foreach (range(1, $attrs['pageviews'] ?? 2) as $i) {
+            DB::table('analytics_pageviews')->insert(['site_id' => $siteId, 'session_id' => $sid, 'visitor_id' => $attrs['visitor_id'] ?? 'v-' . $sid,
+                'url' => 'https://acme.test/p' . $i, 'path' => '/p' . $i, 'referrer_domain' => 'google.com', 'created_at' => $when]);
+        }
     }
 
-    /** Fakes Google: the token endpoint and runReport, answering by what each report asks for. */
-    private function fakeGa4(int $status = 200): void
+    // ------------------------------------------------------------------ traffic
+
+    public function test_traffic_compares_the_window_with_the_previous_one(): void
     {
-        Http::fake([
-            'https://oauth2.googleapis.com/token' => Http::response(['access_token' => 'tok', 'expires_in' => 3600]),
-            'https://analyticsdata.googleapis.com/*' => function ($request) use ($status) {
-                if ($status !== 200) {
-                    return Http::response(['error' => ['message' => 'denied']], $status);
-                }
-                $body = $request->data();
-                $dimension = $body['dimensions'][0]['name'] ?? null;
-                $current = $body['dateRanges'][0]['startDate'] === now()->subDays(29)->toDateString();
-                $row = fn ($dim, ...$values) => ['dimensionValues' => $dim === null ? [] : [['value' => $dim]],
-                    'metricValues' => array_map(fn ($v) => ['value' => (string) $v], $values)];
+        $site  = DB::table('analytics_sites')->insertGetId(['client_id' => $this->owner->id, 'domain' => 'acme.test', 'name' => 'Acme',
+            'tracking_id' => 'T1', 'api_key' => 'k1', 'is_active' => 1]);
+        $other = Client::forceCreate(['name' => 'X', 'company_name' => 'X', 'email' => 'x@x.test', 'password' => 'x', 'status' => 'active', 'plan' => 'free']);
+        $theirs = DB::table('analytics_sites')->insertGetId(['client_id' => $other->id, 'domain' => 'acme.test', 'name' => 'Not yours',
+            'tracking_id' => 'T2', 'api_key' => 'k2', 'is_active' => 1]);
 
-                return Http::response(['rows' => match ($dimension) {
-                    // totals: sessions, totalUsers, screenPageViews, averageSessionDuration, bounceRate (fraction)
-                    null           => [$current ? $row(null, 120, 90, 300, 75.4, 0.425) : $row(null, 100, 80, 240, 60, 0.5)],
-                    'date'         => [$row(now()->format('Ymd'), $current ? 7 : 3, 15), $row(now()->subDays(2)->format('Ymd'), 5, 9)],
-                    'pagePath'     => [$row('/', 140, 70), $row('/pricing', 60, 40)],
-                    'sessionSource'=> [$row('google', 80), $row('(direct)', 30)],
-                    'deviceCategory' => [$row('desktop', 70), $row('mobile', 50)],
-                }]);
-            },
-        ]);
-    }
+        // Current 30 days: 3 visits (2 visitors), 6 views, one bounce. Previous: 1 visit, 2 views.
+        $this->visit($site, now()->subDays(2), ['visitor_id' => 'alice', 'duration_seconds' => 90]);
+        $this->visit($site, now()->subDays(5), ['visitor_id' => 'alice', 'duration_seconds' => 30]);
+        $this->visit($site, now()->subDays(9), ['visitor_id' => 'bob', 'duration_seconds' => 60, 'is_bounce' => 1]);
+        $this->visit($site, now()->subDays(40), ['visitor_id' => 'carol']);
+        $this->visit($theirs, now()->subDays(1));   // another client's site with the same domain
 
-    public function test_traffic_reads_the_connected_ga4_property(): void
-    {
-        $this->ga4Key();
-        $this->fakeGa4();
-        $this->project->update(['ga4_property_id' => '412345678']);
-
-        $res = $this->panel('traffic')->assertOk()->assertJsonPath('data.connected', true)
-            ->assertJsonPath('data.source', 'ga4')->assertJsonPath('data.property_id', '412345678');
+        $res = $this->panel('traffic')->assertOk()->assertJsonPath('data.connected', true)->assertJsonPath('period.key', '30d');
         $m = $res->json('data.metrics');
 
-        $this->assertSame([120, 100, 20], [$m['visits']['value'], $m['visits']['previous'], $m['visits']['delta']]);
-        $this->assertSame(90, $m['unique_visitors']['value']);
-        $this->assertSame(300, $m['page_views']['value']);
-        $this->assertEquals(2.5, $m['pages_per_visit']['value']);
-        $this->assertSame(75, $m['visit_duration']['value']);
-        $this->assertEquals(42.5, $m['bounce_rate']['value']);   // GA4 reports a fraction
+        $this->assertSame([3, 1, 2], [$m['visits']['value'], $m['visits']['previous'], $m['visits']['delta']]);
+        $this->assertSame(2, $m['unique_visitors']['value']);
+        $this->assertSame(6, $m['page_views']['value']);
+        $this->assertEquals(2.0, $m['pages_per_visit']['value']);
+        $this->assertSame(60, $m['visit_duration']['value']);
+        $this->assertEquals(33.3, $m['bounce_rate']['value']);
         $this->assertCount(30, $res->json('data.series.current'));
-        $this->assertSame(12, array_sum(array_column($res->json('data.series.current'), 'visits')));
-        $this->assertSame(['/', 140, 70], array_values($res->json('data.top_pages.0')));
-        $this->assertSame('Direct', $res->json('data.sources.1.source'));   // GA4's "(direct)"
-        $this->assertSame('desktop', $res->json('data.devices.0.device'));
+        $this->assertSame(3, array_sum(array_column($res->json('data.series.current'), 'visits')));
+        $this->assertSame('google.com', $res->json('data.sources.0.source'));
 
-        Http::assertSent(fn ($r) => str_contains($r->url(), 'properties/412345678:runReport') && $r->hasHeader('Authorization', 'Bearer tok'));
         $this->assertCount(13, $this->panel('traffic', '90d')->json('data.series.current'));   // weekly buckets
     }
 
-    public function test_traffic_asks_to_connect_a_ga4_property(): void
+    public function test_traffic_without_tracking_says_what_to_connect(): void
     {
-        $this->ga4Key();
-        $this->panel('traffic')->assertOk()->assertJsonPath('data.connected', false)
-            ->assertJsonPath('data.ga4.available', true)
-            ->assertJsonPath('data.ga4.service_account', 'mira@xp-test.iam.gserviceaccount.com');
-    }
-
-    public function test_traffic_without_ga4_set_up_is_not_available(): void
-    {
-        $this->panel('traffic')->assertOk()->assertJsonPath('data.connected', false)->assertJsonPath('data.ga4.available', false);
-    }
-
-    public function test_connecting_ga4_checks_access_before_saving(): void
-    {
-        $this->ga4Key();
-        $url = "/mira-premium/api/projects/{$this->project->id}/ga4";
-
-        $this->putJson($url, ['property_id' => 'abc'])->assertStatus(422)->assertJsonPath('error.code', 'InvalidInput');
-
-        $this->fakeGa4(403);
-        $this->putJson($url, ['property_id' => '412345678'])->assertStatus(422)->assertJsonPath('error.code', 'InvalidInput');
-        $this->assertNull($this->project->fresh()->ga4_property_id);
-
-        Http::swap(new \Illuminate\Http\Client\Factory());
-        $this->fakeGa4();
-        $this->putJson($url, ['property_id' => 'properties/412345678'])->assertOk()->assertJsonPath('project.ga4_property_id', '412345678');
-        $this->assertSame('412345678', $this->project->fresh()->ga4_property_id);
-
-        $this->deleteJson($url)->assertOk()->assertJsonPath('project.ga4_property_id', null);
-        $this->assertNull($this->project->fresh()->ga4_property_id);
-    }
-
-    public function test_another_clients_project_cannot_be_connected(): void
-    {
-        $this->ga4Key();
-        $this->fakeGa4();
-        $other = Client::forceCreate(['name' => 'X', 'company_name' => 'X', 'email' => 'x@x.test', 'password' => 'x', 'status' => 'active', 'plan' => 'professional']);
-        $theirs = MiraProject::create(['client_id' => $other->id, 'name' => 'X', 'url' => 'https://x.test/', 'domain' => 'x.test']);
-
-        $this->putJson("/mira-premium/api/projects/{$theirs->id}/ga4", ['property_id' => '412345678'])->assertStatus(404);
-        $this->assertNull($theirs->fresh()->ga4_property_id);
+        $this->panel('traffic')->assertOk()->assertJsonPath('data.connected', false);
     }
 
     // ------------------------------------------------------------- AI responses
