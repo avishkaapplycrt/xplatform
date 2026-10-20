@@ -31,6 +31,8 @@ class MiraPremiumExplorerTest extends TestCase
             'database/migrations/2026_10_15_000001_create_mira_premium_tables.php',
             'database/migrations/2026_10_16_000001_create_mira_seo_snapshots_table.php',
             'database/migrations/2026_10_17_000001_add_insights_to_mira_visibility_answers.php',
+            'database/migrations/2026_10_19_000001_add_tracking_controls_to_mira_tables.php',
+            'database/migrations/2026_10_20_000001_create_mira_google_connections_table.php',
         ]]);
 
         config(['mira_premium.dataforseo.demo' => false, 'mira_premium.unlock_all' => null, 'mira_premium.dataforseo.login' => 'u', 'mira_premium.dataforseo.password' => 'p',

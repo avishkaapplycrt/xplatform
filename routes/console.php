@@ -23,3 +23,6 @@ Schedule::command('scores:refresh')->everyFifteenMinutes()->withoutOverlapping()
 // but a health score isn't expected to move meaningfully within a day, and
 // each run is a billed API call per client.
 Schedule::command('insights:generate')->dailyAt('03:00')->withoutOverlapping();
+// Mira Premium: run AI visibility prompt sets whose daily / weekly / monthly
+// schedule is due. Each run is charged to the project owner's plan.
+Schedule::command('mira:visibility-scheduled')->hourly()->withoutOverlapping();

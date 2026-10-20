@@ -38,7 +38,7 @@ class VisibilityEngine
 
     // ------------------------------------------------------------------ prompts
 
-    public function addPrompt(Entitlement $who, MiraProject $project, string $text, ?string $topic, string $source = 'user'): MiraPrompt
+    public function addPrompt(Entitlement $who, MiraProject $project, string $text, ?string $topic, string $source = 'user', array $tags = []): MiraPrompt
     {
         $who->require('prompts', 'AI visibility tracking');
         $text = trim(preg_replace('/\s+/', ' ', $text));
@@ -54,10 +54,83 @@ class VisibilityEngine
         $this->assertRoom($who, $project, 1);
 
         return $project->prompts()->create([
-            'prompt' => $text,
-            'topic'  => $this->topic($topic),
-            'source' => $source,
+            'prompt'  => $text,
+            'topic'   => $this->topic($topic),
+            'source'  => $source,
+            'keyword' => self::keywordFor($text),
+            'tags'    => self::cleanTags($tags),
         ]);
+    }
+
+    /**
+     * The search keyword behind a prompt, for its search volume: the question
+     * without question words, filler and punctuation, at most 6 words.
+     * "What are the best CRM tools for small agencies?" -> "best crm tools small agencies".
+     */
+    public static function keywordFor(string $prompt): string
+    {
+        $stop = ['what', 'which', 'who', 'whom', 'whose', 'how', 'why', 'when', 'where', 'is', 'are', 'was', 'were', 'do', 'does', 'did', 'can', 'could',
+            'should', 'would', 'will', 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'the', 'a', 'an', 'to', 'for', 'of', 'in', 'on', 'at', 'with', 'and', 'or',
+            'that', 'this', 'there', 'it', 'be', 'some', 'any', 'today', 'right', 'now', 'really', 'please', 'recommend', 'recommended', 'suggest', 'good'];
+        $words = preg_split('/\s+/', trim(preg_replace('/[^\p{L}\p{N}\s-]/u', ' ', mb_strtolower($prompt))));
+        $kept  = array_values(array_filter($words, fn ($w) => $w !== '' && !in_array($w, $stop, true)));
+
+        return mb_substr(implode(' ', array_slice($kept, 0, 6)), 0, 80);
+    }
+
+    /** @return string[] lowercase, unique, max 5 tags of 2–24 chars */
+    public static function cleanTags(array $tags): array
+    {
+        $out = [];
+        foreach ($tags as $t) {
+            $t = mb_substr(trim(mb_strtolower((string) $t)), 0, 24);
+            if (mb_strlen($t) >= 2 && !in_array($t, $out, true)) {
+                $out[] = $t;
+            }
+        }
+
+        return array_slice($out, 0, 5);
+    }
+
+    /**
+     * Fills each active prompt's keyword and monthly search volume (DataForSEO,
+     * one batched call, refreshed every 30 days) — the weights behind
+     * Estimated impressions. Without a provider, volumes stay empty and
+     * impressions aren't shown.
+     */
+    public function refreshVolumes(MiraProject $project): void
+    {
+        $client  = app(DataForSeoClient::class);
+        $prompts = $project->prompts()->where('is_active', true)->get();
+
+        foreach ($prompts->whereNull('keyword') as $p) {
+            $p->update(['keyword' => self::keywordFor($p->prompt)]);
+        }
+
+        $stale = $prompts->filter(fn ($p) => $p->keyword && (!$p->volume_checked_at || $p->volume_checked_at->lt(now()->subDays(30))));
+        if ($stale->isEmpty() || !$client->isConfigured()) {
+            return;
+        }
+
+        try {
+            $result = $client->live('dataforseo_labs/google/keyword_overview/live', [
+                'keywords'      => $stale->pluck('keyword')->unique()->take(700)->values()->all(),
+                'location_code' => (int) config('mira_premium.dataforseo.location_code'),
+                'language_code' => (string) config('mira_premium.dataforseo.language_code'),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Mira prompt volumes failed', ['message' => $e->getMessage()]);
+
+            return;
+        }
+
+        $volumes = [];
+        foreach ($result['items'] ?? [] as $item) {
+            $volumes[mb_strtolower((string) ($item['keyword'] ?? ''))] = (int) data_get($item, 'keyword_info.search_volume', 0);
+        }
+        foreach ($stale as $p) {
+            $p->update(['search_volume' => $volumes[mb_strtolower($p->keyword)] ?? 0, 'volume_checked_at' => now()]);
+        }
     }
 
     /**
@@ -88,7 +161,8 @@ class VisibilityEngine
                 continue;
             }
             $existing[] = mb_strtolower($row['prompt']);
-            $added[]    = $project->prompts()->create(['prompt' => $row['prompt'], 'topic' => $this->topic($row['topic']), 'source' => 'seed']);
+            $added[]    = $project->prompts()->create(['prompt' => $row['prompt'], 'topic' => $this->topic($row['topic']), 'source' => 'seed',
+                'keyword' => $row['keyword'] ?? self::keywordFor($row['prompt'])]);
         }
 
         return $added;
@@ -106,18 +180,19 @@ class VisibilityEngine
         if ($this->llm->isConfigured()) {
             try {
                 $raw = $this->llm->chat(
-                    "You design AI-visibility prompt sets. Reply with JSON only: {\"prompts\":[{\"prompt\":\"...\",\"topic\":\"...\"}]}.",
+                    "You design AI-visibility prompt sets. Reply with JSON only: {\"prompts\":[{\"prompt\":\"...\",\"topic\":\"...\",\"keyword\":\"...\"}]}.",
                     "Business: {$project->name} ({$project->domain}).\nPage title: {$title}\nDescription: {$snippet}\n\n"
                     . "Write {$count} questions a potential customer would type into ChatGPT, Gemini or Perplexity when looking for what this business offers. "
                     . "Do NOT name the business or its domain — the point is to see whether AI brings it up unprompted. "
                     . "Mix intents (finding options, comparing, pricing, trust, how-to, local where relevant). Each under 18 words. "
-                    . "topic must be one of: {$topics}.",
+                    . "topic must be one of: {$topics}. keyword: the 2–5 word Google search query behind the question (what you'd type into Google).",
                     ['max_tokens' => 900, 'temperature' => 0.5]
                 );
                 $json = json_decode(trim(preg_replace('/^```(json)?|```$/m', '', $raw)), true);
                 $rows = array_values(array_filter(array_map(
                     fn ($r) => is_array($r) && is_string($r['prompt'] ?? null) && mb_strlen(trim($r['prompt'])) >= 8
-                        ? ['prompt' => mb_substr(trim($r['prompt']), 0, 300), 'topic' => $r['topic'] ?? null] : null,
+                        ? ['prompt' => mb_substr(trim($r['prompt']), 0, 300), 'topic' => $r['topic'] ?? null,
+                           'keyword' => is_string($r['keyword'] ?? null) && trim($r['keyword']) !== '' ? mb_substr(mb_strtolower(trim($r['keyword'])), 0, 80) : null] : null,
                     (array) ($json['prompts'] ?? [])
                 )));
                 if ($rows !== []) {
@@ -144,7 +219,7 @@ class VisibilityEngine
 
     // ---------------------------------------------------------------------- runs
 
-    public function startRun(Entitlement $who, MiraProject $project): MiraVisibilityRun
+    public function startRun(Entitlement $who, MiraProject $project, string $trigger = 'manual', bool $inline = false): MiraVisibilityRun
     {
         $who->require('visibility_runs', 'AI visibility tracking');
 
@@ -168,9 +243,17 @@ class VisibilityEngine
         $run = $project->visibilityRuns()->create([
             'uuid'          => (string) Str::uuid(),
             'status'        => 'queued',
+            'trigger'       => $trigger,
             'model'         => (string) config('mira_premium.visibility.model'),
             'prompts_count' => min($active, (int) config('mira_premium.visibility.prompts_per_run', 25)),
         ]);
+
+        if ($inline) {
+            // Scheduled runs (artisan mira:visibility-scheduled) execute in the command itself.
+            $this->execute($run, $who->subject, $who->limit('visibility_runs')[1] ?? 'month');
+
+            return $run->fresh();
+        }
 
         if (config('mira_premium.dispatch') === 'queue') {
             RunMiraVisibility::dispatch($run->id, $who->subject, $who->limit('visibility_runs')[1] ?? 'month');
@@ -197,6 +280,7 @@ class VisibilityEngine
 
         $run->update(['status' => 'running', 'started_at' => now()]);
         @set_time_limit(600);
+        $this->refreshVolumes($project);
 
         $prompts = $project->prompts()->where('is_active', true)->orderBy('id')
             ->limit((int) config('mira_premium.visibility.prompts_per_run', 25))->get();
@@ -366,6 +450,28 @@ class VisibilityEngine
             $topDomains[] = ['domain' => $d, 'count' => $n, 'kind' => $kind];
         }
 
+        // Estimated impressions: each answer weighted by the monthly search volume
+        // of its prompt's keyword — potential exposure, not measured reach.
+        $volumes = MiraPrompt::whereIn('id', array_filter(array_map(fn ($a) => $a->prompt_id, $answers)))->pluck('search_volume', 'id');
+        $impTotal = 0;
+        $impBy = array_fill_keys(array_column($entities, 'name'), 0);
+        foreach ($answers as $a) {
+            $v = (int) ($volumes[$a->prompt_id] ?? 0);
+            $impTotal += $v;
+            foreach ((array) $a->brands_mentioned as $name) {
+                if (isset($impBy[$name])) {
+                    $impBy[$name] += $v;
+                }
+            }
+        }
+        $impressions = $impTotal > 0 ? [
+            'brand'    => $impBy[$entities[0]['name']],
+            'possible' => $impTotal,
+            'share'    => round($impBy[$entities[0]['name']] / $impTotal * 100, 1),
+            'entities' => array_map(fn ($e) => ['name' => $e['name'], 'is_brand' => $e['is_brand'], 'impressions' => $impBy[$e['name']],
+                'share' => round($impBy[$e['name']] / $impTotal * 100, 1)], $entities),
+        ] : null;
+
         $topicRows = array_values(array_map(fn ($t) => $t + ['rate' => round($t['mentions'] / max(1, $t['prompts']) * 100, 1)], $topics));
         usort($topicRows, fn ($a, $b) => $b['rate'] <=> $a['rate'] ?: $b['prompts'] <=> $a['prompts']);
 
@@ -382,6 +488,7 @@ class VisibilityEngine
             'entities'    => $entityRows,
             'top_domains' => $topDomains,
             'topics'      => $topicRows,
+            'impressions' => $impressions,
             'modeled'     => true,
         ];
     }
@@ -430,6 +537,7 @@ class VisibilityEngine
             'id'             => $run->id,
             'uuid'           => $run->uuid,
             'status'         => $run->status,
+            'trigger'        => $run->trigger,
             'model'          => $run->model,
             'prompts_count'  => $run->prompts_count,
             'answered_count' => $run->answered_count,
@@ -497,6 +605,8 @@ class VisibilityEngine
             'terms'    => $project->brandTerms(),
             'domain'   => $project->domain,
             'is_brand' => true,
+            'case_sensitive' => $project->match_mode === 'case_sensitive',
+            'exclude'  => $project->excludeTerms(),
         ]];
 
         foreach ($project->competitorList() as $c) {
@@ -507,20 +617,40 @@ class VisibilityEngine
         return $list;
     }
 
+    /**
+     * Byte offset of the entity's first real mention, or null. Brand terms match
+     * as whole words — case-insensitively, or exactly as written when the
+     * project's match_mode is case_sensitive — and a match inside one of the
+     * project's exclude terms ("apple pie" for Apple) doesn't count.
+     */
     private function firstMention(string $text, array $entity): ?int
     {
-        $best = null;
-        $needles = $entity['terms'];
-        if ($entity['domain'] !== '') {
-            $needles[] = $entity['domain'];
+        $best    = null;
+        $flags   = ($entity['case_sensitive'] ?? false) ? 'u' : 'iu';
+        $exclude = [];
+        foreach ($entity['exclude'] ?? [] as $phrase) {
+            if (preg_match_all('/' . preg_quote($phrase, '/') . '/iu', $text, $mm, PREG_OFFSET_CAPTURE)) {
+                foreach ($mm[0] as [$str, $at]) {
+                    $exclude[] = [$at, $at + strlen($str)];
+                }
+            }
         }
 
-        foreach ($needles as $term) {
-            if (mb_strlen($term) < 2) {
+        $needles = array_map(fn ($t) => [$t, $flags], $entity['terms']);
+        if ($entity['domain'] !== '') {
+            $needles[] = [$entity['domain'], 'iu'];   // domains are case-insensitive by nature
+        }
+
+        foreach ($needles as [$term, $f]) {
+            if (mb_strlen($term) < 2 || !preg_match_all('/(?<![\p{L}\p{N}])' . preg_quote($term, '/') . '(?![\p{L}\p{N}])/' . $f, $text, $m, PREG_OFFSET_CAPTURE)) {
                 continue;
             }
-            if (preg_match('/(?<![\p{L}\p{N}])' . preg_quote($term, '/') . '(?![\p{L}\p{N}])/iu', $text, $m, PREG_OFFSET_CAPTURE)) {
-                $best = $best === null ? $m[0][1] : min($best, $m[0][1]);
+            foreach ($m[0] as [$str, $at]) {
+                $inside = (bool) array_filter($exclude, fn ($r) => $at >= $r[0] && $at + strlen($str) <= $r[1]);
+                if (!$inside) {
+                    $best = $best === null ? $at : min($best, $at);
+                    break;
+                }
             }
         }
 

@@ -9,7 +9,7 @@ class MiraPrompt extends Model
 {
     protected $table = 'mira_prompts';
 
-    protected $fillable = ['project_id', 'prompt', 'topic', 'source', 'is_active'];
+    protected $fillable = ['project_id', 'prompt', 'topic', 'source', 'is_active', 'keyword', 'search_volume', 'volume_checked_at', 'tags'];
 
-    protected $casts = ['is_active' => 'boolean'];
+    protected $casts = ['is_active' => 'boolean', 'tags' => 'array', 'search_volume' => 'integer', 'volume_checked_at' => 'datetime'];
 }

@@ -142,12 +142,23 @@ Route::prefix('mira-premium/api')->name('mira-premium.api.')
             Route::patch('prompts/{id}', 'updatePrompt')->whereNumber('id')->name('prompts.update');
             Route::delete('prompts/{id}', 'deletePrompt')->whereNumber('id')->name('prompts.delete');
             Route::post('projects/{id}/visibility/runs', 'startRun')->whereNumber('id')->name('visibility.run');
-            Route::get('projects/{id}/panels/{panel}', 'panel')->whereNumber('id')->whereIn('panel', ['ai', 'authority', 'search', 'traffic', 'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'ai_brand'])->name('panels');
+            Route::get('projects/{id}/panels/{panel}', 'panel')->whereNumber('id')->whereIn('panel', ['ai', 'authority', 'search', 'traffic', 'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'links', 'trends', 'ai_brand', 'gsc'])->name('panels');
+            Route::get('projects/{id}/google', [\App\Http\Controllers\MiraPremium\GoogleIntegrationController::class, 'status'])->whereNumber('id')->name('google.status');
+            Route::patch('projects/{id}/google', [\App\Http\Controllers\MiraPremium\GoogleIntegrationController::class, 'select'])->whereNumber('id')->name('google.select');
+            Route::post('google/disconnect', [\App\Http\Controllers\MiraPremium\GoogleIntegrationController::class, 'disconnect'])->name('google.disconnect');
         });
         Route::middleware('throttle:120,1')->group(function () {
             Route::post('event', 'event')->name('event');
             Route::post('error', 'clientError')->name('error');
         });
+    });
+
+// Mira Premium "Connect Google" (read-only Search Console + Analytics 4). The callback
+// needs no session: its signed state names the client (see GoogleClient).
+Route::middleware('throttle:20,1')->prefix('app/integrations/google')->name('mira-premium.google.')
+    ->controller(\App\Http\Controllers\MiraPremium\GoogleIntegrationController::class)->group(function () {
+        Route::get('connect', 'connect')->name('connect');
+        Route::get('callback', 'callback')->name('callback');
     });
 
 // Public API route for tracking script (no auth required - called from client websites)

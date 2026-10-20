@@ -11,7 +11,7 @@ class MiraVisibilityRun extends Model
     protected $table = 'mira_visibility_runs';
 
     protected $fillable = [
-        'uuid', 'project_id', 'status', 'model', 'prompts_count', 'answered_count', 'mentions', 'citations',
+        'uuid', 'project_id', 'status', 'trigger', 'model', 'prompts_count', 'answered_count', 'mentions', 'citations',
         'share_of_voice', 'summary', 'error_message', 'started_at', 'finished_at',
     ];
 

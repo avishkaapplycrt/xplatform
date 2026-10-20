@@ -146,6 +146,20 @@ return [
     'periods' => ['7d' => 7, '30d' => 30, '90d' => 90, '12m' => 365],
     'default_period' => '30d',
 
+    // Google connection (OAuth client in config/services.php → google): read-only
+    // Search Console for the Search Console panel, and Analytics 4 as the Traffic
+    // source for sites without the tracking script. Reports are cached per
+    // project / property / period for cache_minutes; ?refresh=1 re-fetches.
+    'google' => [
+        'scopes'        => [
+            'openid', 'email',
+            'https://www.googleapis.com/auth/webmasters.readonly',
+            'https://www.googleapis.com/auth/analytics.readonly',
+        ],
+        'cache_minutes' => (int) env('MIRA_GOOGLE_CACHE_MINUTES', 360),
+        'top_rows'      => 10,
+    ],
+
     // DataForSEO (https://dataforseo.com) powers the Authority and Search panels.
     // Unset = those panels show "Not measured — connect DataForSEO". sandbox=true
     // uses sandbox.dataforseo.com: free, same response shape, dummy numbers.
@@ -194,10 +208,18 @@ return [
         ['date' => '2025-06-30', 'name' => 'June 2025 core update'],
     ],
 
+    // AI assistants that send visitors (referrer domain or utm_source), for "AI traffic".
+    'ai_referrers' => [
+        'chatgpt.com' => 'ChatGPT', 'chat.openai.com' => 'ChatGPT', 'openai.com' => 'ChatGPT',
+        'perplexity.ai' => 'Perplexity', 'gemini.google.com' => 'Gemini', 'bard.google.com' => 'Gemini',
+        'copilot.microsoft.com' => 'Copilot', 'claude.ai' => 'Claude', 'you.com' => 'You.com',
+        'phind.com' => 'Phind', 'chat.deepseek.com' => 'DeepSeek', 'grok.com' => 'Grok', 'meta.ai' => 'Meta AI',
+    ],
+
     // First-party product analytics: event names the page may send.
     'events' => [
         'page_view', 'scan_submit', 'scan_done', 'scan_failed', 'report_open', 'chat_send',
         'upgrade_click', 'project_create', 'prompt_add', 'prompts_suggest', 'visibility_run',
-        'tab_open', 'quota_hit', 'locked_view',
+        'tab_open', 'quota_hit', 'locked_view', 'google_connect', 'google_return',
     ],
 ];

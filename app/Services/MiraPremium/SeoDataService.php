@@ -247,6 +247,8 @@ class SeoDataService
             'competitors' => 'Organic competitors and the traffic comparison',
             'insights'    => 'Search intent, branded traffic and SERP features',
             'paid'        => 'Paid keywords and ads',
+            'links'       => 'Individual backlinks, most linked pages and broken backlinks',
+            'trends'      => 'Search intent and SERP feature history',
         ];
 
         return [

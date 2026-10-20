@@ -42,7 +42,8 @@ use Illuminate\Support\Facades\Log;
  *   POST   projects/{id}/visibility/runs      start a run
  *   GET    projects/{id}/panels/{panel}       report panel: ai | authority | search | traffic (period-compared),
  *                                            performance | positions | countries | pages | competitors |
- *                                            insights | paid | backlinks (Site Explorer) | ai_brand (Brand Radar)
+ *                                            insights | paid | backlinks (Site Explorer) | ai_brand (Brand Radar) |
+ *                                            gsc (Search Console, via the client's Google connection)
  *                                            for ?period=7d|30d|90d|12m vs the previous window
  *   POST   event / error                      first-party analytics and client error reports
  */
@@ -96,6 +97,25 @@ class WorkspaceApiController extends Controller
             'recent_scans' => MiraScan::where('subject', $who->subject)->whereNull('project_id')
                 ->latest('id')->limit(5)->get()->map(fn ($s) => $this->scans->summarize($s))->all(),
             'turnstile_site_key' => $who->isPremium() ? null : $this->turnstile->siteKey(),
+            'sources'      => $this->sources(),
+        ];
+    }
+
+    /** Where the report data comes from right now, for the "Data sources" strip on each tab. */
+    private function sources(): array
+    {
+        $dfs    = app(\App\Services\MiraPremium\DataForSeoClient::class);
+        $code   = (int) config('mira_premium.dataforseo.location_code');
+        $market = collect((array) config('mira_premium.dataforseo.markets'))->firstWhere('code', $code);
+
+        return [
+            'dataforseo' => [
+                'mode'        => $dfs->isDemo() ? 'sample' : (!$dfs->isConfigured() ? 'off' : ($dfs->isSandbox() ? 'sandbox' : 'live')),
+                'market'      => $market['country'] ?? "location {$code}",
+                'cache_hours' => (int) config('mira_premium.dataforseo.cache_hours', 24),
+                'markets'     => count((array) config('mira_premium.dataforseo.markets')),
+            ],
+            'google' => ['configured' => app(\App\Services\MiraPremium\GoogleClient::class)->isConfigured()],
         ];
     }
 
@@ -180,7 +200,23 @@ class WorkspaceApiController extends Controller
             'competitors'          => 'sometimes|array',
             'competitors.*.name'   => 'required_with:competitors|string|min:2|max:80',
             'competitors.*.domain' => 'nullable|string|max:255',
+            'visibility_schedule'  => 'sometimes|in:off,daily,weekly,monthly',
+            'match_mode'           => 'sometimes|in:word,case_sensitive',
+            'exclude_terms'        => 'sometimes|array|max:20',
+            'exclude_terms.*'      => 'string|min:2|max:60',
         ]);
+
+        if (($in['visibility_schedule'] ?? 'off') !== 'off') {
+            $who->require('visibility_runs', 'Scheduled AI visibility tracking');
+        }
+        if (array_key_exists('visibility_schedule', $in)) {
+            // First scheduled run at the next hourly pass; off clears it.
+            $in['next_visibility_run_at'] = $in['visibility_schedule'] === 'off' ? null
+                : ($project->visibility_schedule === $in['visibility_schedule'] && $project->next_visibility_run_at ? $project->next_visibility_run_at : now());
+        }
+        if (array_key_exists('exclude_terms', $in)) {
+            $in['exclude_terms'] = array_values(array_unique(array_filter(array_map('trim', $in['exclude_terms']))));
+        }
 
         if (array_key_exists('competitors', $in)) {
             [$cap] = $who->limit('competitors');
@@ -270,15 +306,16 @@ class WorkspaceApiController extends Controller
             'ai'        => app(AiResponsesService::class)->responses($project, $period),
             'authority' => app(SeoDataService::class)->authority($project, $period, $refresh),
             'search'    => app(SeoDataService::class)->search($project, $period, $refresh),
-            'traffic'   => app(TrafficService::class)->traffic($project, $period),
-            'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks'
+            'traffic'   => app(TrafficService::class)->traffic($project, $period, $refresh),
+            'gsc'       => app(\App\Services\MiraPremium\GoogleDataService::class)->searchConsole($project, $period, $refresh),
+            'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'links', 'trends'
                         => app(\App\Services\MiraPremium\SiteExplorerService::class)->{$panel}($project, $refresh),
             'ai_brand'  => app(\App\Services\MiraPremium\AiBrandService::class)->report($project),
             default     => throw new MiraApiException('NotFound', 'Unknown panel.'),
         };
 
         // Sample data mode: tag every provider-built panel so it can't be read as real.
-        if ($panel !== 'ai' && $panel !== 'ai_brand' && $panel !== 'traffic' && ($data['connected'] ?? false)
+        if (!in_array($panel, ['ai', 'ai_brand', 'traffic', 'gsc'], true) && ($data['connected'] ?? false)
             && app(\App\Services\MiraPremium\DataForSeoClient::class)->isDemo()) {
             $data['demo'] = true;
         }
@@ -304,9 +341,10 @@ class WorkspaceApiController extends Controller
     {
         $who     = Entitlement::forRequest($request);
         $project = $this->ownedProject($who, $id);
-        $in      = $this->input($request, ['prompt' => 'required|string|max:300', 'topic' => 'nullable|string|max:40']);
+        $in      = $this->input($request, ['prompt' => 'required|string|max:300', 'topic' => 'nullable|string|max:40',
+            'tags' => 'nullable|array|max:5', 'tags.*' => 'string|max:24']);
 
-        return response()->json(['prompt' => $this->promptData($this->visibility->addPrompt($who, $project, $in['prompt'], $in['topic'] ?? null))], 201);
+        return response()->json(['prompt' => $this->promptData($this->visibility->addPrompt($who, $project, $in['prompt'], $in['topic'] ?? null, 'user', $in['tags'] ?? []))], 201);
     }
 
     public function suggestPrompts(Request $request, int $id): JsonResponse
@@ -320,8 +358,17 @@ class WorkspaceApiController extends Controller
     public function updatePrompt(Request $request, int $id): JsonResponse
     {
         $prompt = $this->ownedPrompt(Entitlement::forRequest($request), $id);
-        $in     = $this->input($request, ['is_active' => 'required|boolean']);
-        $prompt->update(['is_active' => (bool) $in['is_active']]);
+        $in     = $this->input($request, ['is_active' => 'sometimes|boolean', 'tags' => 'sometimes|array|max:5', 'tags.*' => 'string|max:24',
+            'keyword' => 'sometimes|string|min:2|max:80']);
+        if (array_key_exists('tags', $in)) {
+            $in['tags'] = VisibilityEngine::cleanTags($in['tags']);
+        }
+        if (array_key_exists('keyword', $in)) {
+            // A new keyword needs a fresh search volume on the next run.
+            $in['keyword'] = mb_strtolower(trim($in['keyword']));
+            $in['volume_checked_at'] = null;
+        }
+        $prompt->update($in);
 
         return response()->json(['prompt' => $this->promptData($prompt)]);
     }
@@ -444,11 +491,18 @@ class WorkspaceApiController extends Controller
             'latest_scan'     => $latest ? $this->scans->summarize($latest) : null,
             'visibility'      => $run ? $this->visibility->runSummary($run) : null,
             'prompts_count'   => $p->prompts()->count(),
+            'visibility_schedule'    => $p->visibility_schedule ?? 'off',
+            'next_visibility_run_at' => $p->next_visibility_run_at?->toIso8601String(),
+            'match_mode'      => $p->match_mode ?? 'word',
+            'exclude_terms'   => $p->excludeTerms(),
+            'gsc_site_url'    => $p->gsc_site_url,
+            'ga4_property'    => $p->ga4_property,
         ];
     }
 
     private function promptData(MiraPrompt $p): array
     {
-        return ['id' => $p->id, 'prompt' => $p->prompt, 'topic' => $p->topic, 'source' => $p->source, 'is_active' => $p->is_active];
+        return ['id' => $p->id, 'prompt' => $p->prompt, 'topic' => $p->topic, 'source' => $p->source, 'is_active' => $p->is_active,
+            'keyword' => $p->keyword, 'search_volume' => $p->search_volume, 'tags' => $p->tags ?? []];
     }
 }

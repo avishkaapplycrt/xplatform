@@ -107,8 +107,24 @@ class AiBrandService
 
         $sent = $lastSet->whereNotNull('sentiment')->countBy('sentiment')->all();
 
+        // By prompt tag (latest run): mention rate per tag, for topic / funnel / campaign reporting.
+        $tagsById = \App\Models\MiraPremium\MiraPrompt::where('project_id', $project->id)->pluck('tags', 'id');
+        $byTag = [];
+        foreach ($lastSet as $a) {
+            foreach ((array) ($tagsById[$a->prompt_id] ?? []) as $tag) {
+                $byTag[$tag] ??= ['tag' => $tag, 'answers' => 0, 'mentions' => 0];
+                $byTag[$tag]['answers']++;
+                if ($a->brand_mentioned) {
+                    $byTag[$tag]['mentions']++;
+                }
+            }
+        }
+        $byTag = array_values(array_map(fn ($t) => $t + ['rate' => round($t['mentions'] / max(1, $t['answers']) * 100, 1)], $byTag));
+        usort($byTag, fn ($a, $b) => $b['answers'] <=> $a['answers']);
+
         return [
             'has_runs'  => true,
+            'sample'    => $runs->contains(fn ($r) => $r->trigger === 'sample'),   // artisan mira:sample-data
             'brand'     => $brand,
             'model'     => $latest->model,
             'latest'    => ['date' => $latest->finished_at->toIso8601String(), 'answers' => $latest->answered_count,
@@ -123,6 +139,12 @@ class AiBrandService
             'most_mentioned' => $found,
             'sentiment' => ['positive' => $sent['positive'] ?? 0, 'neutral' => $sent['neutral'] ?? 0, 'negative' => $sent['negative'] ?? 0,
                             'analyzed' => array_sum($sent)],
+            'impressions' => $latest->summary['impressions'] ?? null,
+            'impressions_trend' => $runs->map(fn ($r) => ['date' => $r->finished_at->toIso8601String(),
+                'brand' => $r->summary['impressions']['brand'] ?? null, 'share' => $r->summary['impressions']['share'] ?? null])->values()->all(),
+            'tags'      => $byTag,
+            'schedule'  => ['frequency' => $project->visibility_schedule ?? 'off', 'next_run_at' => $project->next_visibility_run_at?->toIso8601String(),
+                            'last_trigger' => $latest->trigger ?? 'manual'],
         ];
     }
 }
