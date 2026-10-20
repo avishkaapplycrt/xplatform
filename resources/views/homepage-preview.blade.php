@@ -325,6 +325,13 @@ img,svg{display:block}
   font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;text-decoration:none;background:#5383EC;color:#fff;transition:transform .15s}
 .mira-cta:hover{transform:translateY(-1px)}
 .mira-cta.gold{background:linear-gradient(90deg,#ead27a,#c79f36);color:#2b2306}
+/* Free question limit (visitors who aren't signed in). */
+.mira-limit-note{align-self:flex-start;margin-top:-6px;font-family:'Inter',sans-serif;font-size:12.5px;color:#8a6d1f;background:#fdf6e3;border:1px solid #f0dfa8;border-radius:999px;padding:5px 12px}
+.mira-limit-card{align-self:flex-start;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:-4px;font-family:'Inter',sans-serif;font-size:13px;color:#727786}
+.mira-limit-card a{color:#4f80f0;font-weight:600}
+.mira-limit-btn{display:inline-flex;align-items:center;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:700!important;font-size:14px;color:#1a1406!important;
+  background:linear-gradient(135deg,#f0d27a,#d4af37 55%,#b8902f);box-shadow:0 6px 18px rgba(212,175,55,.35);transition:transform .15s}
+.mira-limit-btn:hover{transform:translateY(-1px)}
 .mira-more{border:0;background:transparent;color:#4f80f0;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;padding:8px;margin-top:4px;cursor:pointer}
 .mira-more:hover{text-decoration:underline}
 .mira-prem-strip{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;width:100%;max-width:760px;margin-top:6px;
@@ -1862,6 +1869,34 @@ function miraIndustryChanged() {
   miraRenderHome();
 }
 
+/* Free question limit for visitors who aren't signed in
+   (PublicChatController::GUEST_QUESTION_LIMIT): a note as it gets close, and a
+   Try Premium Mira card once it's reached. */
+function miraAddLimitNote(left) {
+  var note = document.createElement('div');
+  note.className = 'mira-limit-note';
+  note.textContent = left === 0
+    ? "That was your last free question — try Mira Premium to keep asking."
+    : left + ' free question' + (left === 1 ? '' : 's') + ' left — try Mira Premium to keep asking.';
+  var msgs = document.getElementById('miraMessages');
+  msgs.appendChild(note);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function miraAddLimitCard(data) {
+  var card = document.createElement('div');
+  card.className = 'mira-limit-card';
+  var btn = document.createElement('a');
+  btn.className = 'mira-limit-btn'; btn.href = data.upgrade_url; btn.textContent = '★ Try Premium Mira';
+  var login = document.createElement('a');
+  login.href = data.login_url; login.textContent = 'Sign in';
+  var small = document.createElement('span');
+  small.append('Already have an account? ', login);
+  card.append(btn, small);
+  var msgs = document.getElementById('miraMessages');
+  msgs.appendChild(card);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
 /* The button under an answer that has one (industry questions). */
 function miraAddCta(cta) {
   // Signed-in clients go straight to Mira Premium; visitors see the plans first.
@@ -2004,6 +2039,8 @@ async function miraSendChat() {
     var result = await miraPostToChat(msg);
     typing.remove();
     miraAddMessage('bot', result.ok ? result.data.reply : (result.data.error || 'Something went wrong. Please try again.'));
+    if (!result.ok && result.data.limit_reached) miraAddLimitCard(result.data);
+    if (result.ok && result.data.questions_left !== null && result.data.questions_left !== undefined && result.data.questions_left <= 3) miraAddLimitNote(result.data.questions_left);
     if (result.ok && result.data.cta) miraAddCta(result.data.cta);
     if (result.ok && result.data.report) renderAnalysisReport(result.data.report);
     if (result.ok) miraAddSuggestions(result.data.suggestions);

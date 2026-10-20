@@ -16,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
 /**
@@ -49,6 +50,15 @@ class PublicChatController extends Controller
      */
     private const COMPARISON_FIXES_UNLOCKABLE = true;
 
+    /**
+     * Free questions in the Ask Mira chat for visitors who aren't signed in,
+     * per GUEST_QUESTION_WINDOW seconds, counted per network address (hashed).
+     * Pasted website addresses (analyses) don't count. Signed-in clients have
+     * no limit. At the limit the chat answers with a "Try Premium Mira" prompt.
+     */
+    public const GUEST_QUESTION_LIMIT  = 10;
+    public const GUEST_QUESTION_WINDOW = 24 * 60 * 60;
+
     /** Cookie holding the visitor's askmira_visitors.visitor_id (kept for a year). */
     private const VISITOR_COOKIE         = 'askmira_vid';
     private const VISITOR_COOKIE_MINUTES = 60 * 24 * 365;
@@ -66,6 +76,20 @@ class PublicChatController extends Controller
         $industry = isset($validated['industry_id'])
             ? Industry::find($validated['industry_id'])?->name
             : null;
+
+        // Visitors who aren't signed in get GUEST_QUESTION_LIMIT free questions.
+        $limitKey = null;
+        if ($client === null && !preg_match('#https?://\S+#i', $validated['message'])) {
+            $limitKey = 'askmira-guest-questions:' . substr(hash_hmac('sha256', (string) $request->ip(), (string) config('app.key')), 0, 40);
+            if (RateLimiter::tooManyAttempts($limitKey, self::GUEST_QUESTION_LIMIT)) {
+                return response()->json([
+                    'error'         => "You've used your " . self::GUEST_QUESTION_LIMIT . " free questions. Try Mira Premium to keep asking — with answers about your own website, step-by-step fixes and AI visibility tracking.",
+                    'limit_reached' => true,
+                    'upgrade_url'   => route('pricing'),
+                    'login_url'     => route('client.login'),
+                ], 429);
+            }
+        }
 
         try {
             $result = $bot->reply($validated['message'], $history, $client, $industry, $this->premium($request, $validated));
@@ -104,7 +128,15 @@ class PublicChatController extends Controller
             $report['report_url'] = app(AskMiraReportStore::class)->store('analysis', $report, $this->premium($request, $validated));
         }
 
-        return response()->json(['reply' => $reply, 'report' => $report, 'suggestions' => $result['suggestions'] ?? [], 'cta' => $result['cta'] ?? null]);
+        // Count the answered question against the visitor's free limit.
+        $questionsLeft = null;
+        if ($limitKey !== null) {
+            RateLimiter::hit($limitKey, self::GUEST_QUESTION_WINDOW);
+            $questionsLeft = RateLimiter::remaining($limitKey, self::GUEST_QUESTION_LIMIT);
+        }
+
+        return response()->json(['reply' => $reply, 'report' => $report, 'suggestions' => $result['suggestions'] ?? [], 'cta' => $result['cta'] ?? null,
+            'questions_left' => $questionsLeft]);
     }
 
     /**
