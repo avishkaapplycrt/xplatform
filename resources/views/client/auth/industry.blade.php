@@ -2,7 +2,7 @@
                 :backUrl="route('client.dashboard')"
                 :previousUrl="null"
                 :currentStep="2"
-                :totalSteps="2">
+                :totalSteps="3">
 
 <div class="p-8">
 
@@ -77,7 +77,7 @@
         {{-- Continue Button --}}
         <button type="submit"
             class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2.5 rounded-lg transition">
-            {{ $selectedId ? 'Save industry' : 'Finish setup' }}
+            {{ $selectedId ? 'Save industry' : 'Continue' }}
         </button>
 
     </form>

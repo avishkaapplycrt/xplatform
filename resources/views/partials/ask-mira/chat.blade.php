@@ -8,7 +8,11 @@
     <div class="chat-layout">
 
       <aside class="chat-sidebar">
-        <a class="side-premium" href="{{ route('mira-premium') }}">&#9733; Try Premium Mira</a>
+        @auth('client')
+          <a class="side-premium" href="{{ route('mira-premium') }}">&#9733; Ask Mira Premium</a>
+        @else
+          <a class="side-premium" href="{{ route('pricing') }}">&#9733; Try Premium Mira</a>
+        @endauth
         <div>
           <div class="side-lbl">Your industry</div>
           <select id="industrySelect" class="side-select" onchange="renderStarterQuestions(this.value)">

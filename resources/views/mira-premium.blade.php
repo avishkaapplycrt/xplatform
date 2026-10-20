@@ -60,18 +60,35 @@
       <div class="menu" id="projectMenu" role="menu" hidden></div>
     </div>
 
+    {{-- Site navigation, as on the homepage. --}}
+    <nav class="mp-nav" aria-label="Site">
+      <a href="{{ url('/') }}">Home</a>
+      <a href="{{ route('industries') }}">Industries</a>
+      <a href="{{ route('simulator') }}">Simulator</a>
+    </nav>
+
     <div class="topbar-right">
       <div class="usage-pill" id="usagePill" title="Site scans used this period" hidden>
         <span id="usagePillText">Scans</span>
         <span class="bar"><i id="usagePillBar" style="width:0"></i></span>
       </div>
-      <span class="badge" id="planBadge">Preview</span>
       <a class="btn btn-ghost btn-sm" id="manageBtn" hidden>Manage plan</a>
-      <a class="btn btn-ghost btn-sm" id="signInBtn" href="{{ route('client.login') }}" hidden>Sign in</a>
-      <a class="btn btn-premium btn-sm mira-ev-upgrade_click" data-ev-from="topbar" id="upgradeBtn" href="{{ config('mira_premium.upgrade_url') }}">
+      {{-- Hidden while config mira_premium.upgrade_url is unset (no pricing redirect for now). --}}
+      <a class="btn btn-premium btn-sm mira-ev-upgrade_click" data-ev-from="topbar" id="upgradeBtn" href="{{ config('mira_premium.upgrade_url') }}" @unless(config('mira_premium.upgrade_url')) hidden @endunless>
         <svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7.1L12 17.3 5.8 21l1.6-7.1L2 9.2l7.1-.6z"/></svg>
         Upgrade
       </a>
+      {{-- Mira Premium is for registered clients, so no Sign in / Sign up here. --}}
+      @auth('client')
+        <a class="mp-nav-link" href="{{ route('client.dashboard') }}">Dashboard</a>
+      @endauth
+      @auth('client')
+        <form method="POST" action="{{ route('client.logout') }}" class="mp-logout">
+          @csrf
+          <input type="hidden" name="redirect" value="home">
+          <button type="submit">Log out</button>
+        </form>
+      @endauth
     </div>
   </div>
 </header>
@@ -83,10 +100,18 @@
       <h1>Be the answer in Google <em>and</em> AI search.</h1>
       <p>Audit any page against 13 categories of checks, see exactly where competitors beat you, and track how often ChatGPT-style assistants recommend your brand — with the fix for every gap.</p>
     </div>
-    <div class="hero-proof">
-      <span><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>Real checks, no estimates</span>
-      <span><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>Scores tracked over time</span>
-      <span><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg>AI visibility tracking</span>
+    <div class="hero-side">
+      {{-- Mira's orb from the Ask Mira home, in gold. --}}
+      <div class="mp-orb-wrap" aria-hidden="true">
+        <span class="mp-orb-ripple"></span><span class="mp-orb-ripple r2"></span>
+        <span class="mp-orb-orbit"></span><span class="mp-orb-orbit o2"></span>
+        <img src="{{ asset('images/homepage/mira/orb.png') }}" class="mp-orb" alt="">
+      </div>
+      <div class="hero-proof">
+        <span><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>Real checks, no estimates</span>
+        <span><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>Scores tracked over time</span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg>AI visibility tracking</span>
+      </div>
     </div>
   </section>
 
@@ -95,12 +120,12 @@
     <label class="field">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg>
       <span class="sr">Your website</span>
-      <input id="scanUrl" name="url" type="text" inputmode="url" placeholder="yourwebsite.com" required>
+      <input id="scanUrl" name="url" type="text" inputmode="url" placeholder="yourwebsite.com" autocomplete="off" required>
     </label>
     <label class="field" id="compField" hidden>
       <span class="tag">vs</span>
       <span class="sr">Competitor website</span>
-      <input id="scanComp" name="competitor_url" type="text" inputmode="url" placeholder="competitor.com">
+      <input id="scanComp" name="competitor_url" type="text" inputmode="url" placeholder="competitor.com" autocomplete="off">
     </label>
     <button type="button" class="btn btn-secondary" id="compToggle" aria-pressed="false">
       <svg viewBox="0 0 24 24"><path d="M7 4L3 8l4 4M3 8h13M17 20l4-4-4-4M21 16H8"/></svg>
@@ -189,7 +214,9 @@
       </div>
       <div class="upsell-strip" id="auditUpsell" hidden>
         <p><b>Preview report.</b> Mira Premium adds the exact fix for every failing check, written for your site, plus score tracking.</p>
-        <a class="btn btn-premium btn-sm mira-ev-upgrade_click" data-ev-from="audit" href="{{ config('mira_premium.upgrade_url') }}">Unlock fixes</a>
+        @if(config('mira_premium.upgrade_url'))
+          <a class="btn btn-premium btn-sm mira-ev-upgrade_click" data-ev-from="audit" href="{{ config('mira_premium.upgrade_url') }}">Unlock fixes</a>
+        @endif
       </div>
       {{-- miraRenderSiteReport / miraRenderComparison draw here. --}}
       <div class="mira-compare-panel" id="miraComparePanel" hidden></div>

@@ -59,7 +59,7 @@ img,svg{display:block}
 .nav-burger.open span::after{transform:translateY(-5px) rotate(-45deg)}
 @media (max-width:900px){
   .nav-links{position:absolute;top:100%;left:0;right:0;flex-direction:column;align-items:flex-start;gap:0;background:#0a0a0d;border-bottom:1px solid rgba(255,255,255,.08);max-height:0;overflow:hidden;transition:max-height .25s ease}
-  .nav-links.open{max-height:320px}
+  .nav-links.open{max-height:420px}
   .nav-links li{width:100%}
   .nav-links a{display:block;width:100%;padding:16px 24px;border-bottom:1px solid rgba(255,255,255,.05)}
   .nav-burger{display:flex}
@@ -67,10 +67,28 @@ img,svg{display:block}
 .book-demo{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border:1px solid rgba(255,255,255,.18);border-radius:999px;font-size:13.5px;font-weight:500;color:#fff;background:rgba(255,255,255,.04);transition:background .2s;white-space:nowrap}
 .book-demo:hover{background:rgba(255,255,255,.1)}
 @media (max-width:480px){.book-demo span.label{display:none}}
+/* Sign in (text link) and Sign up (bright pill); on small screens they move into the menu. */
+.nav-signin{font-size:14px;font-weight:500;color:#c7c9d1;padding:9px 6px;transition:color .2s;white-space:nowrap}
+.nav-signin:hover{color:#fff}
+.nav-signup{display:inline-flex;align-items:center;padding:9px 18px;border-radius:999px;font-size:13.5px;font-weight:600;color:#0b0b0e;white-space:nowrap;
+  background:linear-gradient(90deg,#F6F9FC,#93CEFF 45%,#FFBFFF);box-shadow:0 4px 18px rgba(147,206,255,.25);transition:transform .15s,box-shadow .2s}
+.nav-signup:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(147,206,255,.4)}
+.nav-logout{margin:0;display:inline-flex}
+.nav-logout button{display:inline-flex;align-items:center;padding:9px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:transparent;
+  font-family:inherit;font-size:13.5px;font-weight:500;color:#c7c9d1;cursor:pointer;white-space:nowrap;transition:color .2s,border-color .2s,background .2s}
+.nav-logout button:hover{color:#fff;border-color:rgba(255,255,255,.35);background:rgba(255,255,255,.06)}
+.nav-links .nav-account form{margin:0}
+.nav-links .nav-account button{display:block;width:100%;text-align:left;padding:16px 24px;border:0;border-bottom:1px solid rgba(255,255,255,.05);
+  background:transparent;font-family:inherit;font-size:14px;color:#c7c9d1;cursor:pointer}
+.nav-links .nav-account{display:none}
+@media (max-width:900px){
+  .nav-right .nav-signin,.nav-right .nav-signup,.nav-right .nav-logout{display:none}
+  .nav-links .nav-account{display:list-item}
+}
 
 /* ============ HERO ============ */
-.hero{position:relative;padding:70px 60px 110px;text-align:center;overflow:hidden;min-height:640px}
-@media (max-width:900px){.hero{padding:50px 24px 80px}}
+.hero{position:relative;padding:28px 60px 110px;text-align:center;overflow:hidden;min-height:640px}
+@media (max-width:900px){.hero{padding:24px 24px 80px}}
 /* Real earth/space photo, extracted from Figma export */
 .hero-bg{position:absolute;inset:0;z-index:0;overflow:hidden;background:#000;container-type:size;
   -webkit-mask-image:linear-gradient(to bottom,black 60%,transparent 100%);
@@ -127,8 +145,35 @@ img,svg{display:block}
   animation:heroRimBreathe 6s ease-in-out infinite}
 @keyframes heroRimBreathe{0%,100%{opacity:.45}50%{opacity:1}}
 
+/* Spinning globe: the photo's planet is a circle (same box as .hero-rim) —
+   a slice of NASA's Black Marble night-lights map (public domain, the band
+   from 70°N to 10°S, seamless left to right) scrolls inside it, so city
+   lights travel across the horizon while the sky and the sun stay put.
+   ::after paints the sunlight back on (warm near the sun, blue on the right)
+   and darkens the surface away from the horizon, so it sits in the photo. */
+.hero-globe{position:absolute;left:-44.2%;top:51.4%;width:188.4%;aspect-ratio:1;border-radius:50%;overflow:hidden;pointer-events:none;
+  -webkit-mask-image:radial-gradient(farthest-side,#000 99.2%,transparent 100%);mask-image:radial-gradient(farthest-side,#000 99.2%,transparent 100%)}
+.hero-globe-map{position:absolute;left:0;top:0;width:225%;height:25%;
+  background:url("{{ asset('images/homepage/earth-night-band.jpg') }}") left top / 50% 100% repeat-x;
+  filter:brightness(1.45) contrast(1.35) saturate(1.2);will-change:transform;animation:heroGlobeSpin 140s linear infinite}
+/* Sunlight, as in the photo: warm orange across the middle, blue on the right. */
+.hero-globe::before{content:"";position:absolute;inset:0;z-index:1;mix-blend-mode:screen;
+  background:
+    radial-gradient(ellipse 16% 5% at 47% 0%,rgba(255,140,60,.75),rgba(255,110,40,.25) 55%,transparent 80%),
+    radial-gradient(ellipse 9% 3.5% at 40% 0%,rgba(255,215,160,.6),transparent 75%),
+    radial-gradient(ellipse 15% 6.5% at 62% 0%,rgba(25,85,255,.95),rgba(20,60,220,.4) 50%,transparent 82%)}
+/* Night side: the surface darkens away from the sunlit horizon. */
+.hero-globe::after{content:"";position:absolute;inset:0;z-index:2;
+  background:linear-gradient(to bottom,transparent 1.6%,rgba(0,0,0,.2) 6%,rgba(0,0,0,.5) 14%)}
+@keyframes heroGlobeSpin{to{transform:translateX(-50%)}}
+
+/* Headline and subtitle rise in on load. */
+.hero h1{animation:heroRise 1.1s cubic-bezier(.16,1,.3,1) both}
+.hero-sub{animation:heroRise 1.1s .25s cubic-bezier(.16,1,.3,1) both}
+@keyframes heroRise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+
 @media (prefers-reduced-motion:reduce){
-  .hero-stage,.hero-sun::before,.hero-sun::after,.hero-rim,.hero-rim-glow{animation:none}
+  .hero-stage,.hero-sun::before,.hero-sun::after,.hero-rim,.hero-rim-glow,.hero-globe-map,.hero h1,.hero-sub{animation:none}
 }
 .hero-inner{position:relative;z-index:1}
 .hero h1{font-family:'Space Grotesk',sans-serif;font-size:160px;line-height:.86;font-weight:500;letter-spacing:-3.2px}
@@ -147,7 +192,7 @@ img,svg{display:block}
    homepage widget: route('chat.send') / route('chat.reset') —
    see App\Http\Controllers\PublicChatController. ============ */
 .chatbot-section{padding-top:0;padding-bottom:40px}
-/* Try Premium Mira — under New Chat, links to /mira-premium. */
+/* Under New Chat: "Try Premium Mira" → pricing for visitors; "Ask Mira Premium" → /mira-premium once signed in. */
 .mira-premium-btn{
   display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px 14px;border-radius:999px;
   background:linear-gradient(135deg,#f0d27a,#d4af37 55%,#b8902f);color:#1a1406;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;
@@ -329,7 +374,9 @@ img,svg{display:block}
 #miraPanelAnalyze.comparing > .mira-input-row > .mira-send{display:none}
 #miraPanelAnalyze.comparing > .mira-input-row{min-height:58px;padding-right:22px}
 #miraPanelAnalyze .mira-analyze-status{margin:2px 24px 14px}
-.mira-analyze-status{--spin-c:#5383EC;font-family:'Inter',sans-serif;font-size:13px;color:#6b6b70;text-align:center;margin:0 24px 12px;min-height:16px}
+.mira-analyze-status{--spin-c:#5383EC;font-family:'Inter',sans-serif;font-size:13px;color:#6b6b70;text-align:center;margin:0 24px 8px}
+.mira-analyze-status:empty{display:none}
+.mira-analyze-hint:has(+ .mira-analyze-status:not(:empty)){display:none}
 .mira-analyze-status.err{color:#e0564c}
 
 
@@ -737,6 +784,24 @@ img,svg{display:block}
 </style>
 </head>
 <body>
+@if(session('success'))
+  {{-- One-time success message (e.g. after finishing sign-up); fades out on its own. --}}
+  <div class="flash-ok" id="flashOk" role="status">
+    <span class="flash-ok-ico" aria-hidden="true">&#10003;</span>
+    <span>{{ session('success') }}</span>
+    <button type="button" aria-label="Dismiss" onclick="this.parentNode.remove()">&times;</button>
+  </div>
+  <style>
+    .flash-ok{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:100;display:flex;align-items:center;gap:12px;max-width:min(560px,calc(100vw - 32px));
+      padding:12px 14px 12px 14px;border-radius:14px;background:#fff;color:#16181d;font-family:'Inter',sans-serif;font-size:14px;line-height:1.45;
+      box-shadow:0 12px 40px rgba(0,0,0,.35);animation:flashIn .45s cubic-bezier(.16,1,.3,1) both}
+    .flash-ok-ico{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#16a34a;color:#fff;font-size:14px;font-weight:700}
+    .flash-ok button{flex:none;border:0;background:transparent;color:#9a9a9e;font-size:20px;line-height:1;cursor:pointer;padding:0 4px}
+    .flash-ok.out{opacity:0;transform:translate(-50%,-10px);transition:opacity .4s,transform .4s}
+    @keyframes flashIn{from{opacity:0;transform:translate(-50%,-14px)}to{opacity:1;transform:translate(-50%,0)}}
+  </style>
+  <script>setTimeout(function(){var f=document.getElementById('flashOk');if(!f)return;f.classList.add('out');setTimeout(function(){f.remove()},450)},6000);</script>
+@endif
 
 {{-- ============ NAV ============ --}}
 <nav class="nav">
@@ -749,9 +814,32 @@ img,svg{display:block}
     <li><a href="#">Industries</a></li>
     <li><a href="{{ route('simulator') }}">Simulator</a></li>
     <li><a href="{{ route('pricing') }}">Pricing</a></li>
+    {{-- Phones: account links live in the menu (hidden on wider screens). --}}
+    @auth('client')
+      <li class="nav-account"><a href="{{ route('client.dashboard') }}">Dashboard</a></li>
+      <li class="nav-account">
+        <form method="POST" action="{{ route('client.logout') }}">@csrf<input type="hidden" name="redirect" value="home"><button type="submit">Log out</button></form>
+      </li>
+    @else
+      <li class="nav-account"><a href="{{ route('client.login') }}">Sign in</a></li>
+      <li class="nav-account"><a href="{{ route('client.register') }}">Sign up</a></li>
+    @endauth
   </ul>
   <div class="nav-right">
+    @auth('client')
+      <a href="{{ route('client.dashboard') }}" class="nav-signin">Dashboard</a>
+    @else
+      <a href="{{ route('client.login') }}" class="nav-signin">Sign in</a>
+      <a href="{{ route('client.register') }}" class="nav-signup">Sign up</a>
+    @endauth
     <a href="{{ route('book-demo') }}" class="book-demo"><span class="label">Book Demo</span> ↗</a>
+    @auth('client')
+      <form method="POST" action="{{ route('client.logout') }}" class="nav-logout">
+        @csrf
+        <input type="hidden" name="redirect" value="home">
+        <button type="submit">Log out</button>
+      </form>
+    @endauth
     <button type="button" class="nav-burger" id="navBurger" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks"><span></span></button>
   </div>
 </nav>
@@ -761,6 +849,7 @@ img,svg{display:block}
   <div class="hero-bg" aria-hidden="true">
     <div class="hero-stage">
       <img src="{{ asset('images/homepage/hero-earth.jpg') }}" alt="">
+      <span class="hero-globe"><span class="hero-globe-map"></span></span>
       <span class="hero-rim-glow"></span>
       <span class="hero-rim"></span>
       <span class="hero-sun"></span>
@@ -788,7 +877,11 @@ img,svg{display:block}
           <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           New Chat
         </button>
-        <a class="mira-premium-btn" href="{{ route('mira-premium') }}">&#9733; Try Premium Mira</a>
+        @auth('client')
+          <a class="mira-premium-btn" href="{{ route('mira-premium') }}">&#9733; Ask Mira Premium</a>
+        @else
+          <a class="mira-premium-btn" href="{{ route('pricing') }}">&#9733; Try Premium Mira</a>
+        @endauth
 
         <div class="mira-group">
           <div class="mira-label">Industry</div>
@@ -836,7 +929,11 @@ img,svg{display:block}
             <button type="button" class="mira-more" id="miraMore" onclick="miraToggleAllQuestions()"></button>
             <div class="mira-prem-strip">
               <p><b>&#9733; Get picked by Google and ChatGPT.</b> Step-by-step fixes, competitor gap reports and AI visibility tracking.</p>
-              <a href="{{ route('mira-premium') }}">Try Premium &rarr;</a>
+              @auth('client')
+                <a href="{{ route('mira-premium') }}">Ask Mira Premium &rarr;</a>
+              @else
+                <a href="{{ route('pricing') }}">Try Premium &rarr;</a>
+              @endauth
             </div>
           </div>
           <div class="mira-messages" id="miraMessages" style="display:none"></div>
@@ -858,6 +955,8 @@ img,svg{display:block}
             <p>I'll run a quick check and tell you what stands out.</p>
           </div>
           <p class="mira-analyze-hint" id="miraAnalyzeHint">Paste your website URL and I'll analyse it for you.</p>
+          {{-- Progress, results and errors show here, in place of the hint above (hidden while this has text). --}}
+          <p class="mira-analyze-status" id="miraAnalyzeStatus"></p>
           <div class="mira-input-row">
             <input type="text" id="miraAnalyzeInput" class="mira-input" placeholder="https://yourwebsite.com" onkeydown="if(event.key==='Enter'){event.preventDefault();miraSendAnalyze()}">
             <button type="button" class="mira-send" onclick="miraSendAnalyze()" aria-label="Analyse"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
@@ -878,7 +977,6 @@ img,svg{display:block}
             </span>
             <span class="mct-label" id="miraCompareLabel">Compare with a competitor</span>
           </button>
-          <p class="mira-analyze-status" id="miraAnalyzeStatus"></p>
         </div>
 
       </div>
@@ -1766,7 +1864,8 @@ function miraIndustryChanged() {
 
 /* The button under an answer that has one (industry questions). */
 function miraAddCta(cta) {
-  var labels = { analyse: 'Analyse my website', premium: 'Try Premium Mira', contact: 'Talk to X Platforms' };
+  // Signed-in clients go straight to Mira Premium; visitors see the plans first.
+  var labels = { analyse: 'Analyse my website', premium: MIRA_LOGGED_IN ? 'Ask Mira Premium' : 'Try Premium Mira', contact: 'Talk to X Platforms' };
   if (!labels[cta]) return;
   var el;
   if (cta === 'analyse') {
@@ -1774,7 +1873,7 @@ function miraAddCta(cta) {
     el.addEventListener('click', function () { miraSwitchTab('analyze'); document.getElementById('miraAnalyzeInput').focus(); });
   } else {
     el = document.createElement('a');
-    el.href = cta === 'premium' ? '{{ route("mira-premium") }}' : '{{ route("book-demo") }}';
+    el.href = cta === 'premium' ? (MIRA_LOGGED_IN ? '{{ route("mira-premium") }}' : '{{ route("pricing") }}') : '{{ route("book-demo") }}';
   }
   el.className = 'mira-cta' + (cta === 'premium' ? ' gold' : '');
   el.textContent = labels[cta] + ' →';

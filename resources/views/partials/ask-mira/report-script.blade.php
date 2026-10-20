@@ -257,37 +257,16 @@ function renderReportExtras(panel, report){
 
 // ---- Reports on their own page (route mira.report) ----
 // Pages with the report design (the homepage and Premium Mira, which include
-// partials.ask-mira.compare-script) open each "Analyse my website" /
-// "Compare with a competitor" result in a new tab. The tab is opened at the
-// click (prepare) — browsers block tabs opened later, after the request —
-// showing "Mira is preparing your report…", then moved to the report (open)
-// or closed if the request fails (cancel, a no-op once the tab was used).
-var askMiraReportTab = (function(){
-  var win = null;
-  var enabled = function(){ return typeof miraRenderSiteReport === 'function' && !window.ASK_MIRA_REPORT_PAGE; };
-  return {
-    prepare: function(premium){
-      if(!enabled()) return;
-      if(win && !win.closed) win.close();
-      try{ win = window.open('{{ route("mira.report.pending") }}' + (premium ? '?premium=1' : ''), '_blank'); }catch(e){ win = null; }
-    },
-    open: function(url){
-      var tab = win; win = null;
-      if(tab && !tab.closed){ tab.location.href = url; }
-      else if(!window.open(url, '_blank')){ window.location.href = url; return; }
-      // A link back to the report next to the result line, in case the tab is closed.
-      document.querySelectorAll('#miraAnalyzeStatus,#analyzeStatus').forEach(function(st){
-        if(!st.textContent.trim() || st.classList.contains('err')) return;
-        var a = document.createElement('a');
-        a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.className = 'report-link';
-        a.textContent = 'Open report ↗';
-        st.appendChild(document.createTextNode(' '));
-        st.appendChild(a);
-      });
-    },
-    cancel: function(){ if(win && !win.closed) win.close(); win = null; }
-  };
-})();
+// partials.ask-mira.compare-script) show each "Analyse my website" /
+// "Compare with a competitor" result on its own page, in the same tab: while
+// Mira works, the page shows its progress message; when the result is ready,
+// open() moves this tab to the report. prepare()/cancel() are kept for the
+// callers and do nothing now (they used to manage a separate waiting tab).
+var askMiraReportTab = {
+  prepare: function(){},
+  cancel: function(){},
+  open: function(url){ window.location.href = url; }
+};
 
 // Renders a WebsiteAnalyzerService report (real SEO/Technical checks)
 // as a grid of per-category donut chart cards — never as a giant chat bubble.

@@ -261,6 +261,11 @@
   background:linear-gradient(135deg,#f0d27a,#d4af37 55%,#b8902f);color:#1a1406!important;font-weight:700;font-size:15px;
   box-shadow:0 6px 18px rgba(212,175,55,.4);transition:transform .15s,box-shadow .2s}
 .cx-lock-btn:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(212,175,55,.5)}
+/* Comparison lock: blurred all the way down (no height cap or fade-out), with the
+   upgrade card kept in view while the visitor scrolls past the blurred sections. */
+.cx-locked-full .cx-locked-preview{max-height:none;-webkit-mask-image:none;mask-image:none}
+.cx-locked-full .cx-lock{align-items:flex-start;padding-top:90px}
+.cx-locked-full .cx-lock-card{position:sticky;top:110px}
 .cx-locked.unlocked{min-height:0}
 .cx-locked.unlocked .cx-locked-preview{filter:none;max-height:none;-webkit-mask-image:none;mask-image:none;pointer-events:auto;user-select:auto}
 .cx-locked.unlocked .cx-lock{opacity:0;pointer-events:none}

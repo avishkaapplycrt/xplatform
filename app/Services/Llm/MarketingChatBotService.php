@@ -150,7 +150,9 @@ class MarketingChatBotService
 
         $url = $this->extractWebsiteUrl($message);
         if ($url !== null) {
-            return $this->runAnalysis($url, $premium);
+            // Premium Mira and signed-in clients get the full report with the
+            // fixes; visitors who aren't signed in get scores only (locked).
+            return $this->runAnalysis($url, $premium || $client !== null);
         }
 
         if (!$this->isConfigured()) {

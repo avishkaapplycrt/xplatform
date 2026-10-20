@@ -167,6 +167,8 @@ Route::prefix('mira-premium/api')->name('mira-premium.api.')
             Route::patch('prompts/{id}', 'updatePrompt')->whereNumber('id')->name('prompts.update');
             Route::delete('prompts/{id}', 'deletePrompt')->whereNumber('id')->name('prompts.delete');
             Route::post('projects/{id}/visibility/runs', 'startRun')->whereNumber('id')->name('visibility.run');
+            Route::put('projects/{id}/ga4', 'connectGa4')->whereNumber('id')->name('ga4.connect');
+            Route::delete('projects/{id}/ga4', 'disconnectGa4')->whereNumber('id')->name('ga4.disconnect');
             Route::get('projects/{id}/panels/{panel}', 'panel')->whereNumber('id')->whereIn('panel', ['ai', 'authority', 'search', 'traffic', 'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'ai_brand'])->name('panels');
         });
         Route::middleware('throttle:120,1')->group(function () {
@@ -277,6 +279,10 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
        not picked one yet can actually reach it without a redirect loop. */
     Route::get('industry',  [ClientAuthController::class, 'showIndustry'])->name('industry');
     Route::post('industry', [ClientAuthController::class, 'storeIndustry'])->name('industry.store');
+
+    /* Step 3 — choose a plan (starts its free trial). */
+    Route::get('plan',  [ClientAuthController::class, 'showPlan'])->name('plan');
+    Route::post('plan', [ClientAuthController::class, 'storePlan'])->name('plan.store');
 
     Route::post('logout', [ClientAuthController::class, 'logout'])->name('logout');
     Route::post('onboarding/dismiss', [ClientAuthController::class, 'dismissChecklist'])->name('onboarding.dismiss');

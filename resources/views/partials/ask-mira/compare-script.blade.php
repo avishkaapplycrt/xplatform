@@ -530,21 +530,14 @@ function miraRenderReport(c) {
   if (single && c.locked && openToFix.length) {
     // Free homepage "Analyse my website": the tabs stay as a teaser;
     // everything from "Sort by" to the bottom of the report is blurred behind
-    // a Try Premium Mira card, and the button reveals it in place.
+    // a Try Premium Mira card whose button goes to the pricing page.
     var sLocked = miraEl('div', 'cx-locked');
     var sPreview = miraH('div', 'cx-locked-preview', tools, list, spots);
     sPreview.setAttribute('aria-hidden', 'true');
     sPreview.inert = true;
     list.style.marginBottom = '16px';
-    var sBtn = miraEl('button', 'cx-lock-btn', '★ Try Premium Mira'); sBtn.type = 'button';
+    var sBtn = miraEl('a', 'cx-lock-btn', '★ Try Premium Mira'); sBtn.href = '{{ route("pricing") }}';
     var sLock = miraEl('div', 'cx-lock');
-    sBtn.addEventListener('click', function () {
-      sLocked.classList.add('unlocked');
-      sPreview.inert = false;
-      sPreview.removeAttribute('aria-hidden');
-      // Remove the card once it has faded out.
-      setTimeout(function () { sLock.remove(); }, 400);
-    });
     sLock.appendChild(miraH('div', 'cx-lock-card', miraEl('div', 'cx-lock-icon', '🔒'),
       miraEl('h5', null, 'Unlock your full website report'),
       miraEl('p', null, 'See how to fix all ' + openToFix.length + ' issue' + (openToFix.length === 1 ? '' : 's') + ' on your site — step by step, plus your Google preview, speed and AI visibility.'),
@@ -553,26 +546,16 @@ function miraRenderReport(c) {
     issues.append(tabs, sLocked);
   } else if (c.locked && gapCount) {
     // Free homepage: the check list is blurred behind a Mira Premium card.
-    // Fixes sent (PublicChatController::COMPARISON_FIXES_UNLOCKABLE): the
-    // button reveals it in place. Not sent: the button links to Mira Premium.
-    var locked = miraEl('div', 'cx-locked');
-    var preview = miraH('div', 'cx-locked-preview', tabs, tools, list);
+    // The blur covers the check list and every section after it (links
+    // preview, Core Web Vitals, AI crawler access), all the way down.
+    var locked = miraEl('div', 'cx-locked cx-locked-full');
+    list.style.marginBottom = '16px';
+    var preview = miraH('div', 'cx-locked-preview', tabs, tools, list, spots);
     preview.setAttribute('aria-hidden', 'true');
     preview.inert = true;
     var lock = miraEl('div', 'cx-lock');
-    var unlockable = c.gaps.every(function (g) { return !!g.recommendation; });
-    var btn;
-    if (unlockable) {
-      btn = miraEl('button', 'cx-lock-btn', '★ Try Premium Mira'); btn.type = 'button';
-      btn.addEventListener('click', function () {
-        locked.classList.add('unlocked');
-        preview.inert = false;
-        preview.removeAttribute('aria-hidden');
-        setTimeout(function () { lock.remove(); }, 400);
-      });
-    } else {
-      btn = miraEl('a', 'cx-lock-btn', '★ Try Premium Mira'); btn.href = '{{ route("mira-premium") }}';
-    }
+    // The button goes to the pricing page.
+    var btn = miraEl('a', 'cx-lock-btn', '★ Try Premium Mira'); btn.href = '{{ route("pricing") }}';
     lock.appendChild(miraH('div', 'cx-lock-card', miraEl('div', 'cx-lock-icon', '🔒'),
       miraEl('h5', null, 'Unlock your competitor gap report'),
       miraEl('p', null, 'See all ' + gapCount + ' thing' + (gapCount === 1 ? '' : 's') + ' ' + comp.name.split(/\s[|\-–—]\s/)[0] + ' does better than you — and exactly how to fix each one.'),
@@ -710,7 +693,8 @@ function miraRenderReport(c) {
         + llms(c.you.llms_txt) + ' on your site' + (single ? '' : ', ' + llms(comp.llms_txt) + " on your competitor's") + ". It's optional and has no proven effect on rankings."));
     }
 
-    var kpis = c.needs_connected_data || [];
+    // "Needs connected data" is shown on single-site reports only, not comparisons.
+    var kpis = single ? (c.needs_connected_data || []) : [];
     if (kpis.length) {
       var p4 = miraH('section', 'cx-panel', miraH('div', 'cx-head', miraEl('h2', null, 'Needs connected data'), miraEl('span', 'cx-muted', "These can't be measured by scanning a website")));
       var kb = miraEl('tbody');

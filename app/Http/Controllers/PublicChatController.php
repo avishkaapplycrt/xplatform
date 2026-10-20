@@ -146,12 +146,12 @@ class PublicChatController extends Controller
         }
 
         // The "how to fix" advice sits behind a blurred "Try Premium Mira" card
-        // on the homepage. See COMPARISON_FIXES_UNLOCKABLE.
-        // Premium Mira (premium flag, set by its page) always gets the full,
-        // open report.
+        // for visitors who aren't signed in. See COMPARISON_FIXES_UNLOCKABLE.
+        // Signed-in clients and Premium Mira (premium flag, set by its page)
+        // always get the full, open report.
         $premium = $this->premium($request, $validated);
-        $comparison['locked'] = !$premium;
-        if (!$premium && !self::COMPARISON_FIXES_UNLOCKABLE) {
+        $comparison['locked'] = !$premium && $client === null;
+        if ($comparison['locked'] && !self::COMPARISON_FIXES_UNLOCKABLE) {
             $comparison['gaps'] = array_map(
                 fn ($gap) => array_diff_key($gap, ['recommendation' => true]),
                 $comparison['gaps']

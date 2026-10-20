@@ -97,6 +97,16 @@ input,textarea,select{font:inherit;color:inherit}
 .menu-item small{display:block;color:var(--dim);font-size:12px}
 .menu-sep{height:1px;background:var(--line);margin:6px 4px}
 .topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+/* Site navigation (as on the homepage), in Premium's ink and gold. */
+.mp-nav{display:flex;align-items:center;gap:26px;margin-left:18px}
+.mp-nav a,.mp-nav-link{font-size:13.5px;font-weight:500;color:var(--muted);text-decoration:none;white-space:nowrap;transition:color .2s}
+.mp-nav a:hover,.mp-nav-link:hover{color:var(--ink)}
+.mp-nav-link{padding:0 4px}
+.mp-logout button{display:inline-flex;align-items:center;gap:5px;height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);background:var(--card);
+  font-family:inherit;font-size:13px;font-weight:500;color:var(--ink);text-decoration:none;white-space:nowrap;cursor:pointer;transition:border-color .2s}
+.mp-logout button:hover{border-color:var(--ink-2)}
+.mp-logout{margin:0;display:inline-flex}
+@media (max-width:1180px){.mp-nav{display:none}}
 .usage-pill{display:flex;align-items:center;gap:10px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:12.5px;color:var(--muted)}
 .usage-pill .bar{width:56px;height:5px;border-radius:5px;background:#eeece6;overflow:hidden}
 .usage-pill .bar i{display:block;height:100%;background:var(--ink);border-radius:5px;transition:width .6s var(--ease)}
@@ -118,6 +128,40 @@ input,textarea,select{font:inherit;color:inherit}
 .hero-proof span{display:inline-flex;align-items:center;gap:7px}
 .hero-proof svg{width:15px;height:15px;stroke:var(--gold);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 @media (max-width:980px){.hero-proof{justify-content:flex-start}}
+/* Hero side: Mira's orb (as on the Ask Mira home, in gold) above the proof points.
+   The orb image is recoloured with a sepia filter; a gold aura breathes, a light
+   ring sweeps round, ripples spread out and two sparks orbit. */
+.hero-side{display:flex;flex-direction:column;align-items:flex-end;gap:30px}
+@media (max-width:980px){.hero-side{align-items:flex-start}}
+.mp-orb-wrap{position:relative;width:132px;height:132px;margin:10px 40px 6px 0;display:grid;place-items:center;isolation:isolate}
+@media (max-width:980px){.mp-orb-wrap{display:none}}
+.mp-orb{position:relative;z-index:2;width:132px;height:132px;display:block;
+  --orb-tint:sepia(1) saturate(2.4) hue-rotate(-12deg);
+  filter:var(--orb-tint) drop-shadow(0 10px 30px rgba(212,175,55,.35));
+  animation:mpOrbFloat 6s ease-in-out infinite,mpOrbSpin 24s linear infinite,mpOrbGlow 4s ease-in-out infinite}
+@keyframes mpOrbFloat{0%,100%{translate:0 0}50%{translate:0 -10px}}
+@keyframes mpOrbSpin{to{rotate:360deg}}
+@keyframes mpOrbGlow{
+  0%,100%{filter:var(--orb-tint) drop-shadow(0 10px 30px rgba(212,175,55,.35))}
+  50%{filter:var(--orb-tint) drop-shadow(0 14px 44px rgba(212,175,55,.6)) drop-shadow(0 0 22px rgba(246,221,152,.5))}}
+.mp-orb-wrap::before{content:"";position:absolute;inset:-46px;border-radius:50%;z-index:0;
+  background:radial-gradient(circle,rgba(232,196,104,.38) 0%,rgba(246,221,152,.18) 42%,transparent 70%);animation:mpAura 4s ease-in-out infinite}
+.mp-orb-wrap::after{content:"";position:absolute;inset:-10px;border-radius:50%;z-index:1;
+  background:conic-gradient(from 0deg,transparent 0deg,rgba(212,175,55,.85) 70deg,rgba(246,221,152,.8) 130deg,transparent 200deg,transparent 360deg);
+  -webkit-mask:radial-gradient(circle,transparent calc(50% - 2px),#000 calc(50% - 1px));mask:radial-gradient(circle,transparent calc(50% - 2px),#000 calc(50% - 1px));
+  animation:mpOrbSpin 5s linear infinite}
+.mp-orb-ripple{position:absolute;inset:-4px;border-radius:50%;z-index:0;border:1.5px solid rgba(212,175,55,.45);animation:mpRipple 3.6s ease-out infinite}
+.mp-orb-ripple.r2{animation-delay:1.8s}
+.mp-orb-orbit{position:absolute;inset:-24px;z-index:3;animation:mpOrbSpin 7s linear infinite}
+.mp-orb-orbit::before{content:"";position:absolute;top:0;left:50%;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;
+  background:#fff;box-shadow:0 0 8px 2px rgba(212,175,55,.95),0 0 16px 4px rgba(246,221,152,.6)}
+.mp-orb-orbit.o2{inset:-36px;animation-duration:11s;animation-direction:reverse}
+.mp-orb-orbit.o2::before{width:5px;height:5px;margin-left:-2.5px;box-shadow:0 0 6px 2px rgba(232,196,104,.95)}
+@keyframes mpAura{0%,100%{transform:scale(.92);opacity:.75}50%{transform:scale(1.08);opacity:1}}
+@keyframes mpRipple{0%{transform:scale(.9);opacity:.7}100%{transform:scale(1.75);opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .mp-orb,.mp-orb-wrap::before,.mp-orb-wrap::after,.mp-orb-orbit{animation:none}
+  .mp-orb-ripple{display:none}}
 
 .scanbar{background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);box-shadow:var(--shadow-lg);padding:10px;display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center}
 .scanbar.with-comp{grid-template-columns:1fr 1fr auto auto}

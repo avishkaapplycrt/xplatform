@@ -286,6 +286,40 @@ class WorkspaceApiController extends Controller
         return response()->json(['panel' => $panel, 'period' => $period->toArray(), 'data' => $data]);
     }
 
+    // --------------------------------------------------------------------- GA4
+
+    /**
+     * Connects a project to its Google Analytics 4 property (Traffic panel).
+     * The property is checked first: Mira must be able to read it, i.e. the
+     * owner has added the service account as a Viewer.
+     */
+    public function connectGa4(Request $request, int $id): JsonResponse
+    {
+        $who     = Entitlement::forRequest($request);
+        $project = $this->ownedProject($who, $id);
+        $propertyId = preg_replace('/^properties\//', '', trim((string) $request->input('property_id')));
+        if (!preg_match('/^\d{6,15}$/', $propertyId)) {
+            throw new MiraApiException('InvalidInput', 'Enter the numeric GA4 property ID (GA4 → Admin → Property details), e.g. 412345678.');
+        }
+
+        $traffic = app(TrafficService::class);
+        $traffic->verifyProperty($propertyId);
+        $traffic->forget($project, $project->ga4_property_id);
+        $project->update(['ga4_property_id' => $propertyId]);
+
+        return response()->json(['project' => $this->projectData($project->fresh())]);
+    }
+
+    public function disconnectGa4(Request $request, int $id): JsonResponse
+    {
+        $who     = Entitlement::forRequest($request);
+        $project = $this->ownedProject($who, $id);
+        app(TrafficService::class)->forget($project, $project->ga4_property_id);
+        $project->update(['ga4_property_id' => null]);
+
+        return response()->json(['project' => $this->projectData($project->fresh())]);
+    }
+
     // --------------------------------------------------------------- visibility
 
     public function visibility(Request $request, int $id): JsonResponse
@@ -444,6 +478,7 @@ class WorkspaceApiController extends Controller
             'latest_scan'     => $latest ? $this->scans->summarize($latest) : null,
             'visibility'      => $run ? $this->visibility->runSummary($run) : null,
             'prompts_count'   => $p->prompts()->count(),
+            'ga4_property_id' => $p->ga4_property_id,
         ];
     }
 

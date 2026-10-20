@@ -162,5 +162,3 @@
 .needs-data-status{color:var(--g400);text-align:right}
 .a-modal-rec-meta{font-size:12px;line-height:1.5;color:var(--g300);margin-top:4px}
 .a-modal-rec-meta b{color:var(--g200);font-weight:600}
-/* "Open report ↗" next to the Analyse tab's result line (askMiraReportTab in report-script). */
-.report-link{font-weight:600;color:var(--blue);text-decoration:underline;text-underline-offset:2px;white-space:nowrap}

@@ -13,7 +13,7 @@ class MiraProject extends Model
 {
     protected $table = 'mira_projects';
 
-    protected $fillable = ['client_id', 'name', 'url', 'domain', 'brand_terms', 'competitors', 'last_scanned_at'];
+    protected $fillable = ['client_id', 'name', 'url', 'domain', 'brand_terms', 'competitors', 'last_scanned_at', 'ga4_property_id'];
 
     protected $casts = [
         'brand_terms'     => 'array',

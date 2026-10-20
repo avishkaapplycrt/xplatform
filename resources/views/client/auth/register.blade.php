@@ -1,4 +1,4 @@
-<x-guest-layout title="Create Account" backUrl="/app/login" previousUrl="/app/login" :currentStep="1" :totalSteps="2">
+<x-guest-layout title="Create Account" backUrl="/app/login" previousUrl="/app/login" :currentStep="1" :totalSteps="3">
 
     {{-- Top Banner --}}
     <div class="w-full h-40 bg-gray-100 flex items-center justify-center">
@@ -79,19 +79,35 @@
 
             <div class="mb-4">
                 <x-input-label for="password" :value="__('Password')" />
-                <x-text-input id="password" class="block mt-1 w-full" type="password"
-                    name="password"
-                    placeholder="At least 8 characters"
-                    required autocomplete="new-password" />
+                <div style="position:relative">
+                    <x-text-input id="password" class="block mt-1 w-full" type="password"
+                        name="password"
+                        placeholder="At least 8 characters"
+                        style="padding-right:48px"
+                        required autocomplete="new-password" />
+                    <button type="button" class="pw-toggle" data-pw-toggle="password" aria-label="Show password" aria-pressed="false"
+                        style="position:absolute;right:6px;top:50%;transform:translateY(-50%);width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:#9ca3af;cursor:pointer;border-radius:8px">
+                        <svg class="pw-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <svg class="pw-eye-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none"><path d="M17.9 17.9A10.4 10.4 0 0112 19c-6.5 0-10-7-10-7a18.5 18.5 0 015.1-5.9M9.9 5.2A9.5 9.5 0 0112 5c6.5 0 10 7 10 7a18.6 18.6 0 01-2.2 3.2M14.1 14.1a3 3 0 01-4.2-4.2M2 2l20 20"/></svg>
+                    </button>
+                </div>
                 <x-input-error :messages="$errors->get('password')" class="mt-2" />
             </div>
 
             <div class="mb-6">
                 <x-input-label for="password_confirmation" :value="__('Confirm password')" />
-                <x-text-input id="password_confirmation" class="block mt-1 w-full" type="password"
-                    name="password_confirmation"
-                    placeholder="Repeat your password"
-                    required autocomplete="new-password" />
+                <div style="position:relative">
+                    <x-text-input id="password_confirmation" class="block mt-1 w-full" type="password"
+                        name="password_confirmation"
+                        placeholder="Repeat your password"
+                        style="padding-right:48px"
+                        required autocomplete="new-password" />
+                    <button type="button" class="pw-toggle" data-pw-toggle="password_confirmation" aria-label="Show password" aria-pressed="false"
+                        style="position:absolute;right:6px;top:50%;transform:translateY(-50%);width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:#9ca3af;cursor:pointer;border-radius:8px">
+                        <svg class="pw-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <svg class="pw-eye-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none"><path d="M17.9 17.9A10.4 10.4 0 0112 19c-6.5 0-10-7-10-7a18.5 18.5 0 015.1-5.9M9.9 5.2A9.5 9.5 0 0112 5c6.5 0 10 7 10 7a18.6 18.6 0 01-2.2 3.2M14.1 14.1a3 3 0 01-4.2-4.2M2 2l20 20"/></svg>
+                    </button>
+                </div>
             </div>
 
             <button type="submit"
@@ -107,5 +123,23 @@
         </p>
 
     </div>
+
+    {{-- Show / hide password: the eye button on each password box. --}}
+    <script>
+        document.querySelectorAll('[data-pw-toggle]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var input = document.getElementById(btn.getAttribute('data-pw-toggle'));
+                var show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+                btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+                btn.querySelector('.pw-eye').style.display = show ? 'none' : '';
+                btn.querySelector('.pw-eye-off').style.display = show ? '' : 'none';
+                input.focus();
+            });
+            btn.addEventListener('mouseenter', function () { btn.style.color = '#4b5563'; });
+            btn.addEventListener('mouseleave', function () { btn.style.color = '#9ca3af'; });
+        });
+    </script>
 
 </x-guest-layout>

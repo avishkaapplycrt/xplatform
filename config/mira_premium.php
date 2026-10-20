@@ -95,7 +95,8 @@ return [
     'unlock_all' => env('MIRA_UNLOCK_ALL'),
 
     // Where upgrade buttons send people until self-serve billing exists.
-    'upgrade_url'    => env('MIRA_UPGRADE_URL', '/pricing'),
+    // Set MIRA_UPGRADE_URL to an empty value to hide the upgrade buttons.
+    'upgrade_url'    => env('MIRA_UPGRADE_URL', '/pricing') ?: null,
     // Billing portal for subscribers (Stripe customer portal or similar). Null hides "Manage plan".
     'management_url' => env('MIRA_MANAGEMENT_URL'),
 
@@ -145,6 +146,19 @@ return [
     // window ending now with the same-length window before it.
     'periods' => ['7d' => 7, '30d' => 30, '90d' => 90, '12m' => 365],
     'default_period' => '30d',
+
+    // Google Analytics 4 powers the Traffic analytics panel (Google Analytics Data
+    // API, read-only). Mira signs in as a Google Cloud service account: put its
+    // JSON key file outside public/ and point GA4_CREDENTIALS at it. Each project
+    // connects its own GA4 property: the client adds the service account's email
+    // as a Viewer on the property and enters the property ID in the Traffic panel.
+    // Unset = the Traffic panel shows "not available at the moment".
+    'ga4' => [
+        'credentials'   => env('GA4_CREDENTIALS'),
+        // Reports are reused for this long before GA4 is asked again (API quotas).
+        'cache_minutes' => 60,
+        'top_rows'      => 8,
+    ],
 
     // DataForSEO (https://dataforseo.com) powers the Authority and Search panels.
     // Unset = those panels show "Not measured — connect DataForSEO". sandbox=true

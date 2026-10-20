@@ -461,9 +461,12 @@ class MiraPremiumTest extends TestCase
 
     public function test_free_chat_premium_flag_is_ignored_without_a_plan(): void
     {
+        // Signed-in clients always get the comparison open, plan or not. A visitor
+        // who isn't signed in can't unlock it with premium: true — see
+        // AskMiraSignedInReportsTest::test_guest_comparison_is_still_locked.
         $this->actingAs($this->client(), 'client')
             ->postJson('/chat/compare', ['url' => 'https://acme.test/', 'competitor_url' => 'https://rival.test/', 'premium' => true])
-            ->assertOk()->assertJsonPath('comparison.locked', true);
+            ->assertOk()->assertJsonPath('comparison.locked', false);
 
         $this->actingAs($this->client(['plan' => 'starter']), 'client')
             ->postJson('/chat/compare', ['url' => 'https://acme.test/', 'competitor_url' => 'https://rival.test/', 'premium' => true])

@@ -98,6 +98,8 @@ const ENDPOINTS = {
   updatePrompt:   { m: 'PATCH',  p: (a) => '/prompts/' + a.id,                  out: ['prompt'] },
   deletePrompt:   { m: 'DELETE', p: (a) => '/prompts/' + a.id,                  out: [] },
   startRun:       { m: 'POST',   p: (a) => '/projects/' + a.id + '/visibility/runs', out: ['run'] },
+  connectGa4:     { m: 'PUT',    p: (a) => '/projects/' + a.id + '/ga4',           out: ['project'] },
+  disconnectGa4:  { m: 'DELETE', p: (a) => '/projects/' + a.id + '/ga4',           out: ['project'] },
   panel:          { m: 'GET',    p: (a) => '/projects/' + a.id + '/panels/' + a.panel + '?period=' + encodeURIComponent(a.period), out: ['panel', 'period', 'data'] },
 };
 function csrf() { return document.querySelector('meta[name="csrf-token"]').content; }
@@ -234,7 +236,9 @@ function toast(message, { error = false, action = null } = {}) {
   $('toasts').appendChild(el);
   setTimeout(() => el.remove(), 7000);
 }
+// No upgrade URL (config mira_premium.upgrade_url unset, for now): no button.
 function upgradeLink(from, label) {
+  if (!S.sub.upgrade_url) return null;
   return h('a', { cls: 'btn btn-premium btn-sm mira-ev-upgrade_click', 'data-ev-from': from, href: S.sub.upgrade_url, text: label || 'Upgrade' });
 }
 // One place turns a tagged error into words + the right next step.
@@ -252,8 +256,9 @@ function setBusy(btn, busy) { btn.disabled = busy; btn.classList.toggle('loading
 
 // ==================================================================== render
 function renderTopbar() {
+  // The plan badge and Sign in were removed from the top bar; only fill them if present.
   const badge = $('planBadge');
-  if (premium()) {
+  if (!badge) { /* no plan badge */ } else if (premium()) {
     badge.className = 'badge badge-plan';
     badge.textContent = S.sub.status === 'active_trial' && S.sub.trial_days_left !== null
       ? `${S.sub.label} · ${S.sub.trial_days_left} day${S.sub.trial_days_left === 1 ? '' : 's'} left`
@@ -262,11 +267,11 @@ function renderTopbar() {
     badge.className = 'badge badge-preview';
     badge.textContent = S.sub.status === 'expired' ? 'Plan expired · Preview' : 'Preview';
   }
-  $('signInBtn').hidden = S.sub.signed_in;
+  if ($('signInBtn')) $('signInBtn').hidden = S.sub.signed_in;
   const manage = $('manageBtn');
   manage.hidden = !S.sub.management_url;
   if (S.sub.management_url) manage.href = S.sub.management_url;
-  $('upgradeBtn').hidden = premium() && S.sub.status === 'active' && S.sub.tier === 'enterprise';
+  $('upgradeBtn').hidden = !S.sub.upgrade_url || (premium() && S.sub.status === 'active' && S.sub.tier === 'enterprise');
   $('upgradeBtn').lastChild.textContent = premium() && S.sub.status === 'active' ? ' Upgrade plan' : (S.sub.status === 'active_trial' ? ' Subscribe' : ' Upgrade');
 
   const scans = usageOf('scans');
@@ -478,12 +483,15 @@ function skeletonPanel(title) {
   return [pnlHead(title), h('div', { cls: 'mgrid' }, [0, 1, 2, 3].map(() => h('div', null,
     h('div', { cls: 'skeleton', style: { height: '12px', width: '60%' } }), h('div', { cls: 'skeleton', style: { height: '34px', width: '70%', marginTop: '10px' } }))))];
 }
+// A panel whose data source isn't connected yet (DataForSEO, the tracking
+// script). Visitors see a friendly "coming soon" note; the technical reason
+// (d.message / d.setup from the API) stays in the browser console for the team.
 function connectCard(title, hint, d, ghosts) {
-  return [pnlHead(title, hint, h('span', { cls: 'tag-src', text: 'Not connected' })),
+  if (d.message || d.setup) console.info('[Mira Premium] ' + title + ': ' + [d.message, d.setup].filter(Boolean).join(' '));
+  return [pnlHead(title, hint, h('span', { cls: 'tag-src', text: 'Coming soon' })),
     h('div', { cls: 'connect' },
       h('div', { cls: 'ghost-metrics' }, ghosts.map((g) => h('div', null, h('b', { text: '—' }), g))),
-      h('p', { text: d.message }),
-      d.setup ? h('p', null, h('code', { text: d.setup })) : null)];
+      h('p', { text: "Sorry, this data isn't available at the moment. It will be available soon." }))];
 }
 function sourceTag(d, label) {
   if (d.demo) return h('span', { cls: 'tag-src sandbox', title: 'Sample data mode: generated numbers so every chart can be seen. Connect DataForSEO for real data.', text: 'Sample data' });
@@ -642,11 +650,49 @@ function renderSearchPanel(el, d) {
   wide.append(grid);
 }
 
+// GA4 not linked to this project yet: how to give Mira access, and the property ID box.
+function ga4ConnectCard(el, hint, d) {
+  const p = project();
+  const input = h('input', { placeholder: 'GA4 property ID, e.g. 412345678', inputmode: 'numeric', 'aria-label': 'GA4 property ID' });
+  const msg = h('p', { cls: 'muted', style: { fontSize: '13px', margin: 0 } });
+  const btn = h('button', { cls: 'btn btn-primary btn-sm', type: 'submit', text: 'Connect' });
+  const form = h('form', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }, on: { submit: async (e) => {
+    e.preventDefault();
+    if (!p || !input.value.trim()) { msg.textContent = 'Enter your GA4 property ID.'; return; }
+    setBusy(btn, true); msg.textContent = 'Checking access to the property…';
+    try {
+      const { project: updated } = await api('connectGa4', { id: p.id }, { property_id: input.value.trim() });
+      upsertProject(updated);
+      track('ga4_connect', {});
+      S.panels.traffic = RD.notAsked;
+      loadPanels();
+    } catch (err) { msg.textContent = explain(err).msg; setBusy(btn, false); }
+  } } }, h('div', { cls: 'field', style: { height: '40px', flex: '1', minWidth: '220px' } }, input), btn);
+  const email = d.ga4.service_account;
+  el.append(pnlHead('Traffic analytics', hint, h('span', { cls: 'tag-src', text: 'Google Analytics 4' })),
+    h('div', { cls: 'connect' },
+      h('div', { cls: 'ghost-metrics' }, ['Visits', 'Unique visitors', 'Page views', 'Bounce rate'].map((g) => h('div', null, h('b', { text: '—' }), g))),
+      h('p', { text: 'Connect your Google Analytics 4 property to see real visits and engagement for ' + (p ? p.domain : 'this site') + '.' }),
+      h('p', null, '1. In Google Analytics, open ', h('b', { text: 'Admin → Property access management' }), ' and add ', h('code', { text: email }), ' as a ', h('b', { text: 'Viewer' }), '.'),
+      h('p', null, '2. Copy the ', h('b', { text: 'Property ID' }), ' from ', h('b', { text: 'Admin → Property details' }), ' and paste it below.'),
+      form, msg));
+}
+
 function renderTrafficPanel(el, d) {
-  const hint = 'Measured by the X Platforms tracking script on your site — real visits, not estimates.';
-  if (!d.connected) { el.append(...connectCard('Traffic analytics', hint, d, ['Visits', 'Unique visitors', 'Page views', 'Bounce rate'])); return; }
+  const hint = 'From your Google Analytics 4 property — real visits, not estimates.';
+  if (!d.connected) {
+    if (d.ga4 && d.ga4.available && project()) { ga4ConnectCard(el, hint, d); return; }
+    el.append(...connectCard('Traffic analytics', hint, d, ['Visits', 'Unique visitors', 'Page views', 'Bounce rate'])); return;
+  }
   const m = d.metrics;
-  el.append(pnlHead('Traffic analytics', hint, d.demo ? sourceTag(d) : h('span', { cls: 'tag-src', text: 'Tracking script · ' + d.site })));
+  const disconnect = h('button', { cls: 'btn btn-ghost btn-sm', type: 'button', text: 'Disconnect', title: 'Stop reading this GA4 property', on: { click: async () => {
+    const p = project();
+    if (!p || !window.confirm('Disconnect Google Analytics 4 property ' + d.property_id + ' from ' + p.domain + '?')) return;
+    try { const { project: updated } = await api('disconnectGa4', { id: p.id }); upsertProject(updated); S.panels.traffic = RD.notAsked; loadPanels(); }
+    catch (e) { toast(explain(e).msg, { error: true }); }
+  } } });
+  el.append(pnlHead('Traffic analytics', hint, d.demo ? sourceTag(d)
+    : h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '8px' } }, h('span', { cls: 'tag-src', text: 'GA4 · ' + d.property_id }), disconnect)));
   el.append(h('div', { cls: 'mgrid six' },
     metric('Visits', 'Sessions started in the window', fmt.compact(m.visits.value), change(m.visits.delta)),
     metric('Unique visitors', 'Distinct visitors', fmt.compact(m.unique_visitors.value), change(m.unique_visitors.delta)),
@@ -1663,16 +1709,14 @@ document.querySelectorAll('[data-ask]').forEach((b) => b.addEventListener('click
   renderTopbar();
   chatEmpty();
   renderChatQuota();
-  if (premium() && S.projects.length) {
-    let stored = null;
-    try { stored = parseInt(localStorage.getItem(STORE_KEY), 10); } catch (e) {}
-    selectProject(S.projects.some((p) => p.id === stored) ? stored : S.projects[0].id);
-  } else if (S.recent.length && S.recent[0].status === 'done') {
-    $('scanUrl').value = S.recent[0].url;
-    openLatest(S.recent[0].id);
-  }
+  // Every visit starts fresh: an empty website box and no earlier project or
+  // scan opened. Saved projects stay in the project switcher, past scans in
+  // History, and auditing a site picks its project automatically.
+  try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+  $('scanUrl').value = '';
+  $('scanComp').value = '';
   renderOverview();
-  if (!(premium() && S.projects.length)) renderPanels();
+  renderPanels();
   const hash = location.hash.replace('#', '');
   setTab(['overview', 'organic', 'backlinks', 'audit', 'visibility', 'chat', 'history'].includes(hash) ? hash : 'overview', true);
   track('page_view', { tier: S.sub.tier });
