@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             BehavioralProfileSeeder::class,
             UserEventSeeder::class,
             AgentPredefinedPromptsSeeder::class,
+            MockMasterPredefinedPromptsSeeder::class,
         ]);
 
         User::factory()->create([

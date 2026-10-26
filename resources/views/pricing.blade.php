@@ -53,6 +53,12 @@ button{font-family:var(--f1)}
 .nav-cta:hover{box-shadow:0 0 36px rgba(79,143,255,.4)}
 .nav-login{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border:1px solid var(--g500);color:var(--g200)!important;border-radius:8px;font-weight:500!important;font-size:13px!important;transition:all .25s;background:transparent;cursor:pointer;font-family:var(--f1)}
 .nav-login:hover{border-color:var(--brd2);color:var(--white)!important;background:rgba(79,143,255,.05)}
+.nav-signup{padding:8px 18px;border-radius:8px;font-weight:600!important;font-size:13px!important;color:#0b0b0e!important;white-space:nowrap;
+  background:linear-gradient(90deg,#F6F9FC,#93CEFF 45%,#FFBFFF);box-shadow:0 0 20px rgba(147,206,255,.2);transition:box-shadow .25s}
+.nav-signup:hover{box-shadow:0 0 30px rgba(147,206,255,.35)}
+.nav-logout{margin:0;display:inline-flex}
+.nav-mob-form{margin:0}
+.nav-mob-form button{display:block;width:100%;font:inherit;font-size:18px;font-weight:500;color:var(--g200);padding:16px 0;border:0;border-bottom:1px solid var(--brd);background:none;cursor:pointer;text-align:center}
 .appearance-toggle{width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--brd2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--g200);transition:all .2s;flex-shrink:0;padding:0}
 .appearance-toggle:hover{color:var(--blue);border-color:var(--blue)}
 .appearance-toggle svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2}
@@ -315,7 +321,20 @@ button{font-family:var(--f1)}
     <li style="display:flex;align-items:center;gap:10px">
       <!-- <a href="{{ route('client.login') }}" class="nav-login"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Log in</a> -->
       <button type="button" class="appearance-toggle" id="appearanceToggle" onclick="toggleAppearance()" title="Switch appearance" aria-label="Switch appearance"></button>
+      @auth('client')
+        <a href="{{ route('client.dashboard') }}" class="nav-login">Dashboard</a>
+      @else
+        <a href="{{ route('client.login') }}" class="nav-login">Sign in</a>
+        <a href="{{ route('client.register') }}" class="nav-signup">Sign up</a>
+      @endauth
       <a href="{{ route('book-demo') }}" class="nav-cta">Book a Demo</a>
+      @auth('client')
+        <form method="POST" action="{{ route('client.logout') }}" class="nav-logout">
+          @csrf
+          <input type="hidden" name="redirect" value="home">
+          <button type="submit" class="nav-login">Log out</button>
+        </form>
+      @endauth
     </li>
   </ul>
   <button class="nav-ham" id="navHam" onclick="toggleNav()" aria-label="Open menu"><span></span><span></span><span></span></button>
@@ -327,7 +346,17 @@ button{font-family:var(--f1)}
     <a class="nav-mob-link" href="{{ route('industries') }}">Industries</a>
     <a class="nav-mob-link" href="{{ route('simulator') }}">Simulator</a>
     <a class="nav-mob-link" href="{{ route('pricing') }}">Pricing</a>
-    <a class="nav-mob-link" href="{{ route('client.login') }}">Log in</a>
+    @auth('client')
+      <a class="nav-mob-link" href="{{ route('client.dashboard') }}">Dashboard</a>
+      <form method="POST" action="{{ route('client.logout') }}" class="nav-mob-form">
+        @csrf
+        <input type="hidden" name="redirect" value="home">
+        <button type="submit">Log out</button>
+      </form>
+    @else
+      <a class="nav-mob-link" href="{{ route('client.login') }}">Sign in</a>
+      <a class="nav-mob-link" href="{{ route('client.register') }}">Sign up</a>
+    @endauth
     <button type="button" class="appearance-toggle" id="appearanceToggleMob" onclick="toggleAppearance()" title="Switch appearance" aria-label="Switch appearance" style="margin-top:20px"></button>
     <a class="nav-mob-cta" href="{{ route('book-demo') }}">Book a Demo</a>
   </div>

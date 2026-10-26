@@ -6,7 +6,7 @@
 @php
   $cn = auth('client')->user()?->company_name ?? 'Test Company';
   $av = strtoupper(implode('', array_map(fn($w)=>$w[0], array_slice(explode(' ',$cn),0,2))));
-  $period = request('period', '30d');
+  $period = request('period', '90d');
 @endphp
 
 <div class="flex flex-col h-full overflow-hidden bg-white">
@@ -26,13 +26,13 @@
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{ request()->url() }?period='+this.value">
-        <option value="7d" { $period == '7d' ? 'selected' : '' }>Last 7 Days</option>
-        <option value="30d" { $period == '30d' ? 'selected' : '' }>Last 30 Days</option>
-        <option value="90d" { $period == '90d' ? 'selected' : '' }>Last 90 Days</option>
-        <option value="1y" { $period == '1y' ? 'selected' : '' }>Last Year</option>
+      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{{ request()->url() }}?period='+this.value">
+        <option value="7d" {{ $period == '7d' ? 'selected' : '' }}>Last 7 Days</option>
+        <option value="30d" {{ $period == '30d' ? 'selected' : '' }}>Last 30 Days</option>
+        <option value="90d" {{ $period == '90d' ? 'selected' : '' }}>Last 90 Days</option>
+        <option value="1y" {{ $period == '1y' ? 'selected' : '' }}>Last Year</option>
       </select>
-      <a href="{ request()->url() }/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+      <a href="{{ request()->url() }}/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
@@ -95,8 +95,35 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">Conversation analytics coming soon.</p>
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <h6 class="text-[13px] font-semibold text-gray-800">Recent Messages</h6>
+        <span class="text-[11px] text-gray-500">{{ $data['total'] ?? 0 }} in this period</span>
+      </div>
+      @if(($data['messages'] ?? collect())->isEmpty())
+      <div class="p-8 text-center"><p class="text-[13px] text-gray-500">No messages synced in this period yet.</p></div>
+      @else
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead><tr class="border-b border-gray-100">
+            <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">User</th>
+            <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Message</th>
+            <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide text-right">Replies</th>
+            <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Posted</th>
+          </tr></thead>
+          <tbody>
+            @foreach($data['messages'] as $m)
+            <tr class="border-b border-gray-50 last:border-b-0">
+              <td class="px-4 py-2.5 text-[12px] text-gray-500">{{ $m->user_id ?: '—' }}</td>
+              <td class="px-4 py-2.5 text-[13px] text-gray-800">{{ \Illuminate\Support\Str::limit($m->text ?: '(no text)', 80) }}</td>
+              <td class="px-4 py-2.5 text-[13px] text-gray-600 text-right">{{ $m->reply_count }}</td>
+              <td class="px-4 py-2.5 text-[12px] text-gray-500">{{ $m->posted_at ? \Carbon\Carbon::parse($m->posted_at)->diffForHumans() : '—' }}</td>
+            </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+      @endif
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -120,7 +147,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -128,4 +155,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush

@@ -61,7 +61,8 @@ class ClientAuthController extends Controller
                 'last_login_ip' => $request->ip(),
             ]);
 
-            return redirect()->intended(route('client.dashboard'));
+            // Back to the page that asked for a sign-in, otherwise the home page.
+            return redirect()->intended(route('home'));
         }
 
         return back()->withErrors([
@@ -140,6 +141,11 @@ class ClientAuthController extends Controller
         $client->update(['industry_id' => $industry->id]);
         $defaults->apply($client, $industry);
 
+        // First time through sign-up: on to step 3, choosing a plan.
+        if ($isFirstTime) {
+            return redirect()->route('client.plan');
+        }
+
         return redirect()->route('client.dashboard')->with(
             'success',
             $isFirstTime
@@ -151,6 +157,95 @@ class ClientAuthController extends Controller
     // ─────────────────────────────────────────────────────────────────────────
     // Dashboard setup checklist
     // ─────────────────────────────────────────────────────────────────────────
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Step 3 — Plan (authenticated)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * The plans offered at sign-up, as on the pricing page. Keys are
+     * clients.plan values ("Growth" is stored as professional).
+     */
+    public const PLANS = [
+        'starter' => [
+            'name' => 'Starter', 'price' => '$499', 'per' => '/mo',
+            'blurb' => 'For growing businesses ready to unify their data and get their first AI predictions.',
+            'features' => ['Up to 25,000 customer profiles', 'Up to 5 data sources', 'Churn prediction & CLV scoring'],
+        ],
+        'professional' => [
+            'name' => 'Growth', 'price' => '$1,499', 'per' => '/mo', 'popular' => true,
+            'blurb' => 'For scaling businesses that need the full 8-layer engine with automated execution.',
+            'features' => ['Up to 250,000 customer profiles', 'Up to 20 data sources', 'All 8 layers, incl. autonomous execution'],
+        ],
+        'enterprise' => [
+            'name' => 'Enterprise', 'price' => 'Custom', 'per' => '',
+            'blurb' => 'For large organisations with complex data environments and mission-critical SLAs.',
+            'features' => ['Unlimited customer profiles', 'Unlimited data sources', 'Dedicated infrastructure & success manager'],
+        ],
+    ];
+
+    /** Free-trial length when a plan is chosen at sign-up (as advertised: 30 days, no card). */
+    private const TRIAL_DAYS = 30;
+
+    public function showPlan()
+    {
+        $client = auth('client')->user();
+
+        return view('client.auth.plan', [
+            'plans'    => self::PLANS,
+            'selected' => array_key_exists($client->plan, self::PLANS) ? $client->plan : 'professional',
+        ]);
+    }
+
+    /**
+     * Saves the chosen plan. Two buttons:
+     *   trial    — starts the plan's free trial; the plan ends with the trial
+     *              (subscription_ends_at) until billing is set up.
+     *   continue — saves the plan only, for the payment gateway (added later)
+     *              to bill. Until it records a payment by moving
+     *              subscription_ends_at forward, the plan isn't active: a paid
+     *              plan with no end date would otherwise count as active for good.
+     */
+    public function storePlan(Request $request)
+    {
+        $validated = $request->validate([
+            'plan'   => ['required', 'in:' . implode(',', array_keys(self::PLANS))],
+            'action' => ['nullable', 'in:trial,continue'],
+        ]);
+
+        $client = auth('client')->user();
+        $name   = self::PLANS[$validated['plan']]['name'];
+
+        if (($validated['action'] ?? 'trial') === 'continue') {
+            $paidUntil = $client->subscription_ends_at && $client->subscription_ends_at->isFuture()
+                ? $client->subscription_ends_at   // already paid up: keep it
+                : now();                          // not paid yet: awaiting billing
+            $client->forceFill(['plan' => $validated['plan'], 'subscription_ends_at' => $paidUntil])->save();
+
+            return redirect()->route('home')->with(
+                'success',
+                "Thanks — you've chosen the {$name} plan. We'll be in touch to set up billing."
+            );
+        }
+
+        $endsAt = $client->trial_ends_at && $client->trial_ends_at->isFuture()
+            ? $client->trial_ends_at                       // switching plans keeps the running trial
+            : now()->addDays(self::TRIAL_DAYS);
+
+        $client->forceFill([
+            'plan'                 => $validated['plan'],
+            'trial_ends_at'        => $endsAt,
+            'subscription_ends_at' => $client->subscription_ends_at && $client->subscription_ends_at->isAfter($endsAt)
+                ? $client->subscription_ends_at
+                : $endsAt,
+        ])->save();
+
+        // Sign-up is done: back to the home page with a success message.
+        return redirect()->route('home')->with(
+            'success',
+            "You're all set — your free trial of {$name} runs until " . $endsAt->format('j M Y') . '.'
+        );
+    }
 
     public function dismissChecklist(Request $request)
     {
@@ -168,6 +263,11 @@ class ClientAuthController extends Controller
         Auth::guard('client')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        // The homepage's Log out button returns to the home page; elsewhere, to sign in.
+        if ($request->input('redirect') === 'home') {
+            return redirect()->route('home');
+        }
 
         return redirect()->route('client.login');
     }

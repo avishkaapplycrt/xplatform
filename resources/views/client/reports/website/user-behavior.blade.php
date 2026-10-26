@@ -26,13 +26,13 @@
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{ request()->url() }?period='+this.value">
-        <option value="7d" { $period == '7d' ? 'selected' : '' }>Last 7 Days</option>
-        <option value="30d" { $period == '30d' ? 'selected' : '' }>Last 30 Days</option>
-        <option value="90d" { $period == '90d' ? 'selected' : '' }>Last 90 Days</option>
-        <option value="1y" { $period == '1y' ? 'selected' : '' }>Last Year</option>
+      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{{ request()->url() }}?period='+this.value">
+        <option value="7d" {{ $period == '7d' ? 'selected' : '' }}>Last 7 Days</option>
+        <option value="30d" {{ $period == '30d' ? 'selected' : '' }}>Last 30 Days</option>
+        <option value="90d" {{ $period == '90d' ? 'selected' : '' }}>Last 90 Days</option>
+        <option value="1y" {{ $period == '1y' ? 'selected' : '' }}>Last Year</option>
       </select>
-      <a href="{ request()->url() }/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+      <a href="{{ request()->url() }}/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
@@ -98,8 +98,21 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">User behavior analytics coming soon.</p>
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100">
+        <h6 class="text-[13px] font-semibold text-gray-800">Session Duration Distribution</h6>
+        <p class="text-[11px] text-gray-500 mt-0.5">How long visitors spend per page before leaving</p>
+      </div>
+      <div class="divide-y divide-gray-100">
+        @forelse($data['sessions'] ?? [] as $bucket)
+        <div class="px-4 py-3 flex items-center justify-between">
+          <p class="text-[12px] font-medium text-gray-800">{{ $bucket->bucket }}</p>
+          <span class="text-[12px] font-semibold text-gray-600">{{ number_format($bucket->count) }} sessions</span>
+        </div>
+        @empty
+        <div class="px-4 py-8 text-center text-gray-500 text-[12px]">No session duration data available yet</div>
+        @endforelse
+      </div>
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">

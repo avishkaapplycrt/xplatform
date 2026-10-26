@@ -100,6 +100,7 @@ class MarketingPerformanceService
                 return [
                     'name' => $row['name'],
                     'company' => $row['company'],
+                    'email' => $row['email'],
                     'deal_value' => $row['deal_value'],
                     'buying_readiness' => $row['buying_readiness'],
                     'trust' => $row['trust'],

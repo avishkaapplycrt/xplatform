@@ -11,10 +11,57 @@ use Illuminate\Support\Facades\Http;
 
 class CrmConnectionController extends Controller
 {
-    // Zoho OAuth endpoints
-    private const ZOHO_AUTH_URL = 'https://accounts.zoho.com/oauth/v2/auth';
-    private const ZOHO_TOKEN_URL = 'https://accounts.zoho.com/oauth/v2/token';
+    // Zoho OAuth — accounts.zoho.com only works for accounts on Zoho's US/
+    // global data center. Every Zoho account is pinned to one data center at
+    // signup and its accounts/API domain differs per DC (Canada's accounts
+    // domain is "zohocloud.ca", not "zoho.ca" — a real, documented Zoho
+    // irregularity) — get it wrong and the token exchange fails with an
+    // error body on an HTTP 200, not an HTTP error status.
+    private const ZOHO_ACCOUNTS_DOMAINS = [
+        'com'    => 'accounts.zoho.com',
+        'eu'     => 'accounts.zoho.eu',
+        'in'     => 'accounts.zoho.in',
+        'com.au' => 'accounts.zoho.com.au',
+        'jp'     => 'accounts.zoho.jp',
+        'ca'     => 'accounts.zohocloud.ca',
+        'com.cn' => 'accounts.zoho.com.cn',
+        'sa'     => 'accounts.zoho.sa',
+    ];
+
+    private const ZOHO_API_DOMAINS = [
+        'com'    => 'www.zohoapis.com',
+        'eu'     => 'www.zohoapis.eu',
+        'in'     => 'www.zohoapis.in',
+        'com.au' => 'www.zohoapis.com.au',
+        'jp'     => 'www.zohoapis.jp',
+        'ca'     => 'www.zohoapis.ca',
+        'com.cn' => 'www.zohoapis.com.cn',
+        'sa'     => 'www.zohoapis.sa',
+    ];
+
     private const ZOHO_SCOPES = 'ZohoCRM.modules.ALL,ZohoCRM.users.ALL,ZohoCRM.settings.ALL';
+
+    private function zohoDataCenter(CrmIntegration $connection): string
+    {
+        $dc = $connection->settings['data_center'] ?? 'com';
+
+        return array_key_exists($dc, self::ZOHO_ACCOUNTS_DOMAINS) ? $dc : 'com';
+    }
+
+    private function zohoAuthUrl(CrmIntegration $connection): string
+    {
+        return 'https://' . self::ZOHO_ACCOUNTS_DOMAINS[$this->zohoDataCenter($connection)] . '/oauth/v2/auth';
+    }
+
+    private function zohoTokenUrl(CrmIntegration $connection): string
+    {
+        return 'https://' . self::ZOHO_ACCOUNTS_DOMAINS[$this->zohoDataCenter($connection)] . '/oauth/v2/token';
+    }
+
+    private function zohoApiUrl(CrmIntegration $connection): string
+    {
+        return 'https://' . self::ZOHO_API_DOMAINS[$this->zohoDataCenter($connection)];
+    }
 
     // Monday.com OAuth endpoints
     private const MONDAY_AUTH_URL = 'https://auth.monday.com/oauth2/authorize';
@@ -96,6 +143,7 @@ class CrmConnectionController extends Controller
             case 'zoho':
                 $rules['api_key'] = 'required|string';
                 $rules['api_secret'] = 'required|string';
+                $rules['data_center'] = 'nullable|in:' . implode(',', array_keys(self::ZOHO_ACCOUNTS_DOMAINS));
                 break;
             case 'pipedrive':
                 $rules['api_key'] = 'required|string';
@@ -117,6 +165,15 @@ class CrmConnectionController extends Controller
 
         $data = $validator->validated();
         $data['provider'] = $provider;
+
+        // data_center isn't a real crm_integrations column — it's stored in
+        // the settings JSON blob instead, since a Zoho account is pinned to
+        // one data center at signup and the wrong one silently breaks the
+        // OAuth token exchange (see ZOHO_ACCOUNTS_DOMAINS).
+        if ($provider === 'zoho') {
+            $data['settings'] = ['data_center' => $data['data_center'] ?? 'com'];
+        }
+        unset($data['data_center']);
 
         // Api-key providers are never OAuth-verified anywhere else, so this is
         // the only checkpoint that stands between a typo/placeholder key and a
@@ -259,7 +316,7 @@ class CrmConnectionController extends Controller
             'prompt'        => 'consent',
         ];
 
-        return self::ZOHO_AUTH_URL . '?' . http_build_query($params);
+        return $this->zohoAuthUrl($connection) . '?' . http_build_query($params);
     }
 
     /**
@@ -317,7 +374,7 @@ class CrmConnectionController extends Controller
             $clientSecret = Crypt::decryptString($connection->api_secret);
             $redirectUri = route('client.crm.zoho.callback', [], true);
 
-            $response = Http::asForm()->post(self::ZOHO_TOKEN_URL, [
+            $response = Http::asForm()->post($this->zohoTokenUrl($connection), [
                 'grant_type'    => 'authorization_code',
                 'client_id'     => $clientId,
                 'client_secret' => $clientSecret,
@@ -325,13 +382,17 @@ class CrmConnectionController extends Controller
                 'code'          => $code,
             ]);
 
-            if (!$response->successful()) {
-                $errorData = $response->json();
-                return redirect()->route('client.crm-connections')
-                    ->with('error', 'Token exchange failed: ' . ($errorData['error'] ?? 'Unknown error'));
-            }
-
             $tokenData = $response->json();
+
+            // Zoho's token endpoint can return HTTP 200 with an error body
+            // instead of a real access_token — e.g. when the account's data
+            // center isn't accounts.zoho.com (it could be .eu, .in, .com.au,
+            // .jp, .ca — this app only ever talks to the .com endpoint), or
+            // the authorization code already expired or was already used.
+            if (!$response->successful() || empty($tokenData['access_token'])) {
+                $reason = $tokenData['error'] ?? ($tokenData['error_description'] ?? 'no access_token in response');
+                throw new \RuntimeException("Zoho token exchange failed: {$reason}");
+            }
 
             $updateData = [
                 'access_token'     => Crypt::encryptString($tokenData['access_token']),
@@ -380,22 +441,23 @@ class CrmConnectionController extends Controller
             $clientSecret = Crypt::decryptString($connection->api_secret);
             $refreshToken = Crypt::decryptString($connection->refresh_token);
 
-            $response = Http::asForm()->post(self::ZOHO_TOKEN_URL, [
+            $response = Http::asForm()->post($this->zohoTokenUrl($connection), [
                 'grant_type'    => 'refresh_token',
                 'client_id'     => $clientId,
                 'client_secret' => $clientSecret,
                 'refresh_token' => $refreshToken,
             ]);
 
-            if (!$response->successful()) {
-                $errorData = $response->json();
+            $tokenData = $response->json();
+
+            if (!$response->successful() || empty($tokenData['access_token'])) {
+                $reason = $tokenData['error'] ?? ($tokenData['error_description'] ?? 'no access_token in response');
+
                 return [
                     'success' => false,
-                    'message' => 'Token refresh failed: ' . ($errorData['error'] ?? 'Unknown error')
+                    'message' => "Token refresh failed: {$reason}",
                 ];
             }
-
-            $tokenData = $response->json();
 
             $connection->update([
                 'access_token'     => Crypt::encryptString($tokenData['access_token']),
@@ -423,7 +485,7 @@ class CrmConnectionController extends Controller
         try {
             $response = Http::withHeaders([
                 'Authorization' => 'Zoho-oauthtoken ' . $accessToken,
-            ])->get('https://www.zohoapis.com/crm/v2/users/me');
+            ])->get($this->zohoApiUrl($connection) . '/crm/v2/users/me');
 
             if ($response->successful()) {
                 $userData = $response->json();
@@ -789,6 +851,8 @@ class CrmConnectionController extends Controller
                 $syncResult = $this->syncMonday($connection);
             } elseif ($provider === 'hubspot') {
                 $syncResult = $this->syncHubSpot($connection);
+            } elseif ($provider === 'zoho') {
+                $syncResult = $this->syncZoho($connection);
             }
 
             if ($syncResult && !$syncResult['success']) {
@@ -970,7 +1034,7 @@ class CrmConnectionController extends Controller
 
             $response = Http::withHeaders([
                 'Authorization' => 'Zoho-oauthtoken ' . $accessToken,
-            ])->get('https://www.zohoapis.com/crm/v2/users/me');
+            ])->get($this->zohoApiUrl($connection) . '/crm/v2/users/me');
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -1334,6 +1398,150 @@ class CrmConnectionController extends Controller
 
             $after = $data['paging']['next']['after'] ?? null;
         } while ($after);
+
+        return $count;
+    }
+
+    /* ================================================================
+       ZOHO SYNC HELPERS
+       ================================================================ */
+
+    private function syncZoho(CrmIntegration $connection): array
+    {
+        $accessToken = Crypt::decryptString($connection->access_token);
+
+        try {
+            $contactsSynced = $this->syncZohoContacts($connection, $accessToken);
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Zoho contact sync failed: ' . $e->getMessage()];
+        }
+
+        // Deals live in a separate module the connected Zoho user might not
+        // have access to — don't let that wipe out a successful contact sync.
+        $dealsSynced = null;
+        $dealsWarning = null;
+        try {
+            $dealsSynced = $this->syncZohoDeals($connection, $accessToken);
+        } catch (\Exception $e) {
+            $dealsWarning = $e->getMessage();
+        }
+
+        return [
+            'success' => true,
+            'message' => $dealsWarning
+                ? "Zoho sync completed (contacts only — deals skipped: {$dealsWarning})"
+                : 'Zoho sync completed.',
+            'details' => ['contacts' => $contactsSynced, 'deals' => $dealsSynced],
+        ];
+    }
+
+    private function syncZohoContacts(CrmIntegration $connection, string $accessToken): int
+    {
+        $count = 0;
+        $page = 1;
+
+        do {
+            $response = Http::withHeaders(['Authorization' => 'Zoho-oauthtoken ' . $accessToken])
+                ->timeout(15)
+                ->get($this->zohoApiUrl($connection) . '/crm/v2/Contacts', [
+                    'page'     => $page,
+                    'per_page' => 200,
+                    'fields'   => 'Email,First_Name,Last_Name,Account_Name,Modified_Time',
+                ]);
+
+            // Zoho returns 204 No Content (empty body) instead of an empty
+            // data array once a module genuinely has nothing left to page.
+            if ($response->status() === 204) {
+                break;
+            }
+
+            if (!$response->successful()) {
+                throw new \Exception('Contacts request failed: HTTP ' . $response->status());
+            }
+
+            $data = $response->json();
+
+            foreach ($data['data'] ?? [] as $contact) {
+                \App\Models\CrmContact::updateOrCreate(
+                    ['connection_id' => $connection->id, 'external_id' => $contact['id']],
+                    [
+                        'provider'         => 'zoho',
+                        'email'            => $contact['Email'] ?? null,
+                        'first_name'       => $contact['First_Name'] ?? null,
+                        'last_name'        => $contact['Last_Name'] ?? null,
+                        'company'          => $contact['Account_Name']['name'] ?? null,
+                        'last_activity_at' => $contact['Modified_Time'] ?? null,
+                        'raw_data'         => $contact,
+                    ]
+                );
+                $count++;
+            }
+
+            $moreRecords = $data['info']['more_records'] ?? false;
+            $page++;
+        } while ($moreRecords);
+
+        return $count;
+    }
+
+    private function syncZohoDeals(CrmIntegration $connection, string $accessToken): int
+    {
+        $count = 0;
+        $page = 1;
+
+        do {
+            $response = Http::withHeaders(['Authorization' => 'Zoho-oauthtoken ' . $accessToken])
+                ->timeout(15)
+                ->get($this->zohoApiUrl($connection) . '/crm/v2/Deals', [
+                    'page'     => $page,
+                    'per_page' => 200,
+                    'fields'   => 'Deal_Name,Amount,Stage,Closing_Date,Account_Name',
+                ]);
+
+            if ($response->status() === 204) {
+                break;
+            }
+
+            if (!$response->successful()) {
+                throw new \Exception('Deals request failed: HTTP ' . $response->status());
+            }
+
+            $data = $response->json();
+
+            foreach ($data['data'] ?? [] as $deal) {
+                $stage = (string) ($deal['Stage'] ?? '');
+                $status = match (true) {
+                    str_contains(strtolower($stage), 'won')  => 'won',
+                    str_contains(strtolower($stage), 'lost') => 'lost',
+                    default => 'open',
+                };
+
+                $accountName = $deal['Account_Name']['name'] ?? null;
+                $dealName = $deal['Deal_Name'] ?? 'Untitled';
+                // Matches this codebase's existing "deal name starts with
+                // company name" heuristic for tying a deal back to a contact
+                // — crm_deals has no real foreign key to crm_contacts, same
+                // as every other provider synced here.
+                $name = $accountName ? "{$accountName} - {$dealName}" : $dealName;
+
+                \App\Models\CrmDeal::updateOrCreate(
+                    ['connection_id' => $connection->id, 'external_id' => $deal['id']],
+                    [
+                        'provider'   => 'zoho',
+                        'name'       => $name,
+                        'value'      => $deal['Amount'] ?? 0,
+                        'stage'      => $deal['Stage'] ?? null,
+                        'status'     => $status,
+                        'close_date' => $deal['Closing_Date'] ?? null,
+                        'raw_data'   => $deal,
+                    ]
+                );
+                $count++;
+            }
+
+            $moreRecords = $data['info']['more_records'] ?? false;
+            $page++;
+        } while ($moreRecords);
 
         return $count;
     }

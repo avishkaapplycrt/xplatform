@@ -6,7 +6,7 @@
 @php
   $cn = auth('client')->user()?->company_name ?? 'Test Company';
   $av = strtoupper(implode('', array_map(fn($w)=>$w[0], array_slice(explode(' ',$cn),0,2))));
-  $period = request('period', '30d');
+  $period = request('period', '90d');
 @endphp
 
 <div class="flex flex-col h-full overflow-hidden bg-white">
@@ -26,13 +26,13 @@
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{ request()->url() }?period='+this.value">
-        <option value="7d" { $period == '7d' ? 'selected' : '' }>Last 7 Days</option>
-        <option value="30d" { $period == '30d' ? 'selected' : '' }>Last 30 Days</option>
-        <option value="90d" { $period == '90d' ? 'selected' : '' }>Last 90 Days</option>
-        <option value="1y" { $period == '1y' ? 'selected' : '' }>Last Year</option>
+      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{{ request()->url() }}?period='+this.value">
+        <option value="7d" {{ $period == '7d' ? 'selected' : '' }}>Last 7 Days</option>
+        <option value="30d" {{ $period == '30d' ? 'selected' : '' }}>Last 30 Days</option>
+        <option value="90d" {{ $period == '90d' ? 'selected' : '' }}>Last 90 Days</option>
+        <option value="1y" {{ $period == '1y' ? 'selected' : '' }}>Last Year</option>
       </select>
-      <a href="{ request()->url() }/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+      <a href="{{ request()->url() }}/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
@@ -98,8 +98,61 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
-      <p class="text-[14px] text-gray-600">Engagement analytics coming soon.</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Engagement Rate</p>
+        <p class="text-[20px] font-bold text-gray-900">{{ $data['engagement_rate'] ?? 0 }}%</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Total Likes</p>
+        <p class="text-[20px] font-bold text-gray-900">{{ number_format($data['total_likes'] ?? 0) }}</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Total Comments</p>
+        <p class="text-[20px] font-bold text-gray-900">{{ number_format($data['total_comments'] ?? 0) }}</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-[11px] text-gray-500 font-medium mb-1">Total Reach</p>
+        <p class="text-[20px] font-bold text-gray-900">{{ number_format($data['total_reach'] ?? 0) }}</p>
+      </div>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100">
+        <h6 class="text-[13px] font-semibold text-gray-800">Post-by-Post Engagement</h6>
+      </div>
+      @if(($data['posts'] ?? collect())->isEmpty())
+      <div class="p-8 text-center">
+        <p class="text-[13px] text-gray-500">No posts synced in this period yet — try a longer period or sync your connection again.</p>
+      </div>
+      @else
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b border-gray-100">
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Posted</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide">Caption</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide text-right">Likes</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide text-right">Comments</th>
+              <th class="px-4 py-2.5 text-[11px] font-medium text-gray-500 uppercase tracking-wide text-right">Reach</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach($data['posts'] as $post)
+            <tr class="border-b border-gray-50 last:border-b-0">
+              <td class="px-4 py-2.5 text-[12px] text-gray-500">{{ \Carbon\Carbon::parse($post->posted_at)->diffForHumans() }}</td>
+              <td class="px-4 py-2.5 text-[13px] text-gray-700">
+                <a href="{{ $post->permalink }}" target="_blank" rel="noopener" class="hover:underline">{{ \Illuminate\Support\Str::limit($post->caption ?: '(no caption)', 60) }}</a>
+              </td>
+              <td class="px-4 py-2.5 text-[13px] text-gray-600 text-right">{{ number_format($post->like_count) }}</td>
+              <td class="px-4 py-2.5 text-[13px] text-gray-600 text-right">{{ number_format($post->comments_count) }}</td>
+              <td class="px-4 py-2.5 text-[13px] text-gray-600 text-right">{{ number_format($post->reach) }}</td>
+            </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+      @endif
     </div>
     @else
     <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -123,7 +176,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('click', function(e) {
   var wrap = document.getElementById('l1AvatarWrap');
@@ -131,4 +184,4 @@ document.addEventListener('click', function(e) {
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
 </script>
-@endsection
+@endpush

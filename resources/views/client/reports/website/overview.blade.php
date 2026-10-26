@@ -26,13 +26,13 @@
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{ request()->url() }?period='+this.value">
-        <option value="7d" { $period == '7d' ? 'selected' : '' }>Last 7 Days</option>
-        <option value="30d" { $period == '30d' ? 'selected' : '' }>Last 30 Days</option>
-        <option value="90d" { $period == '90d' ? 'selected' : '' }>Last 90 Days</option>
-        <option value="1y" { $period == '1y' ? 'selected' : '' }>Last Year</option>
+      <select class="form-input" style="width: 130px; cursor: pointer;" onchange="window.location.href='{{ request()->url() }}?period='+this.value">
+        <option value="7d" {{ $period == '7d' ? 'selected' : '' }}>Last 7 Days</option>
+        <option value="30d" {{ $period == '30d' ? 'selected' : '' }}>Last 30 Days</option>
+        <option value="90d" {{ $period == '90d' ? 'selected' : '' }}>Last 90 Days</option>
+        <option value="1y" {{ $period == '1y' ? 'selected' : '' }}>Last Year</option>
       </select>
-      <a href="{ request()->url() }/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
+      <a href="{{ request()->url() }}/export/pdf" class="btn-secondary flex items-center gap-2" style="text-decoration: none;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
         </svg>
@@ -97,7 +97,7 @@
     </div>
 
     @if($data['has_data'] ?? false)
-    {-- Metrics --}
+    {{-- Metrics --}}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
       <div class="bg-white border border-gray-200 rounded-xl p-4">
         <p class="text-[11px] text-gray-500 font-medium mb-1">Total Visitors</p>
@@ -133,7 +133,7 @@
       </div>
     </div>
 
-    {-- Charts --}
+    {{-- Charts --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
       <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div class="px-4 py-3 border-b border-gray-100">
@@ -153,7 +153,7 @@
       </div>
     </div>
 
-    {-- Top Pages --}
+    {{-- Top Pages --}}
     <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
       <div class="px-4 py-3 border-b border-gray-100">
         <h6 class="text-[13px] font-semibold text-gray-800">Top Pages</h6>
@@ -162,9 +162,9 @@
         @forelse($data['top_pages'] ?? [] as $page)
         <div class="px-4 py-3 flex items-center justify-between">
           <div class="min-w-0">
-            <p class="text-[12px] font-medium text-gray-800 truncate">{ $page->page_url }</p>
+            <p class="text-[12px] font-medium text-gray-800 truncate">{{ $page->page_url }}</p>
           </div>
-          <span class="text-[12px] font-semibold text-gray-600 flex-shrink-0 ml-4">{ number_format($page->views) } views</span>
+          <span class="text-[12px] font-semibold text-gray-600 flex-shrink-0 ml-4">{{ number_format($page->views) }} views</span>
         </div>
         @empty
         <div class="px-4 py-8 text-center text-gray-500 text-[12px]">No page data available</div>
@@ -200,5 +200,45 @@ document.addEventListener('click', function(e) {
   var drop = document.getElementById('l1Dropdown');
   if (wrap && drop && !wrap.contains(e.target)) drop.style.display = 'none';
 });
+
+@if($data['has_data'] ?? false)
+const trafficTrend = @json(($data['trend_data'] ?? collect())->map(fn($r) => ['date' => $r->date, 'count' => $r->count])->values());
+const deviceBreakdown = @json($data['device_breakdown'] ?? ['desktop' => 0, 'mobile' => 0, 'tablet' => 0]);
+
+new Chart(document.getElementById('trafficChart'), {
+  type: 'line',
+  data: {
+    labels: trafficTrend.map(r => r.date),
+    datasets: [{
+      label: 'Page Views',
+      data: trafficTrend.map(r => r.count),
+      borderColor: '#2563eb',
+      backgroundColor: 'rgba(37,99,235,0.08)',
+      tension: 0.3,
+      fill: true,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+  }
+});
+
+new Chart(document.getElementById('deviceChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Desktop', 'Mobile', 'Tablet'],
+    datasets: [{
+      data: [deviceBreakdown.desktop, deviceBreakdown.mobile, deviceBreakdown.tablet],
+      backgroundColor: ['#2563eb', '#10b981', '#f59e0b'],
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'bottom' } }
+  }
+});
+@endif
 </script>
 @endsection

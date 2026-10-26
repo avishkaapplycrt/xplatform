@@ -53,15 +53,58 @@ use App\Http\Controllers\Analytics\GrowthReportController;
 use App\Http\Controllers\Analytics\ExecutiveDashboardController;
 
 // ─── Public ───────────────────────────────────────────────────────────────────
-Route::get('/', fn() => view('welcome', [
+// Shared data for the new homepage's "Ask Mira" chat widget — same shape the
+// classic homepage/.classic route below already uses for its own widget.
+$homepageChatData = fn() => [
     'industries'  => \App\Models\Industry::orderBy('name')->get(['id', 'name']),
     'miraLive'    => (new \App\Services\Llm\MarketingChatBotService())->isConfigured(),
     'loggedIn'    => auth('client')->check(),
-    'chatQuestionsByIndustry' => \App\Models\ChatBotQuestion::orderBy('id')
-        ->get(['industry_id', 'question'])
-        ->groupBy(fn ($q) => $q->industry_id ?? 'all')
-        ->map(fn ($group) => $group->pluck('question')->values()),
-]))->name('home');
+    // Starter questions: chat_bot_questions (general, or per industry), plus each
+    // industry's questions from config/ask_mira_industry_questions.php.
+    'chatQuestionsByIndustry' => (function () {
+        $byIndustry = \App\Models\ChatBotQuestion::orderBy('id')
+            ->get(['industry_id', 'question'])
+            ->groupBy(fn ($q) => $q->industry_id ?? 'all')
+            ->map(fn ($group) => $group->pluck('question')->values());
+        $ids = \App\Models\Industry::pluck('id', 'name');
+        foreach ((array) config('ask_mira_industry_questions.industries', []) as $industry) {
+            $id = $ids[$industry['name']] ?? null;
+            if ($id !== null) {
+                $byIndustry[$id] = collect(array_column($industry['questions'], 'question'))
+                    ->merge($byIndustry[$id] ?? [])->unique()->values();
+            }
+        }
+
+        return $byIndustry;
+    })(),
+];
+
+Route::get('/', fn() => view('homepage-preview', $homepageChatData()))->name('home');
+
+// Classic homepage, preserved exactly as-is for instant rollback — if the
+// new design needs reverting, change the '/' route above back to this
+// view() call (swap the two blocks) instead of editing welcome.blade.php.
+Route::get('homepage-classic', fn() => view('welcome', $homepageChatData()))->name('home.classic');
+
+// Preview route kept pointing at the same new design for continued testing
+// under its original URL.
+Route::get('homepage-preview', fn() => view('homepage-preview', $homepageChatData()))->name('homepage.preview');
+
+Route::get('mira-premium', [\App\Http\Controllers\MiraPremium\WorkspaceApiController::class, 'page'])->name('mira-premium');
+// A shared Mira Premium audit: read-only, no sign-in, signed and expiring (ScanService::shareUrl).
+Route::get('mira-premium/shared/{uuid}', [\App\Http\Controllers\MiraPremium\WorkspaceApiController::class, 'sharedReport'])
+    ->middleware('signed')->whereUuid('uuid')->name('mira-premium.shared');
+// Ask Mira "Analyse my website" / "Compare with a competitor" results, each on
+// its own page (stored by App\Services\AskMiraReportStore). "pending" is the
+// tab opened on click, while Mira works; it then moves to the report.
+Route::get('mira/report/pending', fn() => view('ask-mira-report', ['report' => null, 'premium' => request()->boolean('premium')]))
+    ->name('mira.report.pending');
+Route::get('mira/report/{id}', function (string $id) {
+    $report = app(\App\Services\AskMiraReportStore::class)->find($id);
+    abort_if($report === null, 404);
+
+    return view('ask-mira-report', ['report' => $report, 'premium' => $report['premium']]);
+})->name('mira.report');
 Route::get('simulator', fn() => view('simulator'))->name('simulator');
 Route::get('case-studies', fn() => view('case-studies'))->name('case-studies');
 Route::get('pricing', fn() => view('pricing'))->name('pricing');
@@ -97,7 +140,59 @@ Route::middleware('throttle:20,1')->prefix('chat')->name('chat.')->group(functio
     Route::post('send',  [PublicChatController::class, 'send'])->name('send');
     Route::post('reset', [PublicChatController::class, 'reset'])->name('reset');
     Route::post('analyze-lead', [PublicChatController::class, 'analyzeWithLead'])->name('analyze-lead');
+    Route::post('compare', [PublicChatController::class, 'compare'])->name('compare');
 });
+
+// Premium Mira (/mira-premium): AEO questions about the visitor's own website, via OpenAI.
+Route::middleware('throttle:20,1')->prefix('mira-premium')->name('mira-premium.')->group(function () {
+    Route::post('send',  [\App\Http\Controllers\PremiumMiraController::class, 'send'])->name('send');
+    Route::post('reset', [\App\Http\Controllers\PremiumMiraController::class, 'reset'])->name('reset');
+});
+
+// Mira Premium workspace API (WorkspaceApiController): plan-aware scans (two-phase,
+// signed handles), projects, history, AI visibility and first-party telemetry.
+// Entitlement is resolved server-side on every call; see config/mira_premium.php.
+Route::prefix('mira-premium/api')->name('mira-premium.api.')
+    ->controller(\App\Http\Controllers\MiraPremium\WorkspaceApiController::class)->group(function () {
+        Route::middleware('throttle:60,1')->group(function () {
+            Route::get('me', 'me')->name('me');
+            Route::post('scans', 'submitScan')->name('scans.submit');
+            Route::post('scans/report', 'scanReport')->name('scans.report');
+            Route::get('scans/{id}', 'showScan')->whereNumber('id')->name('scans.show');
+            Route::post('scans/{id}/share', 'shareScan')->whereNumber('id')->name('scans.share');
+            Route::post('projects', 'createProject')->name('projects.create');
+            Route::patch('projects/{id}', 'updateProject')->whereNumber('id')->name('projects.update');
+            Route::delete('projects/{id}', 'deleteProject')->whereNumber('id')->name('projects.delete');
+            Route::get('projects/{id}/history', 'history')->whereNumber('id')->name('projects.history');
+            Route::get('projects/{id}/messages', 'messages')->whereNumber('id')->name('projects.messages');
+            Route::get('projects/{id}/visibility', 'visibility')->whereNumber('id')->name('visibility');
+            Route::post('projects/{id}/prompts', 'addPrompt')->whereNumber('id')->name('prompts.add');
+            Route::post('projects/{id}/prompts/suggest', 'suggestPrompts')->whereNumber('id')->name('prompts.suggest');
+            Route::patch('prompts/{id}', 'updatePrompt')->whereNumber('id')->name('prompts.update');
+            Route::delete('prompts/{id}', 'deletePrompt')->whereNumber('id')->name('prompts.delete');
+            Route::post('projects/{id}/visibility/runs', 'startRun')->whereNumber('id')->name('visibility.run');
+            Route::get('projects/{id}/ranks', 'ranks')->whereNumber('id')->name('ranks');
+            Route::post('projects/{id}/ranks', 'addRankKeywords')->whereNumber('id')->name('ranks.add');
+            Route::post('projects/{id}/ranks/check', 'checkRanks')->whereNumber('id')->name('ranks.check');
+            Route::delete('projects/{id}/ranks/{keywordId}', 'deleteRankKeyword')->whereNumber(['id', 'keywordId'])->name('ranks.delete');
+            Route::get('projects/{id}/panels/{panel}', 'panel')->whereNumber('id')->whereIn('panel', ['ai', 'authority', 'search', 'traffic', 'performance', 'positions', 'countries', 'pages', 'competitors', 'insights', 'paid', 'backlinks', 'links', 'trends', 'ai_brand', 'gsc', 'difficulty'])->name('panels');
+            Route::get('projects/{id}/google', [\App\Http\Controllers\MiraPremium\GoogleIntegrationController::class, 'status'])->whereNumber('id')->name('google.status');
+            Route::patch('projects/{id}/google', [\App\Http\Controllers\MiraPremium\GoogleIntegrationController::class, 'select'])->whereNumber('id')->name('google.select');
+            Route::post('google/disconnect', [\App\Http\Controllers\MiraPremium\GoogleIntegrationController::class, 'disconnect'])->name('google.disconnect');
+        });
+        Route::middleware('throttle:120,1')->group(function () {
+            Route::post('event', 'event')->name('event');
+            Route::post('error', 'clientError')->name('error');
+        });
+    });
+
+// Mira Premium "Connect Google" (read-only Search Console + Analytics 4). The callback
+// needs no session: its signed state names the client (see GoogleClient).
+Route::middleware('throttle:20,1')->prefix('app/integrations/google')->name('mira-premium.google.')
+    ->controller(\App\Http\Controllers\MiraPremium\GoogleIntegrationController::class)->group(function () {
+        Route::get('connect', 'connect')->name('connect');
+        Route::get('callback', 'callback')->name('callback');
+    });
 
 // Public API route for tracking script (no auth required - called from client websites)
 Route::get('/api/tracking/script', [WebsiteConnectionController::class, 'getTrackingScript'])
@@ -107,7 +202,7 @@ Route::get('/api/tracking/script', [WebsiteConnectionController::class, 'getTrac
 Route::post('/api/events/collect', function (Illuminate\Http\Request $request) {
     // Validate tracking code
     $request->validate([
-        'tracking_code' => 'required|string|size:32',
+        'tracking_code' => ['required', 'string', 'max:64', 'regex:/^[A-Z]+_\d+_[a-f0-9]{24}$/'],
         'event_type'    => 'required|string|max:50',
         'data'          => 'nullable|array',
         'url'           => 'nullable|url',
@@ -202,6 +297,10 @@ Route::middleware(['auth:client', 'client.active'])->prefix('app')->name('client
     Route::get('industry',  [ClientAuthController::class, 'showIndustry'])->name('industry');
     Route::post('industry', [ClientAuthController::class, 'storeIndustry'])->name('industry.store');
 
+    /* Step 3 — choose a plan (starts its free trial). */
+    Route::get('plan',  [ClientAuthController::class, 'showPlan'])->name('plan');
+    Route::post('plan', [ClientAuthController::class, 'storePlan'])->name('plan.store');
+
     Route::post('logout', [ClientAuthController::class, 'logout'])->name('logout');
     Route::post('onboarding/dismiss', [ClientAuthController::class, 'dismissChecklist'])->name('onboarding.dismiss');
 
@@ -228,7 +327,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('company/overview', [ClientOverviewController::class, 'show'])->name('company.overview');
 
     // Layer pages
-    Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('layer.l1');
+    Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), \App\Models\InstagramMedia::socialStats())))->name('layer.l1');
     Route::get('layers/l2',      [DecisionCentreController::class, 'l2'])->name('layer.l2');
     Route::get('layers/l3',      [DecisionCentreController::class, 'l3'])->name('layer.l3');
     Route::get('layers/l4',      [DecisionCentreController::class, 'index'])->name('layer.l4');
@@ -238,9 +337,21 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('layers/l8',      [DecisionCentreController::class, 'l8'])->name('layer.l8');
     Route::get('layers/rl',      fn() => view('client.layers.rl'))->name('layer.rl');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
-    Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats())))->name('data-collection');
+    Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), \App\Models\InstagramMedia::socialStats())))->name('data-collection');
+    // Active Tenant dropdown (layouts/platform): remember the choice, then open that tenant's helper.
+    Route::get('tenant/{tenant}', function (string $tenant) {
+        session(['active_tenant' => $tenant]);
+
+        return redirect()->route($tenant === 'mockmaster' ? 'client.mock-master-helper' : 'client.business-helpers');
+    })->whereIn('tenant', ['mockmaster', 'admin'])->name('tenant.switch');
     Route::get('business-helpers', function () {
+        // Business Helpers belongs to the Admin Account tenant; the Mock Master tenant only has Mock Master Helper.
+        if (session('active_tenant') === 'mockmaster') {
+            return redirect()->route('client.mock-master-helper');
+        }
+
         $groupPrompts = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
+            ->where('is_mock_master', false)
             ->ordered()
             ->get()
             ->groupBy('step_title')
@@ -274,83 +385,10 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         // set of fictional companies (Kite Travel, Trellis Insurance, etc.).
         // This builds the same shape of data (name + a play-relevant score
         // set) from the client's real synced CRM contacts and deals, plus
-        // real Brevo delivery signal, instead of fabricated numbers.
-        $stageReadiness = [
-            'closedwon' => 92,
-            'decisionmakerboughtin' => 78,
-            'presentationscheduled' => 68,
-            'qualifiedtobuy' => 58,
-            'appointmentscheduled' => 50,
-        ];
-
-        $deals = \App\Models\CrmDeal::all();
-        $brevoByEmail = \App\Models\BrevoDeliveredRecipient::query()
-            ->orderByDesc('updated_at')
-            ->get()
-            ->keyBy(fn ($r) => strtolower($r->email));
-
-        $realAccounts = \App\Models\CrmContact::whereNotNull('company')
-            ->orderByDesc('last_activity_at')
-            ->get()
-            ->unique('company')
-            ->take(14)
-            ->map(function ($contact) use ($deals, $brevoByEmail, $stageReadiness) {
-                $deal = $deals->first(fn ($d) => str_starts_with((string) $d->name, (string) $contact->company));
-
-                $daysAgo = $contact->last_activity_at
-                    ? $contact->last_activity_at->diffInDays(now())
-                    : 120;
-
-                $engagement = max(8, min(95, (int) round(100 - $daysAgo * 2)));
-                $buyingReadiness = $deal ? ($stageReadiness[$deal->stage] ?? 45) : 35;
-                $intent = (int) round($buyingReadiness * 0.55 + $engagement * 0.45);
-                $won = $deal && $deal->status === 'won';
-
-                if ($daysAgo > 90 && $deal) {
-                    $seg = 'at_risk';
-                } elseif ($won && $daysAgo <= 45) {
-                    $seg = 'champion';
-                } elseif ($won) {
-                    $seg = 'loyal';
-                } elseif ($daysAgo > 60) {
-                    $seg = 'dormant';
-                } else {
-                    $seg = 'new';
-                }
-
-                $churn = match (true) {
-                    $seg === 'at_risk' => min(95, 70 + max(0, $daysAgo - 90)),
-                    $seg === 'dormant' => 55,
-                    default => max(10, min(50, (int) round((100 - $engagement) * 0.5))),
-                };
-                $loyalty = $won ? 85 : ($engagement > 60 ? 60 : 40);
-
-                $brevo = $brevoByEmail->get(strtolower((string) $contact->email));
-                $trust = $brevo
-                    ? ($brevo->unsubscribed_at ? 25 : ($brevo->opened_at ? 80 : 60))
-                    : 55;
-                $frustration = $brevo && $brevo->unsubscribed_at ? 72 : 15;
-
-                $name = trim($contact->first_name . ' ' . $contact->last_name);
-
-                return [
-                    'name' => $name !== '' ? $name : $contact->company,
-                    'company' => $contact->company,
-                    'email' => $contact->email,
-                    'seg' => $seg,
-                    'mrr' => $deal ? (int) round($deal->value) : 800,
-                    'scores' => [
-                        'intent' => $intent,
-                        'engagement' => $engagement,
-                        'buying_readiness' => $buyingReadiness,
-                        'churn' => $churn,
-                        'loyalty' => $loyalty,
-                        'trust' => $trust,
-                        'frustration' => $frustration,
-                    ],
-                ];
-            })
-            ->values();
+        // real Brevo delivery signal, instead of fabricated numbers. See
+        // App\Services\RealAccountsService — also used by the Sales agent's
+        // AI chat endpoint below, so both read the same numbers.
+        $realAccounts = app(\App\Services\RealAccountsService::class)->build();
 
         // Names offered in the "Which customer?" input for the Root cause
         // questions (Why is [name] leaving? / price vs product).
@@ -366,12 +404,422 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         ));
     })->name('business-helpers');
 
+    // Mock Master Helper — same visual shell as Business Helpers' Marketing
+    // tab (Campaign/Performance/Audience/Insights/A-B test), but for the
+    // separate Mock Master student platform. Data is computed only from the
+    // mm_* tables (see App\Services\MockMaster\MockMasterDataService) — never
+    // from this client's own crm_contacts/crm_deals/email data. The "Ask
+    // Mira" free-text chat is answered by OpenAI, grounded in that same
+    // real mm_* data snapshot (see App\Services\MockMaster\MockMasterChatService)
+    // — never invented, and never this client's own CRM data.
+    // Suggested "Ask Mira" prompts come from agents_pre_defined_prompts where
+    // is_mock_master = 1 — rows with is_mock_master = 0 (the real Business
+    // Helpers prompts) are excluded from this page. Grouped by step_title
+    // (same shape as Business Helpers' $groupPrompts below) so each of the
+    // five steps per agent shows only its own questions — the Marketing and
+    // Retention "A/B test" steps have no rows on purpose (no A/B-testing
+    // data source exists for Mock Master), so they render an empty state.
+    Route::post('mock-master-helper/send-email', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'student_id' => 'required|integer',
+            'subject' => 'required|string|max:255',
+            'body' => 'required|string|max:5000',
+        ]);
+
+        $student = \Illuminate\Support\Facades\DB::table('mm_studentuser')
+            ->where('studentId', $data['student_id'])
+            ->first(['email', 'first_name', 'last_name']);
+        $email = $student->email ?? null;
+        $recipientName = $student ? trim($student->first_name . ' ' . $student->last_name) : null;
+        $clientId = \Illuminate\Support\Facades\Auth::guard('client')->id();
+
+        $log = function (string $status, ?string $error = null) use ($clientId, $email, $recipientName, $data) {
+            \Illuminate\Support\Facades\DB::table('email_logs')->insert([
+                'client_id' => $clientId,
+                'email_address' => (string) $email,
+                'recipient_name' => $recipientName,
+                'subject' => mb_substr($data['subject'], 0, 255),
+                'body' => $data['body'],
+                'type' => 'single',
+                'bulk_count' => 1,
+                'status' => $status,
+                'error_message' => $error,
+                'sent_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        };
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $log('failed', 'No valid email address on file.');
+            return response()->json(['ok' => false, 'message' => 'This student has no valid email address on file.'], 422);
+        }
+
+        try {
+            \Illuminate\Support\Facades\Mail::raw($data['body'], function ($message) use ($email, $data) {
+                $message->to($email)->subject($data['subject']);
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            $log('failed', mb_substr($e->getMessage(), 0, 1000));
+            return response()->json(['ok' => false, 'message' => 'The email could not be sent. Please try again.'], 500);
+        }
+
+        $log('sent');
+
+        return response()->json(['ok' => true, 'message' => 'Email sent to ' . $email]);
+    })->name('mock-master-helper.send-email');
+
+    Route::post('mock-master-helper/send-whatsapp', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'student_id' => 'required|integer',
+            'body' => 'required|string|max:4096',
+        ]);
+
+        $student = \Illuminate\Support\Facades\DB::table('mm_studentuser')
+            ->where('studentId', $data['student_id'])
+            ->first(['country_code', 'phone']);
+        $digits = $student ? preg_replace('/\D/', '', ($student->country_code ?? '') . ($student->phone ?? '')) : '';
+
+        if ($digits === '') {
+            return response()->json(['ok' => false, 'message' => 'This student has no phone number on file.'], 422);
+        }
+
+        $result = (new \App\Services\WhatsAppCloudService())->sendText('+' . $digits, $data['body']);
+
+        if (!$result['ok']) {
+            $outsideWindow = str_contains((string) $result['error'], '131047');
+            return response()->json([
+                'ok' => false,
+                'message' => $outsideWindow
+                    ? 'WhatsApp only allows free text within 24 hours of the student\'s last message. Use an approved template for this student.'
+                    : 'WhatsApp could not send the message: ' . $result['error'],
+            ], 422);
+        }
+
+        return response()->json(['ok' => true, 'message' => 'WhatsApp sent to +' . $digits]);
+    })->name('mock-master-helper.send-whatsapp');
+
+    Route::get('mock-master-helper/kpi/{key}', function (string $key) {
+        $service = new \App\Services\MockMaster\MockMasterDataService();
+        $kpiKeys = ['active_students', 'mock_tests', 'avg_score', 'active_packages'];
+        $segmentKeys = ['high_scorers', 'expiring_soon', 'renewal_watch', 'new_students'];
+        $insightKeys = ['avg_score', 'expired_packages', 'recent_mock_tests', 'failed_payments'];
+
+        if (in_array($key, $kpiKeys, true)) {
+            return response()->json($service->kpiDetails($key));
+        }
+        if (in_array($key, $insightKeys, true)) {
+            return response()->json($service->insightDetails($key));
+        }
+        abort_unless(in_array($key, $segmentKeys, true), 404);
+
+        return response()->json($service->segmentDetails($key));
+    })->name('mock-master-helper.kpi');
+
+    Route::get('mock-master-helper/campaign-students', function () {
+        $filters = request()->validate([
+            'subscription' => 'nullable|string|max:255',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+            'page' => 'nullable|integer|min:1',
+            'sort' => 'nullable|in:value,payment,stage,readiness,trust,approach,last_active',
+            'dir' => 'nullable|in:asc,desc',
+            'plan' => 'nullable|in:all,paid,unpaid,Free trial,Paid,Coaching,Coaching + Paid,No purchase,Other',
+        ]);
+
+        $palette = ['#3b5bdb', '#7c5cfc', '#f97316', '#1e3a8a', '#0284c7', '#334155', '#16a34a', '#db2777', '#0d9488'];
+        $stageKind = fn (string $label) => preg_match('/won|active|renew/i', $label) ? 'good'
+            : (preg_match('/lost|expired|fail/i', $label) ? 'bad'
+            : (preg_match('/decision|bought/i', $label) ? 'violet' : 'info'));
+
+        $paged = (new \App\Services\MockMaster\MockMasterDataService())->campaignStudentsPage(
+            (int) ($filters['page'] ?? 1), 10, $filters['subscription'] ?? null, $filters['from'] ?? null, $filters['to'] ?? null,
+            $filters['sort'] ?? null, $filters['dir'] ?? 'asc', $filters['plan'] ?? null
+        );
+
+        $paged['students'] = array_map(fn ($s) => $s + [
+            'color' => $palette[crc32((string) $s['name']) % count($palette)],
+            'initial' => mb_strtoupper(mb_substr(trim((string) $s['name']), 0, 1)) ?: '?',
+            'stageKind' => $stageKind((string) $s['stage']),
+        ], $paged['students']);
+
+        return response()->json($paged);
+    })->name('mock-master-helper.campaign-students');
+
+    Route::get('mock-master-helper', function () {
+        $groupPrompts = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
+            ->mockMaster()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy('step_title')
+            ->map(fn ($rows) => $rows->map(fn ($r) => [
+                'slug' => $r->slug,
+                'label' => $r->label,
+            ])->values());
+
+        $mkPrompts = $groupPrompts('marketing');
+        $slPrompts = $groupPrompts('sales');
+        $chPrompts = $groupPrompts('retention');
+
+        $mm = new \App\Services\MockMaster\MockMasterDataService();
+        $mkFilters = request()->validate([
+            'subscription' => 'nullable|string|max:255',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+            'page' => 'nullable|integer|min:1',
+            'plan' => 'nullable|in:all,paid,unpaid,Free trial,Paid,Coaching,Coaching + Paid,No purchase,Other',
+        ]);
+        $mkPaged = $mm->campaignStudentsPage((int) ($mkFilters['page'] ?? 1), 10, $mkFilters['subscription'] ?? null, $mkFilters['from'] ?? null, $mkFilters['to'] ?? null, null, 'asc', $mkFilters['plan'] ?? null);
+        $mkStudents = $mkPaged['students'];
+        $mkSubscriptions = $mm->subscriptionOptions();
+        $mkKpis = $mm->performanceKpis();
+        $mkSegments = $mm->audienceSegments();
+        $mkInsights = $mm->insightItems();
+        $mkTopScorers = $mm->topScorers(15);
+        $mkNewStudents = $mm->newStudents(15);
+        $slProspects = $mm->salesProspects();
+        $slClose = $mm->salesCloseCandidates(15);
+        // Sales · Close & grow — open checkouts plus headline counts
+        // (see MockMasterDataService "Close & grow").
+        $slAbandoned = $mm->salesAbandonedCheckouts(15);
+        $slCloseSummary = $mm->closeGrowSummary();
+        // Retention · Renew & win back — paid plans due for renewal and
+        // lapsed plans whose students are still active.
+        $chRenewals = $mm->retentionRenewalsDue(15);
+        $chWinBack = $mm->retentionWinBack(15);
+        $chRenewSummary = $mm->renewWinBackSummary();
+        // Raised from the panel's original default (6) — the "Package
+        // Expiring Soon" / "Renewal Watch" audience counts run into the
+        // dozens, so a 6-row list looked broken next to them once the
+        // "view list" popup (below) started reusing this same data.
+        $chAtRisk = $mm->retentionAtRisk(20);
+        $chWatchlist = $mm->retentionWatchlist(20);
+        $chRootCauses = $mm->retentionRootCauses();
+        // Real names offered in the "Which student?" picker for the Sales ·
+        // Accounts prompts — replaces a free-text prompt() so the rep always
+        // asks about a student who actually exists.
+        $mmContactNames = $mm->candidateStudentNames(60);
+
+        return view('client.mock-master-helper', compact(
+            'mkPrompts', 'slPrompts', 'chPrompts',
+            'mkStudents', 'mkPaged', 'mkSubscriptions', 'mkFilters', 'mkKpis', 'mkSegments', 'mkInsights', 'mkTopScorers', 'mkNewStudents',
+            'slProspects', 'slClose', 'slAbandoned', 'slCloseSummary',
+            'chAtRisk', 'chWatchlist', 'chRootCauses', 'chRenewals', 'chWinBack', 'chRenewSummary',
+            'mmContactNames'
+        ));
+    })->name('mock-master-helper');
+
+    Route::post('mock-master-helper/ask', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'agent' => 'required|in:marketing,sales,retention',
+            'question' => 'nullable|string|max:1000',
+        ]);
+
+        $service = new \App\Services\MockMaster\MockMasterChatService(
+            new \App\Services\MockMaster\MockMasterDataService(),
+            new \App\Services\Llm\OpenAiClient(),
+        );
+
+        return response()->json($service->answer($data['agent'], (string) ($data['question'] ?? '')));
+    })->name('mock-master-helper.ask');
+
+    // Backs the "Load more" button in the Mock Master Helper "view list"
+    // popup — the initial page load only embeds the first ~10-20 rows of
+    // each list (so the page itself stays light); this fetches further
+    // pages straight from the database on demand. {dataset} must be one of
+    // the keys below, matching MM_LIST_SLUGS' `list` values in
+    // mock-master-helper.blade.php.
+    // Student profile popup — opened by clicking a student's name in any
+    // Mock Master Helper list. Rows carry a student id (sid) where one is
+    // at hand, otherwise the email; either is enough to find the student.
+    Route::get('mock-master-helper/student', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'sid' => 'nullable|integer|min:1',
+            'email' => 'nullable|string|max:255',
+        ]);
+        if (empty($data['sid']) && empty($data['email'])) {
+            return response()->json(['message' => 'A student id or email is required.'], 422);
+        }
+
+        $profile = (new \App\Services\MockMaster\MockMasterDataService())
+            ->studentProfile(isset($data['sid']) ? (int) $data['sid'] : null, $data['email'] ?? null);
+
+        return $profile ? response()->json($profile) : response()->json(['message' => 'Student not found.'], 404);
+    })->name('mock-master-helper.student');
+
+    Route::get('mock-master-helper/more/{dataset}', function (\Illuminate\Http\Request $request, string $dataset) {
+        $mm = new \App\Services\MockMaster\MockMasterDataService();
+        $fetchers = [
+            'chAtRisk'      => fn (int $l, int $o) => $mm->retentionAtRisk($l, $o),
+            'chWatchlist'   => fn (int $l, int $o) => $mm->retentionWatchlist($l, $o),
+            'slProspects'   => fn (int $l, int $o) => $mm->salesProspects($l, $o),
+            'slClose'       => fn (int $l, int $o) => $mm->salesCloseCandidates($l, $o),
+            'slAbandoned'   => fn (int $l, int $o) => $mm->salesAbandonedCheckouts($l, $o),
+            'chRenewals'    => fn (int $l, int $o) => $mm->retentionRenewalsDue($l, $o),
+            'chWinBack'     => fn (int $l, int $o) => $mm->retentionWinBack($l, $o),
+            'mkTopScorers'  => fn (int $l, int $o) => $mm->topScorers($l, $o),
+            'mkNewStudents' => fn (int $l, int $o) => $mm->newStudents($l, $o),
+        ];
+
+        if (!isset($fetchers[$dataset])) {
+            abort(404);
+        }
+
+        $offset = max(0, (int) $request->query('offset', 0));
+        $pageSize = 20;
+
+        // Fetch one extra row so we know whether another page exists,
+        // without a second COUNT query.
+        $rows = $fetchers[$dataset]($pageSize + 1, $offset);
+        $hasMore = count($rows) > $pageSize;
+        if ($hasMore) {
+            array_pop($rows);
+        }
+
+        return response()->json(['rows' => $rows, 'hasMore' => $hasMore]);
+    })->name('mock-master-helper.more');
+
+    // Pulls the 14 live Mock Master source tables (coupon_usage,
+    // deleted_students, feedbacks, login_history, meetings, mock_test_logs,
+    // mock_test_results, notifications, notifications_seen, packages,
+    // payments, purchases, scheduled_emails, studentuser) from the remote
+    // PTE Portal database into their local mm_* mirrors. See
+    // App\Services\MockMaster\MockMasterSyncService.
+    Route::post('mock-master-helper/sync', function () {
+        // Copying ~1.1M rows from the live server takes several minutes —
+        // well past PHP's default 120s script timeout.
+        set_time_limit(600);
+
+        try {
+            $result = (new \App\Services\MockMaster\MockMasterSyncService())->sync();
+            // Fresh data — drop the cached Close & grow activity scan.
+            \App\Services\MockMaster\MockMasterDataService::forgetCachedActivity();
+
+            return response()->json([
+                'ok' => true,
+                'total_rows' => $result['total_rows'],
+                'tables' => $result['tables'],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Sync failed — the live database may be unreachable. Please try again shortly.',
+            ], 500);
+        }
+    })->name('mock-master-helper.sync');
+
+    // Sales agent AI chat — answers arbitrary free-typed questions using the
+    // same real CRM/Brevo-derived account data as the page itself (see
+    // App\Services\RealAccountsService), written up by OpenAI. Falls back to
+    // a plain "not available" message when OPENAI_API_KEY isn't configured
+    // or the API call fails — the static PLAYBOOKS matcher in the Blade view
+    // still handles quick-action buttons and any close keyword match first.
+    Route::post('business-helpers/sales/ask', function (\Illuminate\Http\Request $request) {
+        return response()->json(
+            app(\App\Services\Llm\SalesChatService::class)->answer((string) $request->input('question', ''))
+        );
+    })->name('business-helpers.sales.ask');
+
+    // Sales agent predefined-prompt AI answers — for the handful of prompts
+    // (see SalesPromptInsightsService::HANDLED_KEYS) that need real
+    // crm_contacts/crm_deals/crm_integrations/email_logs_providers row detail
+    // rather than the precomputed scores rankedFor()/classifySales() already
+    // use for every other predefined Sales prompt.
+    Route::post('business-helpers/sales/prompt-insight', function (\Illuminate\Http\Request $request) {
+        return response()->json(
+            app(\App\Services\Llm\SalesPromptInsightsService::class)->answer(
+                (string) $request->input('step', ''),
+                (string) $request->input('prompt', ''),
+                $request->input('name'),
+                (string) $request->input('label', '')
+            )
+        );
+    })->name('business-helpers.sales.prompt-insight');
+
+    // Sales agent · Overcome category playbook — diagnoses the single most
+    // likely objection for the selected client from real crm_contacts/
+    // crm_deals/email_logs_providers data + the same scores every other
+    // Sales view reads, written up by OpenAI with a deterministic
+    // rule-based fallback (see SalesPromptInsightsService::objectionPlaybook).
+    Route::get('business-helpers/sales/objection-playbook', function (\Illuminate\Http\Request $request) {
+        return response()->json(
+            app(\App\Services\Llm\SalesPromptInsightsService::class)->objectionPlaybook($request->query('name'))
+        );
+    })->name('business-helpers.sales.objection-playbook');
+
+    // Sales · Close & grow "Email" action — actually sends the script shown
+    // in Pitch to the real crm_contacts email on file, instead of just
+    // previewing it. Recipient/subject/body all come from data already
+    // rendered to this client (ACCOUNTS, @json($realAccounts)), so this just
+    // validates and sends; logged to email_logs the same way Mock Master's
+    // sender is.
+    Route::post('business-helpers/sales/send-email', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'email' => 'required|email|max:255',
+            'name' => 'nullable|string|max:255',
+            'subject' => 'required|string|max:255',
+            'body' => 'required|string|max:5000',
+        ]);
+
+        $clientId = \Illuminate\Support\Facades\Auth::guard('client')->id();
+
+        $log = function (string $status, ?string $error = null) use ($clientId, $data) {
+            \Illuminate\Support\Facades\DB::table('email_logs')->insert([
+                'client_id' => $clientId,
+                'email_address' => $data['email'],
+                'recipient_name' => $data['name'] ?? null,
+                'subject' => mb_substr($data['subject'], 0, 255),
+                'body' => $data['body'],
+                'type' => 'single',
+                'bulk_count' => 1,
+                'status' => $status,
+                'error_message' => $error,
+                'sent_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        };
+
+        try {
+            \Illuminate\Support\Facades\Mail::raw($data['body'], function ($message) use ($data) {
+                $message->to($data['email'])->subject($data['subject']);
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            $log('failed', mb_substr($e->getMessage(), 0, 1000));
+            return response()->json(['ok' => false, 'message' => 'The email could not be sent. Please try again.'], 500);
+        }
+
+        $log('sent');
+
+        return response()->json(['ok' => true, 'message' => 'Email sent to ' . $data['email']]);
+    })->name('business-helpers.sales.send-email');
+
     // Customer Retention · Risk radar AI answers (crm_contacts + crm_deals +
     // email_logs_providers, written up by OpenAI when OPENAI_API_KEY is set —
     // see App\Services\RetentionSaveFirstService).
     Route::get('business-helpers/retention/save-first', function () {
         return response()->json(app(\App\Services\RetentionSaveFirstService::class)->answer());
     })->name('business-helpers.retention.save-first');
+
+    // Customer Retention · Risk radar AI answers backed by real Stripe
+    // transaction data cross-referenced with the CRM — see
+    // App\Services\TransactionInsightsService.
+    Route::get('business-helpers/retention/payment-failures', function () {
+        return response()->json(app(\App\Services\TransactionInsightsService::class)->failedPaymentsRecent());
+    })->name('business-helpers.retention.payment-failures');
+
+    Route::get('business-helpers/retention/declining-value', function () {
+        return response()->json(app(\App\Services\TransactionInsightsService::class)->decliningTransactionValue());
+    })->name('business-helpers.retention.declining-value');
+
+    Route::get('business-helpers/retention/high-value-quiet', function () {
+        return response()->json(app(\App\Services\TransactionInsightsService::class)->highValueCustomersQuiet());
+    })->name('business-helpers.retention.high-value-quiet');
 
     // Marketing · Audience AI answers (crm_contacts + crm_deals, written up by
     // OpenAI when OPENAI_API_KEY is set — see App\Services\MarketingAudienceService).
@@ -478,6 +926,29 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('business-helpers/marketing/worst-unsub-audience', function () {
         return response()->json(app(\App\Services\MarketingLiftService::class)->worstUnsubscribeAudience());
     })->name('business-helpers.marketing.worst-unsub-audience');
+
+    // Marketing AI answers backed by real Stripe transaction data
+    // cross-referenced with the CRM — see App\Services\TransactionInsightsService.
+    Route::get('business-helpers/marketing/ltv-by-segment', function () {
+        return response()->json(app(\App\Services\TransactionInsightsService::class)->ltvBySegment());
+    })->name('business-helpers.marketing.ltv-by-segment');
+
+    Route::get('business-helpers/marketing/first-to-second-purchase', function () {
+        return response()->json(app(\App\Services\TransactionInsightsService::class)->avgTimeBetweenFirstSecondPurchase());
+    })->name('business-helpers.marketing.first-to-second-purchase');
+
+    Route::get('business-helpers/marketing/onetime-buyers-quiet', function () {
+        return response()->json(app(\App\Services\TransactionInsightsService::class)->oneTimeBuyersQuiet());
+    })->name('business-helpers.marketing.onetime-buyers-quiet');
+
+    // Marketing · "Ask anything" free-text box — genuinely open-ended:
+    // hands the typed question plus a real snapshot of crm_contacts +
+    // crm_deals joined to email_logs / email_logs_providers to the LLM,
+    // which must answer using only that data. Needs OPENAI_API_KEY
+    // configured. See App\Services\MarketingAskService.
+    Route::post('business-helpers/marketing/ask', function (\Illuminate\Http\Request $request) {
+        return response()->json(app(\App\Services\MarketingAskService::class)->answer((string) $request->input('question', '')));
+    })->name('business-helpers.marketing.ask');
 
     Route::get('business-helpers/retention/watchlist', function () {
         return response()->json(app(\App\Services\RetentionSaveFirstService::class)->watchlistAnswer());
@@ -845,6 +1316,9 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::post('/payment-gateway-connections/{gateway}/test', [PaymentGatewayConnectionController::class, 'testConnection'])
         ->name('payment-gateway-connections.test');
 
+    Route::post('/payment-gateway-connections/{gateway}/sync', [PaymentGatewayConnectionController::class, 'sync'])
+        ->name('payment-gateway-connections.sync');
+
     Route::delete('/payment-gateway-connections/{gateway}', [PaymentGatewayConnectionController::class, 'destroy'])
         ->name('payment-gateway-connections.destroy');
 
@@ -989,6 +1463,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
                 ->name('payment-methods');
             Route::get('/refunds', [TransactionAnalyticsController::class, 'refunds'])
                 ->name('refunds');
+            Route::get('/customers', [TransactionAnalyticsController::class, 'customers'])
+                ->name('customers');
             Route::get('/customer-ltv', [TransactionAnalyticsController::class, 'customerLtv'])
                 ->name('customer-ltv');
             Route::get('/export/{format}', [TransactionAnalyticsController::class, 'export'])

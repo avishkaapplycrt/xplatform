@@ -7,6 +7,7 @@ use App\Models\SocialIntegration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -208,15 +209,20 @@ class SocialConnectionController extends Controller
                 ->with('error', 'Instagram App is not configured. Add INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET to your .env file.');
         }
 
+        // Return to this app's own callback on the address the user is on now
+        // (e.g. http://127.0.0.1:8000/...), so the login session and OAuth
+        // state are still there when Instagram sends the user back. This exact
+        // URL must be listed under "OAuth redirect URIs" in the Meta app.
+        $redirectUri = route('client.social.instagram.callback');
         $state = Str::random(40);
-        session(['instagram_oauth_state' => $state]);
+        session(['instagram_oauth_state' => $state, 'instagram_oauth_redirect' => $redirectUri]);
 
         $params = http_build_query([
             'client_id'     => $clientId,
-            'redirect_uri'  => config('services.instagram.redirect'),
+            'redirect_uri'  => $redirectUri,
             'state'         => $state,
             'response_type' => 'code',
-            'scope'         => 'instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_insights,instagram_business_content_publish',
+            'scope'         => 'instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_insights,instagram_business_content_publish,instagram_business_manage_messages',
         ]);
 
         return redirect('https://www.instagram.com/oauth/authorize?' . $params);
@@ -225,15 +231,20 @@ class SocialConnectionController extends Controller
     public function handleInstagramCallback(Request $request)
     {
         if ($request->filled('error')) {
+            Log::warning('Instagram OAuth: authorization cancelled or refused', $request->only('error', 'error_reason', 'error_description', 'error_message'));
             return redirect()->route('client.social.connect', ['platform' => 'instagram'])
                 ->with('error', 'Instagram authorization was cancelled: ' . $request->input('error_message', $request->input('error')));
         }
 
         if (!$request->filled('state') || $request->input('state') !== session('instagram_oauth_state')) {
+            Log::warning('Instagram OAuth: state mismatch (started outside the Connect button, or on another domain/session)', ['host' => $request->getHost(), 'has_state' => $request->filled('state'), 'session_has_state' => session()->has('instagram_oauth_state')]);
             return redirect()->route('client.social.connect', ['platform' => 'instagram'])
                 ->with('error', 'Invalid OAuth state. Please try connecting again.');
         }
-        session()->forget('instagram_oauth_state');
+        // Instagram requires the token request to use the exact redirect_uri
+        // that started the login.
+        $redirectUri = session('instagram_oauth_redirect', route('client.social.instagram.callback'));
+        session()->forget(['instagram_oauth_state', 'instagram_oauth_redirect']);
 
         if (!$request->filled('code')) {
             return redirect()->route('client.social.connect', ['platform' => 'instagram'])
@@ -245,12 +256,15 @@ class SocialConnectionController extends Controller
                 'client_id'     => config('services.instagram.client_id'),
                 'client_secret' => config('services.instagram.client_secret'),
                 'grant_type'    => 'authorization_code',
-                'redirect_uri'  => config('services.instagram.redirect'),
+                'redirect_uri'  => $redirectUri,
                 'code'          => $request->input('code'),
             ]);
 
-            $shortLivedToken = $tokenResponse->json('data.0.access_token');
-            $igUserId        = $tokenResponse->json('data.0.user_id');
+            // The Instagram API with Instagram Login token endpoint returns a
+            // flat object ({access_token, user_id, permissions}), not the old
+            // Basic Display API's {data: [{access_token, user_id}]} shape.
+            $shortLivedToken = $tokenResponse->json('access_token');
+            $igUserId        = $tokenResponse->json('user_id');
 
             if ($tokenResponse->failed() || empty($shortLivedToken)) {
                 throw new \Exception(
@@ -295,6 +309,8 @@ class SocialConnectionController extends Controller
                 'settings'         => [
                     'connected_via' => 'instagram_business_login',
                     'account_type'  => $profileResponse->json('account_type'),
+                    // What the user actually approved — DM sync needs instagram_business_manage_messages.
+                    'permissions'   => $tokenResponse->json('permissions') ?? [],
                 ],
                 'sync_config'      => [
                     'sync_frequency' => 'hourly',
@@ -313,10 +329,22 @@ class SocialConnectionController extends Controller
             $connection = SocialIntegration::updateOrCreate(['platform' => 'instagram'], $data);
             $connection->refresh();
 
+            // First sync right away, so instagram_media / instagram_account_insights
+            // fill without waiting for "Sync Now". A sync failure must not undo the
+            // connection — the job records it in last_error.
+            try {
+                \App\Jobs\SyncInstagramPosts::dispatchSync($connection->id);
+            } catch (\Throwable $e) {
+                Log::error('Instagram first sync failed', ['connection_id' => $connection->id, 'message' => $e->getMessage()]);
+            }
+
             return redirect()->route('client.social-connections')
                 ->with('success', 'Instagram connected successfully. Account: @' . $igUsername);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            // Any failure (incl. PHP errors, not only exceptions) goes back to the
+            // Connect page with the reason — never leave the user on the callback URL.
+            Log::error('Instagram OAuth: connection failed', ['message' => $e->getMessage(), 'type' => get_class($e), 'at' => $e->getFile() . ':' . $e->getLine()]);
             return redirect()->route('client.social.connect', ['platform' => 'instagram'])
                 ->with('error', 'Instagram connection failed: ' . $e->getMessage());
         }
@@ -915,20 +943,33 @@ class SocialConnectionController extends Controller
                     break;
 
                 case 'instagram':
-                    $token = $connection->access_token ? Crypt::decryptString($connection->access_token) : null;
-                    if ($token) {
-                        $res = Http::get('https://graph.instagram.com/v21.0/me', [
-                            'fields'       => 'followers_count,media_count',
-                            'access_token' => $token,
-                        ]);
-                        if ($res->successful()) {
-                            $metrics = $connection->metrics ?? [];
-                            $metrics['followers']   = $res->json('followers_count') ?? ($metrics['followers'] ?? 0);
-                            $metrics['posts_count'] = $res->json('media_count') ?? ($metrics['posts_count'] ?? 0);
-                            $connection->update(['metrics' => $metrics]);
-                        }
+                    // Run the sync now (not via the queue): with no queue worker
+                    // running, queued syncs never executed, so "Sync Now" stored
+                    // nothing. SyncInstagramPosts still owns status / error
+                    // tracking; App\Services\InstagramService does the API calls.
+                    try {
+                        \App\Jobs\SyncInstagramPosts::dispatchSync($connection->id);
+                    } catch (\Throwable $e) {
+                        Log::error('Instagram sync failed', ['connection_id' => $connection->id, 'message' => $e->getMessage()]);
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Instagram sync failed: ' . $e->getMessage(),
+                        ], 500);
                     }
-                    break;
+
+                    $connection->refresh();
+                    $m = $connection->metrics ?? [];
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Instagram synced: ' . ($m['posts_synced'] ?? 0) . ' posts, '
+                            . ($m['followers'] ?? 0) . ' followers, '
+                            . (($m['messages_access'] ?? false)
+                                ? ($m['messages_synced'] ?? 0) . ' messages.'
+                                : 'messages not allowed — reconnect Instagram and allow message access.'),
+                        'status'  => $connection->status,
+                    ]);
 
                 case 'tiktok':
                     $token = $this->getValidTikTokToken($connection);

@@ -12,42 +12,46 @@ class AgentPredefinedPromptsSeeder extends Seeder
         $rows = [
             // Sales · Prioritise
             ['sales', 'prioritise', 'contact_today', 'Who should I contact today?', 1],
-            ['sales', 'prioritise', 'top5_hour', 'Give me my top 5 for this hour', 2],
-            ['sales', 'prioritise', 'buying_window', "Who's in the buying window right now?", 3],
+            ['sales', 'prioritise', 'top5_hour', 'Which prospects are the highest priority right now?', 2],
+            ['sales', 'prioritise', 'buying_window', 'Who is most likely to buy soon?', 3],
             ['sales', 'prioritise', 'not_call', 'Who should I NOT call this week, and why?', 4],
-            ['sales', 'prioritise', 'changed_yesterday', 'What changed since yesterday?', 5],
+            ['sales', 'prioritise', 'immediate_attention', 'Which deals need immediate attention?', 5],
 
             // Sales · Understand
             ['sales', 'understand', 'why_ranked', 'Why is [name] ranked here?', 1],
-            ['sales', 'understand', 'been_doing', 'What has [name] been doing?', 2],
-            ['sales', 'understand', 'holding_back', "What's holding [name] back?", 3],
-            ['sales', 'understand', 'ready_or_researching', 'Is [name] ready or just researching?', 4],
-            ['sales', 'understand', 'cares_about', 'What does [name] care about most?', 5],
+            ['sales', 'understand', 'last_active', 'When was [name] last active?', 2],
+            ['sales', 'understand', 'deal_status', "What is [name]'s current deal status?", 3],
+            ['sales', 'understand', 'ready_or_researching', 'How close is [name] to making a purchase?', 4],
+            ['sales', 'understand', 'priority_changed', "Has [name]'s priority changed recently?", 5],
 
             // Sales · Craft (Pitch)
-            ['sales', 'craft', 'script_for', 'Script for [name]', 1],
-            ['sales', 'craft', 'opener_30s', '30-second opener for [name]', 2],
-            ['sales', 'craft', 'whatsapp_version', 'WhatsApp / DM version', 3],
-            ['sales', 'craft', 'email_version', 'Email version', 4],
-            ['sales', 'craft', 'proof_to_show', 'What proof should I show [name]?', 5],
-            ['sales', 'craft', 'shorter_less_salesy', 'Make it shorter / less salesy', 6],
+            ['sales', 'craft', 'opener_30s', 'How should I ask [name] for a meeting?', 1],
+            ['sales', 'craft', 'shorter_less_salesy', "What's a low-pressure way to move [name] forward?", 2],
+            ['sales', 'craft', 'not_ready_response', "How should I respond if [name] says they're not ready?", 3],
+            ['sales', 'craft', 'too_expensive_response', "How do I respond if [name] says it's too expensive?", 4],
+            ['sales', 'craft', 'competitor_response', 'What should I say if [name] is comparing competitors?', 5],
 
             // Sales · Handle (Overcome)
-            ['sales', 'handle', 'too_expensive', 'Too expensive', 1],
-            ['sales', 'handle', 'not_right_now', 'Not right now', 2],
-            ['sales', 'handle', 'use_competitor', 'We use a competitor', 3],
-            ['sales', 'handle', 'send_info', 'Send me some info', 4],
-            ['sales', 'handle', 'no_budget', 'No budget', 5],
-            ['sales', 'handle', 'need_boss', 'Need my boss', 6],
-            ['sales', 'handle', 'something_else', 'They said something else…', 7],
+            ['sales', 'handle', 'not_interested', "I'm not interested", 1],
+            ['sales', 'handle', 'not_right_now', 'Contact me later', 2],
+            ['sales', 'handle', 'why_need_this', 'Why do we need this?', 3],
+            ['sales', 'handle', 'use_competitor', "We're happy with our current provider", 4],
+            ['sales', 'handle', 'too_expensive', "It's too expensive compared to other options", 5],
 
             // Sales · Launch (Close & grow)
-            ['sales', 'launch', 'how_close', 'How do I close [name]?', 1],
-            ['sales', 'launch', 'smallest_ask', 'Smallest ask I can make to [name]?', 2],
-            ['sales', 'launch', 'ready_upgrade', "Who's ready for an upgrade?", 3],
-            ['sales', 'launch', 'offer_discount', 'Should I offer a discount?', 4],
-            ['sales', 'launch', 'weighted_pipeline', "What's my weighted pipeline?", 5],
-            ['sales', 'launch', 'at_risk_no_touch', "What's at risk that I shouldn't touch?", 6],
+            ['sales', 'launch', 'renewal_approach', 'Who should I approach for renewal?', 1],
+            ['sales', 'launch', 'ready_upgrade', 'Who has the strongest upsell opportunity?', 2],
+            ['sales', 'launch', 'at_risk_no_touch', 'What deals need attention to protect revenue?', 3],
+            ['sales', 'launch', 'close_this_month', 'Which deals are most likely to close this month?', 4],
+            ['sales', 'launch', 'growth_potential', 'Which existing customers have the highest growth potential?', 5],
+            ['sales', 'launch', 'pitched_converted', 'Which pitched prospects converted to a paid transaction?', 6],
+            ['sales', 'launch', 'quoted_vs_actual', 'Where does closed deal size differ from what was quoted?', 7],
+
+            // Sales · Prioritise (transaction-backed)
+            ['sales', 'prioritise', 'stalled_after_failed_payment', 'Which deals stalled right after a failed first payment attempt?', 6],
+
+            // Sales · Understand (transaction-backed)
+            ['sales', 'understand', 'purchased_without_contact', 'Which customers made a purchase without ever being contacted by sales?', 6],
 
             // Marketing · Audience
             ['marketing', 'Audience', 'winback_sequence_this_week', 'Who should get the win-back sequence this week?', 1],
@@ -56,6 +60,7 @@ class AgentPredefinedPromptsSeeder extends Seeder
             ['marketing', 'Audience', 'who_would_refer_us', 'Who would refer us if I asked?', 4],
             ['marketing', 'Audience', 'exclude_from_every_send', 'Who must be excluded from every send, and why?', 5],
             ['marketing', 'Audience', 'in_live_sales_cycle', 'Who is in a live sales cycle — leave them alone?', 6],
+            ['marketing', 'Audience', 'onetime_buyers_quiet_90d', "Which one-time buyers haven't returned in 90+ days?", 7],
 
             // Marketing · Insights
             ['marketing', 'Insights', 'top_shared_signal_mql_sales', 'What is the top shared signal in MQL → Sales right now?', 1],
@@ -64,6 +69,8 @@ class AgentPredefinedPromptsSeeder extends Seeder
             ['marketing', 'Insights', 'why_name_here_not_sales', 'Why is [name] here and not with Sales?', 4],
             ['marketing', 'Insights', 'rule_put_people_mql_sales', 'What rule put people into MQL → Sales?', 5],
             ['marketing', 'Insights', 'changed_last_7_days', 'What changed in the last 7 days?', 6],
+            ['marketing', 'Insights', 'ltv_by_segment', 'Which customer segment has the highest lifetime value?', 7],
+            ['marketing', 'Insights', 'first_to_second_purchase', "What's the average time between a customer's first and second purchase, by segment?", 8],
 
             // Marketing · Campaign
             ['marketing', 'Campaign', 'email_sequence_mql_sales', 'Write the 3-touch email sequence for MQL → Sales', 1],
@@ -96,6 +103,8 @@ class AgentPredefinedPromptsSeeder extends Seeder
             ['retention', 'Risk radar', 'payment_failures_today', 'Any payment failures to fix today?', 3],
             ['retention', 'Risk radar', 'drifting_watchlist', 'Who is drifting onto the watchlist?', 4],
             ['retention', 'Risk radar', 'value_at_risk', 'How much value is at risk right now?', 5],
+            ['retention', 'Risk radar', 'declining_transaction_value', "Who's at risk of churn based on declining transaction value?", 6],
+            ['retention', 'Risk radar', 'high_value_quiet_60d', "Which high-value customers haven't transacted in over 60 days?", 7],
 
             // Retention · Root cause
             ['retention', 'Root cause', 'why_leaving', 'Why is [Name] leaving?', 1],
@@ -137,7 +146,10 @@ class AgentPredefinedPromptsSeeder extends Seeder
         ];
 
         $rowsBySlug = collect($rows)->keyBy(fn ($row) => $row[0] . '|' . $row[2]);
-        AgentPredefinedPrompt::whereIn('agent', ['marketing', 'retention'])
+        // Scoped to is_mock_master = false so this cleanup never touches the
+        // separate Mock Master Helper prompt set (see MockMasterPredefinedPromptsSeeder).
+        AgentPredefinedPrompt::whereIn('agent', ['sales', 'marketing', 'retention'])
+            ->where('is_mock_master', false)
             ->get(['id', 'agent', 'slug'])
             ->each(function ($existing) use ($rowsBySlug) {
                 if (!$rowsBySlug->has($existing->agent . '|' . $existing->slug)) {

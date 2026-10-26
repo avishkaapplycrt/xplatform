@@ -5,6 +5,7 @@
 .claude/settings.local.json
 .env.backup
 .env.production
+.env_bkp
 .phpactor.json
 .phpunit.result.cache
 /.fleet
@@ -24,3 +25,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Never commit .env copies (backups hold real keys); only the template is tracked.
+.env.*
+!.env.example

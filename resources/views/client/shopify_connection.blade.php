@@ -547,6 +547,7 @@
     </div>
   </div>
 
+
 </div>
 </div>
 
@@ -656,39 +657,6 @@ function submitConnection(e) {
 }
 
 function verifyConnection() {
-  const btn = document.getElementById('verifyBtn');
-  const status = document.getElementById('verifyStatus');
-
-  if (!currentConnectionId) return;
-
-  btn.classList.add('loading');
-  status.style.display = 'inline-flex';
-  status.className = 'verify-badge pending';
-  status.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-current inline-block"></span> Checking...';
-
-  fetch('{{ url("/app/website-connections") }}/' + currentConnectionId + '/verify')
-    .then(r => r.json())
-    .then(res => {
-      if (res.healthy) {
-        status.className = 'verify-badge success';
-        status.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-current inline-block"></span> Verified!';
-        updateProgress(3);
-      } else {
-        status.className = 'verify-badge error';
-        status.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-current inline-block"></span> Not detected';
-      }
-    })
-    .catch(err => {
-      console.error(err);
-      status.className = 'verify-badge error';
-      status.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-current inline-block"></span> Check failed';
-    })
-    .finally(() => {
-      btn.classList.remove('loading');
-    });
-}
-
- {
   const btn = document.getElementById('verifyBtn');
   const status = document.getElementById('verifyStatus');
   const forceBtn = document.getElementById('forceVerifyBtn');

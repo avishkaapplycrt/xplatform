@@ -9,25 +9,66 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
+    <style>
+        /* Sidebar width is drag-resizable via #sidebarResizer; an inline width
+           (e.g. the Business Helpers collapse button) still takes precedence. */
+        #platformSidebar { width: var(--sidebar-w, 200px); }
+        #platformSidebar.is-resizing { transition: none; }
+        #sidebarResizer { width: 10px; margin-left: -5px; margin-right: -5px; height: 100%; align-self: stretch; position: relative; z-index: 40; cursor: col-resize; flex-shrink: 0; touch-action: none; }
+        #sidebarResizer::after { content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: transparent; transition: background .15s; }
+        #sidebarResizer:hover::after, #sidebarResizer:focus-visible::after, #sidebarResizer.is-active::after { background: #34d399; }
+        #sidebarResizer:focus-visible { outline: none; }
+        #platformSidebar.bh-sidebar-collapsed + #sidebarResizer { display: none; }
+    </style>
 </head>
 <body class="h-screen flex overflow-hidden bg-gray-100 font-sans antialiased text-[13px]">
 
     {{-- Left Sidebar --}}
     <aside id="platformSidebar" class="w-[200px] bg-white border-r border-gray-200 flex flex-col h-full flex-shrink-0 transition-all duration-200">
 
-        {{-- Active Tenant --}}
+        {{-- Active Tenant: "Admin Account" shows Business Helpers and Mock Master Helper, "Mock Master" shows only
+             Mock Master Helper. The last choice in the dropdown (route client.tenant.switch) decides. --}}
+        @php
+            $tenants = ['mockmaster' => 'Mock Master', 'admin' => 'Admin Account'];
+            $activeTenant = session('active_tenant', 'admin');
+            if (! isset($tenants[$activeTenant])) {
+                $activeTenant = 'admin';
+            }
+        @endphp
         <div class="px-3 pt-4 pb-3 border-b border-gray-100">
             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Active Tenant</p>
 
-            <button
-                class="w-full flex items-center justify-between bg-white border border-gray-200 rounded-md px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition">
-                <span>{{ auth('client')->user()?->company_name ?? 'Acme Retail' }}</span>
-                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                </svg>
-            </button>
+            <div class="relative" data-dd-wrap>
+                <button type="button" onclick="xpDd('tenantMenu')" aria-haspopup="menu"
+                    class="w-full flex items-center justify-between bg-white border border-gray-200 rounded-md px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition">
+                    <span class="flex items-center gap-2 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                        <span class="truncate">{{ $tenants[$activeTenant] }}</span>
+                    </span>
+                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div id="tenantMenu" data-dd-menu role="menu" style="display:none"
+                     class="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 py-1">
+                    @foreach ($tenants as $key => $label)
+                        <a href="{{ route('client.tenant.switch', $key) }}" role="menuitem"
+                           class="flex items-center justify-between px-3 py-2 text-xs transition
+                                  {{ $activeTenant === $key ? 'text-teal-700 font-medium bg-teal-50' : 'text-gray-600 hover:bg-gray-50' }}">
+                            <span>{{ $label }}</span>
+                            @if ($activeTenant === $key)
+                                <svg class="w-3.5 h-3.5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            @endif
+                        </a>
+                    @endforeach
+                </div>
+            </div>
         </div>
 
+        @if ($activeTenant === 'admin')
         {{-- Business Helpers --}}
         <div class="px-3 pt-3">
             <a href="{{ route('client.business-helpers') }}"
@@ -43,26 +84,33 @@
                 <span class="truncate">Business Helpers</span>
             </a>
         </div>
+        @endif
+
+        {{-- Mock Master Helper --}}
+        <div class="px-3 {{ $activeTenant === 'admin' ? 'pt-1' : 'pt-3' }}">
+            <a href="{{ route('client.mock-master-helper') }}"
+               class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
+                      {{ request()->routeIs('client.mock-master-helper')
+                         ? 'bg-teal-50 text-teal-700 font-medium border-l-2 border-teal-400'
+                         : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
+                <svg class="w-3.5 h-3.5 flex-shrink-0 {{ request()->routeIs('client.mock-master-helper') ? 'text-teal-500' : 'text-gray-400' }}"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span class="truncate">Mock Master Helper</span>
+            </a>
+        </div>
 
         {{-- Platform Layers Navigation --}}
         <div class="px-3 pt-3 flex-1 overflow-y-auto">
             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Platform Layers</p>
 
             <nav class="space-y-1">
-                {{-- Architecture Overview --}}
-                <a href="{{ route('client.architecture') }}"
-                   class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
-                          {{ request()->routeIs('client.architecture')
-                             ? 'bg-teal-50 text-teal-700 font-medium border-l-2 border-teal-400'
-                             : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
-                    <svg class="w-3.5 h-3.5 flex-shrink-0 {{ request()->routeIs('client.architecture') ? 'text-teal-500' : 'text-gray-400' }}"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M12 3l8 8-8 8-8-8 8-8z"/>
-                    </svg>
-                    <span class="truncate">Architecture Overview</span>
-                </a>
-
+                {{-- Architecture Overview — collapsible group, same toggle
+                     pattern as Revenue Optimization / Customer Success below:
+                     a button (no navigation of its own) that expands to show
+                     "Overview" + L1-L8, instead of always listing L1-L8 flat. --}}
                 @php
                 $allSidebarLayers = [
                     ['num'=>'L1','label'=>'Data Collection',        'color'=>'text-emerald-600','bg'=>'bg-emerald-50', 'route'=>'client.layer.l1'],
@@ -78,23 +126,45 @@
                 $sidebarLayers = empty($selectedLayerCodes)
                     ? $allSidebarLayers
                     : array_values(array_filter($allSidebarLayers, fn($l) => in_array($l['num'], $selectedLayerCodes)));
+                $archLayerRoutes = collect($sidebarLayers)->pluck('route')->push('client.data-collection')->all();
+                $isArchActive = request()->routeIs('client.architecture') || collect($archLayerRoutes)->contains(fn($r) => request()->routeIs($r));
                 @endphp
-
-                @foreach($sidebarLayers as $layer)
-                    @php
-                        $href     = route($layer['route']);
-                        $isActive = request()->routeIs($layer['route'])
-                                 || ($layer['num'] === 'L1' && request()->routeIs('client.data-collection'));
-                    @endphp
-                    <a href="{{ $href }}"
-                       class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
-                              {{ $isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
-                        <span class="text-[10px] font-bold {{ $layer['color'] }} {{ $layer['bg'] }} rounded px-1.5 py-0.5 leading-none flex-shrink-0">
-                            {{ $layer['num'] }}
-                        </span>
-                        <span class="truncate">{{ $layer['label'] }}</span>
-                    </a>
-                @endforeach
+                <div class="space-y-1">
+                    <button onclick="toggleArchMenu()"
+                            class="w-full flex items-center justify-between px-3 py-2 text-xs rounded-md transition
+                                   {{ $isArchActive ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0 {{ $isArchActive ? 'text-teal-500' : 'text-gray-400' }}"
+                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M12 3l8 8-8 8-8-8 8-8z"/>
+                            </svg>
+                            <span class="truncate">Architecture Overview</span>
+                        </div>
+                        <svg id="archChevron" class="w-3 h-3 transition-transform"
+                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    {{-- Always starts collapsed, same as Revenue Optimization
+                         / Customer Success below — no auto-expand on active
+                         route, only toggled by clicking the button above. --}}
+                    <div id="archSubmenu" class="hidden pl-7 space-y-1">
+                        @foreach($sidebarLayers as $layer)
+                            @php
+                                $href     = route($layer['route']);
+                                $isActive = request()->routeIs($layer['route'])
+                                         || ($layer['num'] === 'L1' && request()->routeIs('client.data-collection'));
+                            @endphp
+                            <a href="{{ $href }}"
+                               class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                      {{ $isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900' }}">
+                                <span class="text-[10px] font-bold {{ $layer['color'] }} flex-shrink-0">{{ $layer['num'] }}</span>
+                                <span class="truncate">{{ $layer['label'] }}</span>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
 
                 {{-- Revenue Optimization Group --}}
                 @php
@@ -435,6 +505,82 @@
         </div>
     </aside>
 
+    {{-- Sidebar resize handle: drag, arrow keys, or double-click to reset --}}
+    <div id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" tabindex="0" title="Drag to resize · double-click to reset"></div>
+    <script>
+    (function () {
+        var MIN = 160, MAX = 420, DEF = 200, KEY = 'xp.sidebarWidth';
+        var sidebar = document.getElementById('platformSidebar');
+        var handle = document.getElementById('sidebarResizer');
+        var root = document.documentElement;
+
+        function clamp(w) { return Math.min(MAX, Math.max(MIN, Math.round(w))); }
+        function apply(w) {
+            w = clamp(w);
+            root.style.setProperty('--sidebar-w', w + 'px');
+            handle.setAttribute('aria-valuenow', w);
+            return w;
+        }
+        function save(w) { try { localStorage.setItem(KEY, w); } catch (e) {} }
+
+        var saved = null;
+        try { saved = parseInt(localStorage.getItem(KEY), 10); } catch (e) {}
+        handle.setAttribute('aria-valuemin', MIN);
+        handle.setAttribute('aria-valuemax', MAX);
+        apply(saved || DEF);
+
+        function done() { window.dispatchEvent(new Event('resize')); }
+
+        handle.addEventListener('pointerdown', function (e) {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            var startX = e.clientX, startW = sidebar.getBoundingClientRect().width, w = startW;
+            var moved = false;
+            handle.setPointerCapture(e.pointerId);
+            sidebar.classList.add('is-resizing');
+            handle.classList.add('is-active');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+
+            function move(ev) {
+                if (!moved && Math.abs(ev.clientX - startX) < 3) return; // ignore jitter so a click stays a click
+                moved = true;
+                w = apply(startW + ev.clientX - startX);
+            }
+            function up() {
+                handle.removeEventListener('pointermove', move);
+                handle.removeEventListener('pointerup', up);
+                handle.removeEventListener('pointercancel', up);
+                sidebar.classList.remove('is-resizing');
+                handle.classList.remove('is-active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                if (!moved) return;
+                save(w);
+                done();
+            }
+            handle.addEventListener('pointermove', move);
+            handle.addEventListener('pointerup', up);
+            handle.addEventListener('pointercancel', up);
+        });
+
+        handle.addEventListener('dblclick', function () { save(apply(DEF)); done(); });
+
+        handle.addEventListener('keydown', function (e) {
+            var step = e.shiftKey ? 40 : 10;
+            var cur = sidebar.getBoundingClientRect().width;
+            if (e.key === 'ArrowLeft') cur -= step;
+            else if (e.key === 'ArrowRight') cur += step;
+            else if (e.key === 'Home') cur = MIN;
+            else if (e.key === 'End') cur = MAX;
+            else return;
+            e.preventDefault();
+            save(apply(cur));
+            done();
+        });
+    })();
+    </script>
+
     {{-- Main Content Area --}}
     <div class="flex-1 flex flex-col overflow-hidden">
         @yield('content')
@@ -470,9 +616,33 @@
         }
     }
 
+    function toggleArchMenu() {
+        var submenu = document.getElementById('archSubmenu');
+        var chevron = document.getElementById('archChevron');
+        if (submenu.classList.contains('hidden')) {
+            submenu.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            submenu.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+
     function toggleRevenueMenu() {
         var submenu = document.getElementById('revenueSubmenu');
         var chevron = document.getElementById('revenueChevron');
+        if (submenu.classList.contains('hidden')) {
+            submenu.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            submenu.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+
+    function toggleMockmasterMenu() {
+        var submenu = document.getElementById('mockmasterSubmenu');
+        var chevron = document.getElementById('mockmasterChevron');
         if (submenu.classList.contains('hidden')) {
             submenu.classList.remove('hidden');
             chevron.classList.add('rotate-180');

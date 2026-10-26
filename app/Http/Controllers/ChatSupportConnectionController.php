@@ -683,6 +683,33 @@ class ChatSupportConnectionController extends Controller
             }
         }
 
+        // Real sync for Slack — pulls channels + message history. Run now, not
+        // via the queue: with no queue worker running, queued syncs never
+        // executed, so "Sync Now" stored nothing (same fix as Instagram).
+        if ($provider === 'slack') {
+            try {
+                \App\Jobs\SyncSlackMessages::dispatchSync($connection->id);
+            } catch (\Throwable $e) {
+                \Log::error('Slack sync failed', ['connection_id' => $connection->id, 'message' => $e->getMessage()]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Slack sync failed: ' . $e->getMessage(),
+                ], 500);
+            }
+
+            $connection->refresh();
+            $m = $connection->metrics ?? [];
+            $skipped = $m['channels_unreadable'] ?? [];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Slack synced: ' . ($m['messages_synced'] ?? 0) . ' messages from ' . ($m['channels_read'] ?? 0) . ' channel(s).'
+                    . ($skipped ? ' Not readable: #' . implode(', #', $skipped) . ' — invite the bot (/invite @xplat) or add the channels:join scope.' : ''),
+                'status'  => $connection->status,
+            ]);
+        }
+
         // Default sync for other providers
         $connection->update([
             'last_sync_at' => now(),

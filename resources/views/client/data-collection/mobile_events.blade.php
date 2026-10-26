@@ -35,6 +35,29 @@
   .crm-stage  { font-size:13px;color:#111827;font-weight:500; }
   .crm-days   { font-size:14px;font-weight:700;color:#8b5cf6;text-align:right; }
   .crm-deals  { font-size:12px;color:#9ca3af;text-align:right; }
+  .agent-shell { margin-top:12px; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; background:#fff; }
+  .agent-tabs { display:grid; grid-template-columns:repeat(3,1fr); border-bottom:1px solid #e5e7eb; background:#f9fafb; }
+  .agent-tab { display:flex; align-items:center; justify-content:center; gap:10px; min-height:54px; border:none; border-right:1px solid #e5e7eb; background:#fff; cursor:pointer; padding:0 14px; transition:background .15s, box-shadow .15s; }
+  .agent-tab:last-child { border-right:none; }
+  .agent-tab:hover { background:#f8fafc; }
+  .agent-tab.active { background:#f0fdf4; box-shadow:inset 0 -2px 0 #10b981; }
+  .agent-mark { width:26px; height:26px; border-radius:8px; display:grid; place-items:center; background:#f3f4f6; color:#4b5563; font-size:12px; font-weight:700; flex-shrink:0; }
+  .agent-tab.active .agent-mark { background:#10b981; color:#fff; }
+  .agent-name { font-size:13px; font-weight:600; color:#111827; }
+  .agent-tab.active .agent-name { color:#047857; }
+  .agent-panels { padding:16px; }
+  .agent-panel { display:none; }
+  .agent-panel.active { display:block; }
+  .agent-panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+  .agent-panel-title { font-size:14px; font-weight:700; color:#111827; }
+  .agent-panel-sub { font-size:11px; color:#6b7280; margin-top:3px; }
+  .agent-status { font-size:10px; font-weight:700; color:#059669; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:999px; padding:4px 10px; flex-shrink:0; }
+  .agent-questions { display:flex; flex-wrap:wrap; gap:8px; }
+  .agent-question { border:1px solid #e5e7eb; border-radius:999px; background:#fff; color:#374151; font-size:11px; font-weight:600; padding:8px 12px; cursor:pointer; transition:background .15s, border-color .15s, color .15s; }
+  .agent-question:hover { background:#f0fdfa; border-color:#5eead4; color:#0f766e; }
+  .agent-selected { margin-top:12px; border:1px dashed #d1d5db; border-radius:10px; background:#fafafa; padding:10px 12px; font-size:12px; color:#374151; min-height:44px; line-height:1.5; }
+  .agent-selected strong { color:#111827; }
+  .agent-empty { color:#9ca3af; }
 
   /* Email Engagement grid (live Brevo data) */
   .be-header { display:flex; align-items:center; justify-content:space-between; padding:14px 24px; border-bottom:1px solid #e5e7eb; }
@@ -218,132 +241,132 @@
   <div class="grid grid-cols-3 gap-4">
     @foreach($sources as $s)
     @if($s['id'] === 'website')
-    <div id="src-website" class="src active" style="padding:0; display:flex; align-items:stretch;">
-      <div class="src-link" onclick="selectSource('website')">
-        <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
-          </svg>
-        </div>
-        <div class="min-w-0">
-          <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
-        </div>
-      </div>
-      <a href="{{ route('client.website-connections') }}" class="src-add">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-        </svg>
-        <span class="src-tip">Add Website provider</span>
-      </a>
-    </div>
-    @elseif($s['id'] === 'email')
-    <div id="src-email" class="src" style="padding:0; display:flex; align-items:stretch;">
-      <div class="src-link" onclick="selectSource('email')">
-        <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-          </svg>
-        </div>
-        <div class="min-w-0">
-          <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
-        </div>
-      </div>
-      <a href="{{ route('client.email-connections') }}" class="src-add">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-        </svg>
-        <span class="src-tip">Add Email provider</span>
-      </a>
-    </div>
-    @elseif($s['id'] === 'crm')
-    <div id="src-crm" class="src" style="padding:0; display:flex; align-items:stretch;">
-      <div class="src-link" onclick="selectSource('crm')">
-        <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/>
-          </svg>
-        </div>
-        <div class="min-w-0">
-          <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
-        </div>
-      </div>
-      <a href="{{ route('client.crm-connections') }}" class="src-add">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-        </svg>
-        <span class="src-tip">Add CRM provider</span>
-      </a>
-    </div>
-    @elseif($s['id'] === 'social')
-    <div id="src-social" class="src" style="padding:0; display:flex; align-items:stretch;">
-      <div class="src-link" onclick="selectSource('social')">
-        <div class="w-10 h-10 rounded-lg bg-pink-50 flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m5.106 9.197l-2.816.94a2 2 0 01-2.53-1.158l-1.18-3.543a2 2 0 011.158-2.53l2.816-.94a2 2 0 012.53 1.158l1.18 3.543a2 2 0 01-1.158 2.53z"/>
-          </svg>
-        </div>
-        <div class="min-w-0">
-          <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
-        </div>
-      </div>
-      <a href="{{ route('client.social-connections') }}" class="src-add">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-        </svg>
-        <span class="src-tip">Add Social provider</span>
-      </a>
-    </div>
-    @elseif($s['id'] === 'chat')
-    <div id="src-chat" class="src" style="padding:0; display:flex; align-items:stretch;">
-      <div class="src-link" onclick="selectSource('chat')">
-        <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-          </svg>
-        </div>
-        <div class="min-w-0">
-          <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
-        </div>
-      </div>
-      <a href="{{ route('client.chat-support-connections') }}" class="src-add">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-        </svg>
-        <span class="src-tip">Add Chat provider</span>
-      </a>
-    </div>
-    @elseif($s['id'] === 'transactions')
-    <div id="src-transactions" class="src" style="padding:0; display:flex; align-items:stretch;">
-      <div class="src-link" onclick="selectSource('transactions')">
-        <div class="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-          </svg>
-        </div>
-        <div class="min-w-0">
-          <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
-        </div>
-      </div>
-      <a href="{{ route('client.payment-gateway-connections.index') }}" class="src-add">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-        </svg>
-        <span class="src-tip">Add Transactions provider</span>
-      </a>
-    </div>
-    @else
-    <div id="src-{{ $s['id'] }}" class="src {{ $s['id']==='website' ? 'active' : '' }}"
-         onclick="selectSource('{{ $s['id'] }}')"
-         style="padding:16px 18px;">
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-10 h-10 rounded-lg bg-gray-100 flex-shrink-0"></div>
+      <div id="src-website" class="src active" style="padding:0; display:flex; align-items:stretch;">
+        <div class="src-link" onclick="selectSource('website')">
+          <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+            </svg>
+          </div>
           <div class="min-w-0">
             <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
           </div>
         </div>
+        <a href="{{ route('client.website-connections') }}" class="src-add">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span class="src-tip">Add Website provider</span>
+        </a>
       </div>
-    </div>
+    @elseif($s['id'] === 'email')
+      <div id="src-email" class="src" style="padding:0; display:flex; align-items:stretch;">
+        <div class="src-link" onclick="selectSource('email')">
+          <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
+          </div>
+        </div>
+        <a href="{{ route('client.email-connections') }}" class="src-add">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span class="src-tip">Add Email provider</span>
+        </a>
+      </div>
+    @elseif($s['id'] === 'crm')
+      <div id="src-crm" class="src" style="padding:0; display:flex; align-items:stretch;">
+        <div class="src-link" onclick="selectSource('crm')">
+          <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
+          </div>
+        </div>
+        <a href="{{ route('client.crm-connections') }}" class="src-add">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span class="src-tip">Add CRM provider</span>
+        </a>
+      </div>
+    @elseif($s['id'] === 'social')
+      <div id="src-social" class="src" style="padding:0; display:flex; align-items:stretch;">
+        <div class="src-link" onclick="selectSource('social')">
+          <div class="w-10 h-10 rounded-lg bg-pink-50 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m5.106 9.197l-2.816.94a2 2 0 01-2.53-1.158l-1.18-3.543a2 2 0 011.158-2.53l2.816-.94a2 2 0 012.53 1.158l1.18 3.543a2 2 0 01-1.158 2.53z"/>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
+          </div>
+        </div>
+        <a href="{{ route('client.social-connections') }}" class="src-add">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span class="src-tip">Add Social provider</span>
+        </a>
+      </div>
+    @elseif($s['id'] === 'chat')
+      <div id="src-chat" class="src" style="padding:0; display:flex; align-items:stretch;">
+        <div class="src-link" onclick="selectSource('chat')">
+          <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
+          </div>
+        </div>
+        <a href="{{ route('client.chat-support-connections') }}" class="src-add">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span class="src-tip">Add Chat provider</span>
+        </a>
+      </div>
+    @elseif($s['id'] === 'transactions')
+      <div id="src-transactions" class="src" style="padding:0; display:flex; align-items:stretch;">
+        <div class="src-link" onclick="selectSource('transactions')">
+          <div class="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
+          </div>
+        </div>
+        <a href="{{ route('client.payment-gateway-connections.index') }}" class="src-add">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span class="src-tip">Add Transactions provider</span>
+        </a>
+      </div>
+    @else
+      <div id="src-{{ $s['id'] }}" class="src {{ $s['id']==='website' ? 'active' : '' }}"
+           onclick="selectSource('{{ $s['id'] }}')"
+           style="padding:16px 18px;">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-10 h-10 rounded-lg bg-gray-100 flex-shrink-0"></div>
+            <div class="min-w-0">
+              <p class="text-[13px] font-semibold text-gray-700 truncate leading-none">{{ $s['name'] }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
     @endif
     @endforeach
   </div>
@@ -2340,31 +2363,111 @@
     </div>
 
     {{-- ═══════════════════════════════════════
-         SOCIAL SIGNALS PANELS
+         SOCIAL SIGNALS PANELS (real Instagram data —
+         see InstagramMedia::socialStats())
          ═══════════════════════════════════════ --}}
 
-    @foreach([
-      ['brand-mentions',   'Social Signals – Brand Mentions'],
-      ['hashtag-tracking', 'Social Signals – Hashtag Tracking'],
-      ['sentiment',        'Social Signals – Sentiment Analysis'],
-    ] as [$tid, $title])
-    <div id="panel-social-{{ $tid }}" class="panel p-5">
-      <div class="globe-panel" style="max-width:560px;margin:0 auto;padding:48px 40px">
-        <div style="width:72px;height:72px;border-radius:16px;background:#fce7f3;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
-          <svg width="36" height="36" fill="none" stroke="#ec4899" stroke-width="1.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
-          </svg>
-        </div>
-        <h3 style="font-size:22px;font-weight:700;color:#111827;margin-bottom:8px">{{ $title }}</h3>
-        <p style="font-size:13px;color:#9ca3af;margin-bottom:32px">Analytics pannel for this micro signal</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
-          <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
-          <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
-          <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
+    @if(!$socialConnected)
+      @foreach(['brand-mentions', 'hashtag-tracking', 'sentiment'] as $tid)
+      <div id="panel-social-{{ $tid }}" class="panel p-5">
+        <div class="globe-panel" style="max-width:480px;margin:0 auto;padding:48px 40px">
+          <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:8px">No Instagram account connected</h3>
+          <p style="font-size:13px;color:#9ca3af">Connect Instagram from Social Connections to populate this panel with real post and engagement data.</p>
         </div>
       </div>
+      @endforeach
+    @else
+
+    {{-- Brand Mentions → we only have your own account's posts, not real
+         external mention tracking (needs a scope/model we haven't built) —
+         say so plainly and show what's real: your own recent post performance. --}}
+    <div id="panel-social-brand-mentions" class="panel p-6">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ec4899"></div>
+        <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:.3px">Social Signals – Recent Post Performance</span>
+        <div style="flex:1;height:1px;background:#fbcfe8;margin-left:8px"></div>
+        <span style="font-size:12px;font-weight:600;color:#ec4899;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:12px;padding:2px 10px">Live</span>
+      </div>
+      <p style="font-size:12px;color:#9ca3af;margin-bottom:20px">Mentions from other accounts aren't synced yet (Instagram's mentions API isn't wired up) — this shows your own connected account's real post performance instead.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#ec4899;line-height:1">{{ $socialFollowers }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Followers</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#3b82f6;line-height:1">{{ $socialTotalPosts }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Posts Synced</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#10b981;line-height:1">{{ $socialTotalLikes + $socialTotalComments }}</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Total Engagement</p>
+        </div>
+        <div class="panel-card" style="text-align:center;padding:16px 8px">
+          <p style="font-size:22px;font-weight:800;color:#8b5cf6;line-height:1">{{ $socialAvgEngagement }}%</p>
+          <p style="font-size:11px;color:#6b7280;margin-top:6px;font-weight:500">Avg Engagement Rate</p>
+        </div>
+      </div>
+
+      <div class="panel-card" style="padding:16px 20px">
+        <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:12px">Top Posts by Engagement</p>
+        @forelse($socialTopPosts as $p)
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;{{ !$loop->last ? 'border-bottom:1px solid #f1f5f9' : '' }}">
+            <div style="min-width:0">
+              <a href="{{ $p['permalink'] }}" target="_blank" rel="noopener" style="font-size:13px;color:#111827;font-weight:500;text-decoration:none">{{ $p['caption'] }}</a>
+              <p style="font-size:11px;color:#9ca3af;margin-top:2px">{{ $p['posted_at'] }}</p>
+            </div>
+            <div style="display:flex;gap:14px;flex-shrink:0;margin-left:16px">
+              <span style="font-size:12px;color:#6b7280">❤ {{ $p['likes'] }}</span>
+              <span style="font-size:12px;color:#6b7280">💬 {{ $p['comments'] }}</span>
+              <span style="font-size:12px;font-weight:600;color:#10b981">{{ $p['engagement'] }}%</span>
+            </div>
+          </div>
+        @empty
+          <p style="font-size:12px;color:#9ca3af">No posts synced yet — click Sync on the Instagram connection.</p>
+        @endforelse
+      </div>
     </div>
-    @endforeach
+
+    {{-- Hashtag Tracking → genuinely real: extracted from synced caption text --}}
+    <div id="panel-social-hashtag-tracking" class="panel p-6">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ec4899"></div>
+        <span style="font-size:15px;font-weight:700;color:#111827;letter-spacing:.3px">Social Signals – Hashtag Tracking</span>
+        <div style="flex:1;height:1px;background:#fbcfe8;margin-left:8px"></div>
+        <span style="font-size:12px;font-weight:600;color:#ec4899;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:12px;padding:2px 10px">Live</span>
+      </div>
+
+      <div class="panel-card" style="padding:20px">
+        <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:2px">Most-used hashtags</p>
+        <p style="font-size:11px;color:#9ca3af;margin-bottom:16px">Counted from the caption text of your {{ $socialTotalPosts }} synced {{ Str::plural('post', $socialTotalPosts) }}</p>
+        @forelse($socialTopHashtags as $h)
+          @php $pct = round($h['count'] / max(1, $socialTopHashtags[0]['count']) * 100); @endphp
+          <div style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+              <span style="font-size:13px;color:#374151;font-weight:500">#{{ $h['tag'] }}</span>
+              <span style="font-size:12px;color:#6b7280">{{ $h['count'] }}</span>
+            </div>
+            <div style="height:6px;background:#f1f5f9;border-radius:4px;overflow:hidden">
+              <div style="height:100%;width:{{ $pct }}%;background:#ec4899;border-radius:4px"></div>
+            </div>
+          </div>
+        @empty
+          <p style="font-size:12px;color:#9ca3af">No hashtags found in your synced captions yet — post with hashtags and sync again.</p>
+        @endforelse
+      </div>
+    </div>
+
+    {{-- Sentiment Analysis → honestly not built: no comment-level model exists,
+         so this stays a plain "not available" state rather than a fake score. --}}
+    <div id="panel-social-sentiment" class="panel p-5">
+      <div class="globe-panel" style="max-width:480px;margin:0 auto;padding:48px 40px">
+        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:8px">Sentiment analysis isn't wired up yet</h3>
+        <p style="font-size:13px;color:#9ca3af">Comment-level sentiment scoring needs a model this build doesn't have — the {{ $socialTotalComments }} comment{{ $socialTotalComments === 1 ? '' : 's' }} synced from your posts are counted, but not scored for tone. This will populate once sentiment scoring is built.</p>
+      </div>
+    </div>
+
+    @endif
 
     {{-- ═══════════════════════════════════════
          CALL CENTER PANELS
@@ -3200,4 +3303,3 @@ document.addEventListener('click', function(e) {
 });
 </script>
 @endpush
-

@@ -28,13 +28,6 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    'slack' => [
-        'notifications' => [
-            'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
-            'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
-        ],
-    ],
-
     'mailchimp' => [
         'client_id'     => env('MAILCHIMP_CLIENT_ID'),
         'client_secret' => env('MAILCHIMP_CLIENT_SECRET'),
@@ -53,6 +46,12 @@ return [
         'redirect'      => env('INSTAGRAM_REDIRECT_URI'),
     ],
 
+    'tiktok' => [
+        'client_key'    => env('TIKTOK_CLIENT_KEY'),
+        'client_secret' => env('TIKTOK_CLIENT_SECRET'),
+        'redirect'      => env('TIKTOK_REDIRECT_URI'),
+    ],
+
     'linkedin' => [
         'client_id'     => env('LINKEDIN_CLIENT_ID'),
         'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
@@ -62,11 +61,23 @@ return [
     'slack' => [
         'client_id'     => env('SLACK_CLIENT_ID'),
         'client_secret' => env('SLACK_CLIENT_SECRET'),
+        'notifications' => [
+            'bot_user_oauth_token' => env('SLACK_BOT_TOKEN'),
+            'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
+        ],
     ],
 
     'anthropic' => [
         'api_key' => env('ANTHROPIC_API_KEY'),
         'model'   => env('ANTHROPIC_MODEL', 'claude-opus-5'),
+    ],
+
+    // Google OAuth (Mira Premium "Connect Google": Search Console + GA4). One web-application
+    // OAuth client for the whole app; each customer grants access to their own properties.
+    'google' => [
+        'client_id'     => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect'      => env('GOOGLE_REDIRECT_URI', rtrim((string) env('APP_URL'), '/') . '/app/integrations/google/callback'),
     ],
 
     'openai' => [
@@ -76,6 +87,19 @@ return [
 
     'pagespeed' => [
         'api_key' => env('PAGESPEED_API_KEY'),
+    ],
+
+    // Mock Master (PTE Portal) website address — used to show profile
+    // pictures stored as relative paths, e.g. https://your-portal-domain
+    'mockmaster' => [
+        'portal_url' => env('MOCKMASTER_PORTAL_URL'),
+    ],
+
+    'whatsapp' => [
+        'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
+        'access_token' => env('WHATSAPP_ACCESS_TOKEN'),
+        'business_account_id' => env('WHATSAPP_BUSINESS_ACCOUNT_ID'),
+        'api_version' => env('WHATSAPP_API_VERSION', 'v25.0'),
     ],
 
 ];
