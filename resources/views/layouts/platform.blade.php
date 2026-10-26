@@ -26,12 +26,14 @@
     {{-- Left Sidebar --}}
     <aside id="platformSidebar" class="w-[200px] bg-white border-r border-gray-200 flex flex-col h-full flex-shrink-0 transition-all duration-200">
 
-        {{-- Active Tenant: "Mock Master" shows Mock Master Helper, "Test Account" shows Business Helpers.
-             The helper page you are on decides first, then the last choice (route client.tenant.switch). --}}
+        {{-- Active Tenant: "Admin Account" shows Business Helpers and Mock Master Helper, "Mock Master" shows only
+             Mock Master Helper. The last choice in the dropdown (route client.tenant.switch) decides. --}}
         @php
-            $tenants = ['mockmaster' => 'Mock Master', 'test' => 'Test Account'];
-            $activeTenant = request()->routeIs('client.mock-master-helper*') ? 'mockmaster'
-                : (request()->routeIs('client.business-helpers*') ? 'test' : session('active_tenant', 'test'));
+            $tenants = ['mockmaster' => 'Mock Master', 'admin' => 'Admin Account'];
+            $activeTenant = session('active_tenant', 'admin');
+            if (! isset($tenants[$activeTenant])) {
+                $activeTenant = 'admin';
+            }
         @endphp
         <div class="px-3 pt-4 pb-3 border-b border-gray-100">
             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Active Tenant</p>
@@ -60,7 +62,7 @@
             </div>
         </div>
 
-        @if ($activeTenant === 'test')
+        @if ($activeTenant === 'admin')
         {{-- Business Helpers --}}
         <div class="px-3 pt-3">
             <a href="{{ route('client.business-helpers') }}"
@@ -78,9 +80,8 @@
         </div>
         @endif
 
-        @if ($activeTenant === 'mockmaster')
         {{-- Mock Master Helper --}}
-        <div class="px-3 pt-3">
+        <div class="px-3 {{ $activeTenant === 'admin' ? 'pt-1' : 'pt-3' }}">
             <a href="{{ route('client.mock-master-helper') }}"
                class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
                       {{ request()->routeIs('client.mock-master-helper')
@@ -94,7 +95,6 @@
                 <span class="truncate">Mock Master Helper</span>
             </a>
         </div>
-        @endif
 
         {{-- Platform Layers Navigation --}}
         <div class="px-3 pt-3 flex-1 overflow-y-auto">

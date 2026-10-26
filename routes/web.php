@@ -343,8 +343,13 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         session(['active_tenant' => $tenant]);
 
         return redirect()->route($tenant === 'mockmaster' ? 'client.mock-master-helper' : 'client.business-helpers');
-    })->whereIn('tenant', ['mockmaster', 'test'])->name('tenant.switch');
+    })->whereIn('tenant', ['mockmaster', 'admin'])->name('tenant.switch');
     Route::get('business-helpers', function () {
+        // Business Helpers belongs to the Admin Account tenant; the Mock Master tenant only has Mock Master Helper.
+        if (session('active_tenant') === 'mockmaster') {
+            return redirect()->route('client.mock-master-helper');
+        }
+
         $groupPrompts = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
             ->where('is_mock_master', false)
             ->ordered()
