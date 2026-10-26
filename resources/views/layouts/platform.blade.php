@@ -41,7 +41,13 @@
             <div class="relative" data-dd-wrap>
                 <button type="button" onclick="xpDd('tenantMenu')" aria-haspopup="menu"
                     class="w-full flex items-center justify-between bg-white border border-gray-200 rounded-md px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition">
-                    <span>{{ $tenants[$activeTenant] }}</span>
+                    <span class="flex items-center gap-2 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                        <span class="truncate">{{ $tenants[$activeTenant] }}</span>
+                    </span>
                     <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
