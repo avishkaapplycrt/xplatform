@@ -3,6 +3,7 @@
 namespace App\Services\MockMaster;
 
 use App\Services\WhatsAppCloudService;
+use App\Support\ClientMailSender;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -50,7 +51,7 @@ class MockMasterMessenger
         }
 
         try {
-            Mail::raw($body, function ($message) use ($email, $subject) {
+            ClientMailSender::raw($body, function ($message) use ($email, $subject) {
                 $message->to($email)->subject($subject);
             });
         } catch (\Throwable $e) {

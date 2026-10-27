@@ -835,7 +835,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         };
 
         try {
-            \Illuminate\Support\Facades\Mail::raw($data['body'], function ($message) use ($data) {
+            \App\Support\ClientMailSender::raw($data['body'], function ($message) use ($data) {
                 $message->to($data['email'])->subject($data['subject']);
             });
         } catch (\Throwable $e) {
@@ -868,7 +868,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         foreach ($data['messages'] as $m) {
             $error = null;
             try {
-                \Illuminate\Support\Facades\Mail::raw($m['body'], function ($message) use ($m) {
+                \App\Support\ClientMailSender::raw($m['body'], function ($message) use ($m) {
                     $message->to($m['email'])->subject($m['subject']);
                 });
             } catch (\Throwable $e) {
@@ -1147,6 +1147,12 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
     // Email Logs
     Route::get('/email-logs', [DecisionCentreController::class, 'emailLogs'])->name('email.logs');
+
+    // Email Settings → Sending Account: the client's own SMTP login (client_smtp_settings).
+    Route::get('email-sender', [\App\Http\Controllers\ClientSmtpController::class, 'show'])->name('email.sender');
+    Route::post('email-sender', [\App\Http\Controllers\ClientSmtpController::class, 'save'])->name('email.sender.save');
+    Route::post('email-sender/test', [\App\Http\Controllers\ClientSmtpController::class, 'test'])->name('email.sender.test');
+    Route::delete('email-sender', [\App\Http\Controllers\ClientSmtpController::class, 'destroy'])->name('email.sender.destroy');
     Route::get('/email-logs/{log}/detail', [DecisionCentreController::class, 'emailLogDetail'])->name('email.logs.detail');
     Route::post('/email-logs/{log}/retry', [DecisionCentreController::class, 'retryEmail'])->name('email.logs.retry');
     Route::delete('/email-logs/{log}', [DecisionCentreController::class, 'deleteEmailLog'])->name('email.logs.delete');

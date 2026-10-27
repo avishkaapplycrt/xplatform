@@ -3392,7 +3392,7 @@ class DecisionCentreController extends Controller
 
         try {
             // Send email
-            \Mail::raw($data['body'], function ($message) use ($data) {
+            \App\Support\ClientMailSender::raw($data['body'], function ($message) use ($data) {
                 $message->to($data['to'])
                         ->subject($data['subject']);
             });
@@ -3460,7 +3460,7 @@ class DecisionCentreController extends Controller
 
         foreach ($emails as $email) {
             try {
-                \Mail::raw($body, function ($message) use ($email, $subject) {
+                \App\Support\ClientMailSender::raw($body, function ($message) use ($email, $subject) {
                     $message->to($email)->subject($subject);
                 });
                 $sent++;
@@ -3901,7 +3901,7 @@ class DecisionCentreController extends Controller
         }
 
         try {
-            \Mail::raw($log->body ?? 'No content', function ($message) use ($log) {
+            \App\Support\ClientMailSender::raw($log->body ?? 'No content', function ($message) use ($log) {
                 $message->to($log->email_address)
                         ->subject($log->subject ?? 'No subject');
             });

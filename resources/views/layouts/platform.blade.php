@@ -436,7 +436,7 @@
 
                 {{-- Email Settings Group --}}
                 @php
-                $emailRoutes = ['client.email.templates', 'client.email.template.categories', 'client.email.logs'];
+                $emailRoutes = ['client.email.templates', 'client.email.template.categories', 'client.email.logs', 'client.email.sender'];
                 $isEmailActive = collect($emailRoutes)->contains(fn($r) => request()->routeIs($r));
                 @endphp
 
@@ -476,6 +476,12 @@
                                   {{ request()->routeIs('client.email.logs') ? 'text-sky-700 font-medium' : 'text-gray-500 hover:text-gray-700' }}">
                             <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.email.logs') ? 'bg-sky-500' : 'bg-gray-300' }}"></span>
                             <span class="truncate">Logs</span>
+                        </a>
+                        <a href="{{ route('client.email.sender') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.email.sender') ? 'text-sky-700 font-medium' : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.email.sender') ? 'bg-sky-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Sending Account</span>
                         </a>
                     </div>
                 </div>

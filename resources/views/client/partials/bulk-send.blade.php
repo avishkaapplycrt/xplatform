@@ -26,6 +26,17 @@
 .xb{background:#fff;border-radius:12px;max-width:1060px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25);font-size:13px;color:#111827}
 .xb-hd{display:flex;align-items:flex-start;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb;font-weight:600}
 .xb-hd small{display:block;font-size:11.5px;font-weight:500;color:#6b7280;margin-top:3px}
+.xb-hd-r{display:flex;align-items:center;gap:6px;margin-left:auto;min-width:0}
+.xb-acct{display:flex;align-items:center;gap:9px;min-width:0;padding:5px 12px 5px 6px;border:1px solid #ede9fe;background:#faf8ff;border-radius:999px}
+.xb-acct-ic{flex:none;width:26px;height:26px;border-radius:50%;background:#ede9fe;color:#7c3aed;display:flex;align-items:center;justify-content:center}
+.xb-acct-tx{display:flex;flex-direction:column;min-width:0;line-height:1.2}
+.xb-acct-tx span{font-size:10.5px;font-weight:600;color:#6b7280;letter-spacing:.02em}
+.xb-acct-tx b{font-size:12.5px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+.xb-acct-st{flex:none;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;text-decoration:none}
+.xb-acct-st.on{background:#dcfce7;color:#166534}
+.xb-acct-st.off{background:#fef3c7;color:#92400e}
+.xb-acct-st.off:hover{background:#fde68a}
+@media (max-width:640px){.xb-acct-tx span{display:none}.xb-acct-tx b{max-width:150px}}
 .xb-x{border:none;background:none;font-size:16px;color:#9ca3af;cursor:pointer;line-height:1;padding:4px;margin-left:14px}
 .xb-x:hover{color:#111827}
 .xb-body{overflow:auto;padding:14px 22px 20px}
@@ -127,6 +138,17 @@
 <script>
 window.XBulk = (function () {
     var S = null; // current window state
+    // Logged-in client account (clients table), shown in the window header.
+    @php
+        $xbClient = auth('client')->user();
+        $xbAccount = [
+            'company'   => $xbClient?->company_name,
+            'email'     => $xbClient?->email,
+            'connected' => (bool) \App\Support\ClientMailSender::settings(),
+            'setupUrl'  => route('client.email.sender'),
+        ];
+    @endphp
+    var ACCOUNT = @json($xbAccount);
     var SEND_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>';
 
     function esc(v) {
@@ -166,7 +188,18 @@ window.XBulk = (function () {
         ov.innerHTML =
             '<div class="xb" role="dialog" aria-modal="true" aria-labelledby="xbTitle">' +
                 '<div class="xb-hd"><span id="xbTitle">' + esc(cfg.title || 'Send to all') + '<small id="xbSub">Loading customers…</small></span>' +
-                '<button type="button" class="xb-x" onclick="XBulk.close()" aria-label="Close">✕</button></div>' +
+                '<div class="xb-hd-r">' +
+                    (ACCOUNT.email
+                        ? '<div class="xb-acct" title="' + esc((ACCOUNT.company ? ACCOUNT.company + ' · ' : '') + ACCOUNT.email) + '">' +
+                            '<span class="xb-acct-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span>' +
+                            '<span class="xb-acct-tx"><span>' + esc(ACCOUNT.company || 'Client account') + '</span><b>' + esc(ACCOUNT.email) + '</b></span>' +
+                            (ACCOUNT.connected
+                                ? '<span class="xb-acct-st on" title="Emails are sent through your own mail account">Connected</span>'
+                                : '<a class="xb-acct-st off" href="' + esc(ACCOUNT.setupUrl) + '" target="_blank" rel="noopener" title="Emails go out from the shared XPlatform address until you connect your mail account">Not connected · Set up</a>') +
+                          '</div>'
+                        : '') +
+                    '<button type="button" class="xb-x" onclick="XBulk.close()" aria-label="Close">✕</button>' +
+                '</div></div>' +
                 '<div class="xb-body" id="xbBody"><p style="color:#6b7280">Loading everyone in this list…</p></div>' +
             '</div>';
         ov.classList.add('show');
