@@ -97,6 +97,32 @@
 .xb-open{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:6px;border:1px solid #7c3aed;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer;background:#fff}
 .xb-open:hover{background:#f5f3ff}
 .xb-open-bar{display:flex;justify-content:flex-end;padding:8px 14px;border-bottom:1px solid #eef0f5}
+/* Send confirmation — replaces the browser confirm() */
+.xb-cf-ov{position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(17,24,39,.35);backdrop-filter:blur(2px);animation:xbfade .15s ease-out}
+.xb-cf{background:#fff;border-radius:14px;width:100%;max-width:440px;box-shadow:0 24px 64px rgba(17,24,39,.28);overflow:hidden;font-size:13px;color:#111827;animation:xbpop .18s cubic-bezier(.2,.9,.3,1.2)}
+.xb-cf-top{display:flex;gap:14px;padding:20px 22px 6px}
+.xb-cf-ic{flex:0 0 40px;height:40px;border-radius:50%;background:#f5f3ff;color:#7c3aed;display:flex;align-items:center;justify-content:center}
+.xb-cf-ic.wa{background:#ecfdf5;color:#16a34a}
+.xb-cf h3{margin:0;font-size:15.5px;font-weight:700;line-height:1.3}
+.xb-cf-top p{margin:4px 0 0;color:#6b7280;font-size:12.5px;line-height:1.45}
+.xb-cf-sum{margin:12px 22px 0;border:1px solid #eef0f5;border-radius:10px;background:#fafafb}
+.xb-cf-sum div{display:grid;grid-template-columns:78px 1fr;gap:10px;padding:8px 12px;font-size:12.5px}
+.xb-cf-sum div + div{border-top:1px solid #eef0f5}
+.xb-cf-sum dt{color:#6b7280;font-weight:600;font-size:11.5px;padding-top:1px}
+.xb-cf-sum dd{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#111827}
+.xb-cf-warn{display:flex;gap:8px;align-items:flex-start;margin:12px 22px 0;color:#92400e;font-size:12px;line-height:1.45}
+.xb-cf-ft{display:flex;justify-content:flex-end;gap:8px;padding:18px 22px 20px}
+.xb-cf-ft button{padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.xb-cf-no{border:1px solid #e5e7eb;background:#fff;color:#374151}
+.xb-cf-no:hover{background:#f9fafb}
+.xb-cf-yes{border:none;background:#7c3aed;color:#fff;display:inline-flex;align-items:center;gap:7px}
+.xb-cf-yes:hover{background:#6d28d9}
+.xb-cf-yes.wa{background:#16a34a}
+.xb-cf-yes.wa:hover{background:#15803d}
+.xb-cf-ft button:focus-visible{outline:2px solid #7c3aed;outline-offset:2px}
+@keyframes xbfade{from{opacity:0}to{opacity:1}}
+@keyframes xbpop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.xb-cf-ov,.xb-cf{animation:none}}
 </style>
 <script>
 window.XBulk = (function () {
@@ -162,9 +188,65 @@ window.XBulk = (function () {
         if (ov) ov.classList.remove('show');
     }
     document.addEventListener('keydown', function (e) {
+        if (el('xbConfirm')) return; // the confirmation handles its own keys
         var ov = el('xbOverlay');
         if (e.key === 'Escape' && ov && ov.classList.contains('show')) close();
     });
+
+    // In-app replacement for confirm(): resolves true on Send, false on Cancel / Esc / backdrop.
+    function confirmSend(rec, email, subject) {
+        return new Promise(function (resolve) {
+            var n = rec.length, who = n.toLocaleString() + ' customer' + (n === 1 ? '' : 's');
+            var names = rec.slice(0, 2).map(function (r) { return r.name || addr(r); });
+            var list = names.join(', ') + (n > 2 ? ' and ' + (n - 2).toLocaleString() + ' more' : '');
+            var wa = email ? '' : ' wa';
+            var icon = email
+                ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>'
+                : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.4A8.4 8.4 0 1 1 21 11.5z"/></svg>';
+
+            var ov = document.createElement('div');
+            ov.id = 'xbConfirm';
+            ov.className = 'xb-cf-ov';
+            ov.innerHTML =
+                '<div class="xb-cf" role="alertdialog" aria-modal="true" aria-labelledby="xbCfTitle" aria-describedby="xbCfDesc">' +
+                    '<div class="xb-cf-top"><div class="xb-cf-ic' + wa + '">' + icon + '</div><div>' +
+                        '<h3 id="xbCfTitle">Send ' + (email ? 'this email' : 'this WhatsApp message') + ' to ' + who + '?</h3>' +
+                        '<p id="xbCfDesc">Each message is personalised and sent to the ' + (email ? 'email address' : 'phone number') + ' saved for that customer.</p>' +
+                    '</div></div>' +
+                    '<dl class="xb-cf-sum">' +
+                        '<div><dt>Channel</dt><dd>' + (email ? 'Email' : 'WhatsApp') + '</dd></div>' +
+                        (email ? '<div><dt>Subject</dt><dd title="' + esc(subject) + '">' + esc(subject || '(no subject)') + '</dd></div>' : '') +
+                        '<div><dt>To</dt><dd title="' + esc(list) + '">' + esc(list) + '</dd></div>' +
+                    '</dl>' +
+                    '<div class="xb-cf-warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>' +
+                        '<span>Messages can\'t be recalled once sent. You can stop the run part-way.</span></div>' +
+                    '<div class="xb-cf-ft">' +
+                        '<button type="button" class="xb-cf-no">Cancel</button>' +
+                        '<button type="button" class="xb-cf-yes' + wa + '">' + SEND_ICON + 'Send to ' + who + '</button>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(ov);
+
+            var yes = ov.querySelector('.xb-cf-yes'), no = ov.querySelector('.xb-cf-no');
+            function done(ok) {
+                document.removeEventListener('keydown', onKey, true);
+                ov.remove();
+                resolve(ok);
+            }
+            function onKey(e) {
+                if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(false); }
+                else if (e.key === 'Tab') { // keep focus inside the two buttons
+                    e.preventDefault();
+                    (document.activeElement === yes ? no : yes).focus();
+                }
+            }
+            yes.onclick = function () { done(true); };
+            no.onclick = function () { done(false); };
+            ov.onclick = function (e) { if (e.target === ov) done(false); };
+            document.addEventListener('keydown', onKey, true);
+            yes.focus();
+        });
+    }
 
     function render() {
         var cfg = S.cfg;
@@ -365,9 +447,13 @@ window.XBulk = (function () {
         var rec = recipients();
         var email = S.channel === 'email';
         var subject = el('xbSubject').value, body = el('xbMsg').value;
-        if (!rec.length) return;
-        if (!confirm('Send ' + (email ? 'an email' : 'a WhatsApp message') + ' to ' + rec.length.toLocaleString() + ' customer' + (rec.length === 1 ? '' : 's') + '?\n\nThis sends to the contact details stored for each customer.')) return;
+        if (!rec.length || S.sending || el('xbConfirm')) return;
+        confirmSend(rec, email, subject).then(function (ok) {
+            if (ok) start(rec, email, subject, body);
+        });
+    }
 
+    function start(rec, email, subject, body) {
         S.sending = true;
         S.cancel = false;
         S.results = [];
