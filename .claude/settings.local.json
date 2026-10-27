@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan:*)",
+      "Bash(php --version)",
+      "Bash(pip install *)",
+      "Bash(python generate_docs.py)",
+      "Bash(php -r 'require '\\\\''vendor/autoload.php'\\\\''; $app = require '\\\\''bootstrap/app.php'\\\\''; $kernel = $app->make\\(Illuminate\\\\Contracts\\\\Http\\\\Kernel::class\\); echo '\\\\''OK'\\\\'';')",
+      "Bash(php -l app/Http/Controllers/DecisionCentreController.php)",
+      "Bash(php -l resources/views/client/decision-centre.blade.php)",
+      "Bash(php -l \"c:\\\\xampp\\\\htdocs\\\\xplatform\\\\app\\\\Http\\\\Controllers\\\\DecisionCentreController.php\")",
+      "Bash(Test-Path \"c:\\\\xampp\\\\htdocs\\\\xplatform\\\\README.md\")",
+      "Bash(git config *)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(git checkout *)",
+      "PowerShell(\\(Get-Item \"c:\\\\xampp\\\\htdocs\\\\xplatform\\\\database\\\\dump.sql\"\\).Length / 1MB | ForEach-Object { \"{0:N2} MB\" -f $_ })",
+      "Bash(dir \"c:\\\\xampp\\\\htdocs\\\\xplatform\\\\database\\\\migrations\" /b /o:n)",
+      "Bash(php -r \"echo 'PHP OK';\")",
+      "Bash(php -r \"echo count\\(file\\('c:/xampp/htdocs/xplatform/resources/views/banking.blade.php'\\)\\);\")",
+      "Bash(php artisan *)",
+      "Bash(cd /tmp)",
+      "Bash(curl -s -b cj.txt -c cj.txt -o /dev/null -w 'dashboard \\(pre-industry\\) -> %{http_code} %{redirect_url}\\\\n' __TRACKED_VAR__/app/dashboard)",
+      "Bash(curl -s -b cj.txt -c cj.txt -o /dev/null -w 'layers/l4  \\(pre-industry\\) -> %{http_code} %{redirect_url}\\\\n' __TRACKED_VAR__/app/layers/l4)",
+      "Bash(curl -s -b cj.txt -c cj.txt -o /dev/null -w 'industry page -> %{http_code}\\\\n' __TRACKED_VAR__/app/industry)"
+    ]
+  }
+}

@@ -5,16 +5,12 @@ namespace App\Services\MockMaster;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Copies the 14 Mock Master source tables from the live PTE Portal database
- * (connection "mockmaster_live", see config/database.php) into their local
- * mm_* mirrors on the default connection. Triggered by the "Sync Data"
- * button on the Mock Master Helper page.
+ * Incrementally copies the 14 Mock Master source tables from the live PTE
+ * Portal database (connection "mockmaster_live") into their local mm_*
+ * mirrors on the default connection.
  *
- * Each table is fully replaced (truncate + re-insert) inside its own
- * transaction, chunked by primary key so the large tables (mock_test_logs,
- * login_history, purchases, studentuser) don't load into memory at once.
- * The 14 local mm_* tables are read-only mirrors of the live source, so a
- * full replace is safe — nothing else writes to them.
+ * Existing rows are kept. For each table, only source rows whose primary key
+ * is greater than the local maximum primary key are fetched and inserted.
  */
 class MockMasterSyncService
 {
@@ -39,10 +35,7 @@ class MockMasterSyncService
     // Rows fetched from the remote server per round trip.
     private const FETCH_CHUNK_SIZE = 5000;
 
-    // Rows per local INSERT — kept smaller than the fetch chunk so a single
-    // statement never risks exceeding MySQL's max_allowed_packet (the
-    // "MySQL server has gone away" error), even for wide tables like
-    // mock_test_logs.
+    // Keep INSERT statements below MySQL's max_allowed_packet limit.
     private const INSERT_CHUNK_SIZE = 1000;
 
     /**
@@ -50,8 +43,6 @@ class MockMasterSyncService
      */
     public function sync(): array
     {
-        // A full copy of ~1.1M rows from the remote server takes minutes, so
-        // the PHP time cap is lifted and the query log is off to keep memory flat.
         set_time_limit(0);
         DB::connection('mockmaster_live')->disableQueryLog();
         DB::connection()->disableQueryLog();
@@ -68,31 +59,36 @@ class MockMasterSyncService
         return ['tables' => $results, 'total_rows' => $totalRows];
     }
 
+    /**
+     * Insert only rows that are newer than the last row already mirrored.
+     * Returns the number of rows actually inserted, not the number scanned.
+     */
     private function syncTable(string $source, string $target, string $pk): int
     {
-        // TRUNCATE causes an implicit commit in MySQL, so it can't live
-        // inside the same transaction as the inserts that follow it.
-        DB::table($target)->truncate();
-
+        $lastSyncedId = DB::table($target)->max($pk);
         $rowCount = 0;
 
-        // Wrapping all the chunk inserts for this table in one transaction
-        // means InnoDB only has to fsync once at commit instead of once per
-        // chunk — a large speedup for the bigger tables (mock_test_logs,
-        // login_history, purchases, studentuser) with no correctness cost,
-        // since nothing else reads mm_* tables mid-sync.
-        DB::transaction(function () use ($source, $target, $pk, &$rowCount) {
-            DB::connection('mockmaster_live')
-                ->table($source)
-                ->orderBy($pk)
-                ->chunkById(self::FETCH_CHUNK_SIZE, function ($chunk) use ($target, &$rowCount) {
-                    $rows = $chunk->map(fn ($row) => (array) $row)->all();
-                    foreach (array_chunk($rows, self::INSERT_CHUNK_SIZE) as $insertBatch) {
-                        DB::table($target)->insert($insertBatch);
-                        $rowCount += count($insertBatch);
-                    }
-                }, $pk, $pk);
-        });
+        $query = DB::connection('mockmaster_live')
+            ->table($source)
+            ->orderBy($pk);
+
+        if ($lastSyncedId !== null) {
+            $query->where($pk, '>', $lastSyncedId);
+        }
+
+        $query->chunkById(self::FETCH_CHUNK_SIZE, function ($chunk) use ($target, &$rowCount) {
+            $rows = $chunk->map(fn ($row) => (array) $row)->all();
+
+            // Commit each fetched chunk separately. If the request is interrupted,
+            // completed chunks remain in place and the next run resumes after them.
+            DB::transaction(function () use ($rows, $target, &$rowCount) {
+                foreach (array_chunk($rows, self::INSERT_CHUNK_SIZE) as $insertBatch) {
+                    // The PK/unique index protects against duplicates if two syncs
+                    // overlap or a batch is retried.
+                    $rowCount += DB::table($target)->insertOrIgnore($insertBatch);
+                }
+            });
+        }, $pk, $pk);
 
         return $rowCount;
     }
