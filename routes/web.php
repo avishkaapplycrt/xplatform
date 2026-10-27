@@ -108,6 +108,8 @@ Route::get('mira/report/{id}', function (string $id) {
 Route::get('simulator', fn() => view('simulator'))->name('simulator');
 Route::get('case-studies', fn() => view('case-studies'))->name('case-studies');
 Route::get('pricing', fn() => view('pricing'))->name('pricing');
+// Previous pricing page, kept for instant rollback (same pattern as homepage-classic).
+Route::get('pricing-classic', fn() => view('pricing-classic'))->name('pricing.classic');
 Route::get('book-demo', [App\Http\Controllers\BookDemoController::class, 'show'])->name('book-demo');
 Route::post('book-demo', [App\Http\Controllers\BookDemoController::class, 'store'])->name('book-demo.store');
 Route::get('book-demo/thank-you', [App\Http\Controllers\BookDemoController::class, 'thankYou'])->name('book-demo.thank-you');
