@@ -10,6 +10,7 @@
 @endpush
 
 @section('content')
+@include('client.partials.bulk-send')
 
 @php
 $client     = auth('client')->user();
@@ -1856,11 +1857,14 @@ function renderMarketingCampaignStack(){
     .catch(function(){ el.innerHTML = MK_CAMPAIGN_STACK_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">Could not load campaign data — try again in a moment.</div>'; });
 }
 function renderMkCampaignTableHtml(accounts){
-  var ready = accounts.filter(function(a){ return a.segment === 'mql_ready'; }).sort(function(x,y){ return y.deal_value - x.deal_value; });
+  MK_CAMPAIGN_ALL = accounts;
+  var mql = accounts.filter(function(a){ return a.segment === 'mql_ready'; });
+  var ready = mql.filter(function(a){ return bhLfMatch('mkCampaign', a); }).sort(function(x,y){ return y.deal_value - x.deal_value; });
   MK_CAMPAIGN_ACCOUNTS = ready;
+  var bar = bhLfBar('mkCampaign', mql, ready.length);
 
   if (!ready.length) {
-    return '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts are MQL-ready right now.</div>';
+    return bar + '<div style="padding:24px;color:var(--g3);font-size:12.5px">' + (bhLfActive('mkCampaign') ? 'No MQL-ready accounts match these filters.' : 'No accounts are MQL-ready right now.') + '</div>';
   }
 
   var rows = ready.map(function(a, i){
@@ -1881,7 +1885,8 @@ function renderMkCampaignTableHtml(accounts){
       + '</tr>';
   }).join('');
 
-  return '<table class="dtbl"><thead><tr><th>Account</th><th>Deal value</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  return bar
+    + '<table class="dtbl"><thead><tr><th>Account</th><th>Deal value</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
 }
 
 /* ── Marketing Campaign grid — "View" composer, same pattern as Mock
@@ -2055,7 +2060,9 @@ function bhStagePill(label){
 }
 function renderAccountsTable(){
   var agent = dashState.agent;
-  var r = rankedFor(agent);
+  var all = rankedFor(agent);
+  var r = all.filter(function(x){ return bhLfMatch('accounts', x.a); });
+  var bar = bhLfBar('accounts', all.map(function(x){ return x.a; }), r.length);
   var rows = r.map(function(x){
     var a=x.a, s=a.scores;
     return '<tr><td class="acctn" onclick="openScriptFor(\''+nameAttr(a.name)+'\')">'+escapeHtml(a.name)+'</td>'+
@@ -2064,7 +2071,7 @@ function renderAccountsTable(){
       '<td><span class="stk-play '+x.c.play+'">'+PLAY_LABEL[x.c.play]+'</span></td></tr>';
   }).join('');
   var intro = agent==='sl' ? '<div class="stack-intro"><div class="si-h">'+SALES_STEP_INTRO.accounts.h+'</div><div class="si-p">'+SALES_STEP_INTRO.accounts.p+'</div></div>' : '';
-  return intro + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>MRR</th><th>Ready</th><th>Intent</th><th>Trust</th><th>Churn</th><th>Play</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  return intro + bar + (r.length ? '' : '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts match these filters.</div>') + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>MRR</th><th>Ready</th><th>Intent</th><th>Trust</th><th>Churn</th><th>Play</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 /* Marketing · Performance tab — real crm_contacts/crm_deals accounts, not the
    fictional ACCOUNTS list. See MarketingPerformanceService::accountsSnapshot(). */
@@ -2087,9 +2094,13 @@ var MK_ACCOUNTS_INTRO =
   '</div>';
 var MK_PERF_ACCOUNTS = [];
 function renderMarketingAccountsTable(accounts){
-  MK_PERF_ACCOUNTS = accounts;
-  if (!accounts.length) return MK_ACCOUNTS_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">No synced CRM contacts found.</div>';
-  var rows = accounts.map(function(a, i){
+  MK_PERF_ALL = accounts;
+  if (!accounts.length) { MK_PERF_ACCOUNTS = []; return MK_ACCOUNTS_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">No synced CRM contacts found.</div>'; }
+  var shown = accounts.filter(function(a){ return bhLfMatch('mkAccounts', a); });
+  MK_PERF_ACCOUNTS = shown;
+  var bar = bhLfBar('mkAccounts', accounts, shown.length);
+  if (!shown.length) return MK_ACCOUNTS_INTRO + bar + '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts match these filters.</div>';
+  var rows = shown.map(function(a, i){
     var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
     var segColor = MK_SEGMENT_COLOR[a.segment] || '#6b7280';
     return '<tr><td class="acctn">'+bhAcctCell(a)+'</td>'+
@@ -2098,7 +2109,7 @@ function renderMarketingAccountsTable(accounts){
       '<td>'+bhStagePill(a.stage_label)+'</td><td>'+a.days_since_activity+'d ago</td>'+
       '<td><button type="button" onclick="mkPerfOpen(' + i + ')" style="padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">View</button></td></tr>';
   }).join('');
-  return MK_ACCOUNTS_INTRO + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>Deal value</th><th>Readiness</th><th>Trust</th><th>Stage</th><th>Last active</th><th>Action</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  return MK_ACCOUNTS_INTRO + bar + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>Deal value</th><th>Readiness</th><th>Trust</th><th>Stage</th><th>Last active</th><th>Action</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 /* Performance grid's "View" — identical composer to the Campaign grid's
    (mkCampaignOpen), just reading from MK_PERF_ACCOUNTS instead. Reuses the
@@ -2876,6 +2887,138 @@ function dashAskAi(agent, question){
 document.getElementById('dashInput') && document.getElementById('dashInput').addEventListener('keydown', function(e){
   if (e.key === 'Enter') { e.preventDefault(); dashSend(); }
 });
+/* ── "Send to all" (shared window: partials/bulk-send) for the CRM account
+   lists — email only, since crm_contacts has no phone column. Grouped by
+   Segment; Campaign loads every account and pre-ticks the MQL-ready ones. ── */
+var BH_SEND_BULK_ENDPOINT = @json(route('client.business-helpers.send-bulk'));
+function bhBulkRows(accounts, crm){
+  return accounts.map(function(a, i){
+    var days = crm ? a.last_activity_days : a.days_since_activity;
+    if (days != null) days = Math.round(days);
+    var email = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(a.email || '')) ? a.email : '';
+    return {
+      id: String(i), name: a.name, email: email, phone: null,
+      group: (crm ? SEG_LABEL[a.seg] : MK_SEGMENT_LABEL[a.segment]) || a.seg || a.segment || '—',
+      date: days == null ? '' : (days <= 7 ? 'This week' : days + 'd ago'),
+      dateSub: a.company || '',
+      search: [a.company, a.stage_label || a.deal_stage_label].join(' '),
+      raw: a
+    };
+  });
+}
+function bhBulkSend(channel, items, total){
+  return fetch(BH_SEND_BULK_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+    body: JSON.stringify({ total: total, messages: items.map(function(it){
+      return { id: it.row.id, email: it.row.email, name: it.row.name, subject: it.subject, body: it.body };
+    }) })
+  })
+  .then(function(r){ if (!r.ok) throw new Error('bad status'); return r.json(); })
+  .then(function(d){ return d.results || []; });
+}
+/* Filter bar on the account lists: Deal stage + Last active date range (CRM contacts have no
+   subscription or payment date), with Apply, Reset and Send to all. Filtering runs on the
+   accounts already loaded in the page; the table is re-drawn by its own renderer. */
+var BH_LF = { mkCampaign: {}, mkAccounts: {}, accounts: {} };
+var MK_CAMPAIGN_ALL = [];
+var MK_PERF_ALL = [];
+function bhStageOf(a){ return a.stage_label || a.deal_stage_label || ''; }
+function bhActiveDate(a){
+  var days = a.days_since_activity != null ? a.days_since_activity : a.last_activity_days;
+  if (days == null || isNaN(days)) return '';
+  var d = new Date(Date.now() - Math.round(days) * 86400000);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function bhLfActive(list){ var f = BH_LF[list] || {}; return !!(f.stage || f.from || f.to); }
+function bhLfMatch(list, a){
+  var f = BH_LF[list] || {};
+  if (f.stage && bhStageOf(a) !== f.stage) return false;
+  if (f.from || f.to) {
+    var d = bhActiveDate(a);
+    if (!d || (f.from && d < f.from) || (f.to && d > f.to)) return false;
+  }
+  return true;
+}
+function bhLfBar(list, accounts, shown){
+  var f = BH_LF[list] || {};
+  var stages = accounts.map(bhStageOf).filter(function(s, i, all){ return s && all.indexOf(s) === i; }).sort();
+  var lbl = 'display:flex;flex-direction:column;gap:4px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7280';
+  var inp = 'padding:6px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;background:#fff';
+  return '<div class="bh-lf" data-list="' + list + '" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:12px 14px;border-bottom:1px solid #eef0f5;background:#f8f9fc">'
+    + '<label style="' + lbl + '">Deal stage<select name="stage" style="min-width:200px;' + inp + '"><option value="">All stages</option>'
+    + stages.map(function(s){ return '<option value="' + escapeHtml(s) + '"' + (f.stage === s ? ' selected' : '') + '>' + escapeHtml(s) + '</option>'; }).join('')
+    + '</select></label>'
+    + '<label style="' + lbl + '">Last active from<input type="date" name="from" value="' + (f.from || '') + '" style="' + inp + '"></label>'
+    + '<label style="' + lbl + '">Last active to<input type="date" name="to" value="' + (f.to || '') + '" style="' + inp + '"></label>'
+    + '<button type="button" onclick="bhLfApply(this)" style="padding:7px 14px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Apply</button>'
+    + '<button type="button" onclick="bhLfReset(this)" style="padding:7px 14px;border-radius:6px;border:1px solid #e5e7eb;color:#6b7280;font-size:12px;font-weight:600;cursor:pointer;background:#fff">Reset</button>'
+    + XBulk.button("bhBulkOpen('" + list + "')")
+    + (bhLfActive(list) ? '<span style="font-size:11.5px;color:#6b7280;align-self:center">' + shown + ' matching</span>' : '')
+    + '</div>';
+}
+function bhLfRedraw(list){
+  var el = document.getElementById('dashView');
+  if (list === 'mkCampaign') el.innerHTML = MK_CAMPAIGN_STACK_INTRO + renderMkCampaignTableHtml(MK_CAMPAIGN_ALL);
+  else if (list === 'mkAccounts') el.innerHTML = renderMarketingAccountsTable(MK_PERF_ALL);
+  else el.innerHTML = renderAccountsTable();
+}
+function bhLfApply(btn){
+  var bar = btn.closest('.bh-lf');
+  var v = function(n){ return bar.querySelector('[name="' + n + '"]').value; };
+  var from = v('from'), to = v('to');
+  if (from && to && to < from) { alert('The "to" date must be on or after the "from" date.'); return; }
+  BH_LF[bar.getAttribute('data-list')] = { stage: v('stage'), from: from, to: to };
+  bhLfRedraw(bar.getAttribute('data-list'));
+}
+function bhLfReset(btn){
+  var list = btn.closest('.bh-lf').getAttribute('data-list');
+  BH_LF[list] = {};
+  bhLfRedraw(list);
+}
+window.bhLfApply = bhLfApply;
+window.bhLfReset = bhLfReset;
+
+/* Send to all: loads the whole list and pre-ticks the accounts matching the bar's filters
+   (and, for Campaign, the MQL-ready segment), so others can still be added in the window. */
+function bhBulkOpen(list){
+  var agentName = dashState.agent === 'ch' ? 'Customer Retention' : (dashState.agent === 'mk' ? 'Marketing' : 'Sales');
+  var f = BH_LF[list] || {};
+  var filters = [];
+  if (list === 'mkCampaign') filters.push({ label: 'Segment: MQL-ready', test: function(r){ return r.raw.segment === 'mql_ready'; } });
+  if (f.stage) filters.push({ label: 'Deal stage: ' + f.stage, test: function(r){ return bhStageOf(r.raw) === f.stage; } });
+  if (f.from || f.to) {
+    filters.push({ label: 'Last active' + (f.from ? ' from ' + f.from : '') + (f.to ? ' to ' + f.to : ''), test: function(r){
+      var d = bhActiveDate(r.raw);
+      return !!d && (!f.from || d >= f.from) && (!f.to || d <= f.to);
+    } });
+  }
+  var cfg = {
+    channels: ['email'],
+    groupLabel: 'Segment',
+    templates: MK_CMP_TEMPLATES,
+    fill: function(text, r){ return mkFillTemplate(text, { name: r.raw.name, company: r.raw.company, deal_value: r.raw.deal_value != null ? r.raw.deal_value : r.raw.mrr }); },
+    note: '{first}, {company} and {deal_value} are filled in for each contact.',
+    send: bhBulkSend,
+    filters: filters
+  };
+  if (list === 'mkCampaign') {
+    cfg.title = 'Send to all — Marketing campaign';
+    cfg.fileBase = 'business-helpers-campaign';
+    cfg.load = function(){ return fetch(MARKETING_ACCOUNTS_ENDPOINT).then(function(r){ return r.json(); }).then(function(d){ return bhBulkRows(d.accounts || [], false); }); };
+  } else if (list === 'mkAccounts') {
+    cfg.title = 'Send to all — Marketing accounts';
+    cfg.fileBase = 'business-helpers-accounts';
+    cfg.load = function(){ return bhBulkRows(MK_PERF_ALL, false); };
+  } else {
+    cfg.title = 'Send to all — ' + agentName + ' accounts';
+    cfg.fileBase = 'business-helpers-' + agentName;
+    cfg.load = function(){ return bhBulkRows(rankedFor(dashState.agent).map(function(x){ return x.a; }), true); };
+  }
+  cfg.reportTitle = 'Business Helpers — Send to all report (' + cfg.title.replace('Send to all — ', '') + ')';
+  XBulk.open(cfg);
+}
+window.bhBulkOpen = bhBulkOpen;
 window.showDashView = showDashView;
 window.selectScriptAccount = selectScriptAccount;
 window.selectMkAudienceAccount = selectMkAudienceAccount;

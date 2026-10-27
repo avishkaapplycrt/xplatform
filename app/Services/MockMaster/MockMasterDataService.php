@@ -75,6 +75,38 @@ class MockMasterDataService
         ];
     }
 
+    /**
+     * Every Campaign student matching the tab's filters, for "Send to all": the same
+     * candidate pool and Plan filter as campaignStudentsPage(), plus the number ranges
+     * from the Package value / Readiness / Trust column menus, which the table itself
+     * only applies to the page on screen.
+     *
+     * @param  array<string, array{min: ?float, max: ?float}>  $ranges  keyed by value|readiness|trust
+     */
+    public function campaignAudience(?string $subscription, ?string $from, ?string $to, ?string $plan, array $ranges = [], ?string $sort = null, string $dir = 'asc'): array
+    {
+        $candidates = $this->campaignCandidates($subscription, $from, $to);
+        if ($plan !== null && $plan !== '' && $plan !== 'all') {
+            $plans = $this->planFor($candidates->pluck('studentid')->all());
+            $candidates = $candidates->filter(fn ($r) => $this->planMatches($plans[(int) $r->studentid] ?? 'No purchase', $plan))->values();
+        }
+
+        $rows = collect($this->mapCampaignRows($candidates))->filter(function ($r) use ($ranges) {
+            foreach ($ranges as $key => $range) {
+                $v = $r['sort'][$key] ?? null;
+                if ($v === null || ($range['min'] !== null && $v < $range['min']) || ($range['max'] !== null && $v > $range['max'])) {
+                    return false;
+                }
+            }
+            return true;
+        });
+        if ($sort && in_array($sort, self::CAMPAIGN_SORT_KEYS, true)) {
+            $rows = $rows->sortBy(fn ($r) => $r['sort'][$sort] ?? null, SORT_REGULAR, $dir === 'desc');
+        }
+
+        return $this->withPlan($rows->map(fn ($r) => array_diff_key($r, ['sort' => true]))->values()->all());
+    }
+
     private function campaignCandidates(?string $subscription, ?string $from, ?string $to)
     {
         $query = DB::table('mm_purchases as p')
@@ -776,6 +808,7 @@ class MockMasterDataService
                 'play' => $readiness >= 50 ? 'Call' : 'Nurture',
                 'email' => $s->email ?: null,
                 'phone' => $this->formatPhone($s->country_code, $s->phone),
+                'filterDate' => $s->create_date ? Carbon::parse($s->create_date)->toDateString() : null, // joined; list date filter
             ];
         })->values()->all());
     }
@@ -1054,6 +1087,7 @@ class MockMasterDataService
                     'score' => min(100, $score),
                     'signals' => $why,
                     'lastActive' => $this->relativeLogin($a['last_at']),
+                    'filterDate' => $a['last_at'] ? Carbon::parse($a['last_at'])->toDateString() : null, // list date filter
                     'action' => $hasCheckout ? 'Call today — help them finish checkout'
                         : ($a['avg'] === null ? 'Call — help them take a full scored mock'
                         : ($a['avg'] >= 65 ? 'Pitch a 1-month plan — scoring ' . $a['avg'] . ', ready to polish'
@@ -1097,6 +1131,7 @@ class MockMasterDataService
                     'name' => $this->studentName($s, $id),
                     'package' => $c['product'],
                     'amount' => '$' . number_format($c['amount']),
+                    'filterDate' => Carbon::parse($c['at'])->toDateString(), // checkout date; list date filter
                     'attempted' => Carbon::parse($c['at'])->diffForHumans() . ($c['attempts'] > 1 ? ' (' . $c['attempts'] . ' tries)' : ''),
                     'signals' => $this->activityText($signals[$id]) . $this->contactFlags($id),
                     'action' => Carbon::parse($c['at'])->gt(now()->subDays(2)) ? 'Call today — payment still fresh' : 'WhatsApp a payment link and offer help',
@@ -1158,6 +1193,7 @@ class MockMasterDataService
                     'sid' => (int) $r->studentid,
                     'name' => $this->studentName($s, $r->studentid),
                     'package' => $r->product,
+                    'filterDate' => Carbon::parse($r->expire_date)->toDateString(), // list date filter
                     'expires' => $days <= 0 ? 'today' : 'in ' . $days . ' day' . ($days === 1 ? '' : 's'),
                     'amount' => '$' . number_format($value),
                     'signals' => $this->activityText($a),
@@ -1219,6 +1255,7 @@ class MockMasterDataService
                     'sid' => (int) $r->studentid,
                     'name' => $this->studentName($s, $r->studentid),
                     'package' => $r->product,
+                    'filterDate' => Carbon::parse($r->expire_date)->toDateString(), // list date filter
                     'expired' => $days === 0 ? 'today' : $days . ' day' . ($days === 1 ? '' : 's') . ' ago',
                     'amount' => '$' . number_format($value),
                     'signals' => str_replace('(14d)', '(30d)', $this->activityText($a)),
@@ -1297,6 +1334,7 @@ class MockMasterDataService
                 'name' => trim($r->first_name . ' ' . $r->last_name) ?: 'Student #' . $r->studentid,
                 'sub' => $r->product ?: 'Package',
                 'inactiveDays' => min($inactiveDays, 999),
+                'filterDate' => Carbon::parse($r->expire_date)->toDateString(), // expires; list date filter
                 'valueAtRisk' => '$' . number_format((float) ($r->amount ?? 0), 0),
                 'risk' => (int) $risk,
                 'email' => $r->email ?: null,

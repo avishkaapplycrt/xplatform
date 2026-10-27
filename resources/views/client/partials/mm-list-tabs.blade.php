@@ -20,6 +20,12 @@
     @if(empty($tab['rows']))
     <div class="act"><div class="act-t" style="color:var(--g3)">Nobody matches this right now.</div></div>
     @else
+    @include('client.partials.mm-list-filter', [
+        'dataset' => $tab['dataset'],
+        'kind' => $tk,
+        'subLabel' => $tk === 'convert' ? 'Subscription' : 'Package',
+        'dateLabel' => ['convert' => 'Last active', 'abandoned' => 'Checkout', 'renewals' => 'Expires', 'winback' => 'Expired'][$tk] ?? 'Date',
+    ])
     <table class="dtbl">
         <thead><tr>
             <th data-tip="Click a name for contact details.@if($tk !== 'convert') The grey line shows recent activity.@endif">Student</th>
