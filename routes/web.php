@@ -108,6 +108,8 @@ Route::get('mira/report/{id}', function (string $id) {
 Route::get('simulator', fn() => view('simulator'))->name('simulator');
 Route::get('case-studies', fn() => view('case-studies'))->name('case-studies');
 Route::get('pricing', fn() => view('pricing'))->name('pricing');
+// Previous pricing page, kept for instant rollback (same pattern as homepage-classic).
+Route::get('pricing-classic', fn() => view('pricing-classic'))->name('pricing.classic');
 Route::get('book-demo', [App\Http\Controllers\BookDemoController::class, 'show'])->name('book-demo');
 Route::post('book-demo', [App\Http\Controllers\BookDemoController::class, 'store'])->name('book-demo.store');
 Route::get('book-demo/thank-you', [App\Http\Controllers\BookDemoController::class, 'thankYou'])->name('book-demo.thank-you');
@@ -115,6 +117,11 @@ Route::get('about', fn() => view('about'))->name('about');
 Route::get('industries', fn() => view('industries'))->name('industries');
 Route::get('banking',   fn() => view('banking'))->name('banking');
 Route::get('privacy',   fn() => view('privacy'))->name('privacy');
+
+// Meta's Instagram app callbacks (signed by Meta; public and CSRF-exempt — see bootstrap/app.php).
+Route::post('meta/instagram/deauthorize', [\App\Http\Controllers\MetaInstagramCallbackController::class, 'deauthorize'])->name('meta.instagram.deauthorize');
+Route::post('meta/instagram/data-deletion', [\App\Http\Controllers\MetaInstagramCallbackController::class, 'dataDeletion'])->name('meta.instagram.data-deletion');
+Route::get('meta/instagram/data-deletion/{code}', [\App\Http\Controllers\MetaInstagramCallbackController::class, 'deletionStatus'])->name('meta.instagram.data-deletion.status');
 Route::get('terms',     fn() => view('terms'))->name('terms');
 Route::get('security',  fn() => view('security'))->name('security');
 Route::get('careers',   fn() => view('careers'))->name('careers');
@@ -361,8 +368,13 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         session(['active_tenant' => $tenant]);
 
         return redirect()->route($tenant === 'mockmaster' ? 'client.mock-master-helper' : 'client.business-helpers');
-    })->whereIn('tenant', ['mockmaster', 'test'])->name('tenant.switch');
+    })->whereIn('tenant', ['mockmaster', 'admin'])->name('tenant.switch');
     Route::get('business-helpers', function () {
+        // Business Helpers belongs to the Admin Account tenant; the Mock Master tenant only has Mock Master Helper.
+        if (session('active_tenant') === 'mockmaster') {
+            return redirect()->route('client.mock-master-helper');
+        }
+
         $groupPrompts = fn (string $agent) => \App\Models\AgentPredefinedPrompt::forAgent($agent)
             ->where('is_mock_master', false)
             ->ordered()
@@ -444,48 +456,11 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'body' => 'required|string|max:5000',
         ]);
 
-        $student = \Illuminate\Support\Facades\DB::table('mm_studentuser')
-            ->where('studentId', $data['student_id'])
-            ->first(['email', 'first_name', 'last_name']);
-        $email = $student->email ?? null;
-        $recipientName = $student ? trim($student->first_name . ' ' . $student->last_name) : null;
-        $clientId = \Illuminate\Support\Facades\Auth::guard('client')->id();
+        $result = (new \App\Services\MockMaster\MockMasterMessenger())
+            ->sendEmail((int) $data['student_id'], $data['subject'], $data['body']);
 
-        $log = function (string $status, ?string $error = null) use ($clientId, $email, $recipientName, $data) {
-            \Illuminate\Support\Facades\DB::table('email_logs')->insert([
-                'client_id' => $clientId,
-                'email_address' => (string) $email,
-                'recipient_name' => $recipientName,
-                'subject' => mb_substr($data['subject'], 0, 255),
-                'body' => $data['body'],
-                'type' => 'single',
-                'bulk_count' => 1,
-                'status' => $status,
-                'error_message' => $error,
-                'sent_at' => now(),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        };
-
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $log('failed', 'No valid email address on file.');
-            return response()->json(['ok' => false, 'message' => 'This student has no valid email address on file.'], 422);
-        }
-
-        try {
-            \Illuminate\Support\Facades\Mail::raw($data['body'], function ($message) use ($email, $data) {
-                $message->to($email)->subject($data['subject']);
-            });
-        } catch (\Throwable $e) {
-            report($e);
-            $log('failed', mb_substr($e->getMessage(), 0, 1000));
-            return response()->json(['ok' => false, 'message' => 'The email could not be sent. Please try again.'], 500);
-        }
-
-        $log('sent');
-
-        return response()->json(['ok' => true, 'message' => 'Email sent to ' . $email]);
+        return response()->json(['ok' => $result['ok'], 'message' => $result['message']],
+            $result['ok'] ? 200 : ($result['status'] === 'skipped' ? 422 : 500));
     })->name('mock-master-helper.send-email');
 
     Route::post('mock-master-helper/send-whatsapp', function (\Illuminate\Http\Request $request) {
@@ -494,29 +469,75 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'body' => 'required|string|max:4096',
         ]);
 
-        $student = \Illuminate\Support\Facades\DB::table('mm_studentuser')
-            ->where('studentId', $data['student_id'])
-            ->first(['country_code', 'phone']);
-        $digits = $student ? preg_replace('/\D/', '', ($student->country_code ?? '') . ($student->phone ?? '')) : '';
+        $result = (new \App\Services\MockMaster\MockMasterMessenger())
+            ->sendWhatsApp((int) $data['student_id'], $data['body']);
 
-        if ($digits === '') {
-            return response()->json(['ok' => false, 'message' => 'This student has no phone number on file.'], 422);
-        }
-
-        $result = (new \App\Services\WhatsAppCloudService())->sendText('+' . $digits, $data['body']);
-
-        if (!$result['ok']) {
-            $outsideWindow = str_contains((string) $result['error'], '131047');
-            return response()->json([
-                'ok' => false,
-                'message' => $outsideWindow
-                    ? 'WhatsApp only allows free text within 24 hours of the student\'s last message. Use an approved template for this student.'
-                    : 'WhatsApp could not send the message: ' . $result['error'],
-            ], 422);
-        }
-
-        return response()->json(['ok' => true, 'message' => 'WhatsApp sent to +' . $digits]);
+        return response()->json(['ok' => $result['ok'], 'message' => $result['message']], $result['ok'] ? 200 : 422);
     })->name('mock-master-helper.send-whatsapp');
+
+    // Campaign "Send to all": every student matching the Campaign filters (subscription,
+    // payment dates, Plan column and the Package value / Readiness / Trust number ranges).
+    Route::get('mock-master-helper/campaign-audience', function () {
+        $f = request()->validate([
+            'subscription' => 'nullable|string|max:255',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+            'sort' => 'nullable|in:value,payment,stage,readiness,trust,approach,last_active',
+            'dir' => 'nullable|in:asc,desc',
+            'plan' => 'nullable|in:all,paid,unpaid,Free trial,Paid,Coaching,Coaching + Paid,No purchase,Other',
+            'value_min' => 'nullable|numeric', 'value_max' => 'nullable|numeric',
+            'readiness_min' => 'nullable|numeric', 'readiness_max' => 'nullable|numeric',
+            'trust_min' => 'nullable|numeric', 'trust_max' => 'nullable|numeric',
+        ]);
+
+        $ranges = [];
+        foreach (['value', 'readiness', 'trust'] as $key) {
+            $min = $f[$key . '_min'] ?? null;
+            $max = $f[$key . '_max'] ?? null;
+            if ($min !== null || $max !== null) {
+                $ranges[$key] = ['min' => $min === null ? null : (float) $min, 'max' => $max === null ? null : (float) $max];
+            }
+        }
+
+        $students = (new \App\Services\MockMaster\MockMasterDataService())->campaignAudience(
+            $f['subscription'] ?? null, $f['from'] ?? null, $f['to'] ?? null, $f['plan'] ?? null,
+            $ranges, $f['sort'] ?? null, $f['dir'] ?? 'asc'
+        );
+
+        return response()->json(['students' => $students, 'total' => count($students)]);
+    })->name('mock-master-helper.campaign-audience');
+
+    // Campaign "Send to all": sends one batch (the page sends the audience in batches and
+    // shows progress). Each message is already personalised; addresses are looked up here.
+    Route::post('mock-master-helper/send-bulk', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'channel' => 'required|in:email,whatsapp',
+            'total' => 'nullable|integer|min:1',
+            'messages' => 'required|array|min:1|max:25',
+            'messages.*.student_id' => 'required|integer',
+            'messages.*.subject' => 'required_if:channel,email|nullable|string|max:255',
+            'messages.*.body' => 'required|string|max:4096',
+        ]);
+        set_time_limit(300);
+
+        $messenger = new \App\Services\MockMaster\MockMasterMessenger();
+        $total = (int) ($data['total'] ?? count($data['messages']));
+        $results = [];
+        foreach ($data['messages'] as $m) {
+            $r = $data['channel'] === 'email'
+                ? $messenger->sendEmail((int) $m['student_id'], (string) $m['subject'], $m['body'], 'bulk', $total)
+                : $messenger->sendWhatsApp((int) $m['student_id'], $m['body'], 'bulk', $total);
+            $results[] = [
+                'student_id' => (int) $m['student_id'],
+                'name' => $r['name'],
+                'to' => $r['to'],
+                'status' => $r['status'],
+                'error' => $r['ok'] ? null : $r['message'],
+            ];
+        }
+
+        return response()->json(['results' => $results]);
+    })->name('mock-master-helper.send-bulk');
 
     Route::get('mock-master-helper/kpi/{key}', function (string $key) {
         $service = new \App\Services\MockMaster\MockMasterDataService();
@@ -667,9 +688,9 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         return $profile ? response()->json($profile) : response()->json(['message' => 'Student not found.'], 404);
     })->name('mock-master-helper.student');
 
-    Route::get('mock-master-helper/more/{dataset}', function (\Illuminate\Http\Request $request, string $dataset) {
-        $mm = new \App\Services\MockMaster\MockMasterDataService();
-        $fetchers = [
+    // Mock Master list datasets, shared by the paged "more" route and Send to all's list audience.
+    $mmListFetchers = function (\App\Services\MockMaster\MockMasterDataService $mm): array {
+        return [
             'chAtRisk'      => fn (int $l, int $o) => $mm->retentionAtRisk($l, $o),
             'chWatchlist'   => fn (int $l, int $o) => $mm->retentionWatchlist($l, $o),
             'slProspects'   => fn (int $l, int $o) => $mm->salesProspects($l, $o),
@@ -680,6 +701,10 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'mkTopScorers'  => fn (int $l, int $o) => $mm->topScorers($l, $o),
             'mkNewStudents' => fn (int $l, int $o) => $mm->newStudents($l, $o),
         ];
+    };
+
+    Route::get('mock-master-helper/more/{dataset}', function (\Illuminate\Http\Request $request, string $dataset) use ($mmListFetchers) {
+        $fetchers = $mmListFetchers(new \App\Services\MockMaster\MockMasterDataService());
 
         if (!isset($fetchers[$dataset])) {
             abort(404);
@@ -698,6 +723,41 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
         return response()->json(['rows' => $rows, 'hasMore' => $hasMore]);
     })->name('mock-master-helper.more');
+
+    // A whole Sales / Retention list (up to 2,000), for its Subscription / date filter bar and
+    // Send to all. "Subscription" is the row's package (or course interest); the date range
+    // applies to each row's filterDate (joined, last active, checkout or expiry date).
+    Route::get('mock-master-helper/list-audience/{dataset}', function (string $dataset) use ($mmListFetchers) {
+        $fetchers = $mmListFetchers(new \App\Services\MockMaster\MockMasterDataService());
+        abort_unless(isset($fetchers[$dataset]), 404);
+        $f = request()->validate([
+            'subscription' => 'nullable|string|max:255',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+        ]);
+
+        $all = $fetchers[$dataset](2000, 0);
+        $subOf = fn (array $r) => (string) ($r['package'] ?? $r['sub'] ?? '');
+        $options = collect($all)->map($subOf)->filter()->unique()->sort()->values()->all();
+
+        $from = !empty($f['from']) ? \Illuminate\Support\Carbon::parse($f['from'])->toDateString() : null;
+        $to = !empty($f['to']) ? \Illuminate\Support\Carbon::parse($f['to'])->toDateString() : null;
+        $rows = array_values(array_filter($all, function (array $r) use ($f, $subOf, $from, $to) {
+            if (!empty($f['subscription']) && $subOf($r) !== $f['subscription']) {
+                return false;
+            }
+            $d = $r['filterDate'] ?? null;
+            return (!$from || ($d && $d >= $from)) && (!$to || ($d && $d <= $to));
+        }));
+
+        $palette = ['#3b5bdb', '#7c5cfc', '#f97316', '#1e3a8a', '#0284c7', '#334155', '#16a34a', '#db2777', '#0d9488'];
+        $rows = array_map(fn ($r) => $r + [
+            'color' => $palette[crc32((string) ($r['name'] ?? '')) % count($palette)],
+            'initial' => mb_strtoupper(mb_substr(trim((string) ($r['name'] ?? '')), 0, 1)) ?: '?',
+        ], $rows);
+
+        return response()->json(['rows' => $rows, 'total' => count($rows), 'options' => $options]);
+    })->name('mock-master-helper.list-audience');
 
     // Pulls the 14 live Mock Master source tables (coupon_usage,
     // deleted_students, feedbacks, login_history, meetings, mock_test_logs,
@@ -806,7 +866,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         };
 
         try {
-            \Illuminate\Support\Facades\Mail::raw($data['body'], function ($message) use ($data) {
+            \App\Support\ClientMailSender::raw($data['body'], function ($message) use ($data) {
                 $message->to($data['email'])->subject($data['subject']);
             });
         } catch (\Throwable $e) {
@@ -819,6 +879,52 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
         return response()->json(['ok' => true, 'message' => 'Email sent to ' . $data['email']]);
     })->name('business-helpers.sales.send-email');
+
+    // Business Helpers "Send to all": one batch of already-personalised emails to CRM contacts.
+    Route::post('business-helpers/send-bulk', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'total' => 'nullable|integer|min:1',
+            'messages' => 'required|array|min:1|max:25',
+            'messages.*.id' => 'required|string|max:64',
+            'messages.*.email' => 'required|email|max:255',
+            'messages.*.name' => 'nullable|string|max:255',
+            'messages.*.subject' => 'required|string|max:255',
+            'messages.*.body' => 'required|string|max:5000',
+        ]);
+        set_time_limit(300);
+
+        $clientId = \Illuminate\Support\Facades\Auth::guard('client')->id();
+        $total = (int) ($data['total'] ?? count($data['messages']));
+        $results = [];
+        foreach ($data['messages'] as $m) {
+            $error = null;
+            try {
+                \App\Support\ClientMailSender::raw($m['body'], function ($message) use ($m) {
+                    $message->to($m['email'])->subject($m['subject']);
+                });
+            } catch (\Throwable $e) {
+                report($e);
+                $error = mb_substr($e->getMessage(), 0, 1000);
+            }
+            \Illuminate\Support\Facades\DB::table('email_logs')->insert([
+                'client_id' => $clientId,
+                'email_address' => $m['email'],
+                'recipient_name' => $m['name'] ?? null,
+                'subject' => mb_substr($m['subject'], 0, 255),
+                'body' => $m['body'],
+                'type' => 'bulk',
+                'bulk_count' => $total,
+                'status' => $error ? 'failed' : 'sent',
+                'error_message' => $error,
+                'sent_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $results[] = ['id' => $m['id'], 'to' => $m['email'], 'status' => $error ? 'failed' : 'sent', 'error' => $error ? 'The email could not be sent.' : null];
+        }
+
+        return response()->json(['results' => $results]);
+    })->name('business-helpers.send-bulk');
 
     // Customer Retention · Risk radar AI answers (crm_contacts + crm_deals +
     // email_logs_providers, written up by OpenAI when OPENAI_API_KEY is set —
@@ -1072,6 +1178,12 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
     // Email Logs
     Route::get('/email-logs', [DecisionCentreController::class, 'emailLogs'])->name('email.logs');
+
+    // Email Settings → Sending Account: the client's own SMTP login (client_smtp_settings).
+    Route::get('email-sender', [\App\Http\Controllers\ClientSmtpController::class, 'show'])->name('email.sender');
+    Route::post('email-sender', [\App\Http\Controllers\ClientSmtpController::class, 'save'])->name('email.sender.save');
+    Route::post('email-sender/test', [\App\Http\Controllers\ClientSmtpController::class, 'test'])->name('email.sender.test');
+    Route::delete('email-sender', [\App\Http\Controllers\ClientSmtpController::class, 'destroy'])->name('email.sender.destroy');
     Route::get('/email-logs/{log}/detail', [DecisionCentreController::class, 'emailLogDetail'])->name('email.logs.detail');
     Route::post('/email-logs/{log}/retry', [DecisionCentreController::class, 'retryEmail'])->name('email.logs.retry');
     Route::delete('/email-logs/{log}', [DecisionCentreController::class, 'deleteEmailLog'])->name('email.logs.delete');

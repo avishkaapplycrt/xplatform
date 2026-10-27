@@ -23,6 +23,11 @@ return new class extends Migration
     public function up(): void
     {
         foreach (self::TABLES as $table => $typeColumn) {
+            // social_integrations may already have client_id from
+            // 2026_10_27_000001_add_client_id_to_social_integrations (run first on some databases).
+            if (Schema::hasColumn($table, 'client_id')) {
+                continue;
+            }
             Schema::table($table, function (Blueprint $t) use ($typeColumn) {
                 $t->foreignId('client_id')->nullable()->after('id')->constrained('clients')->cascadeOnDelete();
                 $t->index(['client_id', $typeColumn]);

@@ -119,7 +119,7 @@ class SocialAnalyticsController extends Controller
      */
     private function connectedIntegrations()
     {
-        return SocialIntegration::where('status', 'connected')->get();
+        return SocialIntegration::where('status', 'connected')->forClient(auth('client')->id())->get();
     }
 
     private function sumMetric($connected, string $key): int

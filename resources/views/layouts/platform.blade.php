@@ -26,12 +26,14 @@
     {{-- Left Sidebar --}}
     <aside id="platformSidebar" class="w-[200px] bg-white border-r border-gray-200 flex flex-col h-full flex-shrink-0 transition-all duration-200">
 
-        {{-- Active Tenant: "Mock Master" shows Mock Master Helper, "Test Account" shows Business Helpers.
-             The helper page you are on decides first, then the last choice (route client.tenant.switch). --}}
+        {{-- Active Tenant: "Admin Account" shows Business Helpers and Mock Master Helper, "Mock Master" shows only
+             Mock Master Helper. The last choice in the dropdown (route client.tenant.switch) decides. --}}
         @php
-            $tenants = ['mockmaster' => 'Mock Master', 'test' => 'Test Account'];
-            $activeTenant = request()->routeIs('client.mock-master-helper*') ? 'mockmaster'
-                : (request()->routeIs('client.business-helpers*') ? 'test' : session('active_tenant', 'test'));
+            $tenants = ['mockmaster' => 'Mock Master', 'admin' => 'Admin Account'];
+            $activeTenant = session('active_tenant', 'admin');
+            if (! isset($tenants[$activeTenant])) {
+                $activeTenant = 'admin';
+            }
         @endphp
         <div class="px-3 pt-4 pb-3 border-b border-gray-100">
             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Active Tenant</p>
@@ -39,7 +41,13 @@
             <div class="relative" data-dd-wrap>
                 <button type="button" onclick="xpDd('tenantMenu')" aria-haspopup="menu"
                     class="w-full flex items-center justify-between bg-white border border-gray-200 rounded-md px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition">
-                    <span>{{ $tenants[$activeTenant] }}</span>
+                    <span class="flex items-center gap-2 min-w-0">
+                        <svg class="w-4 h-4 flex-shrink-0 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                        <span class="truncate">{{ $tenants[$activeTenant] }}</span>
+                    </span>
                     <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
@@ -60,7 +68,7 @@
             </div>
         </div>
 
-        @if ($activeTenant === 'test')
+        @if ($activeTenant === 'admin')
         {{-- Business Helpers --}}
         <div class="px-3 pt-3">
             <a href="{{ route('client.business-helpers') }}"
@@ -78,9 +86,8 @@
         </div>
         @endif
 
-        @if ($activeTenant === 'mockmaster')
         {{-- Mock Master Helper --}}
-        <div class="px-3 pt-3">
+        <div class="px-3 {{ $activeTenant === 'admin' ? 'pt-1' : 'pt-3' }}">
             <a href="{{ route('client.mock-master-helper') }}"
                class="flex items-center gap-2 px-3 py-2 text-xs rounded-md transition
                       {{ request()->routeIs('client.mock-master-helper')
@@ -94,7 +101,6 @@
                 <span class="truncate">Mock Master Helper</span>
             </a>
         </div>
-        @endif
 
         {{-- Platform Layers Navigation --}}
         <div class="px-3 pt-3 flex-1 overflow-y-auto">
@@ -121,7 +127,7 @@
                     ? $allSidebarLayers
                     : array_values(array_filter($allSidebarLayers, fn($l) => in_array($l['num'], $selectedLayerCodes)));
                 $archLayerRoutes = collect($sidebarLayers)->pluck('route')->push('client.data-collection')->all();
-                $isArchActive = request()->routeIs('client.architecture') || collect($archLayerRoutes)->contains(fn($r) => request()->routeIs($r));
+                $isArchActive = request()->routeIs('client.architecture', 'client.company.overview') || collect($archLayerRoutes)->contains(fn($r) => request()->routeIs($r));
                 @endphp
                 <div class="space-y-1">
                     <button onclick="toggleArchMenu()"
@@ -430,7 +436,7 @@
 
                 {{-- Email Settings Group --}}
                 @php
-                $emailRoutes = ['client.email.templates', 'client.email.template.categories', 'client.email.logs'];
+                $emailRoutes = ['client.email.templates', 'client.email.template.categories', 'client.email.logs', 'client.email.sender'];
                 $isEmailActive = collect($emailRoutes)->contains(fn($r) => request()->routeIs($r));
                 @endphp
 
@@ -470,6 +476,12 @@
                                   {{ request()->routeIs('client.email.logs') ? 'text-sky-700 font-medium' : 'text-gray-500 hover:text-gray-700' }}">
                             <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.email.logs') ? 'bg-sky-500' : 'bg-gray-300' }}"></span>
                             <span class="truncate">Logs</span>
+                        </a>
+                        <a href="{{ route('client.email.sender') }}"
+                           class="flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition
+                                  {{ request()->routeIs('client.email.sender') ? 'text-sky-700 font-medium' : 'text-gray-500 hover:text-gray-700' }}">
+                            <span class="w-1 h-1 rounded-full {{ request()->routeIs('client.email.sender') ? 'bg-sky-500' : 'bg-gray-300' }}"></span>
+                            <span class="truncate">Sending Account</span>
                         </a>
                     </div>
                 </div>

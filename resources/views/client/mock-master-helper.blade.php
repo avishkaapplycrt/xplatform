@@ -338,6 +338,8 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             </label>
                             <button type="submit" style="padding:7px 14px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Apply</button>
                             <button type="button" onclick="mmCampaignReset()" style="padding:7px 14px;border-radius:6px;border:1px solid var(--ln);color:var(--g3);font-size:12px;font-weight:600;cursor:pointer;background:#fff">Reset</button>
+                            <button type="button" onclick="mmBulkOpen()" data-tip="Email or WhatsApp every student that matches these filters (including the Plan and number filters on the columns)." style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;border:1px solid #7c3aed;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer;background:#fff">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>Send to all</button>
                         </form>
                         <table class="dtbl">
                             <thead><tr><th data-tip="Renewal-ready students with a package. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-sort-key="value" data-mm-num-filter onclick="mmCampaignSortBy('value')" data-tip="Amount paid for the selected Course" class="mm-sortable" style="cursor:pointer">Package value <span class="mm-sort-ind" data-for="value"></span></th><th data-sort-key="payment" onclick="mmCampaignSortBy('payment')" data-tip="Date of the payment linked to this package. Shows — if none is linked." class="mm-sortable" style="cursor:pointer">Payment date <span class="mm-sort-ind" data-for="payment"></span></th><th data-sort-key="stage" onclick="mmCampaignSortBy('stage')" data-tip="Active, Renewal Due (expired within the last 14 days), or Expired." class="mm-sortable" style="cursor:pointer">Stage <span class="mm-sort-ind" data-for="stage"></span></th><th data-sort-key="readiness" data-mm-num-filter onclick="mmCampaignSortBy('readiness')" data-tip="Average score across all mock tests. 0 = no results" class="mm-sortable" style="cursor:pointer">Readiness <span class="mm-sort-ind" data-for="readiness"></span></th><th data-sort-key="trust" data-mm-num-filter onclick="mmCampaignSortBy('trust')" data-tip="Based on the percentage of payments completed. 50 = no payment history." class="mm-sortable" style="cursor:pointer">Trust <span class="mm-sort-ind" data-for="trust"></span></th><th data-sort-key="approach" onclick="mmCampaignSortBy('approach')" data-tip="Proof-led when Trust is below 65; otherwise Offer-led." class="mm-sortable" style="cursor:pointer">Approach <span class="mm-sort-ind" data-for="approach"></span></th><th data-sort-key="last_active" onclick="mmCampaignSortBy('last_active')" data-tip="When they last logged in." class="mm-sortable" style="cursor:pointer">Last active <span class="mm-sort-ind" data-for="last_active"></span></th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
@@ -477,6 +479,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <div class="si-h">WHAT YOU'RE LOOKING AT</div>
                             <div class="si-p">The prospects that need your attention right now, ranked by <b>buying readiness</b> and <b>intent</b>. Use this to decide who to call today versus who to nurture.</div>
                         </div>
+                        @include('client.partials.mm-list-filter', ['dataset' => 'slProspects', 'kind' => 'today', 'subLabel' => 'Course interest', 'dateLabel' => 'Joined'])
                         <table class="dtbl">
                             <thead><tr><th data-tip="Students whose packages are all $0 (free trial or coaching access) and who have never bought a paid package. Click a name for contact details.">Prospect</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Average overall mock test score (PTE scale, about 10 to 90). 0 = no scored tests yet." data-mm-num-filter>Readiness</th><th data-tip="Readiness + 20 if their profile is complete, otherwise Readiness - 20 (minimum 10)." data-mm-num-filter>Intent</th><th data-tip="70 if they verified their phone number (OTP), otherwise 40." data-mm-num-filter>Trust</th><th data-tip="Call when Readiness is 50 or more, otherwise Nurture.">Play</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
                             <tbody>
@@ -498,6 +501,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
 
                     <div class="mm-panel" data-panel="sl-accounts" style="display:none">
                         <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Every prospect in your pipeline, in one place.</div></div>
+                        @include('client.partials.mm-list-filter', ['dataset' => 'slProspects', 'kind' => 'accounts', 'subLabel' => 'Course interest', 'dateLabel' => 'Joined'])
                         <table class="dtbl">
                             <thead><tr><th data-tip="Students whose packages are all $0 (free trial or coaching access) and who have never bought a paid package. Click a name for contact details.">Prospect</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Average overall mock test score (PTE scale, about 10 to 90). 0 = no scored tests yet." data-mm-num-filter>Readiness</th><th data-tip="Readiness + 20 if their profile is complete, otherwise Readiness - 20 (minimum 10)." data-mm-num-filter>Intent</th><th data-tip="70 if they verified their phone number (OTP), otherwise 40." data-mm-num-filter>Trust</th><th data-tip="Call when Readiness is 50 or more, otherwise Nurture.">Play</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
                             <tbody>
@@ -660,6 +664,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                             <div class="si-h">RANKED STACK — WHO TO SAVE, IN ORDER</div>
                             <div class="si-p">Sorted by <b>churn risk × value at stake</b>. Click through and reach out before they lapse.</div>
                         </div>
+                        @include('client.partials.mm-list-filter', ['dataset' => 'chAtRisk', 'kind' => 'savefirst', 'subLabel' => 'Subscription', 'dateLabel' => 'Expires'])
                         <table class="dtbl">
                             <thead><tr><th data-tip="Students whose package expires in the next 7 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in)." data-mm-num-filter>Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages." data-mm-num-filter>Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100." data-mm-num-filter>Risk score</th><th>Action</th></tr></thead>
                             <tbody>
@@ -696,6 +701,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
 
                     <div class="mm-panel" data-panel="ch-watchlist" style="display:none">
                         <div class="stack-intro"><div class="si-h">WATCH — CHURN CREEPING UP</div><div class="si-p">Not urgent yet, but trending the wrong way.</div></div>
+                        @include('client.partials.mm-list-filter', ['dataset' => 'chWatchlist', 'kind' => 'watchlist', 'subLabel' => 'Subscription', 'dateLabel' => 'Expires'])
                         <table class="dtbl">
                             <thead><tr><th data-tip="Students whose package expires in 8 to 30 days. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-tip="Days since their last login (999 = never logged in)." data-mm-num-filter>Inactive for</th><th data-tip="Largest payment linked to this package. $0 for free or granted packages." data-mm-num-filter>Value at risk</th><th data-tip="Days since last login plus days until the package expires, kept between 10 and 100." data-mm-num-filter>Risk score</th><th>Action</th></tr></thead>
                             <tbody>
@@ -2874,6 +2880,273 @@ function mmCampaignReset() {
     }
 }
 
+/* ── "Send to all" (shared window: partials/bulk-send) ──
+   Campaign: every renewal-ready student matching the form filters and number
+   ranges, all plans loaded so other plans can be added in the window.
+   Sales / Retention lists: everyone in that list (up to 2,000), pre-ticked by
+   the table's Plan and number filters. Messages go through send-bulk, which
+   looks each student's address up on the server. */
+var MM_AUDIENCE_URL = '{{ route('client.mock-master-helper.campaign-audience') }}';
+var MM_LIST_AUDIENCE_URL = '{{ route('client.mock-master-helper.list-audience', ['dataset' => '__DS__']) }}';
+var MM_SEND_BULK_URL = '{{ route('client.mock-master-helper.send-bulk') }}';
+
+function mmNumVal(v) { return mmNumOf({ textContent: v == null ? '' : String(v) }); }
+function mmRangeText(r) { return r.min !== null && r.max !== null ? r.min + ' to ' + r.max : (r.min !== null ? '≥ ' + r.min : '≤ ' + r.max); }
+function mmPlanClassJs(plan) {
+    var m = /class="([^"]*)"/.exec(mmPlanCell({ plan: plan }));
+    return m ? m[1] : 'xb-g';
+}
+
+/* Number-range filters set from a table's column menus: [{label, idx, range}]. */
+function mmTableRanges(table) {
+    var num = (table && table.__mmNum) || {};
+    var head = table && Array.prototype.find.call(table.querySelectorAll('tr'), function (tr) { return tr.querySelector('th'); });
+    var out = [];
+    if (!head) return out;
+    Array.prototype.forEach.call(head.children, function (th, i) {
+        if (!mmNumActive(num[i])) return;
+        var label = (th.childNodes[0] && th.childNodes[0].textContent || th.textContent).trim();
+        out.push({ label: label, key: th.getAttribute('data-sort-key'), range: num[i] });
+    });
+    return out;
+}
+
+function mmBulkSendBatch(channel, items, total) {
+    return fetch(MM_SEND_BULK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+        body: JSON.stringify({ channel: channel, total: total, messages: items.map(function (it) {
+            return { student_id: it.row.id, subject: channel === 'email' ? it.subject : null, body: it.body };
+        }) })
+    })
+    .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
+    .then(function (d) {
+        return (d.results || []).map(function (x) { return { id: x.student_id, status: x.status, to: x.to, error: x.error }; });
+    });
+}
+
+function mmBulkOpen() {
+    var form = document.getElementById('mmCampaignFilter');
+    var table = document.getElementById('mmCampaignBody').closest('table');
+    var params = mmCampaignParams(1);
+    params.delete('page');
+    params.delete('plan'); // all plans load; the Plan filter only decides who starts ticked
+    var filters = [];
+    var sub = form.querySelector('[name="subscription"]').value;
+    var from = form.querySelector('[name="from"]').value, to = form.querySelector('[name="to"]').value;
+    if (sub) filters.push({ label: 'Subscription: ' + sub, test: function (r) { return r.raw.sub === sub; } });
+    if (from || to) filters.push({ label: 'Payment ' + (from ? 'from ' + from : '') + (from && to ? ' ' : '') + (to ? 'to ' + to : ''), test: function () { return true; } });
+    if (MM_CAMPAIGN_PLAN && MM_CAMPAIGN_PLAN !== 'all') {
+        var plan = MM_CAMPAIGN_PLAN;
+        filters.push({ label: 'Plan: ' + mmPfLabel(plan), test: function (r) { return mmPfMatches(r.group, plan); } });
+    }
+    mmTableRanges(table).forEach(function (f) {
+        if (['value', 'readiness', 'trust'].indexOf(f.key) === -1) return;
+        if (f.range.min !== null && f.range.min !== undefined) params.set(f.key + '_min', f.range.min);
+        if (f.range.max !== null && f.range.max !== undefined) params.set(f.key + '_max', f.range.max);
+        filters.push({ label: f.label + ' ' + mmRangeText(f.range), test: function () { return true; } }); // applied on the server
+    });
+
+    XBulk.open(mmBulkPlanCfg({
+        title: 'Send to all — Campaign',
+        reportTitle: 'Mock Master — Send to all report (Campaign)',
+        fileBase: 'mock-master-campaign',
+        channels: ['email', 'whatsapp'],
+        groupLabel: 'Plan',
+        groupClass: mmPlanClassJs,
+        filters: filters,
+        templates: MM_MESSAGE_TEMPLATES,
+        fill: function (text, r) { return mmFillTemplate(text, r.raw); },
+        note: '{first}, {name}, {package}, {value} and {readiness} are filled in for each student.',
+        send: mmBulkSendBatch,
+        load: function () {
+            return fetch(MM_AUDIENCE_URL + '?' + params.toString(), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
+                .then(function (d) {
+                    return (d.students || []).map(function (s) {
+                        return { id: s.sid, name: s.name, email: s.email, phone: s.phone, group: s.plan || '—',
+                                 date: s.paymentDate, dateSub: s.lastActive, search: [s.sub, s.stage].join(' '), raw: s };
+                    });
+                });
+        }
+    }));
+}
+
+/* Sales / Retention list headers → row field, for the number-range filters. */
+var MM_BULK_NUM_FIELDS = {
+    'Readiness': 'readiness', 'Intent': 'intent', 'Trust': 'trust',
+    'Inactive for': 'inactiveDays', 'Value at risk': 'valueAtRisk', 'Risk score': 'risk',
+    'Score': 'score', 'Amount': 'amount', 'Expires': 'expires', 'Expired': 'expired', 'Value': 'amount'
+};
+var MM_BULK_LIST_NAMES = {
+    slProspects: 'Prospects', slClose: 'Ready to convert', slAbandoned: 'Open checkouts',
+    chAtRisk: 'Save first', chWatchlist: 'Watchlist', chRenewals: 'Renewals due', chWinBack: 'Win-back'
+};
+
+/* Plan picker in the Send to all window: same groups, order and wording as the Plan column menu. */
+function mmBulkPlanCfg(cfg) {
+    cfg.groupPresets = ['all', 'paid', 'unpaid'].map(function (k) {
+        return { label: MM_PLAN_GROUPS[k].label, desc: MM_PLAN_GROUPS[k].desc, groups: MM_PLAN_GROUPS[k].plans };
+    });
+    cfg.groupDesc = MM_PLAN_DESC;
+    cfg.groupOrder = MM_PLAN_ORDER;
+    return cfg;
+}
+
+function mmBulkOpenList(dataset, btn) {
+    var scope = btn.closest('.mm-scr-list') || btn.closest('.mm-panel');
+    var table = scope && scope.querySelector('table.dtbl');
+    var bar = scope && scope.querySelector('.mm-lf');
+    var barParams = new URLSearchParams(bar && bar.__active ? bar.__active : '');
+    var filters = [];
+    if (barParams.get('subscription')) filters.push({ label: bar.getAttribute('data-sub-label') + ': ' + barParams.get('subscription'), test: function () { return true; } });
+    if (barParams.get('from') || barParams.get('to')) {
+        filters.push({ label: bar.getAttribute('data-date-label') + (barParams.get('from') ? ' from ' + barParams.get('from') : '') + (barParams.get('to') ? ' to ' + barParams.get('to') : ''), test: function () { return true; } }); // applied on the server
+    }
+    var plan = table && table.getAttribute('data-plan-filter');
+    if (plan && plan !== 'all') filters.push({ label: 'Plan: ' + mmPfLabel(plan), test: function (r) { return mmPfMatches(r.group, plan); } });
+    mmTableRanges(table).forEach(function (f) {
+        var field = MM_BULK_NUM_FIELDS[f.label];
+        if (!field) return;
+        var rg = f.range;
+        filters.push({ label: f.label + ' ' + mmRangeText(rg), test: function (r) {
+            var v = mmNumVal(r.raw[field]);
+            return v !== null && (rg.min === null || rg.min === undefined || v >= rg.min) && (rg.max === null || rg.max === undefined || v <= rg.max);
+        } });
+    });
+    var name = MM_BULK_LIST_NAMES[dataset] || 'this list';
+
+    XBulk.open(mmBulkPlanCfg({
+        title: 'Send to all — ' + name,
+        reportTitle: 'Mock Master — Send to all report (' + name + ')',
+        fileBase: 'mock-master-' + name,
+        channels: ['email', 'whatsapp'],
+        groupLabel: 'Plan',
+        groupClass: mmPlanClassJs,
+        filters: filters,
+        templates: MM_CMP_TEMPLATES[MM_CMP_DATASET_CTX[dataset]] || MM_CMP_TEMPLATES.marketing,
+        fill: function (text, r) { return mmCmpFill(text, mmCmpVars(r.raw, {})); },
+        note: '{first}, {name}, {course}, {package}, {amount}, {expires} and {expired} are filled in for each student where known.',
+        send: mmBulkSendBatch,
+        load: function () {
+            var q = barParams.toString();
+            return fetch(MM_LIST_AUDIENCE_URL.replace('__DS__', encodeURIComponent(dataset)) + (q ? '?' + q : ''), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
+                .then(function (d) {
+                    return (d.rows || []).filter(function (r) { return r.sid; }).map(function (r) {
+                        var when = r.lastActive || r.expires || r.expired || r.attempted || (r.inactiveDays !== undefined ? r.inactiveDays + 'd inactive' : '');
+                        return { id: r.sid, name: r.name, email: r.email, phone: r.phone, group: r.plan || '—',
+                                 date: when, dateSub: r.package || r.sub || '', search: [r.sub, r.package, r.signals, r.action].join(' '), raw: r };
+                    });
+                });
+        }
+    }));
+}
+
+/* ── Sales / Retention list filter bars (partials/mm-list-filter): Subscription + date range
+   over the whole list (server side), then the table is re-drawn in its own layout. Reset puts
+   back the rows the page loaded with. Plan / number column filters keep working on top. ── */
+function mmLfScope(bar) { return bar.closest('.mm-scr-list') || bar.closest('.mm-panel'); }
+function mmLfParams(bar) {
+    var p = new URLSearchParams();
+    bar.querySelectorAll('select, input').forEach(function (x) { if (x.value) p.set(x.name, x.value); });
+    return p;
+}
+function mmLfUrl(bar, params) {
+    var q = params && params.toString();
+    return MM_LIST_AUDIENCE_URL.replace('__DS__', encodeURIComponent(bar.getAttribute('data-dataset'))) + (q ? '?' + q : '');
+}
+/* Fills the Subscription select once, from the whole (unfiltered) list. */
+function mmLfOptions(bar) {
+    if (bar.__optsLoading) return;
+    bar.__optsLoading = true;
+    var sel = bar.querySelector('select[name="subscription"]');
+    sel.insertAdjacentHTML('beforeend', '<option value="" disabled data-lf-loading>Loading…</option>');
+    fetch(mmLfUrl(bar), { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
+        .then(function (d) {
+            var cur = sel.value, opts = d.options || [];
+            sel.innerHTML = '<option value="">All</option>' + opts.map(function (o) {
+                return '<option value="' + mmEsc(o) + '"' + (o === cur ? ' selected' : '') + '>' + mmEsc(o) + '</option>';
+            }).join('');
+            if (!opts.length) { sel.innerHTML = '<option value="">None in this list</option>'; sel.disabled = true; }
+        })
+        .catch(function () { bar.__optsLoading = false; var l = sel.querySelector('[data-lf-loading]'); if (l) l.remove(); });
+}
+function mmLfAcct(r, line) {
+    var av = '<span class="bh-av" style="background:' + mmEsc(r.color) + '">' + mmEsc(r.initial) + '</span>';
+    var inner = line === null
+        ? '<div class="bh-acct-n">' + mmEsc(r.name) + '</div>'
+        : '<div><div class="bh-acct-n">' + mmEsc(r.name) + '</div>' + (line ? '<div class="bh-acct-c">' + mmEsc(line) + '</div>' : '') + '</div>';
+    return '<td class="acctn" ' + mmStuAttrs(r) + '><div class="bh-acct">' + av + inner + '</div></td>';
+}
+function mmLfScoreKind(v) { return v >= 70 ? 'good' : (v >= 50 ? 'info' : 'warn'); }
+/* One table row, matching the Blade markup of each list. */
+function mmLfRow(kind, r) {
+    var td = function (v) { return '<td>' + mmEsc(v) + '</td>'; };
+    var view = function (ctx) { return '<td>' + mmCmpBtn(ctx, r) + '</td>'; };
+    switch (kind) {
+        case 'today':
+            return '<tr>' + mmLfAcct(r, '(' + r.sub + ')') + mmPlanCell(r) + td(r.readiness) + td(r.intent) + td(r.trust) +
+                '<td><span class="stk-play ' + (r.play === 'Call' ? 'call' : 'onboarding') + '">' + mmEsc(r.play) + '</span></td>' + view('prospect') + '</tr>';
+        case 'accounts':
+            return '<tr>' + mmLfAcct(r, null) + mmPlanCell(r) + td(r.readiness) + td(r.intent) + td(r.trust) + td(r.play) + view('prospect') + '</tr>';
+        case 'savefirst':
+            return '<tr>' + mmLfAcct(r, '(' + r.sub + ')') + mmPlanCell(r) + td(r.inactiveDays + 'd') + td(r.valueAtRisk) +
+                '<td><span style="color:var(--crit);font-weight:600">' + mmEsc(r.risk) + '</span></td>' + view('chAtRisk') + '</tr>';
+        case 'watchlist':
+            return '<tr>' + mmLfAcct(r, null) + mmPlanCell(r) + td(r.inactiveDays + 'd') + td(r.valueAtRisk) + td(r.risk) + view('chWatchlist') + '</tr>';
+        case 'convert':
+            return '<tr>' + mmLfAcct(r, '') + mmPlanCell(r) + '<td><span class="bh-pill ' + mmLfScoreKind(r.score) + '">' + mmEsc(r.score) + '</span></td>' +
+                '<td class="cg-why">' + mmEsc(r.signals) + '</td>' + td(r.lastActive) + '<td class="cg-next">' + mmEsc(r.action) + '</td>' + view('convert') + '</tr>';
+        default: // abandoned | renewals | winback
+            var mid = kind === 'abandoned' ? td(r.package) + td(r.amount) + td(r.attempted)
+                : kind === 'renewals' ? td(r.package) + td(r.expires) + td(r.amount)
+                : td(r.package) + td(r.expired) + td(r.amount);
+            return '<tr>' + mmLfAcct(r, r.signals || '') + mmPlanCell(r) + mid + '<td class="cg-next">' + mmEsc(r.action) + '</td>' + view(kind) + '</tr>';
+    }
+}
+function mmListFilterApply(btn) {
+    var bar = btn.closest('.mm-lf');
+    var table = mmLfScope(bar).querySelector('table.dtbl');
+    var tbody = table && table.tBodies[0];
+    var info = bar.querySelector('.mm-lf-info');
+    var params = mmLfParams(bar);
+    if (!tbody) return;
+    if (!params.toString()) return mmListFilterReset(btn);
+    if (bar.__orig === undefined) { bar.__orig = tbody.innerHTML; bar.__size = Math.max(tbody.rows.length, 10); }
+    var cols = table.tHead ? table.tHead.rows[0].cells.length : 7;
+    tbody.innerHTML = '<tr><td colspan="' + cols + '" style="color:var(--g3);padding:20px">Loading…</td></tr>';
+    info.textContent = '';
+    fetch(mmLfUrl(bar, params), { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+            if (!res.ok) throw new Error((res.d && res.d.message) || 'bad status');
+            var rows = res.d.rows || [];
+            bar.__active = params.toString();
+            tbody.innerHTML = rows.length
+                ? rows.slice(0, bar.__size).map(function (r) { return mmLfRow(bar.getAttribute('data-kind'), r); }).join('')
+                : '<tr><td colspan="' + cols + '" style="color:var(--g3);padding:20px">No students match these filters.</td></tr>';
+            info.textContent = rows.length > bar.__size
+                ? 'Showing ' + bar.__size + ' of ' + rows.length.toLocaleString() + ' matching · Send to all includes all ' + rows.length.toLocaleString()
+                : rows.length.toLocaleString() + ' matching';
+        })
+        .catch(function (e) {
+            tbody.innerHTML = bar.__orig;
+            info.style.color = '#b91c1c';
+            info.textContent = /after_or_equal|must be a date/.test(e.message) ? 'The "to" date must be on or after the "from" date.' : 'Couldn\'t apply the filters — please try again.';
+            setTimeout(function () { info.style.color = ''; }, 4000);
+        });
+}
+function mmListFilterReset(btn) {
+    var bar = btn.closest('.mm-lf');
+    bar.querySelectorAll('select, input').forEach(function (x) { if (!x.disabled) x.value = ''; });
+    bar.querySelector('.mm-lf-info').textContent = '';
+    bar.__active = '';
+    var table = mmLfScope(bar).querySelector('table.dtbl');
+    if (bar.__orig !== undefined && table && table.tBodies[0]) table.tBodies[0].innerHTML = bar.__orig;
+}
+
 /* ── Sync Data — pulls the 14 live Mock Master source tables from the
    remote PTE Portal database into their local mm_* mirrors (see
    App\Services\MockMaster\MockMasterSyncService), then reloads the page
@@ -3145,4 +3418,5 @@ mmRenderQuick('ch', 'savefirst');
 bhMiraApply(); bhLeftApply(); bhQuickApply();
 </script>
 
+@include('client.partials.bulk-send')
 @endsection

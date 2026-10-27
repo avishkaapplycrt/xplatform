@@ -15,6 +15,7 @@ class SocialIntegration extends Model
     protected $table = 'social_integrations';
 
     protected $fillable = [
+        'client_id',
         'platform',
         'connection_name',
         'status',
@@ -74,7 +75,7 @@ class SocialIntegration extends Model
                 'features'    => ['Posts Sync', 'Stories & Reels', 'Comments', 'DMs', 'Insights', 'Hashtag Tracking'],
                 'auth_type'   => 'oauth2',
                 'docs_url'    => 'https://developers.facebook.com/docs/instagram-api',
-                'scopes'      => ['instagram_basic', 'instagram_content_publish', 'instagram_manage_insights'],
+                'scopes'      => ['instagram_business_basic', 'instagram_business_manage_insights', 'instagram_business_manage_comments', 'instagram_business_content_publish', 'instagram_business_manage_messages'],
             ],
             'tiktok' => [
                 'name'        => 'TikTok',
@@ -136,6 +137,9 @@ class SocialIntegration extends Model
     {
         return $query->where('platform', $platform);
     }
+
+    // forClient($clientOrId) comes from BelongsToClient (one client's connections,
+    // whoever is signed in).
 
     public function scopeActive($query)
     {

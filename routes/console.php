@@ -27,5 +27,8 @@ Schedule::command('insights:generate')->dailyAt('03:00')->withoutOverlapping();
 // schedule is due. Each run is charged to the project owner's plan.
 Schedule::command('mira:visibility-scheduled')->hourly()->withoutOverlapping();
 
+// Each client's Instagram connection: renew long-lived tokens before their 60 days run out.
+Schedule::command('instagram:refresh-tokens')->dailyAt('02:30')->withoutOverlapping();
+
 // Mira Premium rank tracking: today's Google position for every tracked keyword.
 Schedule::command('mira:track-ranks')->dailyAt(config('mira_premium.rank_tracking.daily_at', '04:00'))->withoutOverlapping();
