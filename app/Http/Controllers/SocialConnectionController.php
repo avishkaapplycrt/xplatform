@@ -13,12 +13,24 @@ use Illuminate\Support\Str;
 
 class SocialConnectionController extends Controller
 {
+    /** Signed-in XPlatform client: every connection on this page belongs to them. */
+    private function currentClientId(): ?int
+    {
+        return auth('client')->id();
+    }
+
+    /** Query limited to the signed-in client's own connections. */
+    private function own()
+    {
+        return SocialIntegration::forClient($this->currentClientId());
+    }
+
     /**
      * Display the Social Media connections listing page.
      */
     public function index()
     {
-        $connections = SocialIntegration::all()->keyBy('platform');
+        $connections = $this->own()->get()->keyBy('platform');
         $platforms   = SocialIntegration::platforms();
 
         // Calculate stats
@@ -67,7 +79,7 @@ class SocialConnectionController extends Controller
         }
 
         $meta = $platforms[$platform];
-        $existing = SocialIntegration::byPlatform($platform)->first();
+        $existing = $this->own()->byPlatform($platform)->first();
 
         return view('client.social-connect', compact('platform', 'meta', 'existing'));
     }
@@ -182,7 +194,7 @@ class SocialConnectionController extends Controller
                 'sync_count'       => \DB::raw('sync_count + 1'),
             ];
 
-            $connection = SocialIntegration::updateOrCreate(['platform' => 'facebook'], $data);
+            $connection = SocialIntegration::updateOrCreate(['client_id' => $this->currentClientId(), 'platform' => 'facebook'], $data);
             $connection->refresh();
 
             $extra = count($pages) > 1 ? ' — ' . count($pages) . ' pages found, connected "' . $page['name'] . '"' : '';
@@ -308,6 +320,7 @@ class SocialConnectionController extends Controller
                 'last_error'       => null,
                 'settings'         => [
                     'connected_via' => 'instagram_business_login',
+                    'app_user_id'   => (string) ($tokenResponse->json('user_id') ?? ''),
                     'account_type'  => $profileResponse->json('account_type'),
                     // What the user actually approved — DM sync needs instagram_business_manage_messages.
                     'permissions'   => $tokenResponse->json('permissions') ?? [],
@@ -326,7 +339,7 @@ class SocialConnectionController extends Controller
                 'sync_count'       => \DB::raw('sync_count + 1'),
             ];
 
-            $connection = SocialIntegration::updateOrCreate(['platform' => 'instagram'], $data);
+            $connection = SocialIntegration::updateOrCreate(['client_id' => $this->currentClientId(), 'platform' => 'instagram'], $data);
             $connection->refresh();
 
             // First sync right away, so instagram_media / instagram_account_insights
@@ -457,7 +470,7 @@ class SocialConnectionController extends Controller
                 'sync_count'       => \DB::raw('sync_count + 1'),
             ];
 
-            $connection = SocialIntegration::updateOrCreate(['platform' => 'tiktok'], $data);
+            $connection = SocialIntegration::updateOrCreate(['client_id' => $this->currentClientId(), 'platform' => 'tiktok'], $data);
             $connection->refresh();
 
             return redirect()->route('client.social-connections')
@@ -581,7 +594,7 @@ class SocialConnectionController extends Controller
                 'sync_count'       => \DB::raw('sync_count + 1'),
             ];
 
-            $connection = SocialIntegration::updateOrCreate(['platform' => 'youtube'], $data);
+            $connection = SocialIntegration::updateOrCreate(['client_id' => $this->currentClientId(), 'platform' => 'youtube'], $data);
             $connection->refresh();
 
             return redirect()->route('client.social-connections')
@@ -700,7 +713,7 @@ class SocialConnectionController extends Controller
                 'sync_count'       => \DB::raw('sync_count + 1'),
             ];
 
-            $connection = SocialIntegration::updateOrCreate(['platform' => 'linkedin'], $data);
+            $connection = SocialIntegration::updateOrCreate(['client_id' => $this->currentClientId(), 'platform' => 'linkedin'], $data);
             $connection->refresh();
 
             return redirect()->route('client.social-connections')
@@ -734,7 +747,7 @@ class SocialConnectionController extends Controller
         ];
 
         // A token is already saved (e.g. via OAuth) — don't force re-entry
-        $existingHasToken = SocialIntegration::byPlatform($platform)
+        $existingHasToken = $this->own()->byPlatform($platform)
             ->whereNotNull('access_token')
             ->exists();
 
@@ -809,7 +822,7 @@ class SocialConnectionController extends Controller
         }
 
         $connection = SocialIntegration::updateOrCreate(
-            ['platform' => $platform],
+            ['client_id' => $this->currentClientId(), 'platform' => $platform],
             $data
         );
 
@@ -836,7 +849,7 @@ class SocialConnectionController extends Controller
      */
     public function test(string $platform)
     {
-        $connection = SocialIntegration::byPlatform($platform)->first();
+        $connection = $this->own()->byPlatform($platform)->first();
 
         if (!$connection) {
             return response()->json([
@@ -866,7 +879,7 @@ class SocialConnectionController extends Controller
      */
     public function disconnect(string $platform)
     {
-        $connection = SocialIntegration::byPlatform($platform)->first();
+        $connection = $this->own()->byPlatform($platform)->first();
 
         if (!$connection) {
             return response()->json([
@@ -894,7 +907,7 @@ class SocialConnectionController extends Controller
      */
     public function destroy(string $platform)
     {
-        $connection = SocialIntegration::byPlatform($platform)->first();
+        $connection = $this->own()->byPlatform($platform)->first();
 
         if (!$connection) {
             return response()->json([
@@ -916,7 +929,7 @@ class SocialConnectionController extends Controller
      */
     public function sync(string $platform)
     {
-        $connection = SocialIntegration::byPlatform($platform)->first();
+        $connection = $this->own()->byPlatform($platform)->first();
 
         if (!$connection || !$connection->is_connected) {
             return response()->json([
@@ -943,6 +956,7 @@ class SocialConnectionController extends Controller
                     break;
 
                 case 'instagram':
+                    (new \App\Services\InstagramTokenRefresher())->refreshIfExpiring($connection, 7);
                     // Run the sync now (not via the queue): with no queue worker
                     // running, queued syncs never executed, so "Sync Now" stored
                     // nothing. SyncInstagramPosts still owns status / error
@@ -1039,7 +1053,7 @@ class SocialConnectionController extends Controller
      */
     public function status()
     {
-        $connections = SocialIntegration::all()->keyBy('platform');
+        $connections = $this->own()->get()->keyBy('platform');
         $platforms   = SocialIntegration::platforms();
 
         $status = [];

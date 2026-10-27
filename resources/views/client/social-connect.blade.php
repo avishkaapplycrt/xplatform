@@ -361,6 +361,12 @@
           <p class="text-[14px] font-semibold text-gray-700 mb-1">Connect with {{ $meta['name'] }}</p>
           <p class="text-[12px] text-gray-500">Click to authorize via OAuth 2.0</p>
         </div>
+        @if($platform === 'instagram')
+        <p class="text-[11.5px] text-gray-500 mt-3 leading-relaxed">
+          Sign in with the <b>Instagram Business or Creator account</b> you want to connect (personal accounts can't be connected).
+          The connection is saved to your XPlatform account only — every XPlatform customer connects their own Instagram, and no token needs to be entered here.
+        </p>
+        @endif
         <div class="mt-3">
           <p class="text-[11px] text-gray-500 mb-2">Required permissions:</p>
           <div class="flex flex-wrap">

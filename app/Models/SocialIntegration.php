@@ -13,6 +13,7 @@ class SocialIntegration extends Model
     protected $table = 'social_integrations';
 
     protected $fillable = [
+        'client_id',
         'platform',
         'connection_name',
         'status',
@@ -71,7 +72,7 @@ class SocialIntegration extends Model
                 'features'    => ['Posts Sync', 'Stories & Reels', 'Comments', 'DMs', 'Insights', 'Hashtag Tracking'],
                 'auth_type'   => 'oauth2',
                 'docs_url'    => 'https://developers.facebook.com/docs/instagram-api',
-                'scopes'      => ['instagram_basic', 'instagram_content_publish', 'instagram_manage_insights'],
+                'scopes'      => ['instagram_business_basic', 'instagram_business_manage_insights', 'instagram_business_manage_comments', 'instagram_business_content_publish', 'instagram_business_manage_messages'],
             ],
             'tiktok' => [
                 'name'        => 'TikTok',
@@ -132,6 +133,12 @@ class SocialIntegration extends Model
     public function scopeByPlatform($query, string $platform)
     {
         return $query->where('platform', $platform);
+    }
+
+    /** Connections owned by one XPlatform client (each client connects their own accounts). */
+    public function scopeForClient($query, ?int $clientId)
+    {
+        return $query->where('client_id', $clientId);
     }
 
     public function scopeActive($query)

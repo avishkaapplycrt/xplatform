@@ -1859,12 +1859,17 @@ function renderMarketingCampaignStack(){
 function renderMkCampaignTableHtml(accounts){
   MK_CAMPAIGN_ALL = accounts;
   var mql = accounts.filter(function(a){ return a.segment === 'mql_ready'; });
-  var ready = mql.filter(function(a){ return bhLfMatch('mkCampaign', a); }).sort(function(x,y){ return y.deal_value - x.deal_value; });
+  var ready = bhColSort('mkCampaign', mql.filter(function(a){ return bhLfMatch('mkCampaign', a); }).sort(function(x,y){ return y.deal_value - x.deal_value; }), function(a){ return a; });
   MK_CAMPAIGN_ACCOUNTS = ready;
   var bar = bhLfBar('mkCampaign', mql, ready.length);
 
+  var head = '<thead><tr>' + bhTh('mkCampaign', 'account', 'Account') + bhTh('mkCampaign', 'deal_value', 'Deal value') + bhTh('mkCampaign', 'stage', 'Stage')
+    + bhTh('mkCampaign', 'readiness', 'Readiness') + bhTh('mkCampaign', 'trust', 'Trust') + bhTh('mkCampaign', 'approach', 'Approach')
+    + bhTh('mkCampaign', 'last', 'Last active') + '<th>Action</th></tr></thead>';
+
   if (!ready.length) {
-    return bar + '<div style="padding:24px;color:var(--g3);font-size:12.5px">' + (bhLfActive('mkCampaign') ? 'No MQL-ready accounts match these filters.' : 'No accounts are MQL-ready right now.') + '</div>';
+    return bar + (mql.length ? '<table class="dtbl">' + head + '</table>' : '')
+      + '<div style="padding:24px;color:var(--g3);font-size:12.5px">' + (bhLfActive('mkCampaign') ? 'No MQL-ready accounts match these filters.' : 'No accounts are MQL-ready right now.') + '</div>';
   }
 
   var rows = ready.map(function(a, i){
@@ -1886,7 +1891,7 @@ function renderMkCampaignTableHtml(accounts){
   }).join('');
 
   return bar
-    + '<table class="dtbl"><thead><tr><th>Account</th><th>Deal value</th><th>Stage</th><th>Readiness</th><th>Trust</th><th>Approach</th><th>Last active</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    + '<table class="dtbl">' + head + '<tbody>' + rows + '</tbody></table>';
 }
 
 /* ── Marketing Campaign grid — "View" composer, same pattern as Mock
@@ -2061,7 +2066,7 @@ function bhStagePill(label){
 function renderAccountsTable(){
   var agent = dashState.agent;
   var all = rankedFor(agent);
-  var r = all.filter(function(x){ return bhLfMatch('accounts', x.a); });
+  var r = bhColSort('accounts', all.filter(function(x){ return bhLfMatch('accounts', x.a); }), function(x){ return x.a; });
   var bar = bhLfBar('accounts', all.map(function(x){ return x.a; }), r.length);
   var rows = r.map(function(x){
     var a=x.a, s=a.scores;
@@ -2071,7 +2076,7 @@ function renderAccountsTable(){
       '<td><span class="stk-play '+x.c.play+'">'+PLAY_LABEL[x.c.play]+'</span></td></tr>';
   }).join('');
   var intro = agent==='sl' ? '<div class="stack-intro"><div class="si-h">'+SALES_STEP_INTRO.accounts.h+'</div><div class="si-p">'+SALES_STEP_INTRO.accounts.p+'</div></div>' : '';
-  return intro + bar + (r.length ? '' : '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts match these filters.</div>') + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>MRR</th><th>Ready</th><th>Intent</th><th>Trust</th><th>Churn</th><th>Play</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  return intro + bar + (r.length ? '' : '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts match these filters.</div>') + '<table class="dtbl"><thead><tr>' + bhTh('accounts', 'account', 'Account') + bhTh('accounts', 'segment', 'Segment') + bhTh('accounts', 'mrr', 'MRR') + bhTh('accounts', 'ready', 'Ready') + bhTh('accounts', 'intent', 'Intent') + bhTh('accounts', 'trust', 'Trust') + bhTh('accounts', 'churn', 'Churn') + bhTh('accounts', 'play', 'Play') + '</tr></thead><tbody>'+rows+'</tbody></table>';
 }
 /* Marketing · Performance tab — real crm_contacts/crm_deals accounts, not the
    fictional ACCOUNTS list. See MarketingPerformanceService::accountsSnapshot(). */
@@ -2096,10 +2101,13 @@ var MK_PERF_ACCOUNTS = [];
 function renderMarketingAccountsTable(accounts){
   MK_PERF_ALL = accounts;
   if (!accounts.length) { MK_PERF_ACCOUNTS = []; return MK_ACCOUNTS_INTRO + '<div style="padding:24px;color:var(--g3);font-size:12.5px">No synced CRM contacts found.</div>'; }
-  var shown = accounts.filter(function(a){ return bhLfMatch('mkAccounts', a); });
+  var shown = bhColSort('mkAccounts', accounts.filter(function(a){ return bhLfMatch('mkAccounts', a); }), function(a){ return a; });
   MK_PERF_ACCOUNTS = shown;
   var bar = bhLfBar('mkAccounts', accounts, shown.length);
-  if (!shown.length) return MK_ACCOUNTS_INTRO + bar + '<div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts match these filters.</div>';
+  var head = '<thead><tr>' + bhTh('mkAccounts', 'account', 'Account') + bhTh('mkAccounts', 'segment', 'Segment') + bhTh('mkAccounts', 'deal_value', 'Deal value')
+    + bhTh('mkAccounts', 'readiness', 'Readiness') + bhTh('mkAccounts', 'trust', 'Trust') + bhTh('mkAccounts', 'stage', 'Stage')
+    + bhTh('mkAccounts', 'last', 'Last active') + '<th>Action</th></tr></thead>';
+  if (!shown.length) return MK_ACCOUNTS_INTRO + bar + '<table class="dtbl">' + head + '</table><div style="padding:24px;color:var(--g3);font-size:12.5px">No accounts match these filters.</div>';
   var rows = shown.map(function(a, i){
     var segLabel = MK_SEGMENT_LABEL[a.segment] || a.segment;
     var segColor = MK_SEGMENT_COLOR[a.segment] || '#6b7280';
@@ -2109,7 +2117,7 @@ function renderMarketingAccountsTable(accounts){
       '<td>'+bhStagePill(a.stage_label)+'</td><td>'+a.days_since_activity+'d ago</td>'+
       '<td><button type="button" onclick="mkPerfOpen(' + i + ')" style="padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">View</button></td></tr>';
   }).join('');
-  return MK_ACCOUNTS_INTRO + bar + '<table class="dtbl"><thead><tr><th>Account</th><th>Segment</th><th>Deal value</th><th>Readiness</th><th>Trust</th><th>Stage</th><th>Last active</th><th>Action</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  return MK_ACCOUNTS_INTRO + bar + '<table class="dtbl">' + head + '<tbody>'+rows+'</tbody></table>';
 }
 /* Performance grid's "View" — identical composer to the Campaign grid's
    (mkCampaignOpen), just reading from MK_PERF_ACCOUNTS instead. Reuses the
@@ -2930,7 +2938,7 @@ function bhActiveDate(a){
   var d = new Date(Date.now() - Math.round(days) * 86400000);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
-function bhLfActive(list){ var f = BH_LF[list] || {}; return !!(f.stage || f.from || f.to); }
+function bhLfActive(list){ var f = BH_LF[list] || {}; return !!(f.stage || f.from || f.to) || bhColAny(list); }
 function bhLfMatch(list, a){
   var f = BH_LF[list] || {};
   if (f.stage && bhStageOf(a) !== f.stage) return false;
@@ -2938,7 +2946,7 @@ function bhLfMatch(list, a){
     var d = bhActiveDate(a);
     if (!d || (f.from && d < f.from) || (f.to && d > f.to)) return false;
   }
-  return true;
+  return bhColMatch(list, a); // and the ▾ column filters
 }
 function bhLfBar(list, accounts, shown){
   var f = BH_LF[list] || {};
@@ -2974,10 +2982,183 @@ function bhLfApply(btn){
 function bhLfReset(btn){
   var list = btn.closest('.bh-lf').getAttribute('data-list');
   BH_LF[list] = {};
+  BH_COL[list] = { f: {}, sort: null }; // Reset also clears the ▾ column filters
   bhLfRedraw(list);
 }
 window.bhLfApply = bhLfApply;
 window.bhLfReset = bhLfReset;
+
+/* Column filters on the account tables (▾ on each header): text search on Account, tick-box
+   lists on Stage / Approach / Segment / Play, sort + min/max on number columns. They combine
+   with the bar above (bhLfMatch) and decide who Send to all pre-ticks. */
+function bhApproachOf(a){ return a.trust < 65 ? 'Proof-led' : 'Offer-led'; }
+var BH_COLS = {
+  mkCampaign: {
+    account:    { label: 'Account', type: 'text', get: function(a){ return (a.name || '') + ' ' + (a.company || ''); } },
+    deal_value: { label: 'Deal value', type: 'num', get: function(a){ return a.deal_value; } },
+    stage:      { label: 'Stage', type: 'cat', get: function(a){ return a.stage_label || '—'; } },
+    readiness:  { label: 'Readiness', type: 'num', get: function(a){ return a.buying_readiness; } },
+    trust:      { label: 'Trust', type: 'num', get: function(a){ return a.trust; } },
+    approach:   { label: 'Approach', type: 'cat', get: bhApproachOf },
+    last:       { label: 'Last active (days ago)', type: 'num', get: function(a){ return a.days_since_activity; } }
+  },
+  mkAccounts: {
+    account:    { label: 'Account', type: 'text', get: function(a){ return (a.name || '') + ' ' + (a.company || ''); } },
+    segment:    { label: 'Segment', type: 'cat', get: function(a){ return MK_SEGMENT_LABEL[a.segment] || a.segment || '—'; } },
+    deal_value: { label: 'Deal value', type: 'num', get: function(a){ return a.deal_value; } },
+    readiness:  { label: 'Readiness', type: 'num', get: function(a){ return a.buying_readiness; } },
+    trust:      { label: 'Trust', type: 'num', get: function(a){ return a.trust; } },
+    stage:      { label: 'Stage', type: 'cat', get: function(a){ return a.stage_label || '—'; } },
+    last:       { label: 'Last active (days ago)', type: 'num', get: function(a){ return a.days_since_activity; } }
+  },
+  accounts: {
+    account: { label: 'Account', type: 'text', get: function(a){ return (a.name || '') + ' ' + (a.company || ''); } },
+    segment: { label: 'Segment', type: 'cat', get: function(a){ return SEG_LABEL[a.seg] || a.seg || '—'; } },
+    mrr:     { label: 'MRR', type: 'num', get: function(a){ return a.mrr; } },
+    ready:   { label: 'Ready', type: 'num', get: function(a){ return a.scores.buying_readiness; } },
+    intent:  { label: 'Intent', type: 'num', get: function(a){ return a.scores.intent; } },
+    trust:   { label: 'Trust', type: 'num', get: function(a){ return a.scores.trust; } },
+    churn:   { label: 'Churn', type: 'num', get: function(a){ return a.scores.churn; } },
+    play:    { label: 'Play', type: 'cat', get: function(a){ return PLAY_LABEL[classifyFor(dashState.agent, a).play] || '—'; } }
+  }
+};
+var BH_COL = { mkCampaign: { f: {}, sort: null }, mkAccounts: { f: {}, sort: null }, accounts: { f: {}, sort: null } };
+function bhColState(list){ return (BH_COL && BH_COL[list]) || { f: {}, sort: null }; }
+function bhColPass(def, f, a){
+  var v = def.get(a);
+  if (def.type === 'text') return !f.q || String(v).toLowerCase().indexOf(f.q.trim().toLowerCase()) > -1;
+  if (def.type === 'cat') return !f.values || f.values.indexOf(String(v)) > -1;
+  var n = Number(v);
+  if (v == null || isNaN(n)) return f.min == null && f.max == null;
+  return (f.min == null || n >= f.min) && (f.max == null || n <= f.max);
+}
+function bhColMatch(list, a){
+  var st = bhColState(list), defs = BH_COLS[list] || {};
+  return Object.keys(st.f).every(function(k){ return !defs[k] || bhColPass(defs[k], st.f[k], a); });
+}
+function bhColAny(list){ var st = bhColState(list); return Object.keys(st.f).length > 0; }
+/* Sorts in place when a column sort is set; getA maps a list item to its account. */
+function bhColSort(list, items, getA){
+  var st = bhColState(list), def = st.sort && BH_COLS[list][st.sort.k];
+  if (!def) return items;
+  return items.slice().sort(function(x, y){
+    var a = Number(def.get(getA(x))), b = Number(def.get(getA(y)));
+    if (isNaN(a)) return 1; if (isNaN(b)) return -1;
+    return st.sort.dir === 'desc' ? b - a : a - b;
+  });
+}
+function bhColLabel(def, f){
+  if (def.type === 'text') return def.label + ': "' + f.q.trim() + '"';
+  if (def.type === 'cat') return def.label + ': ' + (f.values.length ? f.values.join(', ') : 'none');
+  return def.label + ' ' + (f.min != null && f.max != null ? f.min + ' to ' + f.max : (f.min != null ? '≥ ' + f.min : '≤ ' + f.max));
+}
+/* Header cell with its ▾ filter button. */
+function bhTh(list, k, label){
+  var st = bhColState(list);
+  var on = !!st.f[k] || (st.sort && st.sort.k === k);
+  return '<th style="white-space:nowrap">' + label + ' <button type="button" class="bh-cf-btn' + (on ? ' on' : '') + '" onclick="bhColMenu(event,\'' + list + '\',\'' + k + '\')" aria-label="Filter ' + escapeHtml(label) + '">'
+    + '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button></th>';
+}
+function bhColBase(list){
+  if (list === 'mkCampaign') return MK_CAMPAIGN_ALL.filter(function(a){ return a.segment === 'mql_ready'; });
+  if (list === 'mkAccounts') return MK_PERF_ALL;
+  return rankedFor(dashState.agent).map(function(x){ return x.a; });
+}
+function bhColCss(){
+  if (document.getElementById('bhColCss')) return;
+  var s = document.createElement('style');
+  s.id = 'bhColCss';
+  s.textContent =
+    '.bh-cf-btn{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:4px;padding:0;border:1px solid #e2e5ee;border-radius:5px;background:#fff;color:#6b7280;cursor:pointer;vertical-align:-4px}' +
+    '.bh-cf-btn:hover{background:#f5f3ff;border-color:#c4b5fd;color:#6d28d9}.bh-cf-btn.on{background:#7c3aed;border-color:#7c3aed;color:#fff}' +
+    '.bh-cf-menu{position:fixed;z-index:9000;width:250px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 14px 34px rgba(17,24,39,.16);padding:10px;font-size:12.5px;color:#111827;text-transform:none;letter-spacing:normal;font-weight:400}' +
+    '.bh-cf-menu h6{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7280}' +
+    '.bh-cf-list{max-height:220px;overflow:auto;margin-bottom:8px}.bh-cf-list label{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:7px;cursor:pointer}.bh-cf-list label:hover{background:#f5f3ff}' +
+    '.bh-cf-list input{accent-color:#7c3aed}.bh-cf-list small{margin-left:auto;color:#9ca3af}' +
+    '.bh-cf-links{display:flex;gap:10px;margin-bottom:8px}.bh-cf-links button{border:none;background:none;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer;padding:0}' +
+    '.bh-cf-sort{display:flex;gap:6px;margin-bottom:8px}.bh-cf-sort button{flex:1;border:1px solid #e5e7eb;background:#fff;border-radius:7px;padding:6px;font-size:12px;cursor:pointer}.bh-cf-sort button.on{background:#7c3aed;border-color:#7c3aed;color:#fff}' +
+    '.bh-cf-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}.bh-cf-row span{width:34px;color:#6b7280}.bh-cf-in{flex:1;min-width:0;padding:6px 8px;border:1px solid #e5e7eb;border-radius:7px;font-size:12.5px}' +
+    '.bh-cf-act{display:flex;gap:6px;margin-top:8px}.bh-cf-act button{flex:1;border-radius:7px;padding:7px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid #e5e7eb;background:#fff;color:#374151}.bh-cf-act button.go{background:#7c3aed;border-color:#7c3aed;color:#fff}';
+  document.head.appendChild(s);
+}
+var BH_CF_MENU = null;
+function bhColClose(){ if (BH_CF_MENU) { BH_CF_MENU.remove(); BH_CF_MENU = null; } }
+function bhColMenu(ev, list, k){
+  ev.stopPropagation();
+  var reopen = BH_CF_MENU && BH_CF_MENU.getAttribute('data-key') === list + ':' + k;
+  bhColClose();
+  if (reopen) return;
+  bhColCss();
+  var def = BH_COLS[list][k], st = bhColState(list), f = st.f[k] || {};
+  var html = '<h6>' + escapeHtml(def.label) + '</h6>';
+  if (def.type === 'text') {
+    html += '<input class="bh-cf-in" data-cf="q" type="search" placeholder="Name or company contains…" value="' + escapeHtml(f.q || '') + '" style="width:100%">';
+  } else if (def.type === 'cat') {
+    var counts = {};
+    bhColBase(list).forEach(function(a){ var v = String(def.get(a)); counts[v] = (counts[v] || 0) + 1; });
+    html += '<div class="bh-cf-links"><button type="button" data-cf-all="1">Select all</button><button type="button" data-cf-all="0">Clear</button></div><div class="bh-cf-list">'
+      + Object.keys(counts).sort().map(function(v){
+          var checked = !f.values || f.values.indexOf(v) > -1;
+          return '<label><input type="checkbox" data-cf="v" value="' + escapeHtml(v) + '"' + (checked ? ' checked' : '') + '>' + escapeHtml(v) + '<small>' + counts[v] + '</small></label>';
+        }).join('') + '</div>';
+  } else {
+    var sd = st.sort && st.sort.k === k ? st.sort.dir : '';
+    html += '<div class="bh-cf-sort"><button type="button" data-cf-sort="asc"' + (sd === 'asc' ? ' class="on"' : '') + '>↑ Increasing</button><button type="button" data-cf-sort="desc"' + (sd === 'desc' ? ' class="on"' : '') + '>↓ Decreasing</button></div>'
+      + '<div class="bh-cf-row"><span>Min</span><input class="bh-cf-in" data-cf="min" type="number" value="' + (f.min != null ? f.min : '') + '"></div>'
+      + '<div class="bh-cf-row"><span>Max</span><input class="bh-cf-in" data-cf="max" type="number" value="' + (f.max != null ? f.max : '') + '"></div>';
+  }
+  html += '<div class="bh-cf-act"><button type="button" data-cf-reset>Reset</button><button type="button" class="go" data-cf-apply>Apply</button></div>';
+
+  var m = document.createElement('div');
+  m.className = 'bh-cf-menu';
+  m.setAttribute('data-key', list + ':' + k);
+  m.setAttribute('data-sort', (st.sort && st.sort.k === k) ? st.sort.dir : '');
+  m.innerHTML = html;
+  document.body.appendChild(m);
+  var r = ev.currentTarget.getBoundingClientRect();
+  m.style.left = Math.max(8, Math.min(r.left - 8, window.innerWidth - m.offsetWidth - 8)) + 'px';
+  m.style.top = (r.bottom + 6 + m.offsetHeight > window.innerHeight - 8 ? Math.max(8, r.top - m.offsetHeight - 6) : r.bottom + 6) + 'px';
+  BH_CF_MENU = m;
+
+  m.addEventListener('click', function(e){
+    e.stopPropagation();
+    var t = e.target.closest('button');
+    if (!t) return;
+    if (t.hasAttribute('data-cf-all')) { m.querySelectorAll('input[data-cf="v"]').forEach(function(i){ i.checked = t.getAttribute('data-cf-all') === '1'; }); return; }
+    if (t.hasAttribute('data-cf-sort')) {
+      var d = t.getAttribute('data-cf-sort'), cur = m.getAttribute('data-sort');
+      m.setAttribute('data-sort', cur === d ? '' : d);
+      m.querySelectorAll('[data-cf-sort]').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-cf-sort') === m.getAttribute('data-sort')); });
+      return;
+    }
+    if (t.hasAttribute('data-cf-reset')) {
+      delete st.f[k];
+      if (st.sort && st.sort.k === k) st.sort = null;
+    } else if (t.hasAttribute('data-cf-apply')) {
+      var nf = null;
+      if (def.type === 'text') { var q = m.querySelector('[data-cf="q"]').value; if (q.trim()) nf = { q: q }; }
+      else if (def.type === 'cat') {
+        var boxes = m.querySelectorAll('input[data-cf="v"]'), vals = [];
+        boxes.forEach(function(i){ if (i.checked) vals.push(i.value); });
+        if (vals.length < boxes.length) nf = { values: vals };
+      } else {
+        var num = function(n){ var v = m.querySelector('[data-cf="' + n + '"]').value.trim(); return v === '' || isNaN(+v) ? null : +v; };
+        var mn = num('min'), mx = num('max');
+        if (mn != null || mx != null) nf = { min: mn, max: mx };
+        var sd2 = m.getAttribute('data-sort');
+        if (sd2) st.sort = { k: k, dir: sd2 }; else if (st.sort && st.sort.k === k) st.sort = null;
+      }
+      if (nf) st.f[k] = nf; else delete st.f[k];
+    } else { return; }
+    BH_COL[list] = st;
+    bhColClose();
+    bhLfRedraw(list);
+  });
+  m.addEventListener('keydown', function(e){ if (e.key === 'Enter') { var a = m.querySelector('[data-cf-apply]'); if (a) a.click(); } });
+}
+document.addEventListener('click', function(e){ if (BH_CF_MENU && !e.target.closest('.bh-cf-menu')) bhColClose(); });
+window.addEventListener('resize', bhColClose);
+window.bhColMenu = bhColMenu;
 
 /* Send to all: loads the whole list and pre-ticks the accounts matching the bar's filters
    (and, for Campaign, the MQL-ready segment), so others can still be added in the window. */
@@ -2993,6 +3174,12 @@ function bhBulkOpen(list){
       return !!d && (!f.from || d >= f.from) && (!f.to || d <= f.to);
     } });
   }
+  // ▾ column filters on the table
+  var cs = bhColState(list), defs = BH_COLS[list] || {};
+  Object.keys(cs.f).forEach(function(k){
+    var def = defs[k], cf = cs.f[k];
+    if (def) filters.push({ label: bhColLabel(def, cf), test: function(r){ return bhColPass(def, cf, r.raw); } });
+  });
   var cfg = {
     channels: ['email'],
     groupLabel: 'Segment',

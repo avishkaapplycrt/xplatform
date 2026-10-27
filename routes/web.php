@@ -115,6 +115,11 @@ Route::get('about', fn() => view('about'))->name('about');
 Route::get('industries', fn() => view('industries'))->name('industries');
 Route::get('banking',   fn() => view('banking'))->name('banking');
 Route::get('privacy',   fn() => view('privacy'))->name('privacy');
+
+// Meta's Instagram app callbacks (signed by Meta; public and CSRF-exempt — see bootstrap/app.php).
+Route::post('meta/instagram/deauthorize', [\App\Http\Controllers\MetaInstagramCallbackController::class, 'deauthorize'])->name('meta.instagram.deauthorize');
+Route::post('meta/instagram/data-deletion', [\App\Http\Controllers\MetaInstagramCallbackController::class, 'dataDeletion'])->name('meta.instagram.data-deletion');
+Route::get('meta/instagram/data-deletion/{code}', [\App\Http\Controllers\MetaInstagramCallbackController::class, 'deletionStatus'])->name('meta.instagram.data-deletion.status');
 Route::get('terms',     fn() => view('terms'))->name('terms');
 Route::get('security',  fn() => view('security'))->name('security');
 Route::get('careers',   fn() => view('careers'))->name('careers');
