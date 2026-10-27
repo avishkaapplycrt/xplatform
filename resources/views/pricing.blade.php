@@ -1,778 +1,779 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pricing &mdash; X Platforms AI Intelligence Engine | Starter, Growth &amp; Enterprise Plans</title>
+<title>Pricing &ndash; X Platforms</title>
+<meta name="description" content="Transparent X Platforms pricing: Starter, Growth and Enterprise. Every plan includes a 30-day proof of concept and Mira Premium for AI search visibility.">
 <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
-<meta name="description" content="Simple, transparent pricing for X Platforms' 8-layer AI intelligence engine. Starter from $499/month. Growth at $1,499/month. Enterprise custom pricing. All plans include a 30-day proof of concept.">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@1&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+@php
+  /*
+   * Pricing, in the homepage (Figma) design system: black canvas, Space Grotesk
+   * headlines, Instrument Serif italic gradient accents, glass cards, pill buttons.
+   *
+   * Plans match sign-up (ClientAuthController::PLANS — starter / professional
+   * "Growth" / enterprise). The same plan key unlocks Mira Premium, so each
+   * card's Mira Premium limits are read from config/mira_premium.php and can
+   * never drift from what the product enforces.
+   */
+  $mira = config('mira_premium.plans');
+  $lim = fn (string $plan, string $metric) => $mira[$plan]['limits'][$metric][0] ?? null;
+  $n = fn ($v) => $v === null ? '—' : number_format($v);
+  $signedIn = auth('client')->check();
+  $planUrl = fn (string $plan) => $signedIn ? route('client.plan') : route('client.register');
+  $plans = [
+    'starter' => [
+      'name' => 'Starter', 'tier' => 'Foundation', 'monthly' => 499, 'annual' => 399,
+      'blurb' => 'For growing businesses ready to unify their data and get their first AI predictions.',
+      'cap' => 'Up to 25,000 customer profiles', 'cta' => 'Start free trial',
+      'lead' => "What's included",
+      'features' => ['Up to 25,000 customer profiles', 'Up to 5 data sources', 'Layers 1–5 (Ingest → Predict)', 'Churn prediction & CLV scoring', '1 industry model', 'Standard dashboard & alerts', 'Email support (48-hour response)'],
+    ],
+    'professional' => [
+      'name' => 'Growth', 'tier' => 'Intelligence', 'monthly' => 1499, 'annual' => 1199, 'featured' => true,
+      'blurb' => 'For scaling businesses that need the full 8-layer engine with automated execution.',
+      'cap' => 'Up to 250,000 customer profiles', 'cta' => 'Start free trial',
+      'lead' => 'Everything in Starter, plus',
+      'features' => ['Up to 250,000 customer profiles', 'Up to 20 data sources', 'All 8 layers fully active', 'Strategy Intelligence & playbooks', 'Autonomous Execution engine', 'Up to 3 industry models', 'A/B testing & ROI tracking', 'Priority support (4-hour response)'],
+    ],
+    'enterprise' => [
+      'name' => 'Enterprise', 'tier' => 'Intelligence+', 'monthly' => null, 'annual' => null,
+      'blurb' => 'For large organisations with complex data environments and mission-critical SLAs.',
+      'cap' => 'Unlimited customer profiles', 'cta' => 'Talk to sales',
+      'lead' => 'Everything in Growth, plus',
+      'features' => ['Unlimited profiles & data sources', 'All 15 industry models', 'Dedicated infrastructure', 'Custom model training on your data', 'Named Customer Success Manager', '99.99% uptime SLA, 1-hour response', 'Private cloud or on-premise option'],
+    ],
+  ];
+  $comparison = [
+    'Capacity' => [
+      ['Customer profiles', '25K', '250K', 'Unlimited'],
+      ['Data sources', '5', '20', 'Unlimited'],
+      ['Industry models', '1', '3', 'All 15'],
+      ['Data history ingested', '12 months', '36 months', 'Unlimited'],
+    ],
+    '8-layer architecture' => [
+      ['L1–L5 Ingest, Unify, Map, Detect, Predict', true, true, true],
+      ['L6 Strategy Intelligence', false, true, true],
+      ['L7 Autonomous Execution', false, true, true],
+      ['L8 Continuous Learning', true, true, true],
+    ],
+    'AI predictions' => [
+      ['Churn risk & lifetime value', true, true, true],
+      ['Purchase propensity & next-best-action', false, true, true],
+      ['Revenue projections', false, true, true],
+      ['Custom prediction models', false, false, true],
+    ],
+    'Mira Premium — AI search & visibility' => [
+      ['Projects (websites)', $n($lim('starter', 'projects')), $n($lim('professional', 'projects')), $n($lim('enterprise', 'projects'))],
+      ['AI visibility runs / month', $n($lim('starter', 'visibility_runs')), $n($lim('professional', 'visibility_runs')), $n($lim('enterprise', 'visibility_runs'))],
+      ['Tracked AI prompts', $n($lim('starter', 'prompts')), $n($lim('professional', 'prompts')), $n($lim('enterprise', 'prompts'))],
+      ['Competitors per project', $n($lim('starter', 'competitors')), $n($lim('professional', 'competitors')), $n($lim('enterprise', 'competitors'))],
+      ['Rank-tracked keywords', $n($lim('starter', 'tracked_keywords')), $n($lim('professional', 'tracked_keywords')), $n($lim('enterprise', 'tracked_keywords'))],
+      ['Site audits / month', $n($lim('starter', 'scans')), $n($lim('professional', 'scans')), $n($lim('enterprise', 'scans'))],
+      ['Site Explorer, Backlinks & Search Console', true, true, true],
+    ],
+    'Execution & automation' => [
+      ['Email, push & CRM triggers', false, true, true],
+      ['A/B testing engine', false, true, true],
+      ['Webhook integrations', '5', '50', 'Unlimited'],
+    ],
+    'Security & compliance' => [
+      ['SOC 2 Type II & GDPR', true, true, true],
+      ['HIPAA', false, false, true],
+      ['Private cloud / on-premise', false, false, true],
+      ['Custom DPA', false, false, true],
+    ],
+    'Support' => [
+      ['30-day proof of concept', true, true, true],
+      ['Support response', '48 hours', '4 hours', '1 hour'],
+      ['Dedicated success manager', false, false, true],
+      ['Uptime SLA', '99.9%', '99.95%', '99.99%'],
+    ],
+  ];
+  $addons = [
+    ['Extra data sources', '$49', '/ source', 'Connect platforms beyond your plan limit, with real-time streaming and full historical backfill.'],
+    ['Extra industry model', '$299', '/ model / mo', 'A pre-trained model for any of our 15 verticals, with playbooks and benchmark data.'],
+    ['Profile volume boost', '$99', '/ 25K profiles', 'Scale capacity in blocks of 25,000 — upgrade instantly from your dashboard.'],
+    ['Historical data boost', '$149', '/ year of history', 'Extend the training window. Older data sharpens predictions for seasonal businesses.'],
+    ['White-label dashboard', '$499', '/ mo', 'Serve the dashboard under your own brand to stakeholders or clients.'],
+    ['Advanced API access', '$199', '/ mo', 'REST & GraphQL with higher rate limits, custom endpoints and full documentation.'],
+  ];
+  $faqs = [
+    ['Is there a free trial?', 'Yes — every plan starts with a 30-day proof of concept on your real data. We connect your sources, run the AI engine and show you real predictions. No credit card needed.'],
+    ['What counts as a customer profile?', 'One unified identity created by X Platforms: one real person, however many times they appear across your systems.'],
+    ['What is Mira Premium, and is it included?', 'Mira Premium is our AI search workspace: site audits, Site Explorer, backlinks, Google Search Console, rank tracking and AI visibility in ChatGPT. It is included in every plan, with the limits shown in the comparison table.'],
+    ['Can I start on Starter and upgrade later?', 'Yes. Upgrade any time from your dashboard; the difference is prorated to your current billing cycle.'],
+    ['How does annual billing work?', 'Annual plans are billed upfront for 12 months and save 20%: Starter is $399/mo ($4,788/year) and Growth is $1,199/mo ($14,388/year).'],
+    ['What if I go over my profile limit?', 'We notify you at 80%. Add capacity in blocks of 25,000 for $99, or move up a tier — no contract changes needed.'],
+    ['Is my data safe?', 'All plans are SOC 2 Type II and GDPR compliant, encrypted with AES-256 at rest and in transit. We never share, sell or train on your data for anyone else.'],
+  ];
+  $check = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>';
+  $cross = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>';
+@endphp
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --body-bg:linear-gradient(135deg,#dbeafe 0%,#bfdbfe 50%,#dbeafe 100%);
-  --bg:#dbeafe;--bg2:rgba(219,234,254,.55);--bg3:rgba(191,219,254,.5);--card:rgba(255,255,255,.55);--card-h:rgba(255,255,255,.68);
-  --blue:#2563eb;--blue2:#1d4ed8;--blue-g:rgba(37,99,235,.08);--blue-g2:rgba(37,99,235,.04);
-  --cyan:#0891b2;--violet:#7c3aed;--emerald:#059669;--amber:#b45309;--rose:#e11d48;
-  --white:#0f172a;--g100:#334155;--g200:#475569;--g300:#64748b;--g400:#94a3b8;--g500:#cbd5e1;--g600:#e2e8f0;
-  --brd:rgba(37,99,235,.16);--brd2:rgba(37,99,235,.24);
-  --glow:0 0 60px rgba(37,99,235,.12);--glow2:0 0 80px rgba(37,99,235,.08);
-  --glass-blur:blur(22px) saturate(1.5);
-  --chrome-bg:rgba(219,234,254,.85);--chrome-bg-soft:rgba(219,234,254,.65);--panel-tint:rgba(219,234,254,.55);
-  --f1:'Outfit',system-ui,sans-serif;--f2:'Source Serif 4',Georgia,serif;--fm:'IBM Plex Mono',monospace;
-  --ease:cubic-bezier(.16,1,.3,1);--mw:1200px;
-}
-body.theme-dark{
-  --body-bg:#05070e;
-  --bg:#05070e;--bg2:#090d19;--bg3:#0d1224;--card:#0f1628;--card-h:#141d36;
-  --blue:#4f8fff;--blue2:#2563eb;--blue-g:rgba(79,143,255,.08);--blue-g2:rgba(79,143,255,.04);
-  --cyan:#38bdf8;--violet:#818cf8;--emerald:#34d399;--amber:#fbbf24;--rose:#f472b6;
-  --white:#f1f5f9;--g100:#cbd5e1;--g200:#94a3b8;--g300:#64748b;--g400:#475569;--g500:#334155;--g600:#1e293b;
-  --brd:rgba(79,143,255,.08);--brd2:rgba(79,143,255,.15);
-  --glow:0 0 60px rgba(79,143,255,.12);--glow2:0 0 40px rgba(79,143,255,.08);
-  --glass-blur:none;
-  --chrome-bg:rgba(5,7,14,.97);--chrome-bg-soft:rgba(5,7,14,.75);--panel-tint:rgba(9,13,25,.6);
-}
-.billing-toggle,.pc,.addon,.roi-bar,.rs,.ent-card,.tc,.trust-badge,.faq-section,.faq-item,.foot{backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur)}
-html{scroll-behavior:smooth}
-body{background:var(--body-bg);background-attachment:fixed;color:var(--white);font-family:var(--f1);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{background:#000;color:#fff;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
-canvas#neural{position:fixed;inset:0;z-index:0;pointer-events:none}
-button{font-family:var(--f1)}
+img,svg{display:block}
+button{font-family:inherit}
+.wrap{max-width:1200px;margin:0 auto;padding:0 60px}
+@media (max-width:900px){.wrap{padding:0 24px}}
+.accent{font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-weight:400;
+  background:linear-gradient(90deg,#F6F9FC,#93CEFF,#FFBFFF,#00EAF4,#F6F9FC);
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.04);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);font-size:12.5px;color:#c7c9d1}
+.eyebrow i{width:6px;height:6px;border-radius:50%;background:#6ee7b7;box-shadow:0 0 10px #6ee7b7}
 
-/* NAV */
-.nav{position:fixed;top:0;width:100%;z-index:100;border-bottom:1px solid var(--brd)}
-.nav-bg{position:absolute;inset:0;background:var(--chrome-bg-soft);backdrop-filter:blur(40px)}
-.nav-in{position:relative;max-width:var(--mw);margin:0 auto;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between}
-.logo{display:flex;align-items:center;gap:11px;font-weight:700;font-size:15px;letter-spacing:-.3px}
-.logo-m{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--violet));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;box-shadow:0 0 20px rgba(79,143,255,.25)}
-.nav-l{display:flex;align-items:center;gap:32px;list-style:none}
-.nav-l a{font-size:13.5px;font-weight:450;color:var(--g200);transition:color .25s}
-.nav-l a:hover{color:var(--white)}
-.nav-cta{padding:8px 22px;background:var(--blue);color:#fff!important;border-radius:8px;font-weight:600!important;font-size:13px!important;box-shadow:0 0 24px rgba(79,143,255,.25);transition:all .25s;cursor:pointer;border:none;font-family:var(--f1)}
-.nav-cta:hover{box-shadow:0 0 36px rgba(79,143,255,.4)}
-.nav-login{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border:1px solid var(--g500);color:var(--g200)!important;border-radius:8px;font-weight:500!important;font-size:13px!important;transition:all .25s;background:transparent;cursor:pointer;font-family:var(--f1)}
-.nav-login:hover{border-color:var(--brd2);color:var(--white)!important;background:rgba(79,143,255,.05)}
-.nav-signup{padding:8px 18px;border-radius:8px;font-weight:600!important;font-size:13px!important;color:#0b0b0e!important;white-space:nowrap;
-  background:linear-gradient(90deg,#F6F9FC,#93CEFF 45%,#FFBFFF);box-shadow:0 0 20px rgba(147,206,255,.2);transition:box-shadow .25s}
-.nav-signup:hover{box-shadow:0 0 30px rgba(147,206,255,.35)}
+/* ============ NAV (same as the homepage) ============ */
+.nav{display:flex;align-items:center;justify-content:space-between;padding:22px 60px;position:relative;z-index:20}
+@media (max-width:900px){.nav{padding:18px 24px}}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+.logo-mark{width:22px;height:22px;border-radius:5px}
+.nav-links{display:flex;align-items:center;gap:36px;list-style:none}
+.nav-links a{font-size:14px;color:#c7c9d1;transition:color .2s}
+.nav-links a:hover,.nav-links a[aria-current="page"]{color:#fff}
+.nav-right{display:flex;align-items:center;gap:14px}
+.nav-burger{display:none;width:38px;height:38px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
+.nav-burger span,.nav-burger span::before,.nav-burger span::after{content:'';display:block;width:16px;height:2px;background:#fff;border-radius:2px;position:relative;transition:transform .2s}
+.nav-burger span::before{position:absolute;top:-5px}
+.nav-burger span::after{position:absolute;top:5px}
+.nav-burger.open span{background:transparent}
+.nav-burger.open span::before{transform:translateY(5px) rotate(45deg)}
+.nav-burger.open span::after{transform:translateY(-5px) rotate(-45deg)}
+.book-demo{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border:1px solid rgba(255,255,255,.18);border-radius:999px;font-size:13.5px;font-weight:500;background:rgba(255,255,255,.04);transition:background .2s;white-space:nowrap}
+.book-demo:hover{background:rgba(255,255,255,.1)}
+.nav-signin{font-size:14px;font-weight:500;color:#c7c9d1;padding:9px 6px;transition:color .2s;white-space:nowrap}
+.nav-signin:hover{color:#fff}
+.nav-signup{display:inline-flex;align-items:center;padding:9px 18px;border-radius:999px;font-size:13.5px;font-weight:600;color:#0b0b0e;white-space:nowrap;
+  background:linear-gradient(90deg,#F6F9FC,#93CEFF 45%,#FFBFFF);box-shadow:0 4px 18px rgba(147,206,255,.25);transition:transform .15s,box-shadow .2s}
+.nav-signup:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(147,206,255,.4)}
 .nav-logout{margin:0;display:inline-flex}
-.nav-mob-form{margin:0}
-.nav-mob-form button{display:block;width:100%;font:inherit;font-size:18px;font-weight:500;color:var(--g200);padding:16px 0;border:0;border-bottom:1px solid var(--brd);background:none;cursor:pointer;text-align:center}
-.appearance-toggle{width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--brd2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--g200);transition:all .2s;flex-shrink:0;padding:0}
-.appearance-toggle:hover{color:var(--blue);border-color:var(--blue)}
-.appearance-toggle svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2}
-
-/* HERO */
-.hero{position:relative;z-index:1;padding:140px 40px 80px;text-align:center}
-.breadcrumb{font-family:var(--fm);font-size:12px;color:var(--g400);margin-bottom:28px;letter-spacing:.5px}
-.breadcrumb a{color:var(--g300);transition:color .2s}.breadcrumb a:hover{color:var(--blue)}
-.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px 6px 10px;background:var(--blue-g);border:1px solid var(--brd2);border-radius:100px;font-family:var(--fm);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:28px;opacity:0;animation:fadeUp .6s var(--ease) .1s forwards}
-.badge-dot{width:7px;height:7px;border-radius:50%;background:var(--emerald);box-shadow:0 0 10px var(--emerald);animation:blink 2.5s ease-in-out infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
-.hero h1{font-weight:800;font-size:clamp(36px,5vw,64px);line-height:1.06;letter-spacing:-2px;max-width:700px;margin:0 auto 20px;opacity:0;animation:fadeUp .7s var(--ease) .2s forwards}
-.hero h1 span{background:linear-gradient(135deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero p{font-size:17px;line-height:1.75;color:var(--g200);max-width:500px;margin:0 auto 40px;font-weight:350;opacity:0;animation:fadeUp .7s var(--ease) .35s forwards}
-
-/* BILLING TOGGLE */
-.billing-toggle{display:inline-flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--brd);border-radius:100px;padding:6px 6px 6px 20px;font-size:13px;font-weight:500;color:var(--g200);opacity:0;animation:fadeUp .7s var(--ease) .5s forwards;margin-bottom:64px}
-.bt-label{cursor:pointer;transition:color .2s}
-.bt-label.active{color:var(--white)}
-.bt-pill{width:52px;height:28px;border-radius:14px;background:var(--g600);cursor:pointer;position:relative;transition:background .3s;border:none;padding:0}
-.bt-pill.yr{background:var(--blue)}
-.bt-pill::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .3s var(--ease)}
-.bt-pill.yr::after{transform:translateX(24px)}
-.bt-save{padding:4px 12px;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2);border-radius:100px;font-family:var(--fm);font-size:10px;color:var(--emerald);letter-spacing:.5px;margin-left:4px}
-
-/* PRICING CARDS */
-.pricing-wrap{position:relative;z-index:1;padding:0 40px 80px;max-width:var(--mw);margin:0 auto}
-.pricing-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;align-items:start}
-.pc{background:var(--card);border:1px solid var(--brd);border-radius:20px;padding:36px;position:relative;overflow:hidden;transition:border-color .3s,box-shadow .3s}
-.pc:hover{border-color:var(--brd2)}
-.pc.featured{border-color:var(--blue);background:linear-gradient(180deg,rgba(79,143,255,.05),var(--card) 60%);box-shadow:0 0 60px rgba(79,143,255,.12)}
-.pc.featured::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--blue),var(--cyan),transparent)}
-.pc-badge{position:absolute;top:20px;right:20px;font-family:var(--fm);font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:4px 12px;border-radius:100px}
-.pc-badge.popular{background:rgba(79,143,255,.12);border:1px solid var(--brd2);color:var(--blue)}
-.pc-badge.new{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2);color:var(--emerald)}
-.pc-tier{font-family:var(--fm);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--g300);margin-bottom:12px}
-.pc-name{font-weight:800;font-size:24px;letter-spacing:-.5px;margin-bottom:6px}
-.pc-desc{font-size:13.5px;color:var(--g300);line-height:1.55;margin-bottom:28px;min-height:44px}
-.pc-price{margin-bottom:28px}
-.pc-price .pp-amount{font-weight:800;font-size:48px;letter-spacing:-2px;line-height:1}
-.pc-price .pp-currency{font-size:20px;font-weight:600;vertical-align:top;padding-top:10px;display:inline-block;color:var(--g200)}
-.pc-price .pp-period{font-family:var(--fm);font-size:12px;color:var(--g400);margin-left:2px;letter-spacing:.5px}
-.pc-price .pp-annual{font-family:var(--fm);font-size:11px;color:var(--g400);margin-top:4px;display:block}
-.pc-price .pp-custom{font-weight:700;font-size:32px;letter-spacing:-1px;color:var(--white)}
-.pc-btn{display:block;width:100%;padding:14px;border-radius:12px;font-weight:600;font-size:14px;text-align:center;cursor:pointer;transition:all .25s;border:none;margin-bottom:28px}
-.pc-btn.outline{background:transparent;border:1px solid var(--g500);color:var(--g100)}
-.pc-btn.outline:hover{border-color:var(--blue);background:var(--blue-g)}
-.pc-btn.solid{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;box-shadow:0 4px 20px rgba(79,143,255,.25)}
-.pc-btn.solid:hover{box-shadow:0 6px 32px rgba(79,143,255,.4);transform:translateY(-1px)}
-.pc-btn.ghost{background:transparent;border:1px solid var(--brd2);color:var(--blue)}
-.pc-btn.ghost:hover{background:var(--blue-g)}
-.pc-divider{border:none;border-top:1px solid var(--brd);margin:0 0 20px}
-.pc-features-label{font-family:var(--fm);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--g400);margin-bottom:14px}
-.pc-features{display:flex;flex-direction:column;gap:10px}
-.pf-row{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;color:var(--g200);line-height:1.4}
-.pf-row .pf-icon{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
-.pf-row .pf-icon svg{width:10px;height:10px;fill:none;stroke-width:2.5}
-.pf-row.yes .pf-icon{background:rgba(52,211,153,.1)}
-.pf-row.yes .pf-icon svg{stroke:var(--emerald)}
-.pf-row.no .pf-icon{background:rgba(100,116,139,.08)}
-.pf-row.no .pf-icon svg{stroke:var(--g500)}
-.pf-row.no span{color:var(--g500)}
-.pf-row.hi{color:var(--white);font-weight:500}
-.pf-row .pf-new{font-family:var(--fm);font-size:9px;padding:2px 6px;border-radius:4px;background:var(--blue-g);color:var(--blue);border:1px solid var(--brd);margin-left:6px;letter-spacing:.3px;flex-shrink:0}
-
-/* VOLUME INDICATOR */
-.pc-volume{margin-bottom:24px}
-.pv-label{font-family:var(--fm);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--g400);margin-bottom:8px}
-.pv-track{height:6px;background:var(--g600);border-radius:3px;overflow:hidden}
-.pv-fill{height:100%;border-radius:3px;transition:width .8s var(--ease)}
-
-/* COMPARISON TABLE */
-.comp-section{position:relative;z-index:1;padding:0 40px 100px;max-width:var(--mw);margin:0 auto}
-.comp-toggle{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
-.comp-toggle h2{font-weight:700;font-size:clamp(22px,2.5vw,30px);letter-spacing:-1px}
-.expand-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--blue);background:var(--blue-g);border:1px solid var(--brd2);padding:8px 16px;border-radius:8px;cursor:pointer;transition:all .2s;border-style:solid}
-.expand-btn:hover{background:rgba(79,143,255,.12)}
-.ct-wrap{border:1px solid var(--brd);border-radius:16px;overflow:hidden}
-.ct-head{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;background:var(--bg3);border-bottom:1px solid var(--brd)}
-.ct-head-cell{padding:20px 24px;font-size:14px;font-weight:600}
-.ct-head-cell:first-child{color:var(--g300)}
-.ct-group-label{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;background:rgba(79,143,255,.04);border-bottom:1px solid var(--brd);padding:10px 24px;font-family:var(--fm);font-size:10px;color:var(--blue);letter-spacing:1.5px;text-transform:uppercase;align-items:center}
-.ct-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;border-bottom:1px solid var(--brd);transition:background .2s}
-.ct-row:last-child{border-bottom:none}
-.ct-row:hover{background:rgba(255,255,255,.015)}
-.ct-cell{padding:14px 24px;font-size:13.5px;display:flex;align-items:center;gap:8px}
-.ct-cell:first-child{color:var(--g200)}
-.ct-cell .ct-check{color:var(--emerald);font-size:16px}
-.ct-cell .ct-cross{color:var(--g500);font-size:16px}
-.ct-cell .ct-val{color:var(--g100);font-weight:500}
-.ct-cell .featured-col{color:var(--blue)}
-.ct-head-cell.featured-col{color:var(--blue)}
-.comp-hidden{display:none}
-
-/* ADDONS */
-.addons-section{position:relative;z-index:1;padding:0 40px 100px;max-width:var(--mw);margin:0 auto}
-.addons-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.addon{background:var(--card);border:1px solid var(--brd);border-radius:14px;padding:24px;transition:all .3s}
-.addon:hover{border-color:var(--brd2);background:var(--card-h)}
-.addon-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
-.addon-name{font-weight:600;font-size:15px;letter-spacing:-.1px}
-.addon-price{font-family:var(--fm);font-size:12px;color:var(--blue);background:var(--blue-g);border:1px solid var(--brd);padding:3px 10px;border-radius:6px;white-space:nowrap}
-.addon p{font-size:13px;color:var(--g300);line-height:1.6}
-
-/* ROI CALLOUT */
-.roi-bar{position:relative;z-index:1;border-top:1px solid var(--brd);border-bottom:1px solid var(--brd);background:var(--bg2);padding:64px 40px}
-.roi-in{max-width:var(--mw);margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
-.roi-left h2{font-weight:700;font-size:clamp(24px,3vw,36px);letter-spacing:-1px;line-height:1.2;margin-bottom:16px}
-.roi-left p{font-size:15px;color:var(--g300);line-height:1.7;font-weight:350}
-.roi-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.rs{background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:20px;text-align:center;transition:all .3s}
-.rs:hover{border-color:var(--brd2)}
-.rs-n{font-weight:800;font-size:28px;letter-spacing:-1px;background:linear-gradient(135deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px}
-.rs-l{font-family:var(--fm);font-size:9.5px;color:var(--g400);letter-spacing:1px;text-transform:uppercase}
-
-/* ENTERPRISE */
-.ent-section{position:relative;z-index:1;padding:0 40px 100px;max-width:var(--mw);margin:0 auto}
-.ent-card{background:var(--card);border:1px solid var(--brd);border-radius:20px;padding:0;overflow:hidden;display:grid;grid-template-columns:1fr 1fr}
-.ent-left{padding:48px;border-right:1px solid var(--brd)}
-.ent-right{padding:48px;background:rgba(79,143,255,.02)}
-.ent-left h2{font-weight:700;font-size:clamp(24px,2.8vw,34px);letter-spacing:-1px;line-height:1.2;margin-bottom:14px}
-.ent-left p{font-size:14.5px;color:var(--g300);line-height:1.7;font-weight:350;margin-bottom:24px}
-.ent-features{display:flex;flex-direction:column;gap:12px}
-.ef{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--g100)}
-.ef-dot{width:7px;height:7px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px rgba(79,143,255,.4);flex-shrink:0}
-.ent-form{display:flex;flex-direction:column;gap:14px}
-.ef-label{font-family:var(--fm);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--g400);margin-bottom:6px;display:block}
-.ef-input{width:100%;background:var(--bg3);border:1px solid var(--g500);border-radius:10px;padding:12px 16px;color:var(--white);font-family:var(--f1);font-size:14px;outline:none;transition:border-color .2s}
-.ef-input:focus{border-color:var(--blue)}
-.ef-input::placeholder{color:var(--g500)}
-.ef-select{width:100%;background:var(--bg3);border:1px solid var(--g500);border-radius:10px;padding:12px 16px;color:var(--white);font-family:var(--f1);font-size:14px;outline:none;cursor:pointer;transition:border-color .2s}
-.ef-select:focus{border-color:var(--blue)}
-.ent-submit{padding:14px;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;border:none;border-radius:12px;font-weight:600;font-size:14px;cursor:pointer;transition:all .25s;box-shadow:0 4px 20px rgba(79,143,255,.25)}
-.ent-submit:hover{transform:translateY(-1px);box-shadow:0 6px 32px rgba(79,143,255,.4)}
-.ent-form-note{font-size:12px;color:var(--g400);text-align:center}
-
-/* TESTIMONIALS */
-.test-section{position:relative;z-index:1;padding:0 40px 80px;max-width:var(--mw);margin:0 auto}
-.test-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.tc{background:var(--card);border:1px solid var(--brd);border-radius:16px;padding:28px;transition:all .3s}
-.tc:hover{border-color:var(--brd2);background:var(--card-h)}
-.tc-plan{font-family:var(--fm);font-size:9.5px;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:5px;background:var(--blue-g);border:1px solid var(--brd);color:var(--blue);display:inline-block;margin-bottom:14px}
-.tc-q{font-family:var(--f2);font-size:14.5px;font-style:italic;line-height:1.65;color:var(--g100);margin-bottom:16px}
-.tc-author{display:flex;align-items:center;gap:10px;border-top:1px solid var(--brd);padding-top:14px}
-.tc-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
-.tc-name{font-size:13px;font-weight:600}
-.tc-role{font-size:11px;color:var(--g400)}
-.tc-result{font-family:var(--fm);font-size:10px;color:var(--emerald);margin-top:2px}
-
-/* TRUST */
-.trust-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-.trust-badge{display:flex;align-items:center;gap:12px;padding:16px 22px;border-radius:12px;border:1px solid var(--brd);background:var(--card);transition:all .3s}
-.trust-badge:hover{border-color:var(--brd2);background:var(--card-h)}
-.tb-icon{width:36px;height:36px;border-radius:8px;background:var(--blue-g);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.tb-icon svg{width:16px;height:16px;stroke:var(--blue);fill:none;stroke-width:1.5}
-.tb-label{font-size:13px;font-weight:600}
-.tb-sub{font-size:11px;color:var(--g400);margin-top:1px}
-
-/* FAQ */
-.faq-section{position:relative;z-index:1;padding:80px 40px;background:var(--bg2);border-top:1px solid var(--brd)}
-.faq-in{max-width:var(--mw);margin:0 auto;display:grid;grid-template-columns:300px 1fr;gap:64px;align-items:start}
-.faq-left{position:sticky;top:88px}
-.faq-left h2{font-weight:700;font-size:clamp(22px,2.5vw,30px);letter-spacing:-1px;margin-bottom:12px}
-.faq-left p{font-size:14px;color:var(--g300);line-height:1.7;margin-bottom:20px}
-.faq-list{display:flex;flex-direction:column;gap:8px}
-.faq-item{border:1px solid var(--brd);border-radius:12px;overflow:hidden;background:var(--card)}
-.faq-item.open{border-color:var(--brd2)}
-.faq-q{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;cursor:pointer;font-weight:500;font-size:14.5px;color:var(--g100);user-select:none;gap:16px}
-.faq-q svg{width:18px;height:18px;stroke:var(--g400);fill:none;stroke-width:2;transition:transform .3s;flex-shrink:0}
-.faq-item.open .faq-q svg{transform:rotate(45deg);stroke:var(--blue)}
-.faq-a{max-height:0;overflow:hidden;transition:max-height .4s var(--ease)}
-.faq-item.open .faq-a{max-height:400px;padding:0 22px 18px}
-.faq-a p{font-size:13.5px;color:var(--g300);line-height:1.7}
-
-/* CTA */
-.cta{position:relative;z-index:1;padding:120px 40px;text-align:center}
-.cta::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;height:400px;background:radial-gradient(circle,rgba(79,143,255,.05),transparent 65%);pointer-events:none}
-.cta h2{font-weight:800;font-size:clamp(28px,3.8vw,48px);letter-spacing:-1.5px;line-height:1.1;margin-bottom:14px;position:relative}
-.cta h2 span{background:linear-gradient(135deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.cta p{font-size:16px;color:var(--g300);max-width:420px;margin:0 auto 32px;line-height:1.7;position:relative}
-.cta-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative}
-
-/* FOOTER */
-.foot{border-top:1px solid var(--brd);padding:64px 40px;background:var(--bg2)}
-.foot-in{max-width:var(--mw);margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px}
-.foot-desc{font-size:13.5px;color:var(--g400);line-height:1.65;max-width:260px;margin-top:14px}
-.foot-c h5{font-family:var(--fm);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--g500);margin-bottom:18px}
-.foot-c a{display:block;font-size:13.5px;color:var(--g300);margin-bottom:11px;transition:color .2s}
-.foot-c a:hover{color:var(--white)}
-.foot-b{max-width:var(--mw);margin:36px auto 0;padding-top:24px;border-top:1px solid var(--brd);display:flex;justify-content:space-between;font-size:11.5px;color:var(--g500)}
-
-/* BTN */
-.btn-b{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;border-radius:12px;font-weight:600;font-size:14.5px;border:none;cursor:pointer;transition:all .25s;font-family:var(--f1)}
-.btn-fill{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;box-shadow:0 4px 32px rgba(79,143,255,.3)}
-.btn-fill:hover{transform:translateY(-2px);box-shadow:0 8px 48px rgba(79,143,255,.4)}
-.btn-g{background:rgba(255,255,255,.04);color:var(--g100);border:1px solid var(--g500)}
-.btn-g:hover{border-color:var(--blue);background:var(--blue-g2)}
-
-/* SHARED */
-.stag{font-family:var(--fm);font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--blue);margin-bottom:14px;display:flex;align-items:center;gap:10px}
-.stag::before{content:'';width:16px;height:1px;background:var(--blue)}
-.sh{font-weight:700;font-size:clamp(24px,2.8vw,36px);letter-spacing:-1.2px;line-height:1.15;margin-bottom:12px}
-.stop{margin-bottom:48px}
-@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-.rv{opacity:0;transform:translateY(28px);transition:opacity .7s var(--ease),transform .7s var(--ease)}.rv.vis{opacity:1;transform:translateY(0)}
-
-/* RESPONSIVE */
-@media(max-width:1024px){
-  .pricing-grid{grid-template-columns:1fr}
-  .ct-head,.ct-group-label,.ct-row{grid-template-columns:1.5fr 1fr 1fr 1fr}
-  .ent-card{grid-template-columns:1fr}
-  .ent-left{border-right:none;border-bottom:1px solid var(--brd)}
-  .test-grid{grid-template-columns:1fr}
-  .addons-grid{grid-template-columns:1fr 1fr}
-  .faq-in{grid-template-columns:1fr}.faq-left{position:static}
-  .roi-in{grid-template-columns:1fr;gap:40px}
-  .foot-in{grid-template-columns:1fr 1fr}
+.nav-logout button{padding:9px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:transparent;font-size:13.5px;font-weight:500;color:#c7c9d1;cursor:pointer}
+.nav-logout button:hover{color:#fff;background:rgba(255,255,255,.06)}
+.nav-links .nav-account{display:none}
+.nav-links .nav-account form{margin:0}
+.nav-links .nav-account button{display:block;width:100%;text-align:left;padding:16px 24px;border:0;background:transparent;font-size:14px;color:#c7c9d1;cursor:pointer}
+@media (max-width:900px){
+  .nav-links{position:absolute;top:100%;left:0;right:0;flex-direction:column;align-items:flex-start;gap:0;background:#0a0a0d;border-bottom:1px solid rgba(255,255,255,.08);max-height:0;overflow:hidden;transition:max-height .25s ease}
+  .nav-links.open{max-height:460px}
+  .nav-links li{width:100%}
+  .nav-links a{display:block;width:100%;padding:16px 24px;border-bottom:1px solid rgba(255,255,255,.05)}
+  .nav-burger{display:flex}
+  .nav-right .nav-signin,.nav-right .nav-signup,.nav-right .nav-logout{display:none}
+  .nav-links .nav-account{display:list-item}
 }
-@media(max-width:640px){
-  .nav-l{display:none}.nav-in{padding:0 20px}
-  .hero,.pricing-wrap,.comp-section,.addons-section,.test-section,.ent-section,.cta{padding-left:20px;padding-right:20px}
-  .hero{padding-top:120px}
-  .ct-head,.ct-group-label,.ct-row{grid-template-columns:1.2fr 0.8fr 0.8fr 0.8fr}
-  .ct-cell{padding:12px 10px;font-size:12px}
-  .ct-head-cell{padding:14px 10px;font-size:12px}
-  .addons-grid{grid-template-columns:1fr}
-  .roi-stats{grid-template-columns:1fr 1fr}
-  .foot-in{grid-template-columns:1fr}.foot-b{flex-direction:column;gap:8px}
-  .trust-row{flex-direction:column;align-items:stretch}
-  .billing-toggle{flex-wrap:wrap;border-radius:16px;padding:12px 16px}
-}
-.nav-ham{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;position:relative;z-index:102}
-.nav-ham span{display:block;width:22px;height:2px;background:var(--g200);border-radius:2px;transition:all .3s}
-.nav-ham.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
-.nav-ham.open span:nth-child(2){opacity:0}
-.nav-ham.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
-.nav-mob{display:none;position:fixed;inset:0;z-index:99;background:var(--chrome-bg);backdrop-filter:blur(20px);flex-direction:column;align-items:center;justify-content:center;overflow-y:auto}
-.nav-mob.open{display:flex}.nav-mob-inner{width:100%;max-width:340px;padding:24px}
-.nav-mob-link{display:block;font-size:18px;font-weight:500;color:var(--g200);padding:16px 0;border-bottom:1px solid var(--brd);transition:color .2s;text-align:center}
-.nav-mob-link:first-child{border-top:1px solid var(--brd)}.nav-mob-link:hover{color:var(--white)}
-.nav-mob-cta{display:block;text-align:center;margin-top:28px;padding:14px 0;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;border-radius:10px;font-weight:600;font-size:15px}
-.nav-mob-cta:hover{opacity:.9;color:#fff}
-.nav-mob-close{position:absolute;top:20px;right:20px;background:none;border:none;cursor:pointer;color:var(--g300);font-size:32px;line-height:1;z-index:100;width:44px;height:44px;display:flex;align-items:center;justify-content:center}
-@media(max-width:640px){.nav-ham{display:flex}}
+@media (max-width:480px){.book-demo .label{display:none}}
+
+/* ============ HERO — the homepage earth, dimmed, with its horizon glow ============ */
+.hero{position:relative;padding:56px 60px 120px;text-align:center;overflow:hidden}
+@media (max-width:900px){.hero{padding:36px 24px 80px}}
+.hero-bg{position:absolute;inset:0 0 2px;z-index:0;overflow:hidden;pointer-events:none;
+  -webkit-mask-image:linear-gradient(to bottom,#000 70%,transparent 98%);mask-image:linear-gradient(to bottom,#000 70%,transparent 98%);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.hero-bg img{position:absolute;left:50%;top:-170px;width:max(1500px,115%);translate:-50% 0;opacity:.9;animation:drift 30s ease-in-out infinite alternate}
+.hero-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.55),rgba(0,0,0,.25) 45%,rgba(0,0,0,.05) 86%,#000 99%)}
+@keyframes drift{to{transform:scale(1.05) translateY(-1.2%)}}
+.hero-inner{position:relative;z-index:1}
+.hero h1{margin-top:26px;font-family:'Space Grotesk',sans-serif;font-size:112px;line-height:.9;font-weight:500;letter-spacing:-4px;color:#F6F9FC;animation:rise 1.1s cubic-bezier(.16,1,.3,1) both}
+.hero h1 .accent{display:block;letter-spacing:-.03em}
+.hero-sub{margin:24px auto 0;max-width:620px;font-size:19px;line-height:1.55;color:#9aa0ac;animation:rise 1.1s .2s cubic-bezier(.16,1,.3,1) both}
+@media (max-width:1100px){.hero h1{font-size:84px;letter-spacing:-3px}}
+@media (max-width:900px){.hero h1{font-size:56px;letter-spacing:-2px}.hero-sub{font-size:16px}}
+@media (max-width:480px){.hero h1{font-size:42px}}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+
+/* Billing switch */
+.billing{display:inline-flex;align-items:center;gap:4px;margin-top:38px;padding:5px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);animation:rise 1.1s .35s cubic-bezier(.16,1,.3,1) both}
+.billing button{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:999px;border:0;background:transparent;color:#c7c9d1;font-size:14px;font-weight:500;cursor:pointer;transition:background .25s,color .25s}
+.billing button[aria-pressed="true"]{background:#F6F9FC;color:#0b0b0e}
+.billing .save{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:rgba(110,231,183,.14);color:#6ee7b7}
+.billing button[aria-pressed="true"] .save{background:#0b0b0e;color:#6ee7b7}
+
+/* ============ PLANS ============ */
+.plans{position:relative;z-index:2;margin-top:-40px}
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:stretch}
+@media (max-width:980px){.plan-grid{grid-template-columns:1fr;max-width:520px;margin:0 auto}}
+.plan{position:relative;display:flex;flex-direction:column;padding:32px 28px 28px;border-radius:20px;background:rgba(10,10,13,.88);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);overflow:hidden;transition:transform .3s cubic-bezier(.16,1,.3,1),border-color .3s}
+.plan:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.16)}
+.plan::before{content:'';position:absolute;top:0;right:0;width:75%;height:50%;pointer-events:none;background:radial-gradient(ellipse at top right,var(--glow),transparent 70%)}
+.plan>*{position:relative}
+.plan.p-starter{--glow:rgba(125,211,252,.13)}
+.plan.p-professional{--glow:rgba(255,191,255,.16)}
+.plan.p-enterprise{--glow:rgba(242,193,78,.14)}
+.plan.featured{background:linear-gradient(180deg,rgba(18,26,46,.95),rgba(6,8,13,.95));border-color:transparent;box-shadow:0 30px 80px -30px rgba(147,206,255,.35)}
+.plan.featured::after{content:'';position:absolute;inset:0;border-radius:20px;padding:1px;pointer-events:none;
+  background:linear-gradient(140deg,#93CEFF,rgba(255,191,255,.7) 40%,rgba(255,255,255,.06) 70%,#00EAF4);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.plan-badge{position:absolute;top:22px;right:22px;padding:5px 11px;border-radius:999px;font-size:11px;font-weight:700;color:#0b0b0e;background:linear-gradient(90deg,#F6F9FC,#93CEFF 45%,#FFBFFF)}
+.plan-tier{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6a6e77}
+.plan h3{margin-top:10px;font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:500;letter-spacing:-.8px}
+.plan-blurb{margin-top:8px;font-size:13.5px;line-height:1.55;color:#9aa0ac;min-height:42px}
+.plan-price{display:flex;align-items:baseline;gap:4px;margin-top:26px;font-family:'Space Grotesk',sans-serif}
+.plan-price .cur{font-size:26px;font-weight:500;color:#c7c9d1;align-self:flex-start;margin-top:8px}
+.plan-price .amt{font-size:62px;font-weight:500;letter-spacing:-2.5px;line-height:1}
+.plan-price .per{font-size:14px;color:#8a8f99;font-family:'Inter',sans-serif}
+.plan-price .custom{font-size:52px;font-weight:500;letter-spacing:-2px;line-height:1.1}
+.plan-note{margin-top:8px;font-size:12.5px;color:#8a8f99;min-height:18px}
+.plan-cap{display:inline-flex;margin-top:16px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);font-size:12px;color:#c7c9d1;align-self:flex-start}
+.plan-cta{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;padding:14px;border-radius:999px;font-size:14px;font-weight:600;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);transition:background .2s,transform .15s}
+.plan-cta:hover{background:rgba(255,255,255,.1);transform:translateY(-1px)}
+.plan.featured .plan-cta{border:0;color:#0b0b0e;background:linear-gradient(90deg,#F6F9FC,#93CEFF 45%,#FFBFFF);box-shadow:0 8px 24px rgba(147,206,255,.3)}
+.plan-feats{margin-top:26px;padding-top:22px;border-top:1px solid rgba(255,255,255,.07);flex:1}
+.plan-feats .lead{font-size:12px;font-weight:600;color:#9aa0ac;margin-bottom:12px}
+.plan-feats ul{list-style:none;display:grid;gap:10px}
+.plan-feats li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:#d7d9df;line-height:1.4}
+.plan-feats li svg{width:16px;height:16px;flex:none;margin-top:1px;fill:none;stroke:#6ee7b7;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+/* Mira Premium block inside each plan */
+.plan-mira{margin-top:22px;padding:16px;border-radius:14px;background:linear-gradient(135deg,rgba(242,193,78,.1),rgba(242,193,78,.02));border:1px solid rgba(242,193,78,.2)}
+.plan-mira .hd{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#f2c14e;letter-spacing:.02em}
+.plan-mira .hd svg{width:14px;height:14px;fill:#f2c14e}
+.plan-mira dl{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.plan-mira dl>div{display:flex;flex-direction:column;justify-content:space-between}
+.plan-mira dt{font-size:10.5px;color:#9aa0ac;line-height:1.3}
+.plan-mira dd{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:500;color:#F6F9FC;margin-top:2px}
+.trial-line{margin-top:30px;text-align:center;font-size:13.5px;color:#8a8f99}
+.trial-line b{color:#c7c9d1;font-weight:500}
+
+/* ============ SECTIONS ============ */
+.sec{padding:120px 60px 0}
+@media (max-width:900px){.sec{padding:80px 24px 0}}
+.sec-hd h2{font-family:'Space Grotesk',sans-serif;font-size:68px;font-weight:500;line-height:.94;letter-spacing:-3.5px;color:#F6F9FC}
+.sec-hd .accent{display:block;letter-spacing:-.05em}
+.sec-hd p{margin-top:18px;max-width:560px;color:#9aa0ac;font-size:15.5px;line-height:1.65}
+.sec-hd.center{text-align:center}.sec-hd.center p{margin-left:auto;margin-right:auto}
+@media (max-width:1200px){.sec-hd h2{font-size:52px}}
+@media (max-width:900px){.sec-hd h2{font-size:38px;letter-spacing:-1.5px}}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* Mira Premium showcase */
+.mira{display:grid;grid-template-columns:1fr 1.05fr;gap:48px;align-items:center;margin-top:56px;padding:44px;border-radius:24px;border:1px solid rgba(255,255,255,.08);
+  background:radial-gradient(80% 90% at 100% 0%,rgba(242,193,78,.12),transparent 60%),linear-gradient(160deg,#0d0d10,#050507)}
+@media (max-width:980px){.mira{grid-template-columns:1fr;padding:28px}}
+.mira-kicker{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#f2c14e}
+.mira h3{margin-top:14px;font-family:'Space Grotesk',sans-serif;font-size:40px;font-weight:500;line-height:1.02;letter-spacing:-1.6px}
+.mira p{margin-top:14px;color:#9aa0ac;font-size:15px;line-height:1.65}
+.mira-list{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:22px}
+.mira-list li{display:flex;gap:10px;font-size:13.5px;color:#d7d9df;line-height:1.4}
+.mira-list li svg{width:16px;height:16px;flex:none;margin-top:1px;fill:none;stroke:#f2c14e;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.mira-link{display:inline-flex;align-items:center;gap:8px;margin-top:26px;padding:12px 20px;border-radius:999px;font-size:14px;font-weight:600;color:#1a1406;
+  background:linear-gradient(135deg,#f0d27a,#d4af37 55%,#b8902f);box-shadow:0 6px 20px rgba(212,175,55,.3);transition:transform .15s}
+.mira-link:hover{transform:translateY(-1px)}
+/* the little product window */
+.mwin{border-radius:16px;background:#f7f5f0;color:#141417;box-shadow:0 40px 90px -30px rgba(0,0,0,.8);overflow:hidden}
+.mwin-bar{display:flex;align-items:center;gap:6px;padding:11px 14px;background:#fff;border-bottom:1px solid #e6e2d8}
+.mwin-bar i{width:8px;height:8px;border-radius:50%;background:#e6e2d8}
+.mwin-bar span{margin-left:8px;font-size:11px;color:#6b6a72}
+.mwin-body{padding:16px;display:grid;gap:12px}
+.mwin-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.mwin-tabs b{padding:5px 10px;border-radius:7px;font-size:10.5px;font-weight:600;background:#fff;border:1px solid #e6e2d8}
+.mwin-tabs b.on{background:#141417;color:#fff;border-color:#141417}
+.mwin-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mcard{background:#fff;border:1px solid #e6e2d8;border-radius:12px;padding:12px}
+.mcard .l{display:flex;justify-content:space-between;font-size:10.5px;font-weight:700}
+.mcard .l em{font-style:normal;font-weight:500;color:#9a98a0}
+.mcard .v{margin-top:8px;font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:600;letter-spacing:-1px}
+.mcard .v small{font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:#1f8a5b;margin-left:6px;letter-spacing:0}
+.mcard svg{width:100%;height:34px;margin-top:6px}
+.sov{display:grid;gap:7px;margin-top:8px}
+.sov div{display:grid;grid-template-columns:70px 1fr 34px;align-items:center;gap:8px;font-size:10.5px}
+.sov s{display:block;height:7px;border-radius:4px;background:#ece9e2;text-decoration:none;overflow:hidden}
+.sov s i{display:block;height:100%;border-radius:4px;background:#141417}
+.sov div.you s i{background:#c9a13a}
+.sov b{text-align:right;font-weight:600}
+
+/* Comparison */
+.compare{margin-top:56px;border-radius:20px;border:1px solid rgba(255,255,255,.08);background:#07080b;overflow:hidden}
+.compare-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ctable{width:100%;min-width:720px;border-collapse:collapse}
+.ctable thead th{position:sticky;top:0;z-index:1;background:#0b0c10;padding:22px 20px;text-align:center;border-bottom:1px solid rgba(255,255,255,.08);vertical-align:bottom}
+.ctable thead th:first-child{text-align:left;font-size:12px;font-weight:600;color:#6a6e77;letter-spacing:.06em;text-transform:uppercase}
+.ctable thead .pn{display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:500;color:#F6F9FC}
+.ctable thead .pp{display:block;margin-top:4px;font-size:12.5px;font-weight:500;color:#8a8f99}
+.ctable thead th.hl{background:linear-gradient(180deg,rgba(147,206,255,.1),#0b0c10)}
+.ctable thead th.hl .pn{background:linear-gradient(90deg,#F6F9FC,#93CEFF,#FFBFFF);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ctable .grp td{padding:26px 20px 10px;font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9aa0ac;border-bottom:1px solid rgba(255,255,255,.06)}
+.ctable .grp.mira-grp td{color:#f2c14e}
+.ctable tbody td{padding:14px 20px;font-size:13.5px;color:#d7d9df;border-bottom:1px solid rgba(255,255,255,.04);text-align:center}
+.ctable tbody td:first-child{text-align:left;color:#c7c9d1}
+.ctable tbody td.hl{background:rgba(147,206,255,.035)}
+.ctable td svg{width:18px;height:18px;margin:0 auto;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.ctable td svg.yes{stroke:#6ee7b7}
+.ctable td svg.no{stroke:#3a3d45}
+.ctable tr.more{display:none}
+.compare.open tr.more{display:table-row}
+.compare-foot{display:flex;justify-content:center;padding:18px;border-top:1px solid rgba(255,255,255,.06)}
+.ghost-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04);color:#fff;font-size:13.5px;font-weight:500;cursor:pointer;transition:background .2s}
+.ghost-btn:hover{background:rgba(255,255,255,.09)}
+
+/* Add-ons */
+.addons{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:56px}
+@media (max-width:980px){.addons{grid-template-columns:1fr 1fr}}
+@media (max-width:620px){.addons{grid-template-columns:1fr}}
+.addon{padding:24px;border-radius:16px;background:#0a0a0d;border:1px solid rgba(255,255,255,.07);transition:border-color .25s,transform .25s}
+.addon:hover{border-color:rgba(255,255,255,.16);transform:translateY(-3px)}
+.addon h4{font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:500}
+.addon .ap{margin-top:12px;font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:500;letter-spacing:-1px}
+.addon .ap small{font-family:'Inter',sans-serif;font-size:12.5px;font-weight:400;color:#8a8f99;letter-spacing:0;margin-left:4px}
+.addon p{margin-top:10px;font-size:13px;line-height:1.6;color:#9aa0ac}
+
+/* ROI */
+.roi{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:center;margin-top:56px;padding:44px;border-radius:24px;border:1px solid rgba(255,255,255,.08);
+  background:radial-gradient(70% 90% at 0% 0%,rgba(125,211,252,.12),transparent 60%),linear-gradient(160deg,#0c1520,#05070c)}
+@media (max-width:980px){.roi{grid-template-columns:1fr;padding:28px}}
+.roi .k{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7dd3fc}
+.roi h3{margin-top:14px;font-family:'Space Grotesk',sans-serif;font-size:38px;font-weight:500;line-height:1.08;letter-spacing:-1.4px}
+.roi h3 b{font-weight:500;background:linear-gradient(90deg,#b9e3ff,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+.roi p{margin-top:14px;color:#9aa0ac;font-size:14.5px;line-height:1.65}
+.roi-stats{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.roi-stats div{padding:22px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
+.roi-stats b{display:block;font-family:'Space Grotesk',sans-serif;font-size:40px;font-weight:500;letter-spacing:-1.5px}
+.roi-stats span{font-size:12.5px;color:#9aa0ac}
+.roi-stats .c1 b{color:#7dd3fc}.roi-stats .c2 b{color:#6ee7b7}.roi-stats .c3 b{color:#f2c14e}.roi-stats .c4 b{color:#FFBFFF}
+
+/* Testimonials */
+.quotes{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:56px}
+@media (max-width:980px){.quotes{grid-template-columns:1fr}}
+.quote{display:flex;flex-direction:column;padding:28px;border-radius:18px;background:#0a0a0d;border:1px solid rgba(255,255,255,.07)}
+.quote .plan-tag{align-self:flex-start;padding:5px 11px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:#c7c9d1}
+.quote blockquote{margin-top:18px;font-size:15px;line-height:1.65;color:#e7e9ee;flex:1}
+.quote .who{display:flex;align-items:center;gap:12px;margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,.07)}
+.quote .av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#0b0b0e}
+.quote .who b{display:block;font-size:14px}
+.quote .who span{font-size:12px;color:#8a8f99}
+.quote .res{margin-left:auto;text-align:right;font-family:'Space Grotesk',sans-serif;font-size:13px;color:#6ee7b7}
+
+/* Trust strip */
+.trust{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:40px}
+@media (max-width:980px){.trust{grid-template-columns:repeat(2,1fr)}}
+.trust>div{display:flex;align-items:center;gap:12px;padding:16px 18px;border-radius:14px;background:#0a0a0d;border:1px solid rgba(255,255,255,.07)}
+.trust svg{width:20px;height:20px;flex:none;fill:none;stroke:#93CEFF;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.trust b{display:block;font-size:13px;font-weight:600}
+.trust span{font-size:11.5px;color:#8a8f99}
+
+/* FAQ (homepage layout) */
+.faq-grid{display:grid;grid-template-columns:340px 1fr;gap:24px;margin-top:50px}
+@media (max-width:900px){.faq-grid{grid-template-columns:1fr}}
+.faq-help{align-self:start;background:linear-gradient(160deg,#12203a,#05070c);border-radius:18px;padding:28px;border:1px solid rgba(255,255,255,.06)}
+.faq-help h4{font-size:18px;font-weight:700}
+.faq-help p{margin-top:8px;font-size:13.5px;color:#9aa0ac;line-height:1.6}
+.faq-help a{display:inline-flex;margin-top:18px;padding:11px 18px;border-radius:999px;border:1px solid rgba(255,255,255,.18);font-size:13.5px;font-weight:600;transition:background .2s}
+.faq-help a:hover{background:rgba(255,255,255,.08)}
+.faq-help a.mail{display:block;margin-top:14px;padding:0;border:0;font-size:12.5px;font-weight:500;color:#93CEFF}
+.faq-help a.mail:hover{background:none;text-decoration:underline}
+.faq-item{border:1px solid rgba(255,255,255,.07);border-radius:14px;margin-bottom:12px;background:#0a0a0d;transition:background .25s}
+.faq-item.open{background:#0d1420}
+.faq-q{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:20px 22px;border:0;background:none;color:#fff;font-size:15px;font-weight:600;text-align:left;cursor:pointer}
+.faq-q .ic{width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .3s}
+.faq-q .ic svg{width:12px;height:12px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round}
+.faq-item.open .ic{transform:rotate(45deg)}
+.faq-a{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s cubic-bezier(.16,1,.3,1)}
+.faq-a>div{overflow:hidden}
+.faq-a p{padding:0 22px 20px;font-size:14px;color:#9aa0ac;line-height:1.65}
+.faq-item.open .faq-a{grid-template-rows:1fr}
+
+/* Final CTA */
+.cta{position:relative;margin-top:120px;padding:90px 40px;border-radius:28px;text-align:center;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:#050507}
+.cta::before{content:'';position:absolute;left:50%;top:100%;width:1400px;height:1400px;translate:-50% -14%;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(40,70,160,.55),rgba(10,20,60,.2) 60%,transparent);box-shadow:0 -10px 60px rgba(147,206,255,.25)}
+.cta::after{content:'';position:absolute;left:50%;top:100%;width:1400px;height:1400px;translate:-50% -14%;border-radius:50%;
+  background:conic-gradient(from -22deg,transparent 0deg,rgba(255,200,140,.4) 12deg,rgba(255,224,180,.95) 17deg,rgba(170,215,255,.95) 19.5deg,transparent 23deg,transparent 360deg);
+  -webkit-mask:radial-gradient(farthest-side,transparent 99%,#000 99.6%);mask:radial-gradient(farthest-side,transparent 99%,#000 99.6%);
+  filter:blur(2px);opacity:0;animation:sweep 5s cubic-bezier(.45,.05,.35,1) infinite}
+@keyframes sweep{0%{rotate:-36deg;opacity:0}12%{opacity:1}66%{opacity:1}78%{rotate:38deg;opacity:0}100%{rotate:38deg;opacity:0}}
+.cta>*{position:relative;z-index:1}
+.cta h2{font-family:'Space Grotesk',sans-serif;font-size:72px;font-weight:500;line-height:.94;letter-spacing:-3.5px}
+.cta h2 .accent{display:block;letter-spacing:-.04em}
+.cta p{margin:20px auto 0;max-width:520px;color:#9aa0ac;font-size:16px;line-height:1.6}
+.cta-row{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:32px}
+.btn-glow{display:inline-flex;align-items:center;gap:8px;padding:14px 26px;border-radius:999px;font-size:14.5px;font-weight:600;color:#0b0b0e;
+  background:linear-gradient(90deg,#F6F9FC,#93CEFF 45%,#FFBFFF);box-shadow:0 10px 30px rgba(147,206,255,.35);transition:transform .15s}
+.btn-glow:hover{transform:translateY(-1px)}
+@media (max-width:900px){.cta{padding:60px 22px}.cta h2{font-size:42px;letter-spacing:-1.6px}}
+
+/* ============ FOOTER (same as the homepage) ============ */
+.footer{position:relative;padding:110px 0 0;overflow:hidden}
+.footer-word{padding-left:60px}
+.footer-grid{display:grid;grid-template-columns:1.4fr repeat(4,1fr);gap:30px}
+@media (max-width:900px){.footer-grid{grid-template-columns:1fr 1fr}}
+.footer-brand h4{font-size:16px;font-weight:700}
+.footer-brand p{margin-top:10px;font-size:13px;color:#8a8f99;line-height:1.6;max-width:260px}
+.footer-social{display:flex;gap:12px;margin-top:16px}
+.footer-social span{width:30px;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:13px}
+.footer-col .ttl{font-size:11px;color:#6a6e77;text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px}
+.footer-col ul{list-style:none;display:flex;flex-direction:column;gap:11px}
+.footer-col a{font-size:13px;color:#c7c9d1}
+.footer-col a:hover{color:#fff}
+.footer-bottom{margin-top:70px;padding:22px 0;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#6a6e77}
+.footer-bottom .links{display:flex;gap:22px}
+.footer-word{font-size:min(20vw,240px);font-weight:800;color:rgba(255,255,255,.03);line-height:1;letter-spacing:-.03em;white-space:nowrap;margin-top:20px;user-select:none}
+@media (max-width:620px){.footer-bottom{flex-direction:column;align-items:flex-start;gap:12px}}
+@media (max-width:480px){.sec{padding:64px 18px 0}.wrap{padding:0 18px}.nav{padding:14px 18px}.plan{padding:26px 20px}.mira-list{grid-template-columns:1fr}.roi-stats b{font-size:32px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
 </style>
 </head>
-<body>
-<script>try{if(localStorage.getItem('xp-appearance')==='dark')document.body.classList.add('theme-dark')}catch(e){}</script>
-<canvas id="neural"></canvas>
+<body id="top">
 
-<!-- NAV -->
-<nav class="nav"><div class="nav-bg"></div><div class="nav-in">
-  <!-- <a href="{{ url('/') }}" class="logo"><span class="logo-m">X</span> Platforms</a> -->
-  <a href="{{ url('/') }}" class="logo"><img src="{{ asset('images/xplatforms_logo.jpeg') }}" alt="X Platforms" style="height:32px;width:auto;display:block"></a>
-  <ul class="nav-l">
-    <li><a href="{{ url('/') }}">Home</a></li>
+{{-- ============ NAV ============ --}}
+<nav class="nav">
+  <a href="{{ route('home') }}" class="brand">
+    <img src="{{ asset('images/homepage/logo-mark-colored.png') }}" class="logo-mark" alt="">
+    XPlatforms
+  </a>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="{{ route('home') }}">Home</a></li>
     <li><a href="{{ route('industries') }}">Industries</a></li>
     <li><a href="{{ route('simulator') }}">Simulator</a></li>
-    <li><a href="{{ route('pricing') }}">Pricing</a></li>
-    <li style="display:flex;align-items:center;gap:10px">
-      <!-- <a href="{{ route('client.login') }}" class="nav-login"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Log in</a> -->
-      <button type="button" class="appearance-toggle" id="appearanceToggle" onclick="toggleAppearance()" title="Switch appearance" aria-label="Switch appearance"></button>
-      @auth('client')
-        <a href="{{ route('client.dashboard') }}" class="nav-login">Dashboard</a>
-      @else
-        <a href="{{ route('client.login') }}" class="nav-login">Sign in</a>
-        <a href="{{ route('client.register') }}" class="nav-signup">Sign up</a>
-      @endauth
-      <a href="{{ route('book-demo') }}" class="nav-cta">Book a Demo</a>
-      @auth('client')
-        <form method="POST" action="{{ route('client.logout') }}" class="nav-logout">
-          @csrf
-          <input type="hidden" name="redirect" value="home">
-          <button type="submit" class="nav-login">Log out</button>
-        </form>
-      @endauth
-    </li>
-  </ul>
-  <button class="nav-ham" id="navHam" onclick="toggleNav()" aria-label="Open menu"><span></span><span></span><span></span></button>
-</div></nav>
-<div class="nav-mob" id="navMob">
-  <button class="nav-mob-close" onclick="toggleNav()" aria-label="Close">&#215;</button>
-  <div class="nav-mob-inner">
-    <a class="nav-mob-link" href="{{ url('/') }}">Home</a>
-    <a class="nav-mob-link" href="{{ route('industries') }}">Industries</a>
-    <a class="nav-mob-link" href="{{ route('simulator') }}">Simulator</a>
-    <a class="nav-mob-link" href="{{ route('pricing') }}">Pricing</a>
+    <li><a href="{{ route('pricing') }}" aria-current="page">Pricing</a></li>
     @auth('client')
-      <a class="nav-mob-link" href="{{ route('client.dashboard') }}">Dashboard</a>
-      <form method="POST" action="{{ route('client.logout') }}" class="nav-mob-form">
-        @csrf
-        <input type="hidden" name="redirect" value="home">
-        <button type="submit">Log out</button>
-      </form>
+      <li class="nav-account"><a href="{{ route('client.dashboard') }}">Dashboard</a></li>
+      <li class="nav-account"><form method="POST" action="{{ route('client.logout') }}">@csrf<input type="hidden" name="redirect" value="home"><button type="submit">Log out</button></form></li>
     @else
-      <a class="nav-mob-link" href="{{ route('client.login') }}">Sign in</a>
-      <a class="nav-mob-link" href="{{ route('client.register') }}">Sign up</a>
+      <li class="nav-account"><a href="{{ route('client.login') }}">Sign in</a></li>
+      <li class="nav-account"><a href="{{ route('client.register') }}">Sign up</a></li>
     @endauth
-    <button type="button" class="appearance-toggle" id="appearanceToggleMob" onclick="toggleAppearance()" title="Switch appearance" aria-label="Switch appearance" style="margin-top:20px"></button>
-    <a class="nav-mob-cta" href="{{ route('book-demo') }}">Book a Demo</a>
+  </ul>
+  <div class="nav-right">
+    @auth('client')
+      <a href="{{ route('client.dashboard') }}" class="nav-signin">Dashboard</a>
+    @else
+      <a href="{{ route('client.login') }}" class="nav-signin">Sign in</a>
+      <a href="{{ route('client.register') }}" class="nav-signup">Sign up</a>
+    @endauth
+    <a href="{{ route('book-demo') }}" class="book-demo"><span class="label">Book Demo</span> ↗</a>
+    @auth('client')
+      <form method="POST" action="{{ route('client.logout') }}" class="nav-logout">@csrf<input type="hidden" name="redirect" value="home"><button type="submit">Log out</button></form>
+    @endauth
+    <button type="button" class="nav-burger" id="navBurger" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks"><span></span></button>
   </div>
-</div>
-<script>function toggleNav(){var m=document.getElementById('navMob'),h=document.getElementById('navHam');m.classList.toggle('open');h.classList.toggle('open');document.body.style.overflow=m.classList.contains('open')?'hidden':''}</script>
+</nav>
 
-<!-- HERO -->
+{{-- ============ HERO ============ --}}
 <header class="hero">
-  <nav class="breadcrumb"><a href="{{ route('home') }}">Home</a> / <strong>Pricing</strong></nav>
-  <div class="hero-badge"><span class="badge-dot"></span> All plans include a 30-day proof of concept</div>
-  <h1>Pricing that pays for <span>itself</span></h1>
-  <p>Transparent plans for every stage of growth. From your first 5,000 customers to your five millionth &mdash; with ROI built into every tier.</p>
-  <div class="billing-toggle">
-    <span class="bt-label active" id="lblMonthly">Monthly</span>
-    <button class="bt-pill" id="billingToggle" onclick="toggleBilling()"></button>
-    <span class="bt-label" id="lblAnnual">Annual</span>
-    <span class="bt-save" id="saveBadge" style="display:none">Save 20%</span>
+  <div class="hero-bg" aria-hidden="true"><img src="{{ asset('images/homepage/hero-earth.jpg') }}" alt=""></div>
+  <div class="hero-inner">
+    <span class="eyebrow"><i></i>Every plan starts with a 30-day proof of concept</span>
+    <h1>Pricing that<span class="accent">pays for itself.</span></h1>
+    <p class="hero-sub">Transparent plans for every stage of growth — from your first 25,000 customers to millions. Mira Premium for AI search is included in every plan.</p>
+    <div class="billing" role="group" aria-label="Billing period">
+      <button type="button" data-billing="monthly" aria-pressed="true">Monthly</button>
+      <button type="button" data-billing="annual" aria-pressed="false">Annual <span class="save">Save 20%</span></button>
+    </div>
   </div>
 </header>
 
-<!-- PRICING CARDS -->
-<section class="pricing-wrap">
-  <div class="pricing-grid">
-
-    <!-- STARTER -->
-    <div class="pc rv">
-      <div class="pc-tier">Starter</div>
-      <div class="pc-name">Foundation</div>
-      <div class="pc-desc">For growing businesses ready to unify their data and get their first AI predictions.</div>
-      <div class="pc-price">
-        <span class="pp-currency">$</span><span class="pp-amount" id="price-starter">499</span><span class="pp-period">/mo</span>
-        <span class="pp-annual" id="annual-starter" style="display:none">Billed annually &mdash; $5,988/year</span>
-      </div>
-      <div class="pc-volume">
-        <div class="pv-label">Up to 25,000 customer profiles</div>
-        <div class="pv-track"><div class="pv-fill" style="width:25%;background:linear-gradient(90deg,var(--blue),var(--cyan))"></div></div>
-      </div>
-      <button class="pc-btn outline" onclick="window.location='{{ route('client.register') }}'">Start Free Trial</button>
-      <hr class="pc-divider">
-      <div class="pc-features-label">What's included</div>
-      <div class="pc-features">
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Up to <strong>25,000</strong> customer profiles</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Up to <strong>5 data sources</strong></span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Layers 1&ndash;5 (Ingest &rarr; Predict)</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Churn prediction &amp; CLV scoring</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>1 industry model</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Standard dashboard &amp; alerts</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Email support (48hr response)</span></div>
-        <div class="pf-row no"><div class="pf-icon"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></div><span>Strategy Intelligence (Layer 6)</span></div>
-        <div class="pf-row no"><div class="pf-icon"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></div><span>Autonomous Execution (Layer 7)</span></div>
-        <div class="pf-row no"><div class="pf-icon"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></div><span>Dedicated success manager</span></div>
-      </div>
+{{-- ============ PLANS ============ --}}
+<section class="plans">
+  <div class="wrap">
+    <div class="plan-grid">
+      @foreach($plans as $key => $p)
+        <article class="plan p-{{ $key }} {{ !empty($p['featured']) ? 'featured' : '' }}">
+          @if(!empty($p['featured']))<span class="plan-badge">Most popular</span>@endif
+          <div class="plan-tier">{{ $p['tier'] }}</div>
+          <h3>{{ $p['name'] }}</h3>
+          <p class="plan-blurb">{{ $p['blurb'] }}</p>
+          @if($p['monthly'])
+            <div class="plan-price">
+              <span class="cur">$</span>
+              <span class="amt" data-monthly="{{ $p['monthly'] }}" data-annual="{{ $p['annual'] }}">{{ number_format($p['monthly']) }}</span>
+              <span class="per">/ month</span>
+            </div>
+            <div class="plan-note" data-monthly-note="Billed monthly · cancel anytime" data-annual-note="Billed annually — ${{ number_format($p['annual'] * 12) }}/year">Billed monthly · cancel anytime</div>
+          @else
+            <div class="plan-price"><span class="custom">Custom</span></div>
+            <div class="plan-note">Tailored to your volume and requirements</div>
+          @endif
+          <span class="plan-cap">{{ $p['cap'] }}</span>
+          <a href="{{ $key === 'enterprise' ? route('book-demo') : $planUrl($key) }}" class="plan-cta">{{ $p['cta'] }} <span aria-hidden="true">→</span></a>
+          <div class="plan-feats">
+            <div class="lead">{{ $p['lead'] }}</div>
+            <ul>
+              @foreach($p['features'] as $f)<li>{!! $check !!}{{ $f }}</li>@endforeach
+            </ul>
+          </div>
+          <div class="plan-mira">
+            <div class="hd"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>Mira Premium included</div>
+            <dl>
+              <div><dt>Projects</dt><dd>{{ $n($lim($key, 'projects')) }}</dd></div>
+              <div><dt>AI visibility runs / mo</dt><dd>{{ $n($lim($key, 'visibility_runs')) }}</dd></div>
+              <div><dt>Tracked prompts</dt><dd>{{ $n($lim($key, 'prompts')) }}</dd></div>
+            </dl>
+          </div>
+        </article>
+      @endforeach
     </div>
-
-    <!-- GROWTH (FEATURED) -->
-    <div class="pc featured rv">
-      <div class="pc-badge popular">Most Popular</div>
-      <div class="pc-tier">Growth</div>
-      <div class="pc-name">Intelligence</div>
-      <div class="pc-desc">For scaling businesses that need the full 8-layer engine with automated execution.</div>
-      <div class="pc-price">
-        <span class="pp-currency">$</span><span class="pp-amount" id="price-growth">1,499</span><span class="pp-period">/mo</span>
-        <span class="pp-annual" id="annual-growth" style="display:none">Billed annually &mdash; $17,988/year</span>
-      </div>
-      <div class="pc-volume">
-        <div class="pv-label">Up to 250,000 customer profiles</div>
-        <div class="pv-track"><div class="pv-fill" style="width:60%;background:linear-gradient(90deg,var(--blue),var(--violet))"></div></div>
-      </div>
-      <button class="pc-btn solid" onclick="window.location='{{ route('client.register') }}'">Start Free Trial</button>
-      <hr class="pc-divider">
-      <div class="pc-features-label">Everything in Starter, plus</div>
-      <div class="pc-features">
-        <div class="pf-row yes hi"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Up to <strong>250,000</strong> customer profiles</span></div>
-        <div class="pf-row yes hi"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Up to <strong>20 data sources</strong></span></div>
-        <div class="pf-row yes hi"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>All <strong>8 layers</strong> fully active</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Strategy Intelligence &amp; playbooks</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Autonomous Execution engine</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Up to <strong>3 industry models</strong></span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>A/B testing engine</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>ROI projections &amp; revenue tracking</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Priority support (4hr response)</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Slack integration <span class="pf-new">New</span></span></div>
-        <div class="pf-row no"><div class="pf-icon"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></div><span>Dedicated success manager</span></div>
-        <div class="pf-row no"><div class="pf-icon"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></div><span>Custom model training</span></div>
-      </div>
-    </div>
-
-    <!-- ENTERPRISE -->
-    <div class="pc rv">
-      <div class="pc-badge new">Custom</div>
-      <div class="pc-tier">Enterprise</div>
-      <div class="pc-name">Intelligence+</div>
-      <div class="pc-desc">For large organisations with complex data environments and mission-critical SLA requirements.</div>
-      <div class="pc-price">
-        <div class="pp-custom">Custom</div>
-        <span class="pp-annual" style="display:block;margin-top:4px">Tailored to your volume &amp; needs</span>
-      </div>
-      <div class="pc-volume">
-        <div class="pv-label">Unlimited customer profiles</div>
-        <div class="pv-track"><div class="pv-fill" style="width:100%;background:linear-gradient(90deg,var(--violet),var(--rose))"></div></div>
-      </div>
-      <button class="pc-btn ghost" onclick="document.getElementById('enterprise').scrollIntoView({behavior:'smooth'})">Get a Custom Quote</button>
-      <hr class="pc-divider">
-      <div class="pc-features-label">Everything in Growth, plus</div>
-      <div class="pc-features">
-        <div class="pf-row yes hi"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span><strong>Unlimited</strong> customer profiles</span></div>
-        <div class="pf-row yes hi"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span><strong>Unlimited</strong> data sources</span></div>
-        <div class="pf-row yes hi"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span><strong>All 15</strong> industry models included</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Dedicated infrastructure (no shared)</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Custom model training on your data</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>Dedicated Customer Success Manager</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>99.99% SLA uptime guarantee</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>On-premise / private cloud option</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>1hr emergency support response</span></div>
-        <div class="pf-row yes"><div class="pf-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span>DPA &amp; custom security review</span></div>
-      </div>
-    </div>
-
+    <p class="trial-line"><b>No credit card required.</b> Connect your platforms, see real predictions on your data, then decide.</p>
   </div>
 </section>
 
-<!-- FEATURE COMPARISON TABLE -->
-<section class="comp-section">
-  <div class="comp-toggle rv">
-    <div><div class="stag" style="margin-bottom:8px">Full Comparison</div><h2 class="sh" style="margin-bottom:0">Compare all features</h2></div>
-    <button class="expand-btn" id="expandBtn" onclick="toggleTable()">Show all features &darr;</button>
-  </div>
-  <div class="ct-wrap rv">
-    <div class="ct-head">
-      <div class="ct-head-cell">Feature</div>
-      <div class="ct-head-cell">Starter<br><span style="font-size:11px;color:var(--g400);font-weight:400">$499/mo</span></div>
-      <div class="ct-head-cell featured-col">Growth<br><span style="font-size:11px;color:var(--blue);font-weight:400">$1,499/mo</span></div>
-      <div class="ct-head-cell">Enterprise<br><span style="font-size:11px;color:var(--g400);font-weight:400">Custom</span></div>
+{{-- ============ MIRA PREMIUM ============ --}}
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-hd reveal">
+      <h2>Win the AI answer,<span class="accent">not just the click.</span></h2>
+      <p>Every plan includes Mira Premium — the workspace that shows how Google and ChatGPT see your brand, and exactly what to fix.</p>
     </div>
-    <div class="ct-group-label"><span>Capacity</span></div>
-    <div class="ct-row"><div class="ct-cell">Customer profiles</div><div class="ct-cell"><span class="ct-val">25K</span></div><div class="ct-cell featured-col"><span class="ct-val">250K</span></div><div class="ct-cell"><span class="ct-val">Unlimited</span></div></div>
-    <div class="ct-row"><div class="ct-cell">Data sources</div><div class="ct-cell"><span class="ct-val">5</span></div><div class="ct-cell featured-col"><span class="ct-val">20</span></div><div class="ct-cell"><span class="ct-val">Unlimited</span></div></div>
-    <div class="ct-row"><div class="ct-cell">Industry models</div><div class="ct-cell"><span class="ct-val">1</span></div><div class="ct-cell featured-col"><span class="ct-val">3</span></div><div class="ct-cell"><span class="ct-val">All 15</span></div></div>
-    <div class="ct-row"><div class="ct-cell">Data history ingested</div><div class="ct-cell"><span class="ct-val">12 months</span></div><div class="ct-cell featured-col"><span class="ct-val">36 months</span></div><div class="ct-cell"><span class="ct-val">Unlimited</span></div></div>
-    <div class="ct-group-label"><span>8-Layer Architecture</span></div>
-    <div class="ct-row"><div class="ct-cell">L1 Data Ingestion</div><div class="ct-cell"><span class="ct-check">&#10003;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row"><div class="ct-cell">L2 Data Unification</div><div class="ct-cell"><span class="ct-check">&#10003;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row"><div class="ct-cell">L3 Behavioural Mapping</div><div class="ct-cell"><span class="ct-check">&#10003;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row"><div class="ct-cell">L4 Pattern Detection</div><div class="ct-cell"><span class="ct-check">&#10003;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row"><div class="ct-cell">L5 Predictive Engine</div><div class="ct-cell"><span class="ct-check">&#10003;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row"><div class="ct-cell">L6 Strategy Intelligence</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row"><div class="ct-cell">L7 Autonomous Execution</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row"><div class="ct-cell">L8 Continuous Learning</div><div class="ct-cell"><span class="ct-check">&#10003;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <!-- HIDDEN ROWS -->
-    <div class="ct-group-label comp-hidden"><span>AI Predictions</span></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Churn risk scoring</div><div class="ct-cell"><span class="ct-check">&#10003;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Customer Lifetime Value</div><div class="ct-cell"><span class="ct-check">&#10003;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Purchase propensity</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Next-best-action</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Revenue projections</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Custom prediction models</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-cross">&#10007;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-group-label comp-hidden"><span>Execution &amp; Automation</span></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Email trigger automation</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Push notification triggers</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">CRM auto-update</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">A/B testing engine</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Webhook integrations</div><div class="ct-cell"><span class="ct-val">5</span></div><div class="ct-cell featured-col"><span class="ct-val">50</span></div><div class="ct-cell"><span class="ct-val">Unlimited</span></div></div>
-    <div class="ct-group-label comp-hidden"><span>Security &amp; Compliance</span></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">SOC 2 Type II</div><div class="ct-cell"><span class="ct-check">&#10003;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">GDPR compliance</div><div class="ct-cell"><span class="ct-check">&#10003;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">HIPAA compliant</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-cross">&#10007;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Private cloud / on-premise</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-cross">&#10007;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Custom DPA</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-cross">&#10007;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-group-label comp-hidden"><span>Support &amp; Onboarding</span></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">30-day proof of concept</div><div class="ct-cell"><span class="ct-check">&#10003;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Email support</div><div class="ct-cell"><span class="ct-val">48hr</span></div><div class="ct-cell featured-col"><span class="ct-val">4hr</span></div><div class="ct-cell"><span class="ct-val">1hr</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Live chat support</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-check">&#10003;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Dedicated success manager</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-cross">&#10007;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Custom onboarding programme</div><div class="ct-cell"><span class="ct-cross">&#10007;</span></div><div class="ct-cell featured-col"><span class="ct-cross">&#10007;</span></div><div class="ct-cell"><span class="ct-check">&#10003;</span></div></div>
-    <div class="ct-row comp-hidden"><div class="ct-cell">Uptime SLA</div><div class="ct-cell"><span class="ct-val">99.9%</span></div><div class="ct-cell featured-col"><span class="ct-val">99.95%</span></div><div class="ct-cell"><span class="ct-val">99.99%</span></div></div>
-  </div>
-</section>
-
-<!-- ADD-ONS -->
-<section class="addons-section">
-  <div class="stop rv"><div class="stag">Add-Ons</div><h2 class="sh">Extend your plan</h2><p style="font-size:15px;color:var(--g300);max-width:440px;line-height:1.7">Available on any plan. Add exactly what you need, remove what you don't.</p></div>
-  <div class="addons-grid rv">
-    <div class="addon"><div class="addon-top"><div class="addon-name">Extra Data Sources</div><div class="addon-price">$49 / source</div></div><p>Connect additional platforms beyond your plan limit. Each source includes real-time streaming and full historical backfill.</p></div>
-    <div class="addon"><div class="addon-top"><div class="addon-name">Extra Industry Model</div><div class="addon-price">$299 / model / mo</div></div><p>Add a pre-trained model for any of our 15 supported verticals. Includes industry playbooks and benchmark data.</p></div>
-    <div class="addon"><div class="addon-top"><div class="addon-name">Profile Volume Boost</div><div class="addon-price">$99 / 25K profiles</div></div><p>Scale your profile capacity in blocks of 25,000. No contract changes required &mdash; upgrade instantly from your dashboard.</p></div>
-    <div class="addon"><div class="addon-top"><div class="addon-name">Historical Data Boost</div><div class="addon-price">$149 / year of history</div></div><p>Extend the historical data window for model training. Older data improves prediction accuracy for seasonal businesses.</p></div>
-    <div class="addon"><div class="addon-top"><div class="addon-name">White-Label Dashboard</div><div class="addon-price">$499 / mo</div></div><p>Remove X Platforms branding and serve the dashboard under your own logo to internal stakeholders or clients.</p></div>
-    <div class="addon"><div class="addon-top"><div class="addon-name">API Access (Advanced)</div><div class="addon-price">$199 / mo</div></div><p>Full REST &amp; GraphQL API access with higher rate limits, custom endpoints, and detailed developer documentation.</p></div>
-  </div>
-</section>
-
-<!-- ROI CALLOUT -->
-<div class="roi-bar">
-  <div class="roi-in">
-    <div class="roi-left rv">
-      <div class="stag">ROI Reality Check</div>
-      <h2>The average Growth plan customer sees <span style="color:var(--blue)">$280K</span> in Year 1 revenue impact</h2>
-      <p>Across all Growth plan customers, the average annual revenue impact &mdash; from churn reduction, upsell conversion, and acquisition efficiency &mdash; is $280,000. At $1,499/month, that's a 15.6&times; return on your annual spend.</p>
-    </div>
-    <div class="roi-stats rv">
-      <div class="rs"><div class="rs-n">15.6&times;</div><div class="rs-l">Avg ROI Year 1</div></div>
-      <div class="rs"><div class="rs-n">82 days</div><div class="rs-l">Avg time to ROI</div></div>
-      <div class="rs"><div class="rs-n">$280K</div><div class="rs-l">Avg revenue impact</div></div>
-      <div class="rs"><div class="rs-n">97%</div><div class="rs-l">Renew after year 1</div></div>
-    </div>
-  </div>
-</div>
-
-<!-- TESTIMONIALS -->
-<section class="test-section" style="padding-top:80px">
-  <div class="stop rv" style="text-align:center"><div class="stag" style="justify-content:center">What customers say</div><h2 class="sh" style="margin:0 auto 12px;max-width:500px;text-align:center">Pricing that makes sense when you see the returns</h2></div>
-  <div class="test-grid rv">
-    <div class="tc">
-      <div class="tc-plan">Starter Plan &rarr; Growth</div>
-      <div class="tc-q">"We started on Starter to test the water. Within 60 days the predictions were so accurate we upgraded to Growth. The ROI on that upgrade paid for itself in the first month."</div>
-      <div class="tc-author"><div class="tc-avatar" style="background:linear-gradient(135deg,var(--blue),var(--cyan))">PK</div><div><div class="tc-name">Priya Kapoor</div><div class="tc-role">CPO, MockMaster</div><div class="tc-result">&darr; 41% churn &middot; $4.8M recovered</div></div></div>
-    </div>
-    <div class="tc">
-      <div class="tc-plan">Growth Plan</div>
-      <div class="tc-q">"$1,499 a month felt like a lot until our first expansion revenue report came in. We made back the annual cost in the first six weeks from upsells the AI identified that our sales team had completely missed."</div>
-      <div class="tc-author"><div class="tc-avatar" style="background:linear-gradient(135deg,var(--violet),var(--rose))">AT</div><div><div class="tc-name">Alexandra Tan</div><div class="tc-role">VP Revenue, ScoreMentor</div><div class="tc-result">&uarr; 3.4&times; MRR growth</div></div></div>
-    </div>
-    <div class="tc">
-      <div class="tc-plan">Enterprise Plan</div>
-      <div class="tc-q">"Enterprise pricing is custom for a reason &mdash; our requirements were complex. The team worked with us to build exactly what we needed. The first year ROI justified a 3-year commitment."</div>
-      <div class="tc-author"><div class="tc-avatar" style="background:linear-gradient(135deg,var(--emerald),var(--cyan))">DW</div><div><div class="tc-name">David Wong</div><div class="tc-role">CEO, OneAustralia</div><div class="tc-result">3&times; completions &middot; $5.4M impact</div></div></div>
-    </div>
-  </div>
-</section>
-
-<!-- TRUST BADGES -->
-<section style="position:relative;z-index:1;padding:0 40px 80px;max-width:var(--mw);margin:0 auto">
-  <div class="trust-row rv">
-    <div class="trust-badge"><div class="tb-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="tb-label">SOC 2 Type II</div><div class="tb-sub">Audited annually</div></div></div>
-    <div class="trust-badge"><div class="tb-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 014 10 15 15 0 01-4 10"/></svg></div><div><div class="tb-label">GDPR Compliant</div><div class="tb-sub">EU data protection</div></div></div>
-    <div class="trust-badge"><div class="tb-icon"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div><div><div class="tb-label">AES-256 Encrypted</div><div class="tb-sub">At rest and in transit</div></div></div>
-    <div class="trust-badge"><div class="tb-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div><div class="tb-label">30-Day POC</div><div class="tb-sub">No credit card required</div></div></div>
-    <div class="trust-badge"><div class="tb-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/></svg></div><div><div class="tb-label">Cancel Anytime</div><div class="tb-sub">No lock-in contracts</div></div></div>
-  </div>
-</section>
-
-<!-- ENTERPRISE FORM -->
-<section class="ent-section" id="enterprise">
-  <div class="ent-card rv">
-    <div class="ent-left">
-      <div class="stag">Enterprise</div>
-      <h2>Built for organisations that can't afford to guess</h2>
-      <p>Enterprise is custom-quoted based on your customer volume, number of data sources, required industry models, infrastructure preferences, and SLA needs. Every Enterprise plan includes dedicated infrastructure and a named Customer Success Manager.</p>
-      <div class="ent-features">
-        <div class="ef"><span class="ef-dot"></span>Unlimited customer profiles &amp; data sources</div>
-        <div class="ef"><span class="ef-dot"></span>All 15 industry models, custom-trained on your data</div>
-        <div class="ef"><span class="ef-dot"></span>Dedicated infrastructure &mdash; your data never on shared servers</div>
-        <div class="ef"><span class="ef-dot"></span>99.99% uptime SLA with 1-hour emergency response</div>
-        <div class="ef"><span class="ef-dot"></span>On-premise or private cloud deployment option</div>
-        <div class="ef"><span class="ef-dot"></span>HIPAA, ISO 27001, custom DPA available</div>
-        <div class="ef"><span class="ef-dot"></span>Named Customer Success Manager + quarterly business reviews</div>
-        <div class="ef"><span class="ef-dot"></span>Custom security review and penetration testing</div>
+    <div class="mira reveal">
+      <div>
+        <span class="mira-kicker">Mira Premium · included</span>
+        <h3>SEO and AI visibility, in one premium workspace.</h3>
+        <p>Live search data, your own Google Search Console and Analytics, and weekly checks of how ChatGPT answers the questions your customers ask.</p>
+        <ul class="mira-list">
+          <li>{!! $check !!}AI visibility in ChatGPT</li>
+          <li>{!! $check !!}Share of voice vs competitors</li>
+          <li>{!! $check !!}Site audits with AI-written fixes</li>
+          <li>{!! $check !!}Site Explorer &amp; backlinks</li>
+          <li>{!! $check !!}Google Search Console &amp; GA4</li>
+          <li>{!! $check !!}Daily rank tracking</li>
+        </ul>
+        <a href="{{ route('mira-premium') }}" class="mira-link">Explore Mira Premium <span aria-hidden="true">→</span></a>
       </div>
-    </div>
-    <div class="ent-right">
-      <div class="stag" style="margin-bottom:24px">Get a Custom Quote</div>
-      <div class="ent-form" id="entForm">
-        <div><label class="ef-label">Full Name</label><input class="ef-input" type="text" placeholder="Jane Smith"></div>
-        <div><label class="ef-label">Work Email</label><input class="ef-input" type="email" placeholder="jane@company.com"></div>
-        <div><label class="ef-label">Company</label><input class="ef-input" type="text" placeholder="Your company name"></div>
-        <div><label class="ef-label">Customer Volume</label>
-          <select class="ef-select">
-            <option value="">Select customer volume</option>
-            <option>250K &ndash; 1M customers</option>
-            <option>1M &ndash; 5M customers</option>
-            <option>5M &ndash; 20M customers</option>
-            <option>20M+ customers</option>
-          </select>
+      <div class="mwin" aria-hidden="true">
+        <div class="mwin-bar"><i></i><i></i><i></i><span>xplatforms · Mira Premium</span></div>
+        <div class="mwin-body">
+          <div class="mwin-tabs"><b class="on">Overview</b><b>Organic</b><b>Backlinks</b><b>AI visibility</b></div>
+          <div class="mwin-grid">
+            <div class="mcard"><div class="l">Authority <em>Live</em></div><div class="v">88<small>▲ 2</small></div>
+              <svg viewBox="0 0 120 34" preserveAspectRatio="none"><polyline points="0,30 20,27 40,28 60,20 80,17 100,12 120,6" fill="none" stroke="#141417" stroke-width="2"/></svg></div>
+            <div class="mcard"><div class="l">AI mention rate <em>ChatGPT</em></div><div class="v">62%<small>▲ 8 pts</small></div>
+              <svg viewBox="0 0 120 34" preserveAspectRatio="none"><polyline points="0,31 20,30 40,27 60,26 80,22 100,23 120,20" fill="none" stroke="#b9b6ae" stroke-width="1.6" stroke-dasharray="4 4"/><polyline points="0,29 20,26 40,22 60,18 80,14 100,10 120,5" fill="none" stroke="#141417" stroke-width="2"/></svg></div>
+          </div>
+          <div class="mcard"><div class="l">Share of voice in AI answers <em>latest run</em></div>
+            <div class="sov">
+              <div class="you"><span>You</span><s><i style="width:46%"></i></s><b>46%</b></div>
+              <div><span>Rival A</span><s><i style="width:31%"></i></s><b>31%</b></div>
+              <div><span>Rival B</span><s><i style="width:23%"></i></s><b>23%</b></div>
+            </div>
+          </div>
         </div>
-        <div><label class="ef-label">Industry</label>
-          <select class="ef-select">
-            <option value="">Select your industry</option>
-            <option>Banking &amp; Finance</option><option>Retail &amp; E-Commerce</option><option>Healthcare</option>
-            <option>Telecom</option><option>Travel &amp; Hospitality</option><option>Insurance</option>
-            <option>Manufacturing</option><option>Energy &amp; Utilities</option><option>Education</option>
-            <option>Real Estate</option><option>Media &amp; Entertainment</option><option>Pharma</option>
-            <option>Automotive</option><option>Food &amp; Beverage</option><option>Construction</option>
-          </select>
-        </div>
-        <button class="ent-submit" onclick="submitEntForm()">Request Enterprise Quote &rarr;</button>
-        <p class="ent-form-note">We'll respond within 4 business hours with a tailored proposal.</p>
-      </div>
-      <div id="entSuccess" style="display:none;text-align:center;padding:40px 20px">
-        <div style="font-size:40px;margin-bottom:16px">&#10003;</div>
-        <div style="font-weight:700;font-size:18px;margin-bottom:8px">Request received</div>
-        <p style="font-size:14px;color:var(--g300);line-height:1.6">Our enterprise team will be in touch within 4 business hours with a tailored proposal for your organisation.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- FAQ -->
-<section class="faq-section" id="faq">
-  <div class="faq-in">
-    <div class="faq-left rv">
-      <div class="stag">FAQ</div>
-      <h2>Pricing questions answered</h2>
-      <p>Can't find what you're looking for? Email us at <a href="mailto:pricing@xplatforms.ai" style="color:var(--blue)">pricing@xplatforms.ai</a></p>
-      <a href="#" class="btn-b btn-g" style="margin-top:8px;font-size:13px;padding:10px 20px">Chat with Sales</a>
+{{-- ============ COMPARISON ============ --}}
+<section class="sec" id="compare">
+  <div class="wrap">
+    <div class="sec-hd reveal">
+      <h2>Compare<span class="accent">every feature.</span></h2>
+      <p>Everything in each plan, side by side — including Mira Premium limits, straight from the product.</p>
     </div>
-    <div class="faq-list rv">
-      <div class="faq-item open"><div class="faq-q">Is there a free trial?<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div class="faq-a"><p>Yes &mdash; every plan starts with a 30-day proof of concept using your actual data. We connect your sources, run the AI engine, and show you real predictions from your real customers. No credit card required. If you're not satisfied with the results, you pay nothing.</p></div></div>
-      <div class="faq-item"><div class="faq-q">What exactly counts as a "customer profile"?<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div class="faq-a"><p>A customer profile is one unified identity created by X Platforms &mdash; one real person, regardless of how many times they appear across your data sources. If someone exists in your CRM, your email list, and your app analytics, that's still one profile. Our deduplication is included at no extra charge.</p></div></div>
-      <div class="faq-item"><div class="faq-q">Can I start on Starter and upgrade to Growth later?<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div class="faq-a"><p>Absolutely. You can upgrade at any time from your dashboard and the cost difference is prorated to your current billing cycle. Many customers start on Starter to validate the predictions, then upgrade once they're ready to activate the execution layers. Downgrading is available at your next renewal date.</p></div></div>
-      <div class="faq-item"><div class="faq-q">How does annual billing work?<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div class="faq-a"><p>Annual billing is charged upfront for 12 months and saves you 20% compared to monthly billing. Starter drops from $499/mo to $399/mo ($4,788/year). Growth drops from $1,499/mo to $1,199/mo ($14,388/year). You can switch from monthly to annual at any renewal date.</p></div></div>
-      <div class="faq-item"><div class="faq-q">What's the difference between Starter and Growth practically?<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div class="faq-a"><p>Starter gives you the prediction intelligence (Layers 1&ndash;5) &mdash; you see who's at risk and what the AI recommends. Growth adds Layers 6 and 7 &mdash; the engine automatically generates strategy playbooks and can trigger real-time actions like personalised emails, ad changes, and CRM updates without manual intervention. Most teams that see value in Starter upgrade within 60&ndash;90 days.</p></div></div>
-      <div class="faq-item"><div class="faq-q">Do I need technical expertise to get started?<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div class="faq-a"><p>No. Our one-click connectors require no code to set up. Most customers are fully connected and receiving predictions within 2 hours of signing up. For Enterprise deployments with custom infrastructure needs, our solutions team handles the full technical setup as part of onboarding.</p></div></div>
-      <div class="faq-item"><div class="faq-q">Is my data safe and compliant?<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div class="faq-a"><p>Yes. All plans are SOC 2 Type II certified and GDPR compliant. Data is encrypted with AES-256 at rest and in transit. We never share, sell, or use your customer data for any purpose other than powering your own predictions. Enterprise plans add HIPAA compliance, ISO 27001 certification, and custom Data Processing Agreements.</p></div></div>
-      <div class="faq-item"><div class="faq-q">What if I go over my profile limit?<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div class="faq-a"><p>We'll notify you when you reach 80% of your limit. You can add profile capacity in blocks of 25,000 for $99/block at any time, or upgrade to a higher tier. We never suspend service without 14 days notice &mdash; your predictions keep running while you decide.</p></div></div>
+    <div class="compare reveal" id="compareBox">
+      <div class="compare-scroll">
+        <table class="ctable">
+          <thead>
+            <tr>
+              <th scope="col">Feature</th>
+              <th scope="col"><span class="pn">Starter</span><span class="pp" data-price-label="starter">$499 / mo</span></th>
+              <th scope="col" class="hl"><span class="pn">Growth</span><span class="pp" data-price-label="professional">$1,499 / mo</span></th>
+              <th scope="col"><span class="pn">Enterprise</span><span class="pp">Custom</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @php $row = 0; @endphp
+            @foreach($comparison as $group => $rows)
+              @php $hidden = $loop->index >= 4; @endphp
+              <tr class="grp {{ str_starts_with($group, 'Mira') ? 'mira-grp' : '' }} {{ $hidden ? 'more' : '' }}"><td colspan="4">{{ $group }}</td></tr>
+              @foreach($rows as $r)
+                <tr class="{{ $hidden ? 'more' : '' }}">
+                  <td>{{ $r[0] }}</td>
+                  @foreach([1, 2, 3] as $i)
+                    <td class="{{ $i === 2 ? 'hl' : '' }}">
+                      @if($r[$i] === true)<svg class="yes" viewBox="0 0 24 24" role="img" aria-label="Included"><path d="M5 12.5l4.2 4.2L19 7"/></svg>
+                      @elseif($r[$i] === false)<svg class="no" viewBox="0 0 24 24" role="img" aria-label="Not included"><path d="M7 7l10 10M17 7L7 17"/></svg>
+                      @else{{ $r[$i] }}@endif
+                    </td>
+                  @endforeach
+                </tr>
+              @endforeach
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+      <div class="compare-foot"><button type="button" class="ghost-btn" id="compareToggle" aria-expanded="false">Show all features <span aria-hidden="true">↓</span></button></div>
     </div>
   </div>
 </section>
 
-<!-- CTA -->
-<section class="cta">
-  <h2 class="rv">Start with <span>your data.</span><br>See results in 30 days.</h2>
-  <p class="rv">No credit card. No commitment. Connect your platforms today and get your first predictions before the month is out.</p>
-  <div class="cta-btns rv">
-    <a href="{{ route('client.register') }}" class="btn-b btn-fill">Start Free 30-Day Trial</a>
-    <a href="{{ route('simulator') }}" class="btn-b btn-g">Try the Simulator First</a>
+{{-- ============ ADD-ONS ============ --}}
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-hd reveal">
+      <h2>Extend<span class="accent">your plan.</span></h2>
+      <p>Available on any plan. Add exactly what you need, remove what you don't.</p>
+    </div>
+    <div class="addons">
+      @foreach($addons as $a)
+        <div class="addon reveal"><h4>{{ $a[0] }}</h4><div class="ap">{{ $a[1] }}<small>{{ $a[2] }}</small></div><p>{{ $a[3] }}</p></div>
+      @endforeach
+    </div>
   </div>
 </section>
 
-<!-- FOOTER -->
-<footer class="foot"><div class="foot-in">
-  <div><a href="{{ url('/') }}" class="logo"><img src="{{ asset('images/xplatforms_logo.jpeg') }}" alt="X Platforms" style="height:32px;width:auto;display:block"></a><p class="foot-desc">The world's first 8-layer AI intelligence engine.</p></div>
-  <div class="foot-c"><h5>Product</h5><a href="{{ route('platform.architecture') }}">Architecture</a><a href="#">Integrations</a><a href="{{ route('industries') }}">Industries</a><a href="{{ route('pricing') }}">Pricing</a></div>
-  <div class="foot-c"><h5>Company</h5><a href="{{ route('about') }}">About</a><a href="{{ route('careers') }}">Careers</a><a href="{{ route('blog') }}">Blog</a><a href="{{ route('contact') }}">Contact</a></div>
-  <div class="foot-c"><h5>Resources</h5><a href="#">Documentation</a><a href="{{ route('case-studies') }}">Case Studies</a><a href="#">API Reference</a><a href="{{ route('security') }}">Security</a></div>
-</div><div class="foot-b"><span>&copy; {{ date('Y') }} X Platforms.</span><span><a href="{{ route('privacy') }}" style="color:inherit">Privacy</a> &middot; <a href="{{ route('terms') }}" style="color:inherit">Terms</a> &middot; <a href="{{ route('security') }}" style="color:inherit">Security</a></span></div></footer>
+{{-- ============ ROI ============ --}}
+<section class="sec">
+  <div class="wrap">
+    <div class="roi reveal">
+      <div>
+        <span class="k">ROI reality check</span>
+        <h3>The average Growth customer sees <b>$280K</b> in year-one revenue impact.</h3>
+        <p>From churn reduction, upsell conversion and acquisition efficiency. At $1,499 a month, that is a 15.6× return in the first year.</p>
+      </div>
+      <div class="roi-stats">
+        <div class="c1"><b>15.6×</b><span>Average ROI, year 1</span></div>
+        <div class="c2"><b>82 days</b><span>Average time to ROI</span></div>
+        <div class="c3"><b>$280K</b><span>Average revenue impact</span></div>
+        <div class="c4"><b>97%</b><span>Renew after year 1</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{{-- ============ TESTIMONIALS + TRUST ============ --}}
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-hd reveal">
+      <h2>Pricing that makes sense<span class="accent">when you see the returns.</span></h2>
+    </div>
+    <div class="quotes">
+      <figure class="quote reveal">
+        <span class="plan-tag">Starter → Growth</span>
+        <blockquote>“We started on Starter to test the water. Within 60 days the predictions were so accurate we upgraded to Growth. The upgrade paid for itself in the first month.”</blockquote>
+        <figcaption class="who"><span class="av" style="background:#93CEFF">PK</span><div><b>Priya Kapoor</b><span>CPO, MockMaster</span></div><span class="res">↓ 41% churn</span></figcaption>
+      </figure>
+      <figure class="quote reveal">
+        <span class="plan-tag">Growth</span>
+        <blockquote>“$1,499 a month felt like a lot until our first expansion revenue report came in. We made back the annual cost in six weeks from upsells our team had missed.”</blockquote>
+        <figcaption class="who"><span class="av" style="background:#FFBFFF">AT</span><div><b>Alexandra Tan</b><span>VP Revenue, ScoreMentor</span></div><span class="res">↑ 3.4× MRR</span></figcaption>
+      </figure>
+      <figure class="quote reveal">
+        <span class="plan-tag">Enterprise</span>
+        <blockquote>“Our requirements were complex. The team built exactly what we needed, and the first-year ROI justified a three-year commitment.”</blockquote>
+        <figcaption class="who"><span class="av" style="background:#f2c14e">DW</span><div><b>David Wong</b><span>CEO, OneAustralia</span></div><span class="res">$5.4M impact</span></figcaption>
+      </figure>
+    </div>
+    <div class="trust reveal">
+      <div><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><div><b>SOC 2 Type II</b><span>Audited annually</span></div></div>
+      <div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.8 2.5 15.2 0 18M12 3c-2.5 2.8-2.5 15.2 0 18"/></svg><div><b>GDPR compliant</b><span>EU data protection</span></div></div>
+      <div><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg><div><b>AES-256</b><span>At rest and in transit</span></div></div>
+      <div><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><div><b>30-day POC</b><span>No credit card</span></div></div>
+      <div><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg><div><b>Cancel anytime</b><span>No lock-in contracts</span></div></div>
+    </div>
+  </div>
+</section>
+
+{{-- ============ FAQ ============ --}}
+<section class="sec">
+  <div class="wrap">
+    <div class="sec-hd reveal">
+      <h2>Pricing questions,<span class="accent">answered.</span></h2>
+    </div>
+    <div class="faq-grid">
+      <aside class="faq-help reveal">
+        <h4>Still have questions?</h4>
+        <p>Talk to our team about volumes, compliance or a tailored Enterprise plan.</p>
+        <a href="{{ route('book-demo') }}">Talk to sales</a>
+        <a class="mail" href="mailto:pricing@xplatforms.ai">pricing@xplatforms.ai</a>
+      </aside>
+      <div class="faq-list reveal">
+        @foreach($faqs as $f)
+          <div class="faq-item {{ $loop->first ? 'open' : '' }}">
+            <button type="button" class="faq-q" aria-expanded="{{ $loop->first ? 'true' : 'false' }}">{{ $f[0] }}<span class="ic"><svg viewBox="0 0 12 12"><path d="M6 1v10M1 6h10"/></svg></span></button>
+            <div class="faq-a"><div><p>{{ $f[1] }}</p></div></div>
+          </div>
+        @endforeach
+      </div>
+    </div>
+
+    {{-- ============ FINAL CTA ============ --}}
+    <div class="cta reveal">
+      <h2>Start with your data.<span class="accent">See results in 30 days.</span></h2>
+      <p>No credit card. No commitment. Connect your platforms today and get your first predictions before the month is out.</p>
+      <div class="cta-row">
+        <a href="{{ $signedIn ? route('client.plan') : route('client.register') }}" class="btn-glow">Start your free 30-day trial <span aria-hidden="true">→</span></a>
+        <a href="{{ route('simulator') }}" class="ghost-btn">Try the simulator first</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{{-- ============ FOOTER ============ --}}
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h4>XPlatforms</h4>
+        <p>AI customer intelligence for businesses that want to understand, predict, and act on every customer signal.</p>
+        <div class="footer-social"><span>𝕏</span><span>◎</span><span>in</span></div>
+      </div>
+      <div class="footer-col"><div class="ttl">Product</div><ul><li><a href="{{ route('platform.architecture') }}">Architecture</a></li><li><a href="{{ route('industries') }}">Industries</a></li><li><a href="{{ route('mira-premium') }}">Mira Premium</a></li><li><a href="{{ route('pricing') }}">Pricing</a></li></ul></div>
+      <div class="footer-col"><div class="ttl">Company</div><ul><li><a href="{{ route('about') }}">About</a></li><li><a href="{{ route('careers') }}">Careers</a></li><li><a href="{{ route('blog') }}">Blogs</a></li><li><a href="{{ route('contact') }}">Contact</a></li></ul></div>
+      <div class="footer-col"><div class="ttl">Resources</div><ul><li><a href="{{ route('case-studies') }}">Case Studies</a></li><li><a href="{{ route('simulator') }}">Simulator</a></li><li><a href="{{ route('security') }}">Security</a></li></ul></div>
+      <div class="footer-col"><div class="ttl">Legal</div><ul><li><a href="{{ route('privacy') }}">Privacy</a></li><li><a href="{{ route('terms') }}">Terms</a></li></ul></div>
+    </div>
+    <div class="footer-bottom">
+      <span>© {{ date('Y') }} XPlatforms. All rights reserved.</span>
+      <span class="links"><a href="{{ route('privacy') }}">Privacy Policy</a><a href="{{ route('terms') }}">Terms of Service</a><a href="#top">↑ Back to top</a></span>
+    </div>
+  </div>
+  <div class="footer-word">xplatforms</div>
+</footer>
 
 <script>
-// APPEARANCE TOGGLE
-const APPEARANCE_SUN = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
-const APPEARANCE_MOON = '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>';
-function applyAppearanceIcon(){
-  const isDark = document.body.classList.contains('theme-dark');
-  const icon = isDark ? APPEARANCE_MOON : APPEARANCE_SUN;
-  ['appearanceToggle','appearanceToggleMob'].forEach(function(id){
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = icon;
+(function () {
+  // Mobile menu
+  var burger = document.getElementById('navBurger'), links = document.getElementById('navLinks');
+  burger.addEventListener('click', function () {
+    var open = links.classList.toggle('open');
+    burger.classList.toggle('open', open);
+    burger.setAttribute('aria-expanded', String(open));
   });
-}
-function toggleAppearance(){
-  const isDark = document.body.classList.toggle('theme-dark');
-  localStorage.setItem('xp-appearance', isDark ? 'dark' : 'light');
-  applyAppearanceIcon();
-}
-applyAppearanceIcon();
 
-// NEURAL NET
-const cv=document.getElementById('neural'),cx=cv.getContext('2d');let W,H,nd=[];
-function rsz(){W=cv.width=innerWidth;H=cv.height=innerHeight}addEventListener('resize',rsz);rsz();
-for(let i=0;i<Math.min(55,Math.floor(W*H/22000));i++)nd.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.28,vy:(Math.random()-.5)*.28,r:Math.random()*1.4+.6,p:Math.random()*6.28});
-let mmx=-1e3,mmy=-1e3;document.addEventListener('mousemove',e=>{mmx=e.clientX;mmy=e.clientY});
-(function draw(){cx.clearRect(0,0,W,H);for(let i=0;i<nd.length;i++){const n=nd[i];n.x+=n.vx;n.y+=n.vy;n.p+=.01;
-if(n.x<0||n.x>W)n.vx*=-1;if(n.y<0||n.y>H)n.vy*=-1;
-for(let j=i+1;j<nd.length;j++){const m=nd[j],d=Math.hypot(n.x-m.x,n.y-m.y);if(d<150){cx.beginPath();cx.moveTo(n.x,n.y);cx.lineTo(m.x,m.y);cx.strokeStyle=`rgba(79,143,255,${(1-d/150)*.09})`;cx.lineWidth=.5;cx.stroke()}}
-const g=Math.hypot(n.x-mmx,n.y-mmy)<160?(1-Math.hypot(n.x-mmx,n.y-mmy)/160)*.4:0;
-cx.beginPath();cx.arc(n.x,n.y,n.r+Math.sin(n.p)*.35,0,6.28);cx.fillStyle=`rgba(79,143,255,${.2+g})`;cx.fill()}
-requestAnimationFrame(draw)})();
+  // Monthly / annual: prices, notes and the comparison header follow the switch.
+  var fmt = function (v) { return Number(v).toLocaleString('en-US'); };
+  document.querySelectorAll('[data-billing]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var annual = btn.dataset.billing === 'annual';
+      document.querySelectorAll('[data-billing]').forEach(function (b) { b.setAttribute('aria-pressed', String(b === btn)); });
+      document.querySelectorAll('.amt').forEach(function (el) { el.textContent = fmt(annual ? el.dataset.annual : el.dataset.monthly); });
+      document.querySelectorAll('[data-monthly-note]').forEach(function (el) { el.textContent = annual ? el.dataset.annualNote : el.dataset.monthlyNote; });
+      var labels = { starter: annual ? 399 : 499, professional: annual ? 1199 : 1499 };
+      document.querySelectorAll('[data-price-label]').forEach(function (el) { el.textContent = '$' + fmt(labels[el.dataset.priceLabel]) + ' / mo'; });
+    });
+  });
 
-// BILLING TOGGLE
-let isAnnual=false;
-const prices={starter:{m:499,a:399},growth:{m:1499,a:1199}};
-function toggleBilling(){
-  isAnnual=!isAnnual;
-  document.getElementById('billingToggle').classList.toggle('yr',isAnnual);
-  document.getElementById('lblMonthly').classList.toggle('active',!isAnnual);
-  document.getElementById('lblAnnual').classList.toggle('active',isAnnual);
-  document.getElementById('saveBadge').style.display=isAnnual?'inline-flex':'none';
-  const s=isAnnual?prices.starter.a:prices.starter.m;
-  const g=isAnnual?prices.growth.a:prices.growth.m;
-  document.getElementById('price-starter').textContent=s.toLocaleString();
-  document.getElementById('price-growth').textContent=g.toLocaleString();
-  document.getElementById('annual-starter').style.display=isAnnual?'block':'none';
-  document.getElementById('annual-growth').style.display=isAnnual?'block':'none';
-  if(isAnnual){
-    document.getElementById('annual-starter').textContent=`Billed annually — $${(s*12).toLocaleString()}/year`;
-    document.getElementById('annual-growth').textContent=`Billed annually — $${(g*12).toLocaleString()}/year`;
+  // Comparison: first groups shown, the rest on demand.
+  var box = document.getElementById('compareBox'), toggle = document.getElementById('compareToggle');
+  toggle.addEventListener('click', function () {
+    var open = box.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.innerHTML = open ? 'Show fewer features <span aria-hidden="true">↑</span>' : 'Show all features <span aria-hidden="true">↓</span>';
+    if (!open) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // FAQ accordion: one open at a time.
+  document.querySelectorAll('.faq-q').forEach(function (q) {
+    q.addEventListener('click', function () {
+      var item = q.parentElement, wasOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(function (i) { i.classList.remove('open'); i.querySelector('.faq-q').setAttribute('aria-expanded', 'false'); });
+      if (!wasOpen) { item.classList.add('open'); q.setAttribute('aria-expanded', 'true'); }
+    });
+  });
+
+  // Reveal on scroll.
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
   }
-}
-
-// COMPARISON TABLE EXPAND
-let tableExpanded=false;
-function toggleTable(){
-  tableExpanded=!tableExpanded;
-  document.querySelectorAll('.comp-hidden').forEach(el=>el.style.display=tableExpanded?'grid':'none');
-  document.getElementById('expandBtn').textContent=tableExpanded?'Show less ↑':'Show all features ↓';
-}
-
-// ENTERPRISE FORM
-function submitEntForm(){
-  const inputs=document.querySelectorAll('#entForm input, #entForm select');
-  for(const i of inputs){if(i.value.trim()===''){i.style.borderColor='var(--rose)';setTimeout(()=>i.style.borderColor='',2000);return}}
-  document.getElementById('entForm').style.display='none';
-  document.getElementById('entSuccess').style.display='block';
-}
-
-// FAQ
-document.querySelectorAll('.faq-q').forEach(q=>{q.addEventListener('click',()=>{const it=q.parentElement,was=it.classList.contains('open');document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));if(!was)it.classList.add('open')})});
-
-// REVEALS
-const obs=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){x.target.classList.add('vis');obs.unobserve(x.target)}})},{threshold:.08,rootMargin:'0px 0px -40px 0px'});
-document.querySelectorAll('.rv').forEach(el=>obs.observe(el));
-
-// SCROLL NAV
-addEventListener('scroll',()=>{document.querySelector('.nav-bg').style.background=scrollY>40?'var(--chrome-bg)':'var(--chrome-bg-soft)'});
-
-// SMOOTH ANCHOR SCROLL
-document.querySelectorAll('a[href^="#"]').forEach(a=>{a.addEventListener('click',e=>{const h=a.getAttribute('href');if(h==='#')return;e.preventDefault();document.querySelector(h)?.scrollIntoView({behavior:'smooth'})})});
+})();
 </script>
 </body>
 </html>
