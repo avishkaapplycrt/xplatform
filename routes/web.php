@@ -496,7 +496,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         foreach ($data['messages'] as $m) {
             $r = $data['channel'] === 'email'
                 ? $messenger->sendEmail((int) $m['student_id'], (string) $m['subject'], $m['body'], 'bulk', $total)
-                : $messenger->sendWhatsApp((int) $m['student_id'], $m['body']);
+                : $messenger->sendWhatsApp((int) $m['student_id'], $m['body'], 'bulk', $total);
             $results[] = [
                 'student_id' => (int) $m['student_id'],
                 'name' => $r['name'],

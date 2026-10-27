@@ -66,7 +66,9 @@ class WhatsAppCloudService
         return [
             'ok' => false,
             'message_id' => null,
-            'error' => $response->json('error.message') ?? ('HTTP ' . $response->status()),
+            // Keep Meta's numeric code (e.g. 131047 = outside the 24-hour window) so callers can match on it.
+            'error' => trim(($response->json('error.message') ?? ('HTTP ' . $response->status()))
+                . ($response->json('error.code') ? ' (code ' . $response->json('error.code') . ')' : '')),
         ];
     }
 

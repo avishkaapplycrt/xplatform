@@ -66,7 +66,7 @@ class MockMasterMessenger
     }
 
     /** @return array{ok: bool, status: string, to: ?string, name: ?string, message: string, error: ?string} */
-    public function sendWhatsApp(int $studentId, string $body): array
+    public function sendWhatsApp(int $studentId, string $body, string $type = 'single', int $bulkCount = 1): array
     {
         $student = DB::table('mm_studentuser')
             ->where('studentId', $studentId)
@@ -74,11 +74,37 @@ class MockMasterMessenger
         $name = $student ? trim($student->first_name . ' ' . $student->last_name) : null;
         $digits = $student ? preg_replace('/\D/', '', ($student->country_code ?? '') . ($student->phone ?? '')) : '';
 
+        $log = function (string $status, ?string $messageId = null, ?string $error = null) use ($digits, $name, $body, $type, $bulkCount) {
+            DB::table('whatsapp_logs')->insert([
+                'client_id' => Auth::guard('client')->id(),
+                'phone' => $digits === '' ? '' : '+' . $digits,
+                'recipient_name' => $name,
+                'body' => $body,
+                'type' => $type,
+                'bulk_count' => $bulkCount,
+                'status' => $status,
+                'wa_message_id' => $messageId,
+                'error_message' => $error,
+                'sent_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        };
+
         if ($digits === '') {
+            $log('failed', null, 'No phone number on file.');
             return $this->result(false, 'skipped', null, $name, 'This student has no phone number on file.', 'No phone number on file.');
         }
 
-        $result = (new WhatsAppCloudService())->sendText('+' . $digits, $body);
+        try {
+            $result = (new WhatsAppCloudService())->sendText('+' . $digits, $body);
+        } catch (\Throwable $e) {
+            report($e);
+            $result = ['ok' => false, 'message_id' => null, 'error' => $e->getMessage()];
+        }
+
+        $log($result['ok'] ? 'sent' : 'failed', $result['message_id'] ?? null,
+            $result['ok'] ? null : mb_substr((string) $result['error'], 0, 1000));
 
         if (!$result['ok']) {
             $outsideWindow = str_contains((string) $result['error'], '131047');
