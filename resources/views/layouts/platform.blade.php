@@ -127,7 +127,7 @@
                     ? $allSidebarLayers
                     : array_values(array_filter($allSidebarLayers, fn($l) => in_array($l['num'], $selectedLayerCodes)));
                 $archLayerRoutes = collect($sidebarLayers)->pluck('route')->push('client.data-collection')->all();
-                $isArchActive = request()->routeIs('client.architecture') || collect($archLayerRoutes)->contains(fn($r) => request()->routeIs($r));
+                $isArchActive = request()->routeIs('client.architecture', 'client.company.overview') || collect($archLayerRoutes)->contains(fn($r) => request()->routeIs($r));
                 @endphp
                 <div class="space-y-1">
                     <button onclick="toggleArchMenu()"
