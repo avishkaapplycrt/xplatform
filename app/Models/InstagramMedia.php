@@ -39,7 +39,8 @@ class InstagramMedia extends Model
      */
     public static function socialStats(): array
     {
-        $connection = SocialIntegration::where('platform', 'instagram')->connected()->first();
+        // The signed-in client's own Instagram account (each client connects their own).
+        $connection = SocialIntegration::where('platform', 'instagram')->forClient(auth('client')->id())->connected()->first();
         $posts      = $connection
             ? self::where('social_integration_id', $connection->id)->orderByDesc('posted_at')->get()
             : collect();

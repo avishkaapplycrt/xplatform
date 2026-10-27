@@ -28,6 +28,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // write allow-listed, size-capped telemetry.
             'mira-premium/api/event',
             'mira-premium/api/error',
+            // Meta's Instagram deauthorize / data-deletion callbacks: server-to-server
+            // calls verified by their signed_request (MetaInstagramCallbackController).
+            'meta/instagram/deauthorize',
+            'meta/instagram/data-deletion',
         ]);
 
         $middleware->redirectGuestsTo(function ($request) {
