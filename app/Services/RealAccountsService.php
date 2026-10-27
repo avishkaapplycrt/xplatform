@@ -55,7 +55,7 @@ class RealAccountsService
                 $deal = $deals->first(fn ($d) => str_starts_with((string) $d->name, (string) $contact->company));
 
                 $daysAgo = $contact->last_activity_at
-                    ? $contact->last_activity_at->diffInDays(now())
+                    ? (int) floor($contact->last_activity_at->diffInDays(now()))
                     : 120;
 
                 $engagement = max(8, min(95, (int) round(100 - $daysAgo * 2)));
@@ -95,7 +95,10 @@ class RealAccountsService
                     'company' => $contact->company,
                     'email' => $contact->email,
                     'seg' => $seg,
-                    'mrr' => $deal ? (int) round($deal->value) : 800,
+                    // The matched CRM deal's value (0 with no deal). Kept under
+                    // the 'mrr' key the page's scripts read, but it is a deal
+                    // total, not monthly revenue.
+                    'mrr' => $deal ? (int) round($deal->value) : 0,
                     'deal_stage' => $deal->stage ?? null,
                     'deal_stage_label' => $deal
                         ? (self::STAGE_LABELS[$deal->stage] ?? $deal->stage)

@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToClient;
 use Illuminate\Database\Eloquent\Model;
 
 class EmailLog extends Model
 {
+    // Signed-in clients only see their own email logs.
+    use BelongsToClient;
+
     protected $fillable = [
         'client_id',
         'email_template_id',
@@ -51,11 +55,6 @@ class EmailLog extends Model
     }
 
     // ── Scopes ───────────────────────────────────────────────────────────────
-
-    public function scopeForClient($query, $clientId)
-    {
-        return $query->where('client_id', $clientId);
-    }
 
     public function scopeWithStatus($query, $status)
     {

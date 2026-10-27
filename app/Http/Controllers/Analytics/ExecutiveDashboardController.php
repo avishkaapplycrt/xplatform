@@ -162,28 +162,15 @@ class ExecutiveDashboardController extends Controller
     private function getCrmSummary($client)
     {
         try {
-            // Check if crm_connections table exists
-            if (!DB::getSchemaBuilder()->hasTable('crm_connections')) {
-                return $this->emptyMetrics('crm');
-            }
-
-            $connections = DB::table('crm_connections')
-                ->where('client_id', $client->id)
+            // CRM connections live in crm_integrations; contacts and deals
+            // belong to the client through the connection they came from.
+            $connections = \App\Models\CrmIntegration::forClient($client)
                 ->where('status', 'connected')
                 ->count();
 
-            // Try to get CRM data if synced
-            $contacts = 0;
-            $deals = 0;
-            $pipelineValue = 0;
-
-            if (DB::getSchemaBuilder()->hasTable('crm_contacts')) {
-                $contacts = DB::table('crm_contacts')->where('client_id', $client->id)->count();
-            }
-            if (DB::getSchemaBuilder()->hasTable('crm_deals')) {
-                $deals = DB::table('crm_deals')->where('client_id', $client->id)->count();
-                $pipelineValue = DB::table('crm_deals')->where('client_id', $client->id)->sum('value') ?? 0;
-            }
+            $contacts = \App\Models\CrmContact::forClient($client)->count();
+            $deals = \App\Models\CrmDeal::forClient($client)->count();
+            $pipelineValue = \App\Models\CrmDeal::forClient($client)->sum('value') ?? 0;
 
             return [
                 'total_contacts'   => $contacts,

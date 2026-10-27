@@ -489,14 +489,7 @@
         </div>
 
         {{-- Status Bar --}}
-        <div class="px-3 py-3 border-t border-gray-100 bg-gray-50">
-            <div class="flex items-center gap-1.5 mb-1">
-                <span class="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></span>
-                <span class="text-[10px] text-gray-700 font-medium">All systems operational</span>
-            </div>
-            <p class="text-[10px] text-gray-400 pl-3.5">150+ micro-signals active</p>
-            <p class="text-[10px] text-gray-400 pl-3.5">{{ auth('client')->user()?->company_name ?? 'Acme Retail' }}</p>
-        </div>
+        @include('client.partials.sources-status')
     </aside>
 
     {{-- Sidebar resize handle: drag, arrow keys, or double-click to reset --}}

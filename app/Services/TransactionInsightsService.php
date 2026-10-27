@@ -16,11 +16,9 @@ use Illuminate\Support\Facades\DB;
  * predefined prompts that need "did this CRM contact actually pay"
  * rather than just CRM/email signals alone.
  *
- * crm_contacts/crm_deals carry no client_id column in this system (see
- * RealAccountsService, RetentionSaveFirstService, the Marketing services —
- * none of them scope CRM data by client either), so, matching that existing
- * convention, only the transaction tables are scoped to the logged-in
- * client; CRM matching stays global. A CRM contact is matched to a
+ * Everything here belongs to the signed-in client: the transaction tables
+ * are filtered by client_id below, and crm_contacts / crm_deals are filtered
+ * to that client by their models (App\Models\Concerns\BelongsToClient). A CRM contact is matched to a
  * transactions_customers row by exact (case-insensitive) email — the same
  * kind of best-effort match already used to tie crm_deals to crm_contacts by
  * company-name prefix, since neither pair of tables stores a real foreign key.

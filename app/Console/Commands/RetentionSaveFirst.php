@@ -12,12 +12,22 @@ use Illuminate\Console\Command;
  */
 class RetentionSaveFirst extends Command
 {
-    protected $signature = 'retention:save-first {--limit=5} {--question=both : save-first|watchlist|both}';
+    protected $signature = 'retention:save-first {--client=1 : Client id whose CRM and email data to read} {--limit=5} {--question=both : save-first|watchlist|both}';
 
     protected $description = 'Print the Risk radar answers built from crm_contacts, crm_deals and email_logs_providers';
 
     public function handle(RetentionSaveFirstService $service): int
     {
+        // CRM contacts, deals and email logs are scoped to the signed-in
+        // client, so read them as the chosen client.
+        $client = \App\Models\Client::find((int) $this->option('client'));
+        if ($client === null) {
+            $this->error('No client with id ' . $this->option('client') . '.');
+
+            return self::FAILURE;
+        }
+        \Illuminate\Support\Facades\Auth::guard('client')->setUser($client);
+
         $question = $this->option('question');
         $limit = (int) $this->option('limit');
 

@@ -188,10 +188,10 @@ class SlackService
         }
 
         return collect($res->json('channels', []))->map(function ($c) use ($connection) {
+            // One row per channel per connection, so two clients can connect the same workspace.
             return SlackChannel::updateOrCreate(
-                ['channel_id' => $c['id']],
+                ['chat_support_integration_id' => $connection->id, 'channel_id' => $c['id']],
                 [
-                    'chat_support_integration_id' => $connection->id,
                     'name'         => $c['name'] ?? null,
                     'is_private'   => $c['is_private'] ?? false,
                     'is_archived'  => $c['is_archived'] ?? false,

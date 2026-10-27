@@ -94,14 +94,7 @@
         </div>
 
         {{-- Status Bar --}}
-        <div class="px-3 py-3 border-t border-gray-100 bg-gray-50">
-            <div class="flex items-center gap-1.5 mb-1">
-                <span class="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></span>
-                <span class="text-[10px] text-gray-700 font-medium">All systems operational</span>
-            </div>
-            <p class="text-[10px] text-gray-400 pl-3.5">150+ micro-signals active</p>
-            <p class="text-[10px] text-gray-400 pl-3.5">{{ $clientName }}</p>
-        </div>
+        @include('client.partials.sources-status')
 
     </aside>
 
@@ -139,22 +132,6 @@
                               d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                     </svg>
                 </a>
-
-                {{-- Profiles --}}
-                <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#4b5563">
-                    <svg width="14" height="14" fill="none" stroke="#a78bfa" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/>
-                    </svg>
-                    <span style="font-weight:600;color:#374151">8.7M profiles</span>
-                </span>
-
-                {{-- Accuracy --}}
-                <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:#4b5563">
-                    <svg width="14" height="14" fill="none" stroke="#f472b6" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <span style="font-weight:600;color:#374151">94.1% accuracy</span>
-                </span>
 
                 {{-- Avatar with dropdown --}}
                 <div style="position:relative" id="ovAvatarWrap">
@@ -197,92 +174,23 @@
         {{-- Scrollable body --}}
         <main class="flex-1 overflow-y-auto p-6 space-y-5">
 
-            {{-- ================================================
-                 4 KPI CARDS
-                 ================================================ --}}
+            {{-- KPI CARDS: the signed-in client's own counts (App\Services\DataCollectionStats::counts) --}}
+            @php
+                $ovKpis = [
+                    ['Connected Sources', number_format($dcCounts['sources']) . ' / 5', 'Email, CRM, social, chat and payments', 'text-emerald-500'],
+                    ['Emails Tracked',    number_format($dcCounts['emails']),          'Sent emails in your email logs',          'text-blue-500'],
+                    ['CRM Records',       number_format($dcCounts['crm']),             'Contacts and deals synced from your CRM', 'text-violet-500'],
+                    ['Transactions',      number_format($dcCounts['transactions']),    'Payments synced from your provider',      'text-amber-500'],
+                ];
+            @endphp
             <div class="grid grid-cols-4 gap-4">
-
-                {{-- 1 · Total Micro-Signals --}}
+                @foreach ($ovKpis as [$kLabel, $kValue, $kNote, $kColor])
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <div class="flex items-start justify-between mb-3">
-                        <div class="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor"
-                                 stroke-width="1.8" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                      d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
-                        Total Micro-Signals
-                    </p>
-                    <p class="text-3xl font-bold text-emerald-500 leading-none">150+</p>
-                    <p class="text-[11px] text-gray-400 mt-1.5 flex items-center gap-1">
-                        <span class="text-emerald-500">▲</span> Across all 8 layers
-                    </p>
+                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">{{ $kLabel }}</p>
+                    <p class="text-3xl font-bold {{ $kColor }} leading-none">{{ $kValue }}</p>
+                    <p class="text-[11px] text-gray-400 mt-1.5">{{ $kNote }}</p>
                 </div>
-
-                {{-- 2 · Events / Day --}}
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <div class="flex items-start justify-between mb-3">
-                        <div class="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
-                        Events / Day
-                    </p>
-                    <p class="text-3xl font-bold leading-none" style="color:#3b82f6">4.2M</p>
-                    <p class="text-[11px] mt-1.5 flex items-center gap-1">
-                        <span class="text-emerald-500">▲ 18%</span>
-                        <span class="text-gray-400">WoW</span>
-                    </p>
-                </div>
-
-                {{-- 3 · Profiles Resolved --}}
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <div class="flex items-start justify-between mb-3">
-                        <div class="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-violet-500" fill="none" stroke="currentColor"
-                                 stroke-width="1.8" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
-                        Profiles Resolved
-                    </p>
-                    <p class="text-3xl font-bold text-violet-500 leading-none">8.7M</p>
-                    <p class="text-[11px] mt-1.5">
-                        <span class="text-emerald-500">▲ 98.2%</span>
-                        <span class="text-gray-400"> match rate</span>
-                    </p>
-                </div>
-
-                {{-- 4 · Active Tenants --}}
-                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <div class="flex items-start justify-between mb-3">
-                        <div class="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor"
-                                 stroke-width="1.8" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                      d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
-                        Active Tenants
-                    </p>
-                    <p class="text-3xl font-bold text-amber-500 leading-none">4</p>
-                    <p class="text-[11px] mt-1.5">
-                        <span class="text-emerald-500">▲ 2</span>
-                        <span class="text-gray-400"> added this Q</span>
-                    </p>
-                </div>
-
+                @endforeach
             </div>
 
             {{-- ================================================
@@ -359,46 +267,6 @@
                         </a>
                     @endforeach
                 </div>
-
-            </div>
-
-            {{-- ================================================
-                 BOTTOM TENANT MINI-CARDS
-                 ================================================ --}}
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                @foreach($allClients as $tenant)
-                    <div class="bg-white rounded-xl border shadow-sm p-4 transition
-                                {{ $tenant['name'] === $clientName ? 'border-indigo-300 ring-1 ring-indigo-200' : 'border-gray-100 hover:border-gray-200' }}">
-
-                        {{-- Card header: name + plan badge --}}
-                        <div class="flex items-center justify-between gap-2 mb-3">
-                            <span class="text-xs font-semibold text-gray-800 truncate">
-                                {{ $tenant['name'] }}
-                            </span>
-                            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-                                  style="background:{{ $tenant['plan_bg'] }};color:{{ $tenant['plan_text'] }}">
-                                {{ $tenant['plan'] }}
-                            </span>
-                        </div>
-
-                        {{-- Layer activity bar — 8 colored segments --}}
-                        <div class="flex gap-px mb-3">
-                            @foreach($allLayers as $layer)
-                                <div class="h-1 flex-1 rounded-sm"
-                                     style="background:{{ $layer['color'] }}"></div>
-                            @endforeach
-                        </div>
-
-                        {{-- Stats line --}}
-                        <p class="text-[10px] text-gray-400 leading-relaxed">
-                            All 8 Layers
-                            &nbsp;•&nbsp;
-                            150+ signals active
-                        </p>
-
-                    </div>
-                @endforeach
-
 
             </div>
 

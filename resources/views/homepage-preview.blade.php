@@ -192,6 +192,9 @@ img,svg{display:block}
    homepage widget: route('chat.send') / route('chat.reset') —
    see App\Http\Controllers\PublicChatController. ============ */
 .chatbot-section{padding-top:0;padding-bottom:40px}
+/* Ask Mira gets a wider column than the rest of the page. */
+.chatbot-section .wrap{max-width:1480px;padding:0 40px}
+@media (max-width:900px){.chatbot-section .wrap{padding:0 16px}}
 /* Under New Chat: "Try Premium Mira" → pricing for visitors; "Ask Mira Premium" → /mira-premium once signed in. */
 .mira-premium-btn{
   display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px 14px;border-radius:999px;
@@ -300,7 +303,7 @@ img,svg{display:block}
 .mira-cat{border:0;background:#fff;border-radius:999px;padding:8px 14px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:#17181a;
   cursor:pointer;box-shadow:0 1px 2px rgba(30,40,80,.04),0 6px 20px rgba(30,40,80,.05);transition:background .15s,color .15s}
 .mira-cat[aria-pressed="true"]{background:#5383EC;color:#fff}
-.mira-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;max-width:760px;margin-top:14px}
+.mira-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;max-width:880px;margin-top:14px}
 .mira-qcard{border:0;background:#fff;border-radius:20px;padding:16px 18px;text-align:left;display:flex;gap:14px;align-items:flex-start;cursor:pointer;
   font-family:'Inter',sans-serif;box-shadow:0 1px 2px rgba(30,40,80,.04),0 6px 20px rgba(30,40,80,.05);transition:transform .15s,box-shadow .15s}
 .mira-qcard:hover{transform:translateY(-2px);box-shadow:0 0 0 1.5px #d6e2fd inset,0 6px 20px rgba(30,40,80,.06)}
@@ -334,7 +337,7 @@ img,svg{display:block}
 .mira-limit-btn:hover{transform:translateY(-1px)}
 .mira-more{border:0;background:transparent;color:#4f80f0;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;padding:8px;margin-top:4px;cursor:pointer}
 .mira-more:hover{text-decoration:underline}
-.mira-prem-strip{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;width:100%;max-width:760px;margin-top:6px;
+.mira-prem-strip{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;width:100%;max-width:880px;margin-top:6px;
   background:#fdf6e3;border:1px solid #f0dfa8;border-radius:18px;padding:12px 16px;text-align:left;font-family:'Inter',sans-serif}
 .mira-prem-strip p{margin:0;max-width:none;font-size:13.5px;color:#6b5a26;line-height:1.5}
 .mira-prem-strip p b{color:#3a2f0d}
@@ -788,6 +791,85 @@ img,svg{display:block}
 .mira-compare-toggle.on .mct-i-remove{display:block}
 .mira-compare-vs{text-align:center;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;color:#9a9a9e;text-transform:uppercase;margin:8px 0}
 @include('partials.ask-mira.compare-styles')
+
+/* ============ ASK MIRA — dark theme ============
+   The widget sits on the dark homepage, so it is dark too: a near-black
+   panel, slightly raised cards, soft-white text. Blue stays the Ask Mira
+   accent and gold stays Mira Premium. Colours only — layout lives above. */
+.mira-widget{background:#0e1016;border:1px solid rgba(255,255,255,.07);box-shadow:0 30px 80px -20px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.02) inset}
+.mira-sidebar{background:#12141b;border-right:1px solid rgba(255,255,255,.06)}
+.mira-main{background:#0e1016}
+.mira-label{color:#7d8392}
+.mira-newchat{background:#1b1e28;color:#eceef3;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}
+.mira-newchat:hover{background:#222634;box-shadow:0 0 0 1px rgba(255,255,255,.14) inset}
+.mira-newchat svg{stroke:#eceef3}
+.mira-select{background:#1b1e28;color:#eceef3;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset;color-scheme:dark}
+.mira-select option{background:#1b1e28;color:#eceef3}
+.mira-select-wrap svg{stroke:#7d8392}
+.mira-recent-empty{background:transparent;color:#7d8392;border-color:rgba(255,255,255,.12)}
+.mira-recent-item{color:#c9cdd6}
+.mira-recent-item:hover{background:#1b1e28;color:#fff}
+
+/* Tabs, greeting, topic tabs and question cards */
+.mira-tabswitch{background:#1b1e28;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}
+.mira-tab{color:#9aa0ac}
+.mira-tab:not(.active):hover{color:#eceef3}
+.mira-empty h3{color:#f3f4f7}
+.mira-empty h3 .mira-accent{color:#7aa2ff}
+.mira-empty p,.mira-analyze-hint{color:#8d93a1}
+.mira-cat{background:#1b1e28;color:#d6d9e0;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}
+.mira-cat:hover{background:#222634}
+.mira-cat[aria-pressed="true"]{background:#5383EC;color:#fff;box-shadow:0 6px 18px rgba(83,131,236,.35)}
+.mira-cat.ind{box-shadow:0 0 0 1.5px rgba(56,182,214,.45) inset}
+.mira-ind-note{color:#8d93a1}
+.mira-ind-note b{color:#eceef3}
+.mira-qcard{background:#171a23;box-shadow:0 0 0 1px rgba(255,255,255,.07) inset}
+.mira-qcard:hover{background:#1c2030;box-shadow:0 0 0 1.5px rgba(122,162,255,.45) inset,0 10px 26px rgba(0,0,0,.35)}
+.mira-qcard small{color:#7d8392}
+.mira-qcard b{color:#eceef3}
+.mira-qico.c-start{background:rgba(83,131,236,.16);color:#8fb0ff}
+.mira-qico.c-premium{background:rgba(212,175,55,.16);color:#e8c468}
+.mira-qico.c-xp{background:rgba(139,108,246,.18);color:#b39dff}
+.mira-qico.c-grow{background:rgba(34,165,91,.16);color:#4fd18b}
+.mira-qico.c-industry{background:rgba(56,182,214,.16);color:#5fd0ea}
+.mira-more{color:#7aa2ff}
+.mira-prem-strip{background:linear-gradient(135deg,rgba(212,175,55,.14),rgba(212,175,55,.06));border-color:rgba(212,175,55,.35)}
+.mira-prem-strip p{color:#d9c690}
+.mira-prem-strip p b{color:#f6dd98}
+.mira-prem-strip a{background:linear-gradient(135deg,#f0d27a,#d4af37 55%,#b8902f);color:#1a1406}
+
+/* Chat */
+.mira-msg.bot{background:#1b1e28;color:#e4e6eb;box-shadow:0 0 0 1px rgba(255,255,255,.07) inset}
+.mira-msg.bot.typing{color:#8d93a1}
+.mira-msg a{color:#8fb0ff}
+.mira-chip{background:#171a23;border-color:rgba(122,162,255,.3);color:#c9d6ff}
+.mira-chip:hover{background:rgba(83,131,236,.16);border-color:#5383EC;color:#fff}
+.mira-chip.premium{background:rgba(212,175,55,.1);border-color:rgba(212,175,55,.4);color:#e8c468}
+.mira-chip.premium:hover{background:rgba(212,175,55,.18);border-color:#d4af37}
+.mira-limit-note{background:rgba(212,175,55,.12);border-color:rgba(212,175,55,.35);color:#e8c468}
+.mira-limit-card{color:#8d93a1}
+.mira-limit-card a:not(.mira-limit-btn){color:#8fb0ff}
+
+/* Message box and Analyse tab */
+.mira-input-row{background:#171a23;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}
+.mira-input-row:focus-within{box-shadow:0 0 0 1.5px rgba(122,162,255,.6) inset}
+.mira-input{color:#eceef3;caret-color:#7aa2ff}
+.mira-input::placeholder{color:#6f7584}
+.mira-input:-webkit-autofill{-webkit-text-fill-color:#eceef3;-webkit-box-shadow:0 0 0 1000px #171a23 inset;transition:background-color 9999s}
+.mira-analyze-status{color:#a3a9b6;--spin-c:#7aa2ff}
+.mira-analyze-status.err{color:#ff7a70}
+.mira-compare-toggle{color:#e4e6eb;background:linear-gradient(#171a23,#171a23) padding-box,linear-gradient(135deg,#5383EC,#a78bfa) border-box;box-shadow:0 4px 14px rgba(83,131,236,.25)}
+.mira-compare-toggle.on{color:#c9cdd6;background:linear-gradient(#171a23,#171a23) padding-box,linear-gradient(rgba(255,255,255,.14),rgba(255,255,255,.14)) border-box;box-shadow:none}
+.mira-compare-toggle.on .mct-icon{background:#262a36}
+.mira-compare-toggle.on .mct-icon svg{stroke:#c9cdd6}
+.mira-compare-vs{color:#6f7584}
+
+/* Pop-ups (name/email form, report pop-up) in the same dark colours. */
+.a-modal-overlay,.lead-modal-overlay{
+  --card:#171a23;--card-h:#1b1e28;--bg3:#1b1e28;--white:#eceef3;
+  --g100:#e4e6eb;--g200:#c9cdd6;--g300:#9aa0ac;--g400:#7d8392;--g500:#2c303c;--g600:#232733;
+  --brd:rgba(255,255,255,.08);--brd2:rgba(255,255,255,.14);color:#eceef3;background:rgba(0,0,0,.65)}
+.a-modal,.lead-modal{background:#12141b;border-color:rgba(255,255,255,.08);box-shadow:0 24px 70px rgba(0,0,0,.7);color-scheme:dark}
 </style>
 </head>
 <body>

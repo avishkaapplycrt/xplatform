@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class CrmConnectionController extends Controller
 {
@@ -263,20 +264,20 @@ class CrmConnectionController extends Controller
             }
         }
 
-        // For non-OAuth providers or if status was 'disconnected'
-        if ($formStatus === 'connected') {
-            $connection->update([
-                'last_sync_at' => now(),
-                'sync_count'   => ($connection->sync_count ?? 0) + 1,
-            ]);
+        $message = $connection->wasRecentlyCreated
+            ? 'CRM connection created successfully.'
+            : 'CRM connection updated successfully.';
+
+        // Non-OAuth providers (HubSpot, Pipedrive): pull their data now so the
+        // new connection shows contacts and deals straight away.
+        if ($formStatus === 'connected' && $connection->is_connected) {
+            $message = $this->firstSyncMessage(rtrim($message, '.'), $this->runSync($connection));
             $connection->refresh();
         }
 
         return response()->json([
             'success'   => true,
-            'message'   => $connection->wasRecentlyCreated
-                ? 'CRM connection created successfully.'
-                : 'CRM connection updated successfully.',
+            'message'   => $message,
             'connection' => [
                 'id'       => $connection->id,
                 'provider' => $connection->provider,
@@ -397,7 +398,6 @@ class CrmConnectionController extends Controller
             $updateData = [
                 'access_token'     => Crypt::encryptString($tokenData['access_token']),
                 'status'           => 'connected',
-                'last_sync_at'     => now(),
                 'last_error'       => null,
             ];
 
@@ -413,8 +413,9 @@ class CrmConnectionController extends Controller
 
             $this->fetchZohoUserInfo($connection, $tokenData['access_token']);
 
+            // Pull the CRM's data now so the new connection shows it straight away.
             return redirect()->route('client.crm-connections')
-                ->with('success', 'Zoho CRM connected successfully!');
+                ->with('success', $this->firstSyncMessage('Zoho CRM connected', $this->runSync($connection->fresh())));
 
         } catch (\Exception $e) {
             $connection->update([
@@ -610,7 +611,6 @@ class CrmConnectionController extends Controller
             $updateData = [
                 'access_token'     => Crypt::encryptString($tokenData['access_token']),
                 'status'           => 'connected',
-                'last_sync_at'     => now(),
                 'last_error'       => null,
             ];
 
@@ -625,8 +625,9 @@ class CrmConnectionController extends Controller
 
             $this->fetchMondayUserInfo($connection, $tokenData['access_token']);
 
+            // Pull the CRM's data now so the new connection shows it straight away.
             return redirect()->route('client.crm-connections')
-                ->with('success', 'Monday.com connected successfully!');
+                ->with('success', $this->firstSyncMessage('Monday.com connected', $this->runSync($connection->fresh())));
 
         } catch (\Exception $e) {
             $connection->update([
@@ -821,45 +822,57 @@ class CrmConnectionController extends Controller
             ], 400);
         }
 
+        $result = $this->runSync($connection);
+
+        if (!$result['success']) {
+            return response()->json(['success' => false, 'message' => $result['message']], $result['status'] ?? 500);
+        }
+
+        return response()->json([
+            'success'    => true,
+            'message'    => $result['message'],
+            'last_sync'  => $connection->fresh()->last_sync_at?->diffForHumans(),
+            'details'    => $result['details'] ?? null,
+        ]);
+    }
+
+    /**
+     * Pull contacts and deals (or the provider's equivalent) from the CRM —
+     * what the Sync button does, and what runs right after a CRM is connected
+     * so a new connection shows data straight away.
+     *
+     * @return array{success: bool, message: string, details?: array|null, status?: int}
+     */
+    private function runSync(CrmIntegration $connection): array
+    {
+        $provider = $connection->provider;
+
         // Refresh token if expired before syncing
         if ($connection->is_expired) {
-            if ($provider === 'zoho') {
-                $refreshResult = $this->refreshZohoToken($connection);
-                if (!$refreshResult['success']) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Sync failed: ' . $refreshResult['message'],
-                    ], 400);
-                }
-            } elseif ($provider === 'monday') {
-                $refreshResult = $this->refreshMondayToken($connection);
-                if (!$refreshResult['success']) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Sync failed: ' . $refreshResult['message'],
-                    ], 400);
-                }
+            $refreshResult = match ($provider) {
+                'zoho'   => $this->refreshZohoToken($connection),
+                'monday' => $this->refreshMondayToken($connection),
+                default  => ['success' => true],
+            };
+            if (!$refreshResult['success']) {
+                return ['success' => false, 'message' => 'Sync failed: ' . $refreshResult['message'], 'status' => 400];
             }
         }
 
         try {
-            // Provider-specific sync logic
-            $syncResult = null;
-            if ($provider === 'pipedrive') {
-                $syncResult = $this->syncPipedrive($connection);
-            } elseif ($provider === 'monday') {
-                $syncResult = $this->syncMonday($connection);
-            } elseif ($provider === 'hubspot') {
-                $syncResult = $this->syncHubSpot($connection);
-            } elseif ($provider === 'zoho') {
-                $syncResult = $this->syncZoho($connection);
-            }
+            $syncResult = match ($provider) {
+                'pipedrive' => $this->syncPipedrive($connection),
+                'monday'    => $this->syncMonday($connection),
+                'hubspot'   => $this->syncHubSpot($connection),
+                'zoho'      => $this->syncZoho($connection),
+                default     => null,
+            };
 
             if ($syncResult && !$syncResult['success']) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $syncResult['message'],
-                ], 500);
+                $connection->update(['last_error' => $syncResult['message']]);
+                Log::warning('CRM sync failed', ['client_id' => $connection->client_id, 'provider' => $provider, 'message' => $syncResult['message']]);
+
+                return ['success' => false, 'message' => $syncResult['message']];
             }
 
             $connection->update([
@@ -868,20 +881,33 @@ class CrmConnectionController extends Controller
                 'last_error'   => null,
             ]);
 
-            $connection->refresh();
-
-            return response()->json([
-                'success'    => true,
-                'message'    => $syncResult['message'] ?? 'Sync initiated successfully.',
-                'last_sync'  => $connection->last_sync_at?->diffForHumans(),
-                'details'    => $syncResult['details'] ?? null,
-            ]);
+            return [
+                'success' => true,
+                'message' => $syncResult['message'] ?? 'Sync initiated successfully.',
+                'details' => $syncResult['details'] ?? null,
+            ];
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Sync failed: ' . $e->getMessage(),
-            ], 500);
+            $connection->update(['last_error' => $e->getMessage()]);
+            Log::warning('CRM sync failed', ['client_id' => $connection->client_id, 'provider' => $provider, 'message' => $e->getMessage()]);
+
+            return ['success' => false, 'message' => 'Sync failed: ' . $e->getMessage()];
         }
+    }
+
+    /** "… connected" plus how the first sync went, for the connect flows. */
+    private function firstSyncMessage(string $connected, array $result): string
+    {
+        if (!$result['success']) {
+            return "{$connected}, but the first sync didn't finish: {$result['message']} Use Sync to try again.";
+        }
+
+        $d = $result['details'] ?? [];
+        $parts = array_filter([
+            isset($d['contacts']) ? $d['contacts'] . ' ' . \Illuminate\Support\Str::plural('contact', $d['contacts']) : null,
+            isset($d['deals']) ? $d['deals'] . ' ' . \Illuminate\Support\Str::plural('deal', $d['deals']) : null,
+        ]);
+
+        return $connected . ($parts ? ' and synced ' . implode(' and ', $parts) . '.' : ' and synced.');
     }
 
     /**

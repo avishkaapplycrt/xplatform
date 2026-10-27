@@ -90,16 +90,15 @@ class CrmAnalyticsController extends Controller
     }
 
     /**
-     * Connections are stored per-provider in `crm_integrations` (see
-     * CrmConnectionController), not per-client — there's no client_id on
-     * that table, so this reflects whether the platform has ANY connected
-     * CRM, matching how CrmConnectionController itself treats connections.
+     * Connections live in `crm_integrations` (see CrmConnectionController).
+     * The CRM queries in this controller start from the models, so they only
+     * see the signed-in client's connections, contacts and deals.
      */
     private function hasCrmData($client): bool
     {
         try {
             if (!DB::getSchemaBuilder()->hasTable('crm_integrations')) return false;
-            return DB::table('crm_integrations')->where('status', 'connected')->exists();
+            return \App\Models\CrmIntegration::query()->toBase()->where('status', 'connected')->exists();
         } catch (\Exception $e) { return false; }
     }
 
@@ -107,7 +106,7 @@ class CrmAnalyticsController extends Controller
     {
         try {
             if (!DB::getSchemaBuilder()->hasTable('crm_contacts')) return 0;
-            return DB::table('crm_contacts')->count();
+            return \App\Models\CrmContact::query()->toBase()->count();
         } catch (\Exception $e) { return 0; }
     }
 
@@ -115,7 +114,7 @@ class CrmAnalyticsController extends Controller
     {
         try {
             if (!DB::getSchemaBuilder()->hasTable('crm_deals')) return 0;
-            return DB::table('crm_deals')
+            return \App\Models\CrmDeal::query()->toBase()
                 ->where('created_at', '>=', now()->subDays($days))->count();
         } catch (\Exception $e) { return 0; }
     }
@@ -124,7 +123,7 @@ class CrmAnalyticsController extends Controller
     {
         try {
             if (!DB::getSchemaBuilder()->hasTable('crm_deals')) return 0;
-            return DB::table('crm_deals')->sum('value') ?? 0;
+            return \App\Models\CrmDeal::query()->toBase()->sum('value') ?? 0;
         } catch (\Exception $e) { return 0; }
     }
 
@@ -132,9 +131,9 @@ class CrmAnalyticsController extends Controller
     {
         try {
             if (!DB::getSchemaBuilder()->hasTable('crm_deals')) return 0;
-            $total = DB::table('crm_deals')
+            $total = \App\Models\CrmDeal::query()->toBase()
                 ->where('created_at', '>=', now()->subDays($days))->count();
-            $won = DB::table('crm_deals')
+            $won = \App\Models\CrmDeal::query()->toBase()
                 ->where('status', 'won')
                 ->where('created_at', '>=', now()->subDays($days))->count();
             return $total > 0 ? round(($won / $total) * 100, 2) : 0;
@@ -145,7 +144,7 @@ class CrmAnalyticsController extends Controller
     {
         try {
             if (!DB::getSchemaBuilder()->hasTable('crm_integrations')) return 0;
-            return DB::table('crm_integrations')->where('status', 'connected')->count();
+            return \App\Models\CrmIntegration::query()->toBase()->where('status', 'connected')->count();
         } catch (\Exception $e) { return 0; }
     }
 
@@ -158,7 +157,7 @@ class CrmAnalyticsController extends Controller
     {
         try {
             if (!DB::getSchemaBuilder()->hasTable('crm_integrations')) return false;
-            return DB::table('crm_integrations')
+            return \App\Models\CrmIntegration::query()->toBase()
                 ->where('status', 'connected')
                 ->whereNotNull('last_sync_at')
                 ->exists();
@@ -169,7 +168,7 @@ class CrmAnalyticsController extends Controller
     {
         try {
             if (!DB::getSchemaBuilder()->hasTable('crm_contacts')) return collect();
-            return DB::table('crm_contacts')->orderByDesc('last_activity_at')->limit(200)->get();
+            return \App\Models\CrmContact::query()->toBase()->orderByDesc('last_activity_at')->limit(200)->get();
         } catch (\Exception $e) { return collect(); }
     }
 
@@ -177,7 +176,7 @@ class CrmAnalyticsController extends Controller
     {
         try {
             if (!DB::getSchemaBuilder()->hasTable('crm_deals')) return collect();
-            return DB::table('crm_deals')->orderByDesc('updated_at')->limit(200)->get();
+            return \App\Models\CrmDeal::query()->toBase()->orderByDesc('updated_at')->limit(200)->get();
         } catch (\Exception $e) { return collect(); }
     }
 
@@ -192,7 +191,7 @@ class CrmAnalyticsController extends Controller
         try {
             if (!DB::getSchemaBuilder()->hasTable('crm_deals')) return collect();
 
-            return DB::table('crm_deals')
+            return \App\Models\CrmDeal::query()->toBase()
                 ->selectRaw('COALESCE(stage, \'(no stage)\') as stage, COUNT(*) as deal_count, SUM(value) as total_value')
                 ->groupBy('stage')
                 ->orderByDesc('total_value')
@@ -212,7 +211,7 @@ class CrmAnalyticsController extends Controller
             $events = collect();
 
             if (DB::getSchemaBuilder()->hasTable('crm_contacts')) {
-                foreach (DB::table('crm_contacts')->orderByDesc('updated_at')->limit(50)->get() as $c) {
+                foreach (\App\Models\CrmContact::query()->toBase()->orderByDesc('updated_at')->limit(50)->get() as $c) {
                     $name = trim(($c->first_name ?? '') . ' ' . ($c->last_name ?? '')) ?: ($c->email ?? 'Unknown contact');
                     $events->push((object) [
                         'type'      => 'contact',
@@ -225,7 +224,7 @@ class CrmAnalyticsController extends Controller
             }
 
             if (DB::getSchemaBuilder()->hasTable('crm_deals')) {
-                foreach (DB::table('crm_deals')->orderByDesc('updated_at')->limit(50)->get() as $d) {
+                foreach (\App\Models\CrmDeal::query()->toBase()->orderByDesc('updated_at')->limit(50)->get() as $d) {
                     $events->push((object) [
                         'type'      => 'deal',
                         'label'     => "Deal updated: {$d->name}",
@@ -258,7 +257,7 @@ class CrmAnalyticsController extends Controller
                 return ['open_value' => 0, 'open_count' => 0, 'by_month' => collect()];
             }
 
-            $open = DB::table('crm_deals')->where('status', 'open');
+            $open = \App\Models\CrmDeal::query()->toBase()->where('status', 'open');
 
             $byMonth = (clone $open)
                 ->whereNotNull('close_date')
@@ -292,7 +291,7 @@ class CrmAnalyticsController extends Controller
             $groupByMonth = $days > 60;
             $buckets = [];
 
-            foreach (DB::table('crm_deals')->get() as $deal) {
+            foreach (\App\Models\CrmDeal::query()->toBase()->get() as $deal) {
                 $raw = json_decode($deal->raw_data ?? '{}', true);
                 $createdAt = $raw['createdAt'] ?? $deal->created_at;
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToClient;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,9 @@ use Illuminate\Support\Collection;
 
 class BehavioralProfile extends Model
 {
+    // Signed-in clients only see their own behaviour profiles.
+    use BelongsToClient;
+
     protected $fillable = [
         'client_id', 'name', 'email', 'segment',
         'intent_score', 'engagement_score', 'churn_score', 'loyalty_score',

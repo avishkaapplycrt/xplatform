@@ -2,10 +2,22 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToClient;
 use Illuminate\Database\Eloquent\Model;
 
 class SlackMessage extends Model
 {
+    // Belongs to the client who owns the Slack channel it was synced from (client_id).
+    use BelongsToClient;
+
+    /** Owner of the Slack channel it was synced from. */
+    public function clientIdFromParent(): ?int
+    {
+        $id = SlackChannel::withoutGlobalScopes()->whereKey($this->slack_channel_id)->value('client_id');
+
+        return $id === null ? null : (int) $id;
+    }
+
     protected $fillable = [
         'slack_channel_id', 'ts', 'user_id', 'text',
         'reply_count', 'reaction_count', 'posted_at', 'synced_at',

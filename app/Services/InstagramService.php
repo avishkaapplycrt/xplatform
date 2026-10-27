@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
  * Pulls real post + insight data for a connected Instagram account and
  * upserts it into instagram_media / instagram_account_insights.
  *
- * Mirrors HubSpotService's shape: a plain service with no queue awareness of
+ * A plain service with no queue awareness of
  * its own — SyncInstagramPosts (the job) owns connection status/error
  * tracking, this class only owns talking to the Instagram API and writing
  * rows.
@@ -290,10 +290,10 @@ class InstagramService
 
         $pByName = collect($insights->json('data', []))->keyBy('name');
 
+        // One row per post per connection, so two clients can connect the same account.
         InstagramMedia::updateOrCreate(
-            ['media_id' => $item['id']],
+            ['social_integration_id' => $connection->id, 'media_id' => $item['id']],
             [
-                'social_integration_id' => $connection->id,
                 'media_type'      => $item['media_type'] ?? null,
                 'caption'         => $item['caption'] ?? null,
                 'permalink'       => $item['permalink'] ?? null,

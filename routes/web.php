@@ -327,7 +327,25 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('company/overview', [ClientOverviewController::class, 'show'])->name('company.overview');
 
     // Layer pages
-    Route::get('layers/l1',      fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), \App\Models\InstagramMedia::socialStats())))->name('layer.l1');
+    // Data Collection (Layer 1): the signed-in client's email, social and call
+    // stats, plus their own counts for the cards at the top.
+    $dataCollectionView = function () {
+        $client = \Illuminate\Support\Facades\Auth::guard('client')->user();
+
+        // Real CRM, Slack and payment figures for the CRM / Chat & Support / Transactions tabs.
+        $stats = app(\App\Services\DataCollectionStats::class);
+        $dcCounts = $stats->counts($client);
+
+        return view('client.data-collection.mobile_events', array_merge(
+            EmailLog::deliveryStats(), CallLog::callStats(), \App\Models\InstagramMedia::socialStats(), [
+                'dcCounts' => $dcCounts,
+                'dcCrm'    => $stats->crm($client),
+                'dcChat'   => $stats->chat($client),
+                'dcTxn'    => $stats->transactions($client),
+            ]
+        ));
+    };
+    Route::get('layers/l1',      $dataCollectionView)->name('layer.l1');
     Route::get('layers/l2',      [DecisionCentreController::class, 'l2'])->name('layer.l2');
     Route::get('layers/l3',      [DecisionCentreController::class, 'l3'])->name('layer.l3');
     Route::get('layers/l4',      [DecisionCentreController::class, 'index'])->name('layer.l4');
@@ -337,7 +355,7 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     Route::get('layers/l8',      [DecisionCentreController::class, 'l8'])->name('layer.l8');
     Route::get('layers/rl',      fn() => view('client.layers.rl'))->name('layer.rl');
     Route::get('architecture',   fn() => view('client.architecture-overview'))->name('architecture');
-    Route::get('data-collection',fn() => view('client.data-collection.mobile_events', array_merge(EmailLog::deliveryStats(), CallLog::callStats(), \App\Models\InstagramMedia::socialStats())))->name('data-collection');
+    Route::get('data-collection',$dataCollectionView)->name('data-collection');
     // Active Tenant dropdown (layouts/platform): remember the choice, then open that tenant's helper.
     Route::get('tenant/{tenant}', function (string $tenant) {
         session(['active_tenant' => $tenant]);
@@ -393,9 +411,14 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         // the A/B test prompts do, so the pane and the answers agree.
         $retentionAbPool = app(\App\Services\RetentionAbTestService::class)->poolSummary();
 
+        // The helpers only use the signed-in client's own CRM data; a client
+        // with no connected CRM is pointed to CRM Connections.
+        $hasCrmConnection = \App\Models\CrmIntegration::where('status', 'connected')->exists();
+
         return view('client.business-helpers', compact(
             'marketingPrompts', 'salesPrompts', 'marketingSteps', 'realAccounts',
-            'retentionPrompts', 'retentionSteps', 'retentionContactNames', 'retentionAbPool'
+            'retentionPrompts', 'retentionSteps', 'retentionContactNames', 'retentionAbPool',
+            'hasCrmConnection'
         ));
     })->name('business-helpers');
 
@@ -715,7 +738,10 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
     // still handles quick-action buttons and any close keyword match first.
     Route::post('business-helpers/sales/ask', function (\Illuminate\Http\Request $request) {
         return response()->json(
-            app(\App\Services\Llm\SalesChatService::class)->answer((string) $request->input('question', ''))
+            app(\App\Services\Llm\SalesChatService::class)->answer(
+                (string) $request->input('question', ''),
+                $request->input('agent') === 'ch' ? 'ch' : 'sl'
+            )
         );
     })->name('business-helpers.sales.ask');
 

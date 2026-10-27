@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToClient;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CrmIntegration extends Model
 {
-    use HasFactory, SoftDeletes;
+    // Each connection belongs to the client who connected it.
+    use BelongsToClient, HasFactory, SoftDeletes;
 
     protected $table = 'crm_integrations';
 
@@ -30,6 +32,7 @@ class CrmIntegration extends Model
         'sync_count',
         'last_error',
         'created_by',
+        'client_id',
     ];
 
     protected $casts = [

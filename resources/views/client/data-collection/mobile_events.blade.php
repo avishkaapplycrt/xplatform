@@ -25,6 +25,17 @@
   .section-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#3b82f6; white-space:nowrap; }
   .panel-card { border:1px solid #edf0f2; border-radius:12px; background:#fff; padding:16px; }
   .globe-panel { padding:40px 20px; text-align:center; }
+  .dc-unavailable { display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; padding:56px 20px; border:1px dashed #e2e8f0; border-radius:12px; background:#fafbfc; }
+  .dc-unavailable p { font-size:13px; color:#64748b; max-width:420px; line-height:1.6; }
+  .dc-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+  .dc-blocks { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; }
+  .dc-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .dc-table th { text-align:left; font-size:10.5px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:.04em; padding:6px 8px; border-bottom:1px solid #f1f5f9; }
+  .dc-table td { padding:8px; color:#374151; border-bottom:1px solid #f8fafc; }
+  @media (max-width:900px) { .dc-stats { grid-template-columns:repeat(2,1fr); } }
+  .dc-connect { margin-top:4px; font-size:12px; font-weight:600; color:#fff; background:#0d9488; border-radius:8px; padding:7px 14px; text-decoration:none; }
+  .dc-connect:hover { background:#0f766e; }
+  .dc-soon { font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:#0d9488; background:#f0fdfa; border:1px solid #99f6e4; border-radius:999px; padding:3px 10px; }
   .teal-section-dot { background:#10b981; }
   .teal-section-line { background:#a7f3d0; }
   .teal-section-title { color:#10b981; }
@@ -129,18 +140,6 @@
       </svg>
     </a>
 
-    <span class="flex items-center gap-1.5">
-      <svg class="w-3.5 h-3.5 text-violet-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/>
-      </svg>
-      <span class="font-medium text-gray-600">8.7M profiles</span>
-    </span>
-    <span class="flex items-center gap-1.5">
-      <svg class="w-3.5 h-3.5 text-pink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-      </svg>
-      <span class="font-medium text-gray-600">94.1% accuracy</span>
-    </span>
 
     {{-- Avatar with dropdown --}}
     <div style="position:relative" id="l1AvatarWrap">
@@ -183,48 +182,23 @@
 {{-- SCROLLABLE BODY --}}
 <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
 
-  {{-- KPI CARDS --}}
+  {{-- KPI CARDS: the signed-in client's own counts (see routes: layer.l1 / data-collection) --}}
+  @php
+    $dcKpis = [
+      ['Connected Sources', number_format($dcCounts['sources'] ?? 0) . ' / 5', 'Email, CRM, social, chat and payments', 'text-emerald-500'],
+      ['Emails Tracked',    number_format($dcCounts['emails'] ?? 0),          'Sent emails in your email logs',        'text-blue-500'],
+      ['CRM Records',       number_format($dcCounts['crm'] ?? 0),             'Contacts and deals synced from your CRM', 'text-violet-500'],
+      ['Transactions',      number_format($dcCounts['transactions'] ?? 0),    'Payments synced from your provider',    'text-amber-500'],
+    ];
+  @endphp
   <div class="grid grid-cols-4 gap-4">
+    @foreach ($dcKpis as [$kLabel, $kValue, $kNote, $kColor])
     <div class="bg-white rounded-xl border border-gray-200 p-4">
-      <svg class="w-[18px] h-[18px] text-emerald-400 mb-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 2l2.09 4.26L19 7.27l-3.5 3.41.83 4.82L12 13.25l-4.33 2.25.83-4.82L5 7.27l4.91-.01z"/>
-      </svg>
-      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Total Micro-Signals</p>
-      <p class="text-[24px] font-bold text-emerald-400 leading-tight mt-1">150+</p>
-      <p class="text-[11px] text-gray-400 mt-1.5 flex items-center gap-1">
-        <span class="text-emerald-500 text-xs">▲</span> Across all 8 layers
-      </p>
+      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{{ $kLabel }}</p>
+      <p class="text-[24px] font-bold {{ $kColor }} leading-tight mt-1">{{ $kValue }}</p>
+      <p class="text-[11px] text-gray-400 mt-1.5">{{ $kNote }}</p>
     </div>
-    <div class="bg-white rounded-xl border border-gray-200 p-4">
-      <svg class="w-[18px] h-[18px] text-amber-400 mb-3" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M13 2L3 14h8l-1 8 11-14h-8z"/>
-      </svg>
-      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Events / Day</p>
-      <p class="text-[24px] font-bold text-blue-500 leading-tight mt-1">4.2M</p>
-      <p class="text-[11px] text-gray-400 mt-1.5 flex items-center gap-1">
-        <span class="text-emerald-500 text-xs">▲</span> 18% WoW
-      </p>
-    </div>
-    <div class="bg-white rounded-xl border border-gray-200 p-4">
-      <svg class="w-[18px] h-[18px] text-violet-400 mb-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-5-5M9 20H4v-2a4 4 0 015-5m6-5a4 4 0 11-8 0 4 4 0 018 0z"/>
-      </svg>
-      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Profiles Resolved</p>
-      <p class="text-[24px] font-bold text-violet-500 leading-tight mt-1">8.7M</p>
-      <p class="text-[11px] text-gray-400 mt-1.5 flex items-center gap-1">
-        <span class="text-emerald-500 text-xs">▲</span> 98.2% match rate
-      </p>
-    </div>
-    <div class="bg-white rounded-xl border border-gray-200 p-4">
-      <svg class="w-[18px] h-[18px] text-gray-400 mb-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-      </svg>
-      <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Active Tenants</p>
-      <p class="text-[24px] font-bold text-amber-500 leading-tight mt-1">4</p>
-      <p class="text-[11px] text-gray-400 mt-1.5 flex items-center gap-1">
-        <span class="text-emerald-500 text-xs">▲</span> 2 added this Q
-      </p>
-    </div>
+    @endforeach
   </div>
 
   {{-- SOURCE CARDS --}}
@@ -549,7 +523,7 @@
     {{-- CRM tab bar --}}
     <div id="tabs-crm" class="border-b border-gray-200 overflow-x-auto" style="display:none;">
       @foreach([
-        ['stage-transitions','Stage Transitions'],
+        ['stage-transitions','Pipeline by Stage'],
         ['field-completion','Field Completion'],
         ['owner-changes','Owner Changes'],
         ['opt-in-out','Opt in/out history'],
@@ -565,7 +539,7 @@
       @foreach([
         ['conversation-events','Conversation Events'],
         ['sentiment-tracking','Sentiment Tracking'],
-        ['resolution-metrics','Resolution Metrics'],
+        ['resolution-metrics','Replies & Reactions'],
       ] as [$tid,$tlabel])
       <button class="tab-btn {{ $tid==='conversation-events' ? 'active' : '' }}"
               onclick="selectTab('chat','{{ $tid }}')">{{ $tlabel }}</button>
@@ -575,9 +549,9 @@
     {{-- Transactions tab bar --}}
     <div id="tabs-transactions" class="border-b border-gray-200 overflow-x-auto" style="display:none;">
       @foreach([
-        ['cart-analytics','Cart Analytics'],
+        ['cart-analytics','Order Analytics'],
         ['payment-methods','Payment Methods'],
-        ['failure-codes','Failure Codes'],
+        ['failure-codes','Payment Status'],
         ['refunds','Refunds'],
         ['repeat-purchase','Repeat Purchase'],
       ] as [$tid,$tlabel])
@@ -681,431 +655,72 @@
 
     {{-- Scroll Depth --}}
     <div id="panel-website-scroll-depth" class="panel active p-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#3b82f6"></div>
-            <span class="section-title">Scroll Depth Distribution</span>
-            <div class="section-line"></div>
-          </div>
-          @foreach([['0–25% (shallow)',18,'#5eead4'],['25–59%',24,'#60a5fa'],['50–75%',31,'#a78bfa'],['75–100% (deep)',27,'#f59e0b']] as [$l,$v,$c])
-          <div style="margin-bottom:14px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-              <span style="font-size:12px;color:#374151">{{ $l }}</span>
-              <span style="font-size:12px;font-weight:700;color:{{ $c }}">{{ $v }}%</span>
-            </div>
-            <div class="bar-wrap"><div class="bar-fill" style="width:{{ $v }}%;background:{{ $c }}"></div></div>
-          </div>
-          @endforeach
-        </div>
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#3b82f6"></div>
-            <span class="section-title">Scroll Depth by Page Type</span>
-            <div class="section-line"></div>
-          </div>
-          @foreach(['Landing Pages','Blog Post','Product Pages','Pricing Pages','Checkout Flow'] as $page)
-          <div style="margin-bottom:14px">
-            <p style="font-size:12px;color:#6b7280;margin-bottom:4px">{{ $page }}</p>
-            <div style="display:flex;height:22px;border-radius:4px;overflow:hidden">
-              <div style="width:16%;background:#f87171"></div>
-              <div style="width:24%;background:#fb923c"></div>
-              <div style="width:16%;background:#fbbf24"></div>
-              <div style="width:28%;background:#60a5fa"></div>
-              <div style="width:16%;background:#5eead4"></div>
-            </div>
-          </div>
-          @endforeach
-          <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:10px;color:#9ca3af">
-            @foreach([['#f87171','0–25'],['#fb923c','25–50%'],['#fbbf24','50–75%'],['#60a5fa','75–90%'],['#5eead4','90–100']] as [$c,$l])
-            <span style="display:flex;align-items:center;gap:4px">
-              <span style="width:8px;height:8px;border-radius:2px;background:{{ $c }};display:inline-block"></span>{{ $l }}
-            </span>
-            @endforeach
-          </div>
-        </div>
-      </div>
-      <div style="margin-top:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 18px">
-        <p style="font-size:11px;font-weight:600;color:#16a34a">● Key Insight</p>
-        <p style="font-size:13px;color:#4b5563;margin-top:4px">58% scroll past fold. Pricing CTA at 70% depth achieves 3.2× higher interaction vs top-fold.</p>
-      </div>
+      @include('client.data-collection.partials.unavailable', ['tag' => 'Not connected',
+          'message' => 'Connect your website to view this data.',
+          'actionUrl' => route('client.website-connections'), 'actionLabel' => 'Connect website'])
     </div>
 
     {{-- Page Views --}}
     <div id="panel-website-page-views" class="panel p-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#3b82f6"></div>
-            <span class="section-title">Top Pages by Views</span>
-            <div class="section-line"></div>
-          </div>
-          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;font-size:10px;color:#9ca3af;text-transform:uppercase;padding-bottom:8px;border-bottom:1px solid #f3f4f6;margin-bottom:4px">
-            <span>Page</span><span>Views</span><span>Bounce</span><span>Avg Time</span>
-          </div>
-          @foreach([['/home','48,200','32%','2m14s'],['/ pricing','24,100','28%','3m42s'],['/features','18,900','41%','1m58s'],['/blog','14,700','55%','4m22s'],['/docs','11,200','22%','5m10s'],['/about','8,400','61%','0m58s']] as [$pg,$v,$b,$t])
-          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;font-size:12px;padding:9px 0;border-bottom:1px solid #f9fafb;align-items:center">
-            <span style="color:#3b82f6;font-weight:500">{{ $pg }}</span>
-            <span style="color:#374151;font-weight:600">{{ $v }}</span>
-            <span style="color:{{ (int)$b > 50 ? '#ef4444' : '#10b981' }}">{{ $b }}</span>
-            <span style="color:#9ca3af">{{ $t }}</span>
-          </div>
-          @endforeach
-        </div>
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#3b82f6"></div>
-            <span class="section-title">Traffic Source Breakdown</span>
-            <div class="section-line"></div>
-          </div>
-          @foreach([['Direct',38,'#5eead4'],['Organic Search',29,'#60a5fa'],['Referral',14,'#a78bfa'],['Social Media',11,'#f59e0b'],['Email',5,'#ec4899'],['Paid',3,'#f97316']] as [$l,$v,$c])
-          <div style="margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-              <span style="font-size:12px;color:#374151">{{ $l }}</span>
-              <span style="font-size:11px;font-weight:700;color:{{ $c }}">{{ $v }}%</span>
-            </div>
-            <div class="bar-wrap"><div class="bar-fill" style="width:{{ $v * 2 }}%;background:{{ $c }}"></div></div>
-          </div>
-          @endforeach
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">
-            <div class="mini"><p style="font-size:20px;font-weight:700;color:#3b82f6">126K</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Total Views Today</p></div>
-            <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">38%</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Avg Bounce Rate</p></div>
-          </div>
-        </div>
-      </div>
+      @include('client.data-collection.partials.unavailable', ['tag' => 'Not connected',
+          'message' => 'Connect your website to view this data.',
+          'actionUrl' => route('client.website-connections'), 'actionLabel' => 'Connect website'])
     </div>
 
     {{-- Time on Page --}}
     <div id="panel-website-time-on-page" class="panel p-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#3b82f6"></div>
-            <span class="section-title">Time on Page Distribution</span>
-            <div class="section-line"></div>
-          </div>
-          @foreach([['< 10 sec (bounced)','27.2k users',18,'#5eead4'],['10 s – 1 min','38.4k users',24,'#60a5fa'],['1 – 3 min','34.7k users',31,'#a78bfa'],['3 – 5 min','14.9k users',27,'#f59e0b'],['> 5 min (deep read)','8.7k users',27,'#ec4899']] as [$l,$u,$v,$c])
-          <div style="margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-              <span style="font-size:12px;color:#374151">{{ $l }}</span>
-              <span style="font-size:10px;color:#9ca3af">{{ $u }}</span>
-              <span style="font-size:11px;font-weight:700;color:{{ $c }}">{{ $v }}%</span>
-            </div>
-            <div class="bar-wrap"><div class="bar-fill" style="width:{{ $v }}%;background:{{ $c }}"></div></div>
-          </div>
-          @endforeach
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">
-            <div class="mini"><p style="font-size:20px;font-weight:700;color:#f59e0b">2m 38s</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Avg time on page</p></div>
-            <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">6m 12s</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Median for Converters</p></div>
-          </div>
-        </div>
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#3b82f6"></div>
-            <span class="section-title">Scroll Depth by Page Type</span>
-            <div class="section-line"></div>
-          </div>
-          @foreach([['< 30s','0.4% CVR'],['30s – 1m','1.2% CVR'],['1–2m','3.8% CVR'],['2–4m','7.2% CVR'],['4–6m','11.4% CVR'],['> 6m','14.1% CVR']] as [$l,$v])
-          <div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border-radius:8px;padding:7px 12px;margin-bottom:4px">
-            <span style="font-size:12px;color:#6b7280">{{ $l }}</span>
-            <span style="font-size:12px;font-weight:700;color:#f59e0b">{{ $v }}</span>
-          </div>
-          @endforeach
-        </div>
-      </div>
+      @include('client.data-collection.partials.unavailable', ['tag' => 'Not connected',
+          'message' => 'Connect your website to view this data.',
+          'actionUrl' => route('client.website-connections'), 'actionLabel' => 'Connect website'])
     </div>
 
     {{-- Mouse Heatmap --}}
     <div id="panel-website-mouse-heatmap" class="panel p-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#f97316"></div>
-            <span class="section-title" style="color:#f97316">Mouse Movement Heatmap – Pricing</span>
-            <div class="section-line" style="background:#fed7aa"></div>
-          </div>
-          <div style="background:#fafafa;border-radius:8px;padding:20px 16px;display:flex;flex-direction:column;gap:14px;align-items:center">
-            @foreach([
-              ['Hero CTA – Hot', 'rgba(185,60,10,0.82)', '180px', '48px'],
-              ['Pricing Tool',   'rgba(185,60,10,0.92)', '240px', '56px'],
-              ['Feature List',   'rgba(194,75,15,0.72)', '190px', '48px'],
-              ['FAQ Section',    'rgba(210,95,25,0.62)', '160px', '44px'],
-            ] as [$label, $bg, $w, $h])
-            <div style="position:relative;width:{{ $w }};height:{{ $h }};display:flex;align-items:center;justify-content:center">
-              <div style="position:absolute;inset:0;background:{{ $bg }};border-radius:50%;filter:blur(10px)"></div>
-              <span style="position:relative;z-index:1;font-size:11px;font-weight:600;color:#fff;white-space:nowrap">{{ $label }}</span>
-            </div>
-            @endforeach
-          </div>
-        </div>
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#3b82f6"></div>
-            <span class="section-title">Scroll Depth by Page Type</span>
-            <div class="section-line"></div>
-          </div>
-          @foreach([['< 30s','0.4% CVR'],['30s – 1m','1.2% CVR'],['1–2m','3.8% CVR'],['2–4m','7.2% CVR'],['4–6m','11.4% CVR'],['> 6m','14.1% CVR']] as [$l,$v])
-          <div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border-radius:8px;padding:7px 12px;margin-bottom:4px">
-            <span style="font-size:12px;color:#6b7280">{{ $l }}</span>
-            <span style="font-size:12px;font-weight:700;color:#f59e0b">{{ $v }}</span>
-          </div>
-          @endforeach
-        </div>
-      </div>
+      @include('client.data-collection.partials.unavailable', ['tag' => 'Not connected',
+          'message' => 'Connect your website to view this data.',
+          'actionUrl' => route('client.website-connections'), 'actionLabel' => 'Connect website'])
     </div>
 
     {{-- Form Analytics --}}
     <div id="panel-website-form-analytics" class="panel p-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#3b82f6"></div>
-            <span class="section-title">Form Field Analytics – Checkout</span>
-            <div class="section-line"></div>
-          </div>
-          @foreach([['Email',18,'#5eead4',75],['Full Name',24,'#60a5fa',80],['Card No.',31,'#a78bfa',75],['Expiry',27,'#f59e0b',75],['CVV',27,'#f59e0b',75],['Zip Code',27,'#f59e0b',75]] as [$l,$v,$c,$f])
-          <div style="margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-              <span style="font-size:12px;color:#374151">{{ $l }}</span>
-              <span style="font-size:11px;font-weight:700;color:{{ $c }}">{{ $v }}%</span>
-            </div>
-            <div class="bar-wrap"><div class="bar-fill bg-blue-400" style="width:{{ $f }}%"></div></div>
-          </div>
-          @endforeach
-        </div>
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#3b82f6"></div>
-            <span class="section-title">Form Field Analytics – Checkout</span>
-            <div class="section-line"></div>
-          </div>
-          @foreach([['Form Shown','-19%','#f87171',0],['First Field','24%','#60a5fa',80],['50% Complete','31%','#a78bfa',75],['90% Complete','27%','#f59e0b',75],['Submitted','27%','#f59e0b',75],['Confirmed','27%','#f59e0b',75]] as [$l,$v,$c,$f])
-          <div style="margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-              <span style="font-size:12px;color:#374151">{{ $l }}</span>
-              <span style="font-size:11px;font-weight:700;color:{{ $c }}">{{ $v }}</span>
-            </div>
-            <div class="bar-wrap"><div class="bar-fill bg-blue-400" style="width:{{ $f }}%"></div></div>
-          </div>
-          @endforeach
-        </div>
-      </div>
+      @include('client.data-collection.partials.unavailable', ['tag' => 'Not connected',
+          'message' => 'Connect your website to view this data.',
+          'actionUrl' => route('client.website-connections'), 'actionLabel' => 'Connect website'])
     </div>
 
     {{-- Internal Search --}}
     <div id="panel-website-internal-search" class="panel p-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot teal-section-dot"></div>
-            <span class="section-title teal-section-title">Top Search Queries</span>
-            <div class="section-line teal-section-line"></div>
-          </div>
-          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;font-size:10px;color:#9ca3af;text-transform:uppercase;padding-bottom:8px;border-bottom:1px solid #f3f4f6;margin-bottom:4px">
-            <span>Query</span><span>Searches</span><span>Clicks</span><span>Exit %</span>
-          </div>
-          @foreach([['pricing plans','4,820','3,940','18%'],['API integrations','2,410','2,180','9%'],['refund policy','1,840','1,240','41%'],['enterprise','1,620','1,480','8%'],['how to cancel','1,210','980','62%'],['data export','940','820','12%']] as [$q,$s,$c,$e])
-          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;font-size:12px;padding:9px 0;border-bottom:1px solid #f9fafb">
-            <span style="color:#14b8a6;font-weight:500">{{ $q }}</span>
-            <span style="color:#6b7280">{{ $s }}</span>
-            <span style="color:#14b8a6">{{ $c }}</span>
-            <span style="color:{{ (int)$e > 30 ? '#ef4444' : '#14b8a6' }}">{{ $e }}</span>
-          </div>
-          @endforeach
-        </div>
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot teal-section-dot"></div>
-            <span class="section-title teal-section-title">Zero Result Searches (Intent Gaps)</span>
-            <div class="section-line teal-section-line"></div>
-          </div>
-          @foreach(['"white label"','"SAML SSO Setup"','"bulk import csv"','"mobile SDK"','"custom domain"'] as $t)
-          <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #f9fafb">
-            <span style="font-size:12px;font-weight:500;color:#f59e0b">{{ $t }}</span>
-            <span style="font-size:10px;font-weight:700;color:#ef4444">NO RESULTS</span>
-          </div>
-          @endforeach
-          <div style="border:1px solid #e5e7eb;border-radius:10px;padding:18px;text-align:center;margin-top:16px">
-            <p style="font-size:26px;font-weight:700;color:#14b8a6">63%</p>
-            <p style="font-size:11px;color:#9ca3af;margin-top:4px">searches use autocomplete</p>
-          </div>
-        </div>
-      </div>
+      @include('client.data-collection.partials.unavailable', ['tag' => 'Not connected',
+          'message' => 'Connect your website to view this data.',
+          'actionUrl' => route('client.website-connections'), 'actionLabel' => 'Connect website'])
     </div>
 
     {{-- Rage Clicks --}}
     <div id="panel-website-rage-clicks" class="panel p-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#ef4444"></div>
-            <span class="section-title" style="color:#ef4444">Top Rage-Clicked Elements</span>
-            <div class="section-line" style="background:#fecaca"></div>
-          </div>
-          @foreach([['#pricing-cta','1,240 sessions',18,'#ef4444'],['  .disabled-btn','980 sessions',14,'#f97316'],['#promo-banner','840 sessions',12,'#f59e0b'],['  .collapsed-menu','720 sessions',10,'#a78bfa'],['#submit-form','580 sessions',8,'#60a5fa']] as [$el,$s,$v,$c])
-          <div style="margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-              <span style="font-size:11px;font-weight:600;color:#374151;font-family:monospace">{{ $el }}</span>
-              <div style="display:flex;align-items:center;gap:10px">
-                <span style="font-size:10px;color:#9ca3af">{{ $s }}</span>
-                <span style="font-size:11px;font-weight:700;color:{{ $c }}">{{ $v }}%</span>
-              </div>
-            </div>
-            <div class="bar-wrap"><div class="bar-fill" style="width:{{ $v * 4 }}%;background:{{ $c }}"></div></div>
-          </div>
-          @endforeach
-        </div>
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#ef4444"></div>
-            <span class="section-title" style="color:#ef4444">Rage Clicks by Page</span>
-            <div class="section-line" style="background:#fecaca"></div>
-          </div>
-          @foreach([['/checkout',42,'#ef4444'],['/pricing',28,'#f97316'],['/signup',16,'#f59e0b'],['/settings',9,'#a78bfa'],['Other',5,'#9ca3af']] as [$p,$v,$c])
-          <div style="margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-              <span style="font-size:12px;color:#374151">{{ $p }}</span>
-              <span style="font-size:11px;font-weight:700;color:{{ $c }}">{{ $v }}%</span>
-            </div>
-            <div class="bar-wrap"><div class="bar-fill" style="width:{{ $v * 2 }}%;background:{{ $c }}"></div></div>
-          </div>
-          @endforeach
-          <div style="margin-top:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 14px">
-            <p style="font-size:11px;font-weight:600;color:#ef4444">● Key Insight</p>
-            <p style="font-size:12px;color:#4b5563;margin-top:4px">Most rage clicks on disabled checkout CTA — suggest enabling earlier in the payment flow.</p>
-          </div>
-        </div>
-      </div>
+      @include('client.data-collection.partials.unavailable', ['tag' => 'Not connected',
+          'message' => 'Connect your website to view this data.',
+          'actionUrl' => route('client.website-connections'), 'actionLabel' => 'Connect website'])
     </div>
 
     {{-- Exit Intent --}}
     <div id="panel-website-exit-intent" class="panel p-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#f97316"></div>
-            <span class="section-title" style="color:#f97316">Exit Intent Triggers by Page</span>
-            <div class="section-line" style="background:#fed7aa"></div>
-          </div>
-          @foreach([['/pricing','3,840',38,'#f97316'],['/checkout','2,920',29,'#ef4444'],['/features','1,480',15,'#f59e0b'],['/signup','1,020',10,'#a78bfa'],['Other','840',8,'#9ca3af']] as [$p,$cnt,$v,$c])
-          <div style="margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-              <span style="font-size:12px;color:#374151">{{ $p }}</span>
-              <div style="display:flex;gap:10px;align-items:center">
-                <span style="font-size:10px;color:#9ca3af">{{ $cnt }}</span>
-                <span style="font-size:11px;font-weight:700;color:{{ $c }}">{{ $v }}%</span>
-              </div>
-            </div>
-            <div class="bar-wrap"><div class="bar-fill" style="width:{{ $v * 2 }}%;background:{{ $c }}"></div></div>
-          </div>
-          @endforeach
-        </div>
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#f97316"></div>
-            <span class="section-title" style="color:#f97316">Exit Offer Conversion Funnel</span>
-            <div class="section-line" style="background:#fed7aa"></div>
-          </div>
-          @foreach([['Intent Detected','10,100','100%','#9ca3af'],['Overlay Shown','8,420','83%','#f97316'],['Offer Engaged','2,950','35%','#f59e0b'],['Converted','840','29%','#10b981']] as [$l,$cnt,$pct,$c])
-          <div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border-radius:8px;padding:11px 14px;margin-bottom:8px">
-            <span style="font-size:12px;color:#6b7280">{{ $l }}</span>
-            <div style="display:flex;gap:10px;align-items:center">
-              <span style="font-size:12px;font-weight:600;color:#374151">{{ $cnt }}</span>
-              <span style="font-size:11px;font-weight:700;color:{{ $c }}">{{ $pct }}</span>
-            </div>
-          </div>
-          @endforeach
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
-            <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">8.3%</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Overall Save Rate</p></div>
-            <div class="mini"><p style="font-size:20px;font-weight:700;color:#f97316">2.4×</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">CVR vs No Overlay</p></div>
-          </div>
-        </div>
-      </div>
+      @include('client.data-collection.partials.unavailable', ['tag' => 'Not connected',
+          'message' => 'Connect your website to view this data.',
+          'actionUrl' => route('client.website-connections'), 'actionLabel' => 'Connect website'])
     </div>
 
     {{-- Video Events --}}
     <div id="panel-website-video-events" class="panel p-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#8b5cf6"></div>
-            <span class="section-title" style="color:#8b5cf6">Video Engagement Funnel</span>
-            <div class="section-line" style="background:#ddd6fe"></div>
-          </div>
-          @foreach([['Play Pressed','18,200','100%','#8b5cf6'],[' 25% Watched','13,840','76%','#6366f1'],['50% Watched','10,200','56%','#3b82f6'],['75% Watched','7,480','41%','#60a5fa'],['Completed','4,920','27%','#5eead4']] as [$l,$cnt,$pct,$c])
-          <div style="margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-              <span style="font-size:12px;color:#374151">{{ $l }}</span>
-              <div style="display:flex;gap:10px;align-items:center">
-                <span style="font-size:10px;color:#9ca3af">{{ $cnt }}</span>
-                <span style="font-size:11px;font-weight:700;color:{{ $c }}">{{ $pct }}</span>
-              </div>
-            </div>
-            <div class="bar-wrap"><div class="bar-fill" style="width:{{ (int)$pct }}%;background:{{ $c }}"></div></div>
-          </div>
-          @endforeach
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">
-            <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">27%</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Completion Rate</p></div>
-            <div class="mini"><p style="font-size:20px;font-weight:700;color:#10b981">4m 18s</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Avg Watch Time</p></div>
-          </div>
-        </div>
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#8b5cf6"></div>
-            <span class="section-title" style="color:#8b5cf6">Top Video Content</span>
-            <div class="section-line" style="background:#ddd6fe"></div>
-          </div>
-          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;font-size:10px;color:#9ca3af;text-transform:uppercase;padding-bottom:8px;border-bottom:1px solid #f3f4f6;margin-bottom:4px">
-            <span>Video</span><span>Plays</span><span>Completion</span>
-          </div>
-          @foreach([['Product Demo','8,420','72%'],['Onboarding Walkthrough','5,180','84%'],['Tutorial #1','3,920','64%'],['Case Study – Acme','2,840','55%'],['Feature Deep Dive','1,960','48%']] as [$n,$p,$c])
-          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;font-size:12px;padding:9px 0;border-bottom:1px solid #f9fafb;align-items:center">
-            <span style="color:#374151;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $n }}</span>
-            <span style="color:#6b7280">{{ $p }}</span>
-            <span style="color:{{ (int)$c > 60 ? '#10b981' : '#f59e0b' }};font-weight:700">{{ $c }}</span>
-          </div>
-          @endforeach
-        </div>
-      </div>
+      @include('client.data-collection.partials.unavailable', ['tag' => 'Not connected',
+          'message' => 'Connect your website to view this data.',
+          'actionUrl' => route('client.website-connections'), 'actionLabel' => 'Connect website'])
     </div>
 
     {{-- Tab Visibility --}}
     <div id="panel-website-tab-visibility" class="panel p-4">
-      <div class="grid grid-cols-2 gap-4">
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#14b8a6"></div>
-            <span class="section-title teal-section-title">Tab Active / Inactive Breakdown</span>
-            <div class="section-line teal-section-line"></div>
-          </div>
-          @foreach([['Always Active (tab never hidden)',42,'#14b8a6'],['Mostly Active (> 80% visible)',28,'#60a5fa'],['Mixed (40 – 80% visible)',18,'#a78bfa'],['Mostly Inactive (< 40%)',12,'#f59e0b']] as [$l,$v,$c])
-          <div style="margin-bottom:14px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-              <span style="font-size:12px;color:#374151">{{ $l }}</span>
-              <span style="font-size:12px;font-weight:700;color:{{ $c }}">{{ $v }}%</span>
-            </div>
-            <div class="bar-wrap"><div class="bar-fill" style="width:{{ $v * 2 }}%;background:{{ $c }}"></div></div>
-          </div>
-          @endforeach
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
-            <div class="mini"><p style="font-size:20px;font-weight:700;color:#14b8a6">4.2×</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Tab blur events / session</p></div>
-            <div class="mini"><p style="font-size:20px;font-weight:700;color:#8b5cf6">34%</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Multi-tab users</p></div>
-          </div>
-        </div>
-        <div class="panel-card">
-          <div class="section-header">
-            <div class="section-dot" style="background:#14b8a6"></div>
-            <span class="section-title teal-section-title">Impact on Session Metrics</span>
-            <div class="section-line teal-section-line"></div>
-          </div>
-          @foreach([['Active Sessions – Avg duration','6m 42s','#10b981'],['Inactive Sessions – Avg duration','2m 14s','#ef4444'],['Active → Conversion rate','72%','#10b981'],['Inactive → Conversion rate','14%','#ef4444'],['Tab regain after blur','58%','#f59e0b'],['Abandoned after 3+ blurs','24%','#f97316']] as [$l,$v,$c])
-          <div style="display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border-radius:8px;padding:7px 12px;margin-bottom:4px">
-            <span style="font-size:12px;color:#6b7280">{{ $l }}</span>
-            <span style="font-size:12px;font-weight:700;color:{{ $c }}">{{ $v }}</span>
-          </div>
-          @endforeach
-        </div>
-      </div>
+      @include('client.data-collection.partials.unavailable', ['tag' => 'Not connected',
+          'message' => 'Connect your website to view this data.',
+          'actionUrl' => route('client.website-connections'), 'actionLabel' => 'Connect website'])
     </div>
 
     {{-- ═══════════════════════════════════════
@@ -1336,359 +951,46 @@
          CRM PANELS
          ═══════════════════════════════════════ --}}
 
-    {{-- Stage Transitions --}}
-    <div id="panel-crm-stage-transitions" class="panel p-4">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch">
-
-        {{-- Left: velocity table --}}
-        <div style="border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:16px">
-          {{-- Section header --}}
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-            <span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;flex-shrink:0;display:inline-block"></span>
-            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#8b5cf6;white-space:nowrap">Sales Stage Transition Velocity</span>
-            <span style="flex:1;height:1px;background:#ddd6fe;display:block"></span>
-          </div>
-
-          {{-- Column headers --}}
-          <div style="display:grid;grid-template-columns:1fr 80px 100px;padding-bottom:10px;border-bottom:1px solid #f3f4f6">
-            <span style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em">Stage</span>
-            <span style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;text-align:right">Avg Days</span>
-            <span style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;text-align:right">Deals</span>
-          </div>
-
-          @foreach([
-            ['Lead → MQL',       '3.2d','1,840 deals'],
-            ['MQL → SQL',        '3.2d','1,840 deals'],
-            ['SQL → Protocol',   '3.2d','1,840 deals'],
-            ['Protocol → Close', '3.2d','1,840 deals'],
-            ['Close → Won',      '3.2d','1,840 deals'],
-          ] as [$stage,$days,$deals])
-          <div style="display:grid;grid-template-columns:1fr 80px 100px;align-items:center;padding:14px 0;border-bottom:1px solid #f3f4f6">
-            <span style="font-size:13px;color:#111827;font-weight:500">{{ $stage }}</span>
-            <span style="font-size:14px;font-weight:700;color:#10b981;text-align:right">{{ $days }}</span>
-            <span style="font-size:12px;color:#9ca3af;text-align:right">{{ $deals }}</span>
-          </div>
-          @endforeach
-        </div>
-
-        {{-- Right: area chart + stat boxes --}}
-        <div style="border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:16px;display:flex;flex-direction:column">
-          {{-- Section header --}}
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-            <span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;flex-shrink:0;display:inline-block"></span>
-            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#8b5cf6;white-space:nowrap">Deal Velocity Trend</span>
-            <span style="flex:1;height:1px;background:#ddd6fe;display:block"></span>
-          </div>
-
-          {{-- SVG smooth single-peak mountain curve --}}
-          <div style="flex:1;margin-bottom:16px">
-            <svg viewBox="0 0 400 130" width="100%" height="160" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="crm-grad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#c4b5fd" stop-opacity="0.5"/>
-                  <stop offset="100%" stop-color="#ede9fe" stop-opacity="0.02"/>
-                </linearGradient>
-              </defs>
-              {{-- Smooth single-peak: steep left rise, gradual right descent --}}
-              <path d="M0,108 C55,108 90,20 145,10 S 300,108 400,100 L400,130 L0,130 Z" fill="url(#crm-grad)"/>
-              <path d="M0,108 C55,108 90,20 145,10 S 300,108 400,100" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="145" cy="10" r="5" fill="#8b5cf6"/>
-            </svg>
-          </div>
-
-          {{-- Stat boxes --}}
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div style="border:1px solid #e5e7eb;border-radius:10px;padding:20px 12px;text-align:center">
-              <p style="font-size:34px;font-weight:700;color:#f59e0b;line-height:1;margin:0">68</p>
-              <p style="font-size:11px;color:#9ca3af;margin-top:8px;line-height:1.5">deals stalled &gt; 30 days</p>
-            </div>
-            <div style="border:1px solid #e5e7eb;border-radius:10px;padding:20px 12px;text-align:center">
-              <p style="font-size:34px;font-weight:700;color:#10b981;line-height:1;margin:0">241</p>
-              <p style="font-size:11px;color:#9ca3af;margin-top:8px;line-height:1.5">Deals closed this month</p>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    {{-- CRM globe panels --}}
-    @foreach([
-      ['field-completion', 'CRM – Field Completion'],
-      ['owner-changes',    'CRM – Owner Changes'],
-      ['opt-in-out',       'CRM – Opt-in/Out History'],
-      ['manual-notes',     'CRM – Manual Notes'],
-    ] as [$tid, $title])
+    {{-- ═══════════════════════════════════════
+         CRM PANELS (real synced deals and contacts —
+         see App\Services\DataCollectionStats)
+         ═══════════════════════════════════════ --}}
+    @foreach(['stage-transitions', 'field-completion'] as $tid)
     <div id="panel-crm-{{ $tid }}" class="panel p-6">
-      <div style="text-align:center;padding:32px 0">
-        <div style="width:72px;height:72px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
-          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.4">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M12 2C12 2 8 6 8 12s4 10 4 10M12 2c0 0 4 4 4 10s-4 10-4 10"/>
-            <path d="M2 12h20M3.5 7h17M3.5 17h17"/>
-          </svg>
-        </div>
-        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:6px">{{ $title }}</h3>
-        <p style="font-size:13px;color:#9ca3af;margin-bottom:28px">Analytics pannel for this micro signal</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:500px;margin:0 auto">
-          <div class="mini"><p style="font-size:18px;font-weight:700;color:#10b981">1.2M/day</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
-          <div class="mini"><p style="font-size:18px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
-          <div class="mini"><p style="font-size:18px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
-        </div>
-      </div>
+      @include('client.data-collection.partials.stats-panel', ['p' => $dcCrm[$tid]])
+    </div>
+    @endforeach
+
+    {{-- Signals the CRM sync doesn't bring in yet --}}
+    @foreach([
+      'owner-changes' => "Deal and contact owners aren't part of your CRM sync yet, so owner changes can't be shown.",
+      'opt-in-out'    => "Your CRM sync doesn't include email opt-in or opt-out history yet. Email unsubscribes are under Email Engagement.",
+      'manual-notes'  => "Notes written in your CRM aren't part of the sync yet.",
+    ] as $tid => $why)
+    <div id="panel-crm-{{ $tid }}" class="panel p-6">
+      @include('client.data-collection.partials.unavailable', ['message' => $why])
     </div>
     @endforeach
 
     {{-- ═══════════════════════════════════════
-         CHAT & SUPPORT PANELS
+         CHAT & SUPPORT PANELS (real Slack messages)
          ═══════════════════════════════════════ --}}
-
-    {{-- Conversation Events --}}
-    <div id="panel-chat-conversation-events" class="panel p-5">
-      <div class="globe-panel">
-        <div style="width:64px;height:64px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
-          <svg width="32" height="32" fill="none" stroke="#3b82f6" stroke-width="1.5" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="4" ry="10"/>
-            <line x1="2" y1="12" x2="22" y2="12"/>
-            <path d="M2 7c2.5 1 5 1.5 10 1.5S19.5 8 22 7"/><path d="M2 17c2.5-1 5-1.5 10-1.5S19.5 16 22 17"/>
-          </svg>
-        </div>
-        <h3 style="font-size:18px;font-weight:700;color:#111827">Chat &amp; Support – Conversation Events</h3>
-        <p style="font-size:12px;color:#9ca3af;margin-top:4px">Analytics panel for this micro signal</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:480px;margin:24px auto 0">
-          <div class="mini"><p style="font-size:17px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Events today</p></div>
-          <div class="mini"><p style="font-size:17px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Status</p></div>
-          <div class="mini"><p style="font-size:17px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Signal Quality</p></div>
-        </div>
-      </div>
+    @foreach(['conversation-events', 'resolution-metrics'] as $tid)
+    <div id="panel-chat-{{ $tid }}" class="panel p-6">
+      @include('client.data-collection.partials.stats-panel', ['p' => $dcChat[$tid]])
     </div>
+    @endforeach
 
-    {{-- Sentiment Tracking --}}
-    <div id="panel-chat-sentiment-tracking" class="panel p-4">
-      @php
-      $sentimentRows = [
-        ['Credit card',     52, '#10b981'],
-        ['Apple / Google pay', 24, '#3b82f6'],
-        ['Paypal',          14, '#8b5cf6'],
-        ['bank transfer',   55, '#f59e0b'],
-        ['Buy Now pay later',66, '#ec4899'],
-      ];
-      @endphp
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-
-        {{-- Left: Chat Sentiment Distribution --}}
-        <div style="border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:16px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px">
-            <span style="width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0;display:inline-block"></span>
-            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#10b981;white-space:nowrap">Chat Sentiment Distribution</span>
-            <span style="flex:1;height:1px;background:#a7f3d0;display:block"></span>
-          </div>
-          @foreach($sentimentRows as [$l,$v,$c])
-          <div style="margin-bottom:18px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:7px">
-              <span style="font-size:13px;color:#374151">{{ $l }}</span>
-              <span style="font-size:13px;font-weight:700;color:{{ $c }}">{{ $v }}%</span>
-            </div>
-            <div style="height:7px;background:#f3f4f6;border-radius:999px;overflow:hidden">
-              <div style="height:7px;width:{{ $v }}%;background:{{ $c }};border-radius:999px"></div>
-            </div>
-          </div>
-          @endforeach
-        </div>
-
-        {{-- Right: Sentiment By Topic --}}
-        <div style="border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:16px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px">
-            <span style="width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0;display:inline-block"></span>
-            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#10b981;white-space:nowrap">Sentiment By Topic</span>
-            <span style="flex:1;height:1px;background:#a7f3d0;display:block"></span>
-          </div>
-          @foreach($sentimentRows as [$l,$v,$c])
-          <div style="margin-bottom:18px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:7px">
-              <span style="font-size:13px;color:#374151">{{ $l }}</span>
-              <span style="font-size:13px;font-weight:700;color:{{ $c }}">{{ $v }}%</span>
-            </div>
-            <div style="height:7px;background:#f3f4f6;border-radius:999px;overflow:hidden">
-              <div style="height:7px;width:{{ $v }}%;background:{{ $c }};border-radius:999px"></div>
-            </div>
-          </div>
-          @endforeach
-        </div>
-
-      </div>
-    </div>
-
-    {{-- Resolution Metrics --}}
-    <div id="panel-chat-resolution-metrics" class="panel p-5">
-      <div class="globe-panel">
-        <div style="width:64px;height:64px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
-          <svg width="32" height="32" fill="none" stroke="#3b82f6" stroke-width="1.5" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="4" ry="10"/>
-            <line x1="2" y1="12" x2="22" y2="12"/>
-            <path d="M2 7c2.5 1 5 1.5 10 1.5S19.5 8 22 7"/><path d="M2 17c2.5-1 5-1.5 10-1.5S19.5 16 22 17"/>
-          </svg>
-        </div>
-        <h3 style="font-size:18px;font-weight:700;color:#111827">Chat &amp; Support – Resolution Metrics</h3>
-        <p style="font-size:12px;color:#9ca3af;margin-top:4px">Analytics panel for this micro signal</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:480px;margin:24px auto 0">
-          <div class="mini"><p style="font-size:17px;font-weight:700;color:#10b981">340k/day</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Events today</p></div>
-          <div class="mini"><p style="font-size:17px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Status</p></div>
-          <div class="mini"><p style="font-size:17px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:4px">Signal Quality</p></div>
-        </div>
-      </div>
+    <div id="panel-chat-sentiment-tracking" class="panel p-6">
+      @include('client.data-collection.partials.unavailable', ['message' => "Sentiment isn't worked out for your Slack messages yet."])
     </div>
 
     {{-- ═══════════════════════════════════════
-         TRANSACTIONS PANELS
+         TRANSACTIONS PANELS (real payments and customers)
          ═══════════════════════════════════════ --}}
-
-    {{-- Cart Analytics --}}
-    <div id="panel-transactions-cart-analytics" class="panel p-4">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-
-        {{-- Left: Cart Abandonment by Step --}}
-        <div style="border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:16px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-            <span style="width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0;display:inline-block"></span>
-            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#10b981;white-space:nowrap">Cart Abandonment By Step</span>
-            <span style="flex:1;height:1px;background:#a7f3d0;display:block"></span>
-          </div>
-          @foreach([
-            ['Item added',       '48,200', null,   null],
-            ['Cart viewed',      '41,800', '-13%', '#ef4444'],
-            ['Checkout started', '32,400', '-22%', '#ef4444'],
-            ['Address entered',  '28,900', '-11%', '#ef4444'],
-            ['Payment reached',  '22,100', '-24%', '#ef4444'],
-            ['Order confirmed',  '18,900', '-14%', '#ef4444'],
-          ] as [$step,$count,$change,$cc])
-          <div style="display:grid;grid-template-columns:1fr 80px 60px;align-items:center;padding:13px 0;border-bottom:1px solid #f3f4f6">
-            <span style="font-size:13px;color:#111827;font-weight:500">{{ $step }}</span>
-            <span style="font-size:13px;color:#374151;text-align:right">{{ $count }}</span>
-            @if($change)
-            <span style="font-size:12px;font-weight:700;color:{{ $cc }};text-align:right">{{ $change }}</span>
-            @else
-            <span></span>
-            @endif
-          </div>
-          @endforeach
-        </div>
-
-        {{-- Right: Items Left in Abandoned Carts --}}
-        <div style="border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:16px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-            <span style="width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0;display:inline-block"></span>
-            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#10b981;white-space:nowrap">Items Left in Abandoned Carts</span>
-            <span style="flex:1;height:1px;background:#a7f3d0;display:block"></span>
-          </div>
-          @foreach([
-            ['Electronics',   '4,200 items','4200','#10b981', 78],
-            ['Apparel',       '4,200 items','4200','#3b82f6', 70],
-            ['Home & Living', '4,200 items','4200','#8b5cf6', 65],
-            ['Beauty',        '4,200 items','4200','#f59e0b', 58],
-            ['Sports',        '4,200 items','4200','#ec4899', 52],
-          ] as [$cat,$items,$val,$c,$w])
-          <div style="margin-bottom:12px">
-            <div style="display:grid;grid-template-columns:1fr auto auto;gap:0 12px;align-items:center;margin-bottom:5px">
-              <span style="font-size:12px;color:#374151;font-weight:500">{{ $cat }}</span>
-              <span style="font-size:11px;color:#9ca3af">{{ $items }}</span>
-              <span style="font-size:13px;font-weight:700;color:{{ $c }};min-width:40px;text-align:right">{{ $val }}</span>
-            </div>
-            <div style="height:5px;background:#f3f4f6;border-radius:999px;overflow:hidden">
-              <div style="height:5px;width:{{ $w }}%;background:{{ $c }};border-radius:999px"></div>
-            </div>
-          </div>
-          @endforeach
-          <div style="margin-top:18px;padding-top:14px;border-top:1px solid #f3f4f6">
-            <p style="font-size:28px;font-weight:700;color:#f59e0b;line-height:1;margin:0">$2.8M</p>
-            <p style="font-size:11px;color:#9ca3af;margin-top:6px">cart value abandoned today — recoverable via re-engagement</p>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    {{-- Payment Methods --}}
-    <div id="panel-transactions-payment-methods" class="panel p-4">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-
-        {{-- Left: Payment Method Distribution --}}
-        <div style="border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:16px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-            <span style="width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0;display:inline-block"></span>
-            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#10b981;white-space:nowrap">Payment Method Distribution</span>
-            <span style="flex:1;height:1px;background:#a7f3d0;display:block"></span>
-          </div>
-          @foreach([
-            ['Credit card',        52, '#10b981'],
-            ['Apple / Google Pay', 24, '#3b82f6'],
-            ['PayPal',             14, '#8b5cf6'],
-            ['Bank Transfer',      55, '#f59e0b'],
-            ['Buy Now Pay Later',  66, '#ec4899'],
-          ] as [$method,$pct,$c])
-          <div style="margin-bottom:14px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-              <span style="font-size:12px;color:#374151">{{ $method }}</span>
-              <span style="font-size:12px;font-weight:700;color:{{ $c }}">{{ $pct }}%</span>
-            </div>
-            <div style="height:5px;background:#f3f4f6;border-radius:999px;overflow:hidden">
-              <div style="height:5px;width:{{ $pct }}%;background:{{ $c }};border-radius:999px"></div>
-            </div>
-          </div>
-          @endforeach
-        </div>
-
-        {{-- Right: Payment Failure Reason Codes --}}
-        <div style="border:1px solid #e5e7eb;border-radius:12px;background:#fff;padding:16px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-            <span style="width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0;display:inline-block"></span>
-            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#10b981;white-space:nowrap">Payment Failure Reason Codes</span>
-            <span style="flex:1;height:1px;background:#a7f3d0;display:block"></span>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 80px 70px;font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;padding-bottom:8px;border-bottom:1px solid #f3f4f6">
-            <span>Code</span><span style="text-align:right">Count</span><span style="text-align:right">Rate</span>
-          </div>
-          @foreach([
-            ['insufficient_funds', '842', '0.51%', '#f59e0b'],
-            ['card_declined',      '842', '0.51%', '#ef4444'],
-            ['expired_card',       '842', '0.51%', '#9ca3af'],
-            ['network_error',      '842', '0.51%', '#14b8a6'],
-            ['do_not_honor',       '842', '0.51%', '#6366f1'],
-          ] as [$code,$count,$rate,$c])
-          <div style="display:grid;grid-template-columns:1fr 80px 70px;align-items:center;padding:12px 0;border-bottom:1px solid #f9fafb">
-            <span style="font-size:12px;font-weight:600;color:{{ $c }};font-family:monospace">{{ $code }}</span>
-            <span style="font-size:12px;color:#374151;text-align:right">{{ $count }}</span>
-            <span style="font-size:12px;font-weight:600;color:{{ $c }};text-align:right">{{ $rate }}</span>
-          </div>
-          @endforeach
-        </div>
-
-      </div>
-    </div>
-
-    {{-- Failure Codes, Refunds, Repeat Purchase — globe panels --}}
-    @foreach([
-      ['failure-codes',   'Transactions – Failure Codes',  '340k/day'],
-      ['refunds',         'Transactions – Refunds',         '340k/day'],
-      ['repeat-purchase', 'Transactions – Repeat Purchase', '340k/day'],
-    ] as [$tid,$title,$val])
+    @foreach(['cart-analytics', 'payment-methods', 'failure-codes', 'refunds', 'repeat-purchase'] as $tid)
     <div id="panel-transactions-{{ $tid }}" class="panel p-6">
-      <div style="text-align:center;padding:32px 0">
-        <div style="width:72px;height:72px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
-          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.4">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M12 2C12 2 8 6 8 12s4 10 4 10M12 2c0 0 4 4 4 10s-4 10-4 10"/>
-            <path d="M2 12h20M3.5 7h17M3.5 17h17"/>
-          </svg>
-        </div>
-        <h3 style="font-size:20px;font-weight:700;color:#111827;margin-bottom:6px">{{ $title }}</h3>
-        <p style="font-size:13px;color:#9ca3af;margin-bottom:28px">Analytics pannel for this micro signal</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;max-width:500px;margin:0 auto">
-          <div class="mini"><p style="font-size:18px;font-weight:700;color:#10b981">{{ $val }}</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Events today</p></div>
-          <div class="mini"><p style="font-size:18px;font-weight:700;color:#3b82f6">live</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Status</p></div>
-          <div class="mini"><p style="font-size:18px;font-weight:700;color:#8b5cf6">97%</p><p style="font-size:11px;color:#9ca3af;margin-top:6px">Signal Quality</p></div>
-        </div>
-      </div>
+      @include('client.data-collection.partials.stats-panel', ['p' => $dcTxn[$tid]])
     </div>
     @endforeach
 
@@ -2687,6 +1989,11 @@
     {{-- ═══════════════════════════════════════
          GENERIC SOURCE PANEL
          ═══════════════════════════════════════ --}}
+    {{-- Tabs with no panel of their own (e.g. CRM "Field Completion") --}}
+    <div id="panel-unavailable" class="panel p-4">
+      @include('client.data-collection.partials.unavailable')
+    </div>
+
     <div id="panel-generic" class="panel p-5">
       <div class="globe-panel">
         <div style="width:64px;height:64px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
@@ -2769,7 +2076,7 @@ function selectSource(id) {
     currentTab = 'overview';
   } else {
     currentTab = meta.firstTab;
-    document.getElementById('panel-' + meta.tabs + '-' + currentTab).classList.add('active');
+    (document.getElementById('panel-' + meta.tabs + '-' + currentTab) || document.getElementById('panel-unavailable')).classList.add('active');
     // reset tab button highlights
     document.querySelectorAll('#tabs-' + meta.tabs + ' .tab-btn').forEach(b => b.classList.remove('active'));
     const firstBtn = document.querySelector('#tabs-' + meta.tabs + ' .tab-btn');
@@ -3145,8 +2452,8 @@ function closeBrevoTopModal() {
 
 function selectTab(src, tabId) {
   // hide all panels for this source
-  document.querySelectorAll('[id^="panel-' + src + '-"]').forEach(p => p.classList.remove('active'));
-  document.getElementById('panel-' + src + '-' + tabId).classList.add('active');
+  document.querySelectorAll('[id^="panel-' + src + '-"], #panel-unavailable').forEach(p => p.classList.remove('active'));
+  (document.getElementById('panel-' + src + '-' + tabId) || document.getElementById('panel-unavailable')).classList.add('active');
   currentTab = tabId;
 
   // update tab button highlight

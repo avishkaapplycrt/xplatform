@@ -425,7 +425,7 @@
           {{-- Action Buttons --}}
           <div class="flex items-center gap-2">
             @if($isConnected)
-              <button class="connect-btn success" onclick="event.stopPropagation(); syncProvider('{{ $key }}')">
+              <button class="connect-btn success" onclick="event.stopPropagation(); syncProvider('{{ $key }}', this)">
                 <span class="flex items-center gap-1.5">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -495,19 +495,24 @@
 
 @push('scripts')
 <script>
-function showToast(message, type = 'success') {
+function showToast(message, type = 'success', duration = 3000) {
   const toast = document.getElementById('toast');
   toast.textContent = message;
   toast.className = 'toast ' + type;
   setTimeout(() => toast.classList.add('show'), 10);
-  setTimeout(() => toast.classList.remove('show'), 3000);
+  setTimeout(() => toast.classList.remove('show'), duration);
 }
 
 function openProvider(provider) {
   window.location.href = '{{ route("client.crm.connect", ["provider" => "__PROVIDER__"]) }}'.replace('__PROVIDER__', provider);
 }
 
-function syncProvider(provider) {
+function syncProvider(provider, btn) {
+  // Show progress — a sync can take several seconds — and stop double clicks.
+  const label = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.style.opacity = '.7'; btn.innerHTML = '<span class="flex items-center gap-1.5">Syncing…</span>'; }
+  const reset = () => { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.innerHTML = label; } };
+
   fetch('{{ route("client.crm.sync", ["provider" => "__PROVIDER__"]) }}'.replace('__PROVIDER__', provider), {
     method: 'POST',
     headers: {
@@ -516,16 +521,22 @@ function syncProvider(provider) {
       'Content-Type': 'application/json'
     }
   })
-  .then(r => r.json())
+  .then(async r => {
+    // Not JSON (or an expired session): say so instead of failing silently.
+    if (r.status === 419 || r.status === 401) throw new Error('Your session has expired. Refresh the page and try again.');
+    const data = await r.json().catch(() => { throw new Error('The server returned an unexpected response (HTTP ' + r.status + ').'); });
+    return data;
+  })
   .then(data => {
     if (data.success) {
       showToast(data.message, 'success');
       setTimeout(() => location.reload(), 1500);
     } else {
-      showToast(data.message, 'error');
+      reset();
+      showToast(data.message || 'Sync failed.', 'error', 8000);
     }
   })
-  .catch(err => showToast('Sync failed: ' + err.message, 'error'));
+  .catch(err => { reset(); showToast('Sync failed: ' + err.message, 'error', 8000); });
 }
 
 function disconnectProvider(provider) {

@@ -47,7 +47,7 @@ class ClientDataSource extends Model
 
     public function getHostAttribute($value)
     {
-        return $value ? Crypt::decryptString($value) : null;
+        return $this->decryptOrNull($value);
     }
 
     public function setPortAttribute($value)
@@ -57,7 +57,9 @@ class ClientDataSource extends Model
 
     public function getPortAttribute($value)
     {
-        return $value ? (int) Crypt::decryptString($value) : null;
+        $port = $this->decryptOrNull($value);
+
+        return $port === null ? null : (int) $port;
     }
 
     public function setDatabaseNameAttribute($value)
@@ -67,7 +69,7 @@ class ClientDataSource extends Model
 
     public function getDatabaseNameAttribute($value)
     {
-        return $value ? Crypt::decryptString($value) : null;
+        return $this->decryptOrNull($value);
     }
 
     public function setUsernameAttribute($value)
@@ -77,7 +79,7 @@ class ClientDataSource extends Model
 
     public function getUsernameAttribute($value)
     {
-        return $value ? Crypt::decryptString($value) : null;
+        return $this->decryptOrNull($value);
     }
 
     public function setPasswordAttribute($value)
@@ -87,7 +89,25 @@ class ClientDataSource extends Model
 
     public function getPasswordAttribute($value)
     {
-        return $value ? Crypt::decryptString($value) : null;
+        return $this->decryptOrNull($value);
+    }
+
+    /**
+     * Decrypted value, or null if it was encrypted with a different app key
+     * (e.g. saved before APP_KEY changed) — the field then shows as empty and
+     * can be re-entered, instead of the whole Data Sources page failing.
+     */
+    private function decryptOrNull($value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($value);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException) {
+            return null;
+        }
     }
 
     public function client(): BelongsTo

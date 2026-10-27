@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToClient;
 use Illuminate\Database\Eloquent\Model;
 
 class BrevoDeliveredRecipient extends Model
 {
+    // Signed-in clients only see their own Brevo delivery rows.
+    use BelongsToClient;
+
     protected $table = 'email_logs_providers';
 
     protected $fillable = [

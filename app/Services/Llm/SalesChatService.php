@@ -34,7 +34,7 @@ class SalesChatService
     /**
      * @return array{answer: string, ai_used: bool}
      */
-    public function answer(string $question): array
+    public function answer(string $question, string $agent = 'sl'): array
     {
         $question = trim($question);
 
@@ -62,7 +62,7 @@ class SalesChatService
         }
 
         try {
-            return ['answer' => $this->ask($question, $accounts), 'ai_used' => true];
+            return ['answer' => $this->ask($question, $accounts, $agent), 'ai_used' => true];
         } catch (OpenAiException $e) {
             report($e);
             // A broken AI call should never take down a chat that has real
@@ -74,7 +74,7 @@ class SalesChatService
         }
     }
 
-    private function ask(string $question, Collection $accounts): string
+    private function ask(string $question, Collection $accounts, string $agent = 'sl'): string
     {
         $txByEmail = $this->transactions->accountTransactionContext();
 
@@ -92,8 +92,12 @@ class SalesChatService
         // be answered from this complete list, not the capped one.
         $payingCustomers = $this->transactions->allPayingCustomers();
 
-        $system = 'You are the Sales copilot inside a B2B analytics platform. '
-            . 'Answer the sales rep\'s question using ONLY the data provided as JSON — '
+        // Same real data for both helpers; only the role changes.
+        $role = $agent === 'ch'
+            ? 'You are the Customer Retention copilot inside a B2B analytics platform, helping keep existing customers. '
+            : 'You are the Sales copilot inside a B2B analytics platform. ';
+        $system = $role
+            . 'Answer the question using ONLY the data provided as JSON — '
             . 'never invent a name, number, or company that isn\'t in that data. '
             . 'There are two data sets: "accounts" is a capped, CRM-ranked slice of accounts, each with '
             . 'seg (champion/loyal/new/dormant/at_risk), mrr (CRM deal value in dollars — NOT an actual payment), '

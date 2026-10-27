@@ -19,6 +19,12 @@ class Client extends Authenticatable
 {
     use Notifiable;
 
+    /** "Forgot password" email, linking to the client reset page. */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\ClientResetPassword($token));
+    }
+
     protected $fillable = [
         'company_name',
         'email',
@@ -161,11 +167,6 @@ class Client extends Authenticatable
     public function actions()
     {
         return $this->belongsToMany(Action::class, 'client_actions')->withTimestamps();
-    }
-
-    public function crmConnections(): HasMany
-    {
-        return $this->hasMany(CrmConnection::class);
     }
 
     public function platformMetrics(): HasMany

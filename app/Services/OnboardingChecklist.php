@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Client;
-use App\Models\CrmConnection;
 use App\Models\EmailConnection;
 use App\Models\WebsiteConnection;
 use Illuminate\Support\Facades\DB;
@@ -90,7 +89,8 @@ class OnboardingChecklist
     {
         return WebsiteConnection::where('client_id', $client->id)->exists()
             || EmailConnection::where('client_id', $client->id)->exists()
-            || CrmConnection::where('client_id', $client->id)->exists()
+            || \App\Models\CrmIntegration::forClient($client)->exists()
+            || \App\Models\SocialIntegration::forClient($client)->exists()
             || $client->dataSources()->exists();
     }
 

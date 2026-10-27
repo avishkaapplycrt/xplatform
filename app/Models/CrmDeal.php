@@ -2,10 +2,22 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToClient;
 use Illuminate\Database\Eloquent\Model;
 
 class CrmDeal extends Model
 {
+    // Belongs to the client who owns the CRM connection it was synced from (client_id).
+    use BelongsToClient;
+
+    /** Owner of the CRM connection it was synced from. */
+    public function clientIdFromParent(): ?int
+    {
+        $id = CrmIntegration::withoutGlobalScopes()->whereKey($this->connection_id)->value('client_id');
+
+        return $id === null ? null : (int) $id;
+    }
+
     protected $fillable = [
         'connection_id',
         'provider',
