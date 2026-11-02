@@ -3554,6 +3554,10 @@ window.sendMsg = sendMsg;
 window.toggleSidebarCollapse = toggleSidebarCollapse;
 window.bhMira = bhMira;
 window.bhLeft = bhLeft;
+// Part 9 (Nov 2026): read access to the list filters, for the filter chips in client.partials.bh-motion.
+window.BH_FILTER_API = { lf: BH_LF, col: BH_COL, cols: BH_COLS, label: bhColLabel, redraw: bhLfRedraw,
+    // Part 10: the list popup's rows and the page's own email sender, for the popup's Send to all.
+    riskRows: function (id) { return RISK_DATA_CACHE[id] || []; }, bulkSend: bhBulkSend, templates: MK_CMP_TEMPLATES, fill: mkFillTemplate };
 
 setAgent('mk');
 bhMiraLoad();
@@ -3562,4 +3566,7 @@ bhQuickLoad();
 
 })();
 </script>
+{{-- Part 9 (Nov 2026): column filters in the list popup, and the Mock Master Helper look & animations --}}
+@include('client.partials.popup-table-filter')
+@include('client.partials.bh-motion')
 @endsection

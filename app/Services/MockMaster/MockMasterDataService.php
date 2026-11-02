@@ -44,7 +44,7 @@ class MockMasterDataService
      *
      * @return array{students: array, total: int, page: int, last_page: int}
      */
-    public function campaignStudentsPage(int $page, int $perPage, ?string $subscription = null, ?string $from = null, ?string $to = null, ?string $sort = null, string $dir = 'asc', ?string $plan = null): array
+    public function campaignStudentsPage(int $page, int $perPage, ?string $subscription = null, ?string $from = null, ?string $to = null, ?string $sort = null, string $dir = 'asc', ?string $plan = null, ?string $segment = null, bool $withCounts = false, array $colFilters = []): array
     {
         $candidates = $this->campaignCandidates($subscription, $from, $to);
 
@@ -54,25 +54,47 @@ class MockMasterDataService
             $plans = $this->planFor($candidates->pluck('studentid')->all());
             $candidates = $candidates->filter(fn ($r) => $this->planMatches($plans[(int) $r->studentid] ?? 'No purchase', $plan))->values();
         }
-        $total = $candidates->count();
+
+        // Segment cards need every candidate mapped (readiness, last login, expiry), as does sorting.
+        $useSegment = $segment !== null && $segment !== '' && $segment !== 'all';
+        $mapped = ($useSegment || $withCounts || $colFilters || ($sort && in_array($sort, self::CAMPAIGN_SORT_KEYS, true)))
+            ? $this->mapCampaignRows($candidates)
+            : null;
+        if ($colFilters) {
+            $mapped = $this->campaignColumnFilter($mapped, $colFilters); // column dropdowns, across every candidate
+        }
+        $counts = $withCounts ? $this->campaignSegmentCounts($mapped) : null;
+        if ($useSegment) {
+            $mapped = $this->campaignSegmentFilter($mapped, $segment);
+        }
+
+        $total = $mapped !== null ? count($mapped) : $candidates->count();
         $lastPage = max(1, (int) ceil($total / $perPage));
         $page = min(max(1, $page), $lastPage);
 
         if ($sort && in_array($sort, self::CAMPAIGN_SORT_KEYS, true)) {
-            $sorted = collect($this->mapCampaignRows($candidates))
+            $sorted = collect($mapped)
                 ->sortBy(fn ($r) => $r['sort'][$sort] ?? null, SORT_REGULAR, $dir === 'desc')
                 ->values();
             $students = $sorted->slice(($page - 1) * $perPage, $perPage)->values()->all();
+        } elseif ($mapped !== null) {
+            $students = array_slice($mapped, ($page - 1) * $perPage, $perPage);
         } else {
             $students = $this->mapCampaignRows($candidates->slice(($page - 1) * $perPage, $perPage));
         }
 
-        return [
+        $out = [
             'students' => $this->withPlan(array_map(fn ($r) => array_diff_key($r, ['sort' => true]), $students)),
             'total' => $total,
             'page' => $page,
             'last_page' => $lastPage,
+            'per_page' => $perPage,
         ];
+        if ($counts !== null) {
+            $out['segments'] = $counts;
+        }
+
+        return $out;
     }
 
     /**
@@ -83,7 +105,7 @@ class MockMasterDataService
      *
      * @param  array<string, array{min: ?float, max: ?float}>  $ranges  keyed by value|readiness|trust
      */
-    public function campaignAudience(?string $subscription, ?string $from, ?string $to, ?string $plan, array $ranges = [], ?string $sort = null, string $dir = 'asc'): array
+    public function campaignAudience(?string $subscription, ?string $from, ?string $to, ?string $plan, array $ranges = [], ?string $sort = null, string $dir = 'asc', ?string $segment = null, array $colFilters = []): array
     {
         $candidates = $this->campaignCandidates($subscription, $from, $to);
         if ($plan !== null && $plan !== '' && $plan !== 'all') {
@@ -91,7 +113,7 @@ class MockMasterDataService
             $candidates = $candidates->filter(fn ($r) => $this->planMatches($plans[(int) $r->studentid] ?? 'No purchase', $plan))->values();
         }
 
-        $rows = collect($this->mapCampaignRows($candidates))->filter(function ($r) use ($ranges) {
+        $rows = collect($this->campaignSegmentFilter($this->campaignColumnFilter($this->mapCampaignRows($candidates), $colFilters), $segment))->filter(function ($r) use ($ranges) {
             foreach ($ranges as $key => $range) {
                 $v = $r['sort'][$key] ?? null;
                 if ($v === null || ($range['min'] !== null && $v < $range['min']) || ($range['max'] !== null && $v > $range['max'])) {
@@ -153,6 +175,11 @@ class MockMasterDataService
                 ? 'Expired'
                 : ($daysToExpire !== null && $daysToExpire >= -14 && $daysToExpire <= 0 ? 'Renewal Due' : 'Active');
 
+            // Expires column: whole days until the package ends (negative = ended that many days ago).
+            $expiresIn = $r->expire_date ? (int) round(now()->startOfDay()->diffInDays(Carbon::parse($r->expire_date)->startOfDay(), false)) : null;
+            $lastDays = $r->last_login ? (int) floor(abs(Carbon::parse($r->last_login)->diffInDays(now()))) : null;
+            [$nextAction, $nextKind] = $this->campaignNextAction($stage, $expiresIn, $lastDays, $readiness, $trust);
+
             return [
                 'sid' => (int) $r->studentid,
                 'name' => trim($r->first_name . ' ' . $r->last_name) ?: 'Student #' . $r->studentid,
@@ -164,6 +191,11 @@ class MockMasterDataService
                 'trust' => $trust,
                 'approach' => $trust < 65 ? 'Proof-led' : 'Offer-led',
                 'lastActive' => $this->relativeLogin($r->last_login),
+                'expiresIn' => $expiresIn,
+                'expireDate' => $r->expire_date ? Carbon::parse($r->expire_date)->format('d M Y') : null,
+                'lastDays' => $lastDays,
+                'nextAction' => $nextAction,
+                'nextKind' => $nextKind,
                 'studentId' => $r->studentid,
                 'email' => $r->email ?: null,
                 'phone' => $this->formatPhone($r->country_code, $r->phone),
@@ -175,12 +207,259 @@ class MockMasterDataService
                     'trust' => $trust,
                     'approach' => $trust < 65 ? 0 : 1,
                     'last_active' => $r->last_login ? Carbon::parse($r->last_login)->timestamp : null,
+                    'expires' => $expiresIn,
                 ],
             ];
         })->values()->all();
     }
 
-    private const CAMPAIGN_SORT_KEYS = ['value', 'payment', 'stage', 'readiness', 'trust', 'approach', 'last_active'];
+    private const CAMPAIGN_SORT_KEYS = ['value', 'payment', 'stage', 'readiness', 'trust', 'approach', 'last_active', 'expires'];
+
+    /** Campaign column dropdowns (Part 8): Payment date, Expires, Stage, Approach, Last active, Next best action. */
+    public const CAMPAIGN_COLUMN_FILTERS = [
+        'payment' => ['7d', '30d', '90d', 'older', 'none'],
+        'expires' => ['expired', 'week', 'month', 'quarter', 'later', 'none'],
+        'stage' => ['Active', 'Renewal Due', 'Expired'],
+        'approach' => ['Proof-led', 'Offer-led'],
+        'last' => ['week', 'month', 'quarter', 'older', 'never'],
+        'nba' => ['Win back', 'Renew now', 'Renewal reminder', 'Re-engage', 'Book a mock test', 'Lead with proof', 'Lead with offer'],
+    ];
+
+    /** Validation rules for the f_* request parameters of the column dropdowns. */
+    public static function campaignColumnFilterRules(): array
+    {
+        $rules = [];
+        foreach (self::CAMPAIGN_COLUMN_FILTERS as $key => $values) {
+            $rules['f_' . $key] = ['nullable', \Illuminate\Validation\Rule::in($values)];
+        }
+        return $rules;
+    }
+
+    /** ['payment' => '30d', …] from validated f_* parameters. */
+    public static function campaignColumnFiltersFrom(array $validated): array
+    {
+        $out = [];
+        foreach (array_keys(self::CAMPAIGN_COLUMN_FILTERS) as $key) {
+            if (!empty($validated['f_' . $key])) {
+                $out[$key] = $validated['f_' . $key];
+            }
+        }
+        return $out;
+    }
+
+    /** Keeps the mapped Campaign rows that match every chosen column dropdown. */
+    private function campaignColumnFilter(array $rows, array $filters): array
+    {
+        $filters = array_filter($filters, fn ($v, $k) => in_array($v, self::CAMPAIGN_COLUMN_FILTERS[$k] ?? [], true), ARRAY_FILTER_USE_BOTH);
+        if (!$filters) {
+            return $rows;
+        }
+        $now = now()->timestamp;
+        $band = fn (?int $d, string $v) => match ($v) {
+            'week' => $d <= 7, 'month' => $d > 7 && $d <= 30, 'quarter' => $d > 30 && $d <= 90, default => $d > 90,
+        };
+
+        return array_values(array_filter($rows, function ($r) use ($filters, $now, $band) {
+            foreach ($filters as $key => $v) {
+                $ok = match ($key) {
+                    'payment' => $v === 'none' ? $r['sort']['payment'] === null
+                        : ($r['sort']['payment'] !== null && match ($v) {
+                            '7d' => $now - $r['sort']['payment'] <= 7 * 86400,
+                            '30d' => $now - $r['sort']['payment'] <= 30 * 86400,
+                            '90d' => $now - $r['sort']['payment'] <= 90 * 86400,
+                            default => $now - $r['sort']['payment'] > 90 * 86400,
+                        }),
+                    // Same buckets as the Expires cell: Expired = ended (or marked expired); the rest are days left.
+                    'expires' => match ($v) {
+                        'none' => $r['expiresIn'] === null && $r['stage'] !== 'Expired',
+                        'expired' => $r['stage'] === 'Expired' || ($r['expiresIn'] !== null && $r['expiresIn'] < 0),
+                        default => $r['stage'] !== 'Expired' && $r['expiresIn'] !== null && $r['expiresIn'] >= 0
+                            && ($v === 'later' ? $r['expiresIn'] > 90 : $band($r['expiresIn'], $v)),
+                    },
+                    'stage' => $r['stage'] === $v,
+                    'approach' => $r['approach'] === $v,
+                    'last' => $v === 'never' ? $r['lastDays'] === null : ($r['lastDays'] !== null && $band($r['lastDays'], $v)),
+                    'nba' => $r['nextAction'] === $v,
+                    default => true,
+                };
+                if (!$ok) {
+                    return false;
+                }
+            }
+            return true;
+        }));
+    }
+
+    /** Quick segment cards above the Campaign table. */
+    public const CAMPAIGN_SEGMENTS = ['all', 'expiring', 'nomock', 'ready', 'quiet', 'high'];
+
+    /**
+     * Next best action for one Campaign student, most urgent first:
+     * package state, then inactivity, then no mock test, then the Approach rule (Trust < 65 = proof).
+     *
+     * @return array{0: string, 1: string} label and pill kind
+     */
+    private function campaignNextAction(string $stage, ?int $expiresIn, ?int $lastDays, int $readiness, int $trust): array
+    {
+        if ($stage === 'Expired') return ['Win back', 'bad'];
+        if ($stage === 'Renewal Due') return ['Renew now', 'warn'];
+        if ($expiresIn !== null && $expiresIn >= 0 && $expiresIn <= 7) return ['Renewal reminder', 'warn'];
+        if ($lastDays === null || $lastDays >= 14) return ['Re-engage', 'bad'];
+        if ($readiness === 0) return ['Book a mock test', 'info'];
+        return $trust < 65 ? ['Lead with proof', 'good'] : ['Lead with offer', 'violet'];
+    }
+
+    /** "High value" segment: package value at or above the average paid value in the pool. */
+    private function campaignHighValueMin(array $rows): float
+    {
+        $paid = array_filter(array_map(fn ($r) => (float) $r['sort']['value'], $rows), fn ($v) => $v > 0);
+        return $paid ? round(array_sum($paid) / count($paid)) : 0.0;
+    }
+
+    private function campaignInSegment(string $segment, array $r, float $highMin): bool
+    {
+        return match ($segment) {
+            'expiring' => $r['stage'] !== 'Expired' && $r['expiresIn'] !== null && $r['expiresIn'] >= 0 && $r['expiresIn'] <= 7,
+            'nomock' => $r['readiness'] === 0,
+            'ready' => $r['readiness'] >= 70,
+            'quiet' => $r['lastDays'] === null || $r['lastDays'] >= 14,
+            'high' => $highMin > 0 && $r['sort']['value'] >= $highMin,
+            default => true,
+        };
+    }
+
+    /** Keeps only the mapped rows in one segment ('all' / null keeps everything). */
+    private function campaignSegmentFilter(array $rows, ?string $segment): array
+    {
+        if (!$segment || $segment === 'all') return $rows;
+        $highMin = $this->campaignHighValueMin($rows);
+        return array_values(array_filter($rows, fn ($r) => $this->campaignInSegment($segment, $r, $highMin)));
+    }
+
+    /** Student count per segment card, plus the High value threshold shown on its card. */
+    private function campaignSegmentCounts(array $rows): array
+    {
+        $highMin = $this->campaignHighValueMin($rows);
+        $counts = ['highMin' => $highMin];
+        foreach (self::CAMPAIGN_SEGMENTS as $seg) {
+            $counts[$seg] = count(array_filter($rows, fn ($r) => $this->campaignInSegment($seg, $r, $highMin)));
+        }
+        return $counts;
+    }
+
+    /**
+     * Overview cards above each agent tab (Marketing / Sales / Customer Retention).
+     * Weekly series cover the last 8 weeks (oldest first); "delta" compares this week with last week.
+     * Cached for a minute — the page refreshes them every two minutes.
+     *
+     * @return array{mk: array, sl: array, ch: array, updated: string}
+     */
+    public function overviewCards(): array
+    {
+        return Cache::remember('mm_overview_cards', 60, function () {
+            $now = now();
+            $card = function (string $label, $value, string $hint, string $tone, ?array $spark = null, string $deltaType = 'pct', bool $upIsGood = true) {
+                $delta = null;
+                $dir = null;
+                if ($spark) {
+                    [$prev, $cur] = [$spark[6], $spark[7]];
+                    $diff = $cur - $prev;
+                    $dir = $diff > 0 ? 'up' : ($diff < 0 ? 'down' : 'flat');
+                    $delta = $deltaType === 'pts'
+                        ? ($diff > 0 ? '+' : '') . round($diff, 1) . ' pts'
+                        : ($prev > 0 ? ($diff > 0 ? '+' : '') . round($diff / $prev * 100) . '%' : ($cur > 0 ? 'new' : '0%'));
+                }
+                return ['label' => $label, 'value' => $value, 'hint' => $hint, 'tone' => $tone, 'spark' => $spark,
+                        'delta' => $delta, 'dir' => $dir, 'good' => $dir === null || $dir === 'flat' ? null : (($dir === 'up') === $upIsGood)];
+            };
+
+            // Activity windows end at the newest synced record (the mirror is only as fresh as the
+            // last Sync), so "30 days" and "this week" don't read as zero between syncs.
+            $asOf = function (string $table) use ($now) {
+                $max = DB::table($table)->max('create_date');
+                return $max ? Carbon::parse($max)->min($now) : $now;
+            };
+            $testsAt = $asOf('mm_mock_test_results');
+            $studentsAt = $asOf('mm_studentuser');
+            $paysAt = $asOf('mm_payments');
+
+            // ── Marketing
+            $active = DB::table('mm_purchases')->where('is_expired', 0)->distinct('studentid')->count('studentid');
+            $tests = DB::table('mm_mock_test_results');
+            $tests30 = (clone $tests)->whereBetween('create_date', [$testsAt->copy()->subDays(30), $testsAt])->count();
+            $avg30 = (clone $tests)->whereNotNull('overall_score')->whereBetween('create_date', [$testsAt->copy()->subDays(30), $testsAt])->avg('overall_score');
+            $expiring7 = DB::table('mm_purchases')->where('is_expired', 0)
+                ->whereBetween('expire_date', [$now, $now->copy()->addDays(7)])->distinct('studentid')->count('studentid');
+            $newStudents = DB::table('mm_studentuser')->whereNull('deleted_at');
+            $new30 = (clone $newStudents)->whereBetween('create_date', [$studentsAt->copy()->subDays(30), $studentsAt])->count();
+
+            // ── Sales
+            $grow = $this->closeGrowSummary();
+            $paidPay = DB::table('mm_payments')->where('status', 1);
+            $paid30 = (clone $paidPay)->whereBetween('create_date', [$paysAt->copy()->subDays(30), $paysAt]);
+            $allPay30 = DB::table('mm_payments')->whereBetween('create_date', [$paysAt->copy()->subDays(30), $paysAt])->count();
+            $success30 = $allPay30 ? round((clone $paid30)->count() / $allPay30 * 100) : null;
+
+            // ── Customer Retention
+            $renew = $this->renewWinBackSummary();
+            // Paid plans only: free trials never expire, so counting them would drown the signal.
+            $quiet = DB::table('mm_purchases as p')->join('mm_studentuser as s', 's.studentId', '=', 'p.studentid')
+                ->whereIn('p.productid', $this->paidPackageIds())
+                ->where('p.is_expired', 0)->where('p.expire_date', '>=', $now)
+                ->where(fn ($q) => $q->whereNull('s.last_login')->orWhere('s.last_login', '<', $now->copy()->subDays(14)))
+                ->distinct('p.studentid')->count('p.studentid');
+            $expiredQ = DB::table('mm_purchases')->where('expire_date', '<=', $now);
+            $expired30 = (clone $expiredQ)->where('expire_date', '>=', $now->copy()->subDays(30))->distinct('studentid')->count('studentid');
+
+            $money = fn ($v) => '$' . number_format((float) $v, 0);
+            $synced = fn (Carbon $at) => $at->isSameDay($now) ? '' : ' · to ' . $at->format('d M');
+
+            return [
+                'mk' => [
+                    $card('Active students', number_format($active), 'packages not yet expired', 'violet'),
+                    $card('Mock tests · 30 days', number_format($tests30), 'tests taken' . $synced($testsAt), 'blue', $this->weeklySeries($tests, 'create_date', 'COUNT(*)', $testsAt)),
+                    $card('Avg mock score · 30 days', $avg30 ? number_format($avg30, 1) : '—', 'overall score' . $synced($testsAt), 'green', $this->weeklySeries((clone $tests)->whereNotNull('overall_score'), 'create_date', 'AVG(overall_score)', $testsAt), 'pts'),
+                    $card('Expiring ≤ 7 days', number_format($expiring7), 'act before their packages lapse', 'amber'),
+                    $card('New students · 30 days', number_format($new30), 'sign-ups' . $synced($studentsAt), 'violet', $this->weeklySeries($newStudents, 'create_date', 'COUNT(*)', $studentsAt)),
+                ],
+                'sl' => [
+                    $card('Ready to convert', number_format($grow['convert']), 'students on the Close & grow list', 'blue'),
+                    $card('Open checkouts', number_format($grow['abandoned']), $money($grow['abandoned_value']) . ' left in checkout', 'amber'),
+                    $card('Paid payments · 30 days', number_format((clone $paid30)->count()), 'successful payments' . $synced($paysAt), 'green', $this->weeklySeries($paidPay, 'create_date', 'COUNT(*)', $paysAt)),
+                    $card('Revenue · 30 days', $money((clone $paid30)->sum('amount')), 'from successful payments' . $synced($paysAt), 'violet', $this->weeklySeries($paidPay, 'create_date', 'SUM(amount)', $paysAt)),
+                    $card('Payment success · 30 days', $success30 === null ? '—' : $success30 . '%', 'of checkout payments completed', 'blue', $this->weeklySeries(DB::table('mm_payments'), 'create_date', 'AVG(status) * 100', $paysAt), 'pts'),
+                ],
+                'ch' => [
+                    $card('Renewals due', number_format($renew['renewals']), $money($renew['renewals_value']) . ' up for renewal', 'amber'),
+                    $card('Win-back', number_format($renew['winback']), $money($renew['winback_value']) . ' from lapsed plans', 'rose'),
+                    $card('Expiring ≤ 7 days', number_format($expiring7), 'save these first', 'rose'),
+                    $card('Going quiet', number_format($quiet), 'paid plan, no login in 14+ days', 'amber'),
+                    $card('Expired · 30 days', number_format($expired30), 'packages ended', 'violet', $this->weeklySeries($expiredQ, 'expire_date'), 'pct', false),
+                ],
+                'updated' => $now->toIso8601String(),
+                // Newest synced record — the sidebar card's fallback when no Sync time is recorded yet.
+                'dataTo' => max($testsAt, $studentsAt, $paysAt)->toIso8601String(),
+            ];
+        });
+    }
+
+    /** One value per week for the 8 weeks up to $end (default now), oldest first, from $query grouped on $col. */
+    private function weeklySeries($query, string $col, string $agg = 'COUNT(*)', ?Carbon $end = null): array
+    {
+        $end = $end ?: now();
+        $rows = (clone $query)
+            ->where($col, '>', $end->copy()->subDays(56))
+            ->where($col, '<=', $end)
+            ->selectRaw('FLOOR(TIMESTAMPDIFF(SECOND, ' . $col . ', ?) / 604800) as w, ' . $agg . ' as v', [$end->toDateTimeString()])
+            ->groupBy('w')
+            ->pluck('v', 'w');
+
+        $out = [];
+        for ($w = 7; $w >= 0; $w--) {
+            $out[] = round((float) ($rows[$w] ?? 0), 1);
+        }
+        return $out;
+    }
 
     /** Performance step — headline KPIs. */
     public function performanceKpis(): array
@@ -231,12 +510,14 @@ class MockMasterDataService
             ->groupBy('p.studentid', 's.first_name', 's.last_name', 's.email', 's.last_login')
             ->select('s.email', 's.last_login')
             ->selectRaw($name . ' as name')
+            ->addSelect('p.studentid as sid')
             ->selectRaw('COUNT(*) as active_packages')
             ->selectRaw('MAX(p.expire_date) as expires')
             ->orderByDesc('expires')
             ->limit($limit)
             ->get()
             ->map(fn ($r) => [
+                'sid' => $r->sid ? (int) $r->sid : null, // student id for Send to all (Part 10)
                 'name' => $r->name ?: '—',
                 'email' => $r->email ?: '—',
                 'active_packages' => (int) $r->active_packages,
@@ -266,11 +547,13 @@ class MockMasterDataService
         $rows = (clone $base)
             ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'r.studentId')
             ->selectRaw($name . ' as name')
+            ->addSelect('s.studentId as sid')
             ->addSelect('s.email', 'r.mock_series', 'r.mock_test_id', 'r.overall_score', 'r.create_date')
             ->orderByDesc('r.create_date')
             ->limit($limit)
             ->get()
             ->map(fn ($r) => [
+                'sid' => $r->sid ? (int) $r->sid : null, // student id for Send to all (Part 10)
                 'name' => $r->name ?: '—',
                 'email' => $r->email ?: '—',
                 'mock_series' => $r->mock_series ?: '—',
@@ -303,6 +586,7 @@ class MockMasterDataService
             ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'r.studentId')
             ->groupBy('r.studentId', 's.first_name', 's.last_name', 's.email')
             ->selectRaw($name . ' as name')
+            ->addSelect('r.studentId as sid')
             ->addSelect('s.email')
             ->selectRaw('COUNT(*) as tests')
             ->selectRaw('AVG(r.overall_score) as avg_score')
@@ -311,6 +595,7 @@ class MockMasterDataService
             ->limit($limit)
             ->get()
             ->map(fn ($r) => [
+                'sid' => $r->sid ? (int) $r->sid : null, // student id for Send to all (Part 10)
                 'name' => $r->name ?: '—',
                 'email' => $r->email ?: '—',
                 'tests' => (int) $r->tests,
@@ -424,6 +709,7 @@ class MockMasterDataService
             ->groupBy('r.studentId', 's.first_name', 's.last_name', 's.email')
             ->havingRaw('AVG(r.overall_score) >= 75')
             ->selectRaw($name . ' as name')
+            ->addSelect('r.studentId as sid')
             ->addSelect('s.email')
             ->selectRaw('COUNT(*) as tests')
             ->selectRaw('AVG(r.overall_score) as avg_score')
@@ -431,6 +717,7 @@ class MockMasterDataService
             ->limit($limit)
             ->get()
             ->map(fn ($r) => [
+                'sid' => $r->sid ? (int) $r->sid : null, // student id for Send to all (Part 10)
                 'name' => $r->name ?: '—',
                 'email' => $r->email ?: '—',
                 'tests' => (int) $r->tests,
@@ -461,10 +748,12 @@ class MockMasterDataService
             ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'p.studentid')
             ->select('p.product', 'p.expire_date', 's.email')
             ->selectRaw($name . ' as name')
+            ->addSelect('s.studentId as sid')
             ->orderBy('p.expire_date')
             ->limit($limit)
             ->get()
             ->map(fn ($r) => [
+                'sid' => $r->sid ? (int) $r->sid : null, // student id for Send to all (Part 10)
                 'name' => $r->name ?: '—',
                 'email' => $r->email ?: '—',
                 'product' => $r->product ?: '—',
@@ -494,10 +783,12 @@ class MockMasterDataService
         $rows = (clone $base)
             ->select('s.email', 's.country_code', 's.create_date')
             ->selectRaw($name . ' as name')
+            ->addSelect('s.studentId as sid')
             ->orderByDesc('s.create_date')
             ->limit($limit)
             ->get()
             ->map(fn ($r) => [
+                'sid' => $r->sid ? (int) $r->sid : null, // student id for Send to all (Part 10)
                 'name' => $r->name ?: '—',
                 'email' => $r->email ?: '—',
                 'country' => $r->country_code ?: '—',
@@ -611,11 +902,16 @@ class MockMasterDataService
         $failedPayments = DB::table('mm_payments')->where('status', 0)->count();
         $totalPayments = DB::table('mm_payments')->count();
 
+        // title / big / icon: shown on the Insights cards (the text is unchanged and still used by the chat).
         return array_values(array_filter([
-            $avgScore ? ['key' => 'avg_score', 'text' => sprintf('Average mock test overall score across all results is %.1f.', $avgScore)] : null,
-            ['key' => 'expired_packages', 'text' => sprintf('%d%% of all issued packages have already expired.', $expiredPct)],
-            ['key' => 'recent_mock_tests', 'text' => sprintf('%s mock tests were taken in the last 7 days.', number_format($recentTests))],
-            $totalPayments > 0 ? ['key' => 'failed_payments', 'text' => sprintf('%d of %d payments (%.0f%%) are marked unpaid/failed.', $failedPayments, $totalPayments, $totalPayments ? $failedPayments / $totalPayments * 100 : 0)] : null,
+            $avgScore ? ['key' => 'avg_score', 'text' => sprintf('Average mock test overall score across all results is %.1f.', $avgScore),
+                'title' => 'Average mock score', 'big' => number_format($avgScore, 1), 'icon' => 'score'] : null,
+            ['key' => 'expired_packages', 'text' => sprintf('%d%% of all issued packages have already expired.', $expiredPct),
+                'title' => 'Packages already expired', 'big' => $expiredPct . '%', 'icon' => 'expired'],
+            ['key' => 'recent_mock_tests', 'text' => sprintf('%s mock tests were taken in the last 7 days.', number_format($recentTests)),
+                'title' => 'Mock tests in the last 7 days', 'big' => number_format($recentTests), 'icon' => 'tests'],
+            $totalPayments > 0 ? ['key' => 'failed_payments', 'text' => sprintf('%d of %d payments (%.0f%%) are marked unpaid/failed.', $failedPayments, $totalPayments, $totalPayments ? $failedPayments / $totalPayments * 100 : 0),
+                'title' => 'Unpaid or failed payments', 'big' => round($failedPayments / $totalPayments * 100) . '%', 'icon' => 'payment'] : null,
         ]));
     }
 
@@ -646,11 +942,13 @@ class MockMasterDataService
         $rows = (clone $base)
             ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'r.studentId')
             ->selectRaw($name . ' as name')
+            ->addSelect('s.studentId as sid')
             ->addSelect('s.email', 'r.mock_series', 'r.overall_score', 'r.create_date')
             ->orderByDesc('r.create_date')
             ->limit($limit)
             ->get()
             ->map(fn ($r) => [
+                'sid' => $r->sid ? (int) $r->sid : null, // student id for Send to all (Part 10)
                 'name' => $r->name ?: '—',
                 'email' => $r->email ?: '—',
                 'mock_series' => $r->mock_series ?: '—',
@@ -681,10 +979,12 @@ class MockMasterDataService
             ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'p.studentid')
             ->select('p.product', 'p.expire_date', 's.email')
             ->selectRaw($name . ' as name')
+            ->addSelect('s.studentId as sid')
             ->orderByDesc('p.expire_date')
             ->limit($limit)
             ->get()
             ->map(fn ($r) => [
+                'sid' => $r->sid ? (int) $r->sid : null, // student id for Send to all (Part 10)
                 'name' => $r->name ?: '—',
                 'email' => $r->email ?: '—',
                 'product' => $r->product ?: '—',
@@ -712,11 +1012,13 @@ class MockMasterDataService
         $rows = (clone $base)
             ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'r.studentId')
             ->selectRaw($name . ' as name')
+            ->addSelect('s.studentId as sid')
             ->addSelect('s.email', 'r.mock_series', 'r.mock_test_id', 'r.overall_score', 'r.create_date')
             ->orderByDesc('r.create_date')
             ->limit($limit)
             ->get()
             ->map(fn ($r) => [
+                'sid' => $r->sid ? (int) $r->sid : null, // student id for Send to all (Part 10)
                 'name' => $r->name ?: '—',
                 'email' => $r->email ?: '—',
                 'mock_series' => $r->mock_series ?: '—',
@@ -749,10 +1051,12 @@ class MockMasterDataService
             ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'pay.buyerid')
             ->select('pay.product', 'pay.amount', 'pay.create_date', 's.email')
             ->selectRaw($name . ' as name')
+            ->addSelect('s.studentId as sid')
             ->orderByDesc('pay.create_date')
             ->limit($limit)
             ->get()
             ->map(fn ($r) => [
+                'sid' => $r->sid ? (int) $r->sid : null, // student id for Send to all (Part 10)
                 'name' => $r->name ?: '—',
                 'email' => $r->email ?: '—',
                 'product' => $r->product ?: '—',
@@ -1356,11 +1660,334 @@ class MockMasterDataService
             ->select('studentId')->whereNotNull('overall_score')
             ->groupBy('studentId')->havingRaw('AVG(overall_score) < 50')->get()->count();
 
-        return [
-            ['name' => 'Payment failed',                     'meta' => number_format($failedPayments) . ' payments marked unpaid/failed'],
-            ['name' => 'No mock test activity in 14+ days',  'meta' => number_format($inactiveCount) . ' students with an active package but no recent test'],
-            ['name' => 'Low score, low confidence',           'meta' => number_format($lowScoreCount) . ' students averaging below 50 overall'],
+        // key / count / base / icon: used by the Root cause cards (share of the base, click for the list).
+        $totalPayments = DB::table('mm_payments')->count();
+        $tested = DB::table('mm_mock_test_results')->whereNotNull('overall_score')->distinct('studentId')->count('studentId');
+        $causes = [
+            ['key' => 'failed_payments', 'icon' => 'payment', 'name' => 'Payment failed', 'meta' => number_format($failedPayments) . ' payments marked unpaid/failed',
+                'count' => $failedPayments, 'base' => $totalPayments, 'baseLabel' => 'of all payments'],
+            ['key' => 'rc_inactive', 'icon' => 'quiet', 'name' => 'No mock test activity in 14+ days', 'meta' => number_format($inactiveCount) . ' students with an active package but no recent test',
+                'count' => $inactiveCount, 'base' => $inactiveStudentIds->count(), 'baseLabel' => 'of students with an active package'],
+            ['key' => 'rc_lowscore', 'icon' => 'score', 'name' => 'Low score, low confidence', 'meta' => number_format($lowScoreCount) . ' students averaging below 50 overall',
+                'count' => $lowScoreCount, 'base' => $tested, 'baseLabel' => 'of students with a scored test'],
         ];
+        usort($causes, fn ($a, $b) => $b['count'] <=> $a['count']); // "ranked by how many it affects"
+
+        return $causes;
+    }
+
+    /* ── Part 7 (Nov 2026): data for the redesigned Performance, Audience, Root cause and Offers tabs.
+       Everything is read live from the mm_* mirror tables, so it follows Sync Data. ── */
+
+    /** Lazy-loaded tab data (mock-master-helper/tab-data/{tab}). */
+    public function tabData(string $tab): array
+    {
+        return match ($tab) {
+            'performance' => $this->performanceTab(),
+            'audience' => $this->audienceTab(),
+            'offers' => $this->offersTab(),
+            default => [],
+        };
+    }
+
+    /** Newest synced mock test result (activity windows end there, like the overview cards). */
+    private function resultsAsOf(): Carbon
+    {
+        $max = DB::table('mm_mock_test_results')->max('create_date');
+        return $max ? Carbon::parse($max)->min(now()) : now();
+    }
+
+    private function performanceTab(): array
+    {
+        $at = $this->resultsAsOf();
+        $tests = DB::table('mm_mock_test_results');
+        $avg = $this->weeklySeries((clone $tests)->whereNotNull('overall_score'), 'create_date', 'AVG(overall_score)', $at);
+        $count = $this->weeklySeries($tests, 'create_date', 'COUNT(*)', $at);
+        $weeks = [];
+        for ($i = 0; $i < 8; $i++) {
+            $weeks[] = ['label' => $at->copy()->subDays(7 * (7 - $i))->format('d M'), 'avg' => $count[$i] ? $avg[$i] : null, 'count' => (int) $count[$i]];
+        }
+
+        $s = (clone $tests)->where('create_date', '>', $at->copy()->subDays(90))->where('create_date', '<=', $at)
+            ->selectRaw('AVG(speaking_score) as speaking, AVG(writing_score) as writing, AVG(reading_score) as reading, AVG(listening_score) as listening')
+            ->first();
+        $sections = array_map(fn ($v) => round((float) $v, 1), array_filter(
+            ['Speaking' => $s->speaking, 'Writing' => $s->writing, 'Reading' => $s->reading, 'Listening' => $s->listening],
+            fn ($v) => $v !== null
+        ));
+
+        // Same students as the "70 and above" Audience bar and its list.
+        $ready = DB::query()->fromSub($this->avgScorePerStudent(), 'x')
+            ->join('mm_studentuser as s', 's.studentId', '=', 'x.studentId')->whereNull('s.deleted_at')
+            ->where('x.a', '>=', 70)->count();
+
+        $highlights = [];
+        if ($sections) {
+            $sorted = $sections;
+            arsort($sorted);
+            $best = array_key_first($sorted);
+            $worst = array_key_last($sorted);
+            $highlights[] = ['text' => $best . ' is the strongest section', 'sub' => 'average ' . $sorted[$best] . ' · last 90 days', 'key' => 'avg_score'];
+            if ($worst !== $best) {
+                $highlights[] = ['text' => $worst . ' is the weakest section', 'sub' => 'average ' . $sorted[$worst] . ' · ' . round($sorted[$best] - $sorted[$worst], 1) . ' points behind ' . $best, 'key' => 'avg_score', 'bad' => true];
+            }
+        }
+        [$prev, $cur] = [$count[6], $count[7]];
+        $highlights[] = ['text' => number_format($cur) . ' mock tests in the latest week',
+            'sub' => $prev ? ($cur >= $prev ? '+' : '') . round(($cur - $prev) / $prev * 100) . '% vs the week before' : 'none the week before',
+            'key' => 'mock_tests', 'bad' => $cur < $prev];
+        $highlights[] = ['text' => number_format($ready) . ' students are exam-ready', 'sub' => 'average overall score 70+', 'key' => 'aud.ready.70'];
+
+        return ['asOf' => $at->format('d M Y'), 'weeks' => $weeks, 'sections' => $sections, 'highlights' => $highlights];
+    }
+
+    /** Per student: the latest expiry among their live packages (NULL = none live). */
+    private function liveExpiryByStudent()
+    {
+        return DB::table('mm_purchases')->groupBy('studentid')
+            ->selectRaw('studentid, MAX(CASE WHEN is_expired = 0 AND expire_date >= ? THEN expire_date END) as act', [now()]);
+    }
+
+    /** Per student: average overall mock score. */
+    private function avgScorePerStudent()
+    {
+        return DB::table('mm_mock_test_results')->whereNotNull('overall_score')->groupBy('studentId')
+            ->selectRaw('studentId, AVG(overall_score) as a, COUNT(*) as tests');
+    }
+
+    private function audienceTab(): array
+    {
+        $students = DB::table('mm_studentuser')->whereNull('deleted_at');
+        $total = (clone $students)->count();
+
+        $byCourse = [];
+        $other = 0;
+        $courses = (clone $students)->selectRaw("NULLIF(TRIM(student_course_type), '') as c, COUNT(*) as n")->groupBy('c')->orderByDesc('n')->get();
+        foreach ($courses as $i => $r) {
+            if ($i < 6) {
+                $byCourse[] = ['label' => $r->c === null ? 'Not set' : ucfirst($r->c), 'n' => (int) $r->n, 'key' => 'aud.course.' . ($r->c ?? '_none')];
+            } else {
+                $other += (int) $r->n;
+            }
+        }
+        if ($other) {
+            $byCourse[] = ['label' => 'Other', 'n' => $other, 'key' => null];
+        }
+
+        $soon = now()->addDays(14);
+        $life = DB::query()->fromSub($this->liveExpiryByStudent(), 'a')
+            ->join('mm_studentuser as s', 's.studentId', '=', 'a.studentid')->whereNull('s.deleted_at')
+            ->selectRaw('SUM(a.act > ?) as active, SUM(a.act IS NOT NULL AND a.act <= ?) as ending, SUM(a.act IS NULL) as expired', [$soon, $soon])
+            ->first();
+        $none = (clone $students)->whereNotExists(fn ($q) => $q->from('mm_purchases as p')->whereColumn('p.studentid', 'mm_studentuser.studentId'))->count();
+
+        $rd = DB::query()->fromSub($this->avgScorePerStudent(), 'x')
+            ->join('mm_studentuser as s', 's.studentId', '=', 'x.studentId')->whereNull('s.deleted_at')
+            ->selectRaw('SUM(x.a >= 70) as hi, SUM(x.a >= 50 AND x.a < 70) as mid, SUM(x.a < 50) as low, COUNT(*) as tested')
+            ->first();
+
+        $jMax = DB::table('mm_studentuser')->max('create_date');
+        $jAt = $jMax ? Carbon::parse($jMax)->min(now()) : now();
+        $start = $jAt->copy()->startOfMonth()->subMonths(5);
+        $joined = (clone $students)->where('create_date', '>=', $start)->where('create_date', '<=', $jAt)
+            ->selectRaw("DATE_FORMAT(create_date, '%Y-%m') as m, COUNT(*) as n")->groupBy('m')->pluck('n', 'm');
+        $byMonth = [];
+        for ($i = 0; $i < 6; $i++) {
+            $m = $start->copy()->addMonths($i);
+            $byMonth[] = ['label' => $m->format('M Y'), 'n' => (int) ($joined[$m->format('Y-m')] ?? 0), 'key' => 'aud.join.' . $m->format('Y-m')];
+        }
+
+        return [
+            'total' => $total,
+            'groups' => [
+                ['title' => 'By course', 'sub' => 'course on the student profile', 'items' => $byCourse],
+                ['title' => 'By package status', 'sub' => 'live packages today', 'items' => [
+                    ['label' => 'Active package', 'n' => (int) $life->active, 'key' => 'aud.life.active'],
+                    ['label' => 'Ends within 14 days', 'n' => (int) $life->ending, 'key' => 'aud.life.ending'],
+                    ['label' => 'All packages expired', 'n' => (int) $life->expired, 'key' => 'aud.life.expired'],
+                    ['label' => 'No package yet', 'n' => $none, 'key' => 'aud.life.none'],
+                ]],
+                ['title' => 'By readiness', 'sub' => 'average overall mock score', 'items' => [
+                    ['label' => '70 and above', 'n' => (int) $rd->hi, 'key' => 'aud.ready.70'],
+                    ['label' => '50 to 69', 'n' => (int) $rd->mid, 'key' => 'aud.ready.50'],
+                    ['label' => 'Below 50', 'n' => (int) $rd->low, 'key' => 'aud.ready.low'],
+                    ['label' => 'Not tested yet', 'n' => max(0, $total - (int) $rd->tested), 'key' => 'aud.ready.none'],
+                ]],
+                ['title' => 'New sign-ups by month', 'sub' => 'to ' . $jAt->format('d M Y'), 'items' => $byMonth],
+            ],
+        ];
+    }
+
+    /** The three save offers: who each one is for, counted live. */
+    private function offersTab(): array
+    {
+        $out = [];
+        foreach (['offer_inactive', 'offer_highvalue', 'offer_declining'] as $key) {
+            $o = $this->offerQuery($key);
+            $out[$key] = ['count' => (clone $o['q'])->count(), 'meta' => $o['meta']];
+        }
+        return $out;
+    }
+
+    /** @return array{q: \Illuminate\Database\Query\Builder, title: string, meta: string} */
+    private function offerQuery(string $key): array
+    {
+        $now = now();
+        $live = DB::table('mm_purchases')->where('is_expired', 0)->where('expire_date', '>=', $now)->groupBy('studentid')
+            ->selectRaw('studentid, MAX(expire_date) as expires, MAX(product) as product');
+
+        if ($key === 'offer_inactive') {
+            return [
+                'q' => DB::table('mm_studentuser as s')->whereNull('s.deleted_at')->joinSub($live, 'p', 'p.studentid', '=', 's.studentId')
+                    ->whereBetween('s.last_login', [$now->copy()->subDays(20), $now->copy()->subDays(10)]),
+                'title' => 'One free extra mock test · inactive 10–20 days',
+                'meta' => 'Live package, last login 10–20 days ago',
+            ];
+        }
+        if ($key === 'offer_highvalue') {
+            $paidLive = DB::table('mm_purchases as p')->join('mm_packages as k', 'k.packageid', '=', 'p.productid')
+                ->where('p.is_expired', 0)->where('p.expire_date', '>=', $now)->where('k.cost', '>', 0);
+            $min = max(1, round((float) (clone $paidLive)->avg('k.cost')));
+            $agg = (clone $paidLive)->where('k.cost', '>=', $min)->groupBy('p.studentid')
+                ->selectRaw('p.studentid, MAX(k.cost) as cost, MAX(p.expire_date) as expires, MAX(p.product) as product');
+            return [
+                'q' => DB::table('mm_studentuser as s')->whereNull('s.deleted_at')->joinSub($agg, 'p', 'p.studentid', '=', 's.studentId')
+                    ->where(fn ($w) => $w->where('p.expires', '<=', $now->copy()->addDays(14))
+                        ->orWhereNull('s.last_login')->orWhere('s.last_login', '<', $now->copy()->subDays(14))),
+                'title' => '15% renewal discount · high-value students at risk',
+                'meta' => 'Paid package of $' . number_format($min) . '+ (the average), ending within 14 days or no login in 14+ days',
+            ];
+        }
+        // offer_declining: latest scored mock lower than the one before, latest in the 60 days to the newest synced result.
+        $at = $this->resultsAsOf();
+        $ranked = DB::table('mm_mock_test_results')->whereNotNull('overall_score')
+            ->selectRaw('studentId, overall_score, create_date, ROW_NUMBER() OVER (PARTITION BY studentId ORDER BY create_date DESC) as rn');
+        $pair = DB::query()->fromSub($ranked, 'r')->where('r.rn', '<=', 2)->groupBy('r.studentId')
+            ->selectRaw('r.studentId, MAX(CASE WHEN r.rn = 1 THEN r.overall_score END) as latest, MAX(CASE WHEN r.rn = 2 THEN r.overall_score END) as prev, MAX(CASE WHEN r.rn = 1 THEN r.create_date END) as latest_on');
+        return [
+            'q' => DB::query()->fromSub($pair, 'd')->join('mm_studentuser as s', 's.studentId', '=', 'd.studentId')->whereNull('s.deleted_at')
+                ->whereNotNull('d.prev')->whereColumn('d.latest', '<', 'd.prev')->where('d.latest_on', '>=', $at->copy()->subDays(60)),
+            'title' => 'Free 15-min coaching call · declining scores',
+            'meta' => 'Latest mock score lower than the one before · last 60 days to ' . $at->format('d M'),
+        ];
+    }
+
+    /**
+     * Drill-down lists for the Part 7 cards and bars (root causes, offers, audience bars).
+     * Same shape as kpiDetails(); null for an unknown key.
+     */
+    public function extraDetails(string $key, int $limit = 300): ?array
+    {
+        $name = "TRIM(CONCAT(COALESCE(s.first_name,''), ' ', COALESCE(s.last_name,'')))";
+        $fmtDate = fn ($d) => $d ? Carbon::parse($d)->format('d M Y') : '—';
+        $base = fn ($r) => ['sid' => $r->studentId ?? null, 'name' => ($r->name ?? '') ?: '—', 'email' => ($r->email ?? '') ?: '—'];
+        $col = fn ($k, $l) => ['key' => $k, 'label' => $l];
+        $result = fn (string $title, array $columns, $q, callable $map, string $order) => [
+            'title' => $title,
+            'columns' => $columns,
+            'total' => (clone $q)->count(),
+            'rows' => (clone $q)->orderByRaw($order)->limit($limit)->get()->map($map)->all(),
+        ];
+
+        if (str_starts_with($key, 'offer_') && in_array($key, ['offer_inactive', 'offer_highvalue', 'offer_declining'], true)) {
+            $o = $this->offerQuery($key);
+            if ($key === 'offer_declining') {
+                $q = $o['q']->selectRaw($name . ' as name')->addSelect('s.studentId', 's.email', 'd.prev', 'd.latest', 'd.latest_on');
+                return $result($o['title'], [$col('name', 'Name'), $col('email', 'Email'), $col('prev', 'Previous score'), $col('latest', 'Latest score'), $col('change', 'Change'), $col('latest_on', 'Latest test')],
+                    $q, fn ($r) => $base($r) + ['prev' => number_format((float) $r->prev, 1), 'latest' => number_format((float) $r->latest, 1),
+                        'change' => number_format((float) $r->latest - (float) $r->prev, 1), 'latest_on' => $fmtDate($r->latest_on)], '(d.prev - d.latest) DESC');
+            }
+            $q = $o['q']->selectRaw($name . ' as name')->addSelect('s.studentId', 's.email', 's.last_login', 'p.product', 'p.expires');
+            $cols = [$col('name', 'Name'), $col('email', 'Email'), $col('product', 'Package'), $col('expires', 'Package ends'), $col('last_login', 'Last login')];
+            if ($key === 'offer_highvalue') {
+                $q->addSelect('p.cost');
+                array_splice($cols, 3, 0, [$col('cost', 'Value')]);
+            }
+            return $result($o['title'], $cols, $q, fn ($r) => $base($r) + ['product' => $r->product ?: '—', 'cost' => isset($r->cost) ? '$' . number_format((float) $r->cost) : null,
+                'expires' => $fmtDate($r->expires), 'last_login' => $fmtDate($r->last_login)], 's.last_login IS NULL, s.last_login DESC');
+        }
+
+        if ($key === 'rc_inactive') {
+            // Same rule as the Root cause count: a live (not expired) package but no mock test log in 14 days.
+            $recent = DB::table('mm_mock_test_logs')->where('create_date', '>=', now()->subDays(14))->select('studentId')->distinct();
+            $agg = DB::table('mm_purchases')->where('is_expired', 0)->groupBy('studentid')->selectRaw('studentid, MAX(expire_date) as expires, MAX(product) as product');
+            $q = DB::query()->fromSub($agg, 'p')->leftJoinSub($recent, 'r', 'r.studentId', '=', 'p.studentid')->whereNull('r.studentId')
+                ->leftJoin('mm_studentuser as s', 's.studentId', '=', 'p.studentid')
+                ->selectRaw($name . ' as name')->addSelect('p.studentid as studentId', 's.email', 's.last_login', 'p.product', 'p.expires');
+            return $result('No mock test activity in 14+ days · live package', [$col('name', 'Name'), $col('email', 'Email'), $col('product', 'Package'), $col('expires', 'Package ends'), $col('last_login', 'Last login')],
+                $q, fn ($r) => $base($r) + ['product' => $r->product ?: '—', 'expires' => $fmtDate($r->expires), 'last_login' => $fmtDate($r->last_login)], 's.last_login IS NULL, s.last_login DESC');
+        }
+        if ($key === 'rc_lowscore') {
+            $per = DB::table('mm_mock_test_results')->whereNotNull('overall_score')->groupBy('studentId')->havingRaw('AVG(overall_score) < 50')
+                ->selectRaw('studentId, AVG(overall_score) as a, COUNT(*) as tests, MAX(create_date) as last_test');
+            $q = DB::query()->fromSub($per, 'x')->leftJoin('mm_studentuser as s', 's.studentId', '=', 'x.studentId')
+                ->selectRaw($name . ' as name')->addSelect('x.studentId', 's.email', 'x.a', 'x.tests', 'x.last_test');
+            return $result('Low score, low confidence · average below 50', [$col('name', 'Name'), $col('email', 'Email'), $col('avg', 'Average score'), $col('tests', 'Tests'), $col('last_test', 'Last test')],
+                $q, fn ($r) => $base($r) + ['avg' => number_format((float) $r->a, 1), 'tests' => (int) $r->tests, 'last_test' => $fmtDate($r->last_test)], 'x.last_test DESC');
+        }
+
+        if (preg_match('/^aud\.(course|life|ready|join)\.(.+)$/', $key, $m)) {
+            [, $dim, $v] = $m;
+            $q = DB::table('mm_studentuser as s')->whereNull('s.deleted_at');
+            $extra = null;
+            switch ($dim) {
+                case 'course':
+                    $v === '_none'
+                        ? $q->where(fn ($w) => $w->whereNull('s.student_course_type')->orWhereRaw("TRIM(s.student_course_type) = ''"))
+                        : $q->whereRaw('TRIM(s.student_course_type) = ?', [$v]);
+                    $title = 'Students · course ' . ($v === '_none' ? 'not set' : ucfirst($v));
+                    break;
+                case 'life':
+                    $soon = now()->addDays(14);
+                    if ($v === 'none') {
+                        $q->whereNotExists(fn ($w) => $w->from('mm_purchases as p')->whereColumn('p.studentid', 's.studentId'));
+                        $title = 'Students · no package yet';
+                        break;
+                    }
+                    $q->joinSub($this->liveExpiryByStudent(), 'a', 'a.studentid', '=', 's.studentId');
+                    match ($v) {
+                        'active' => $q->where('a.act', '>', $soon),
+                        'ending' => $q->whereNotNull('a.act')->where('a.act', '<=', $soon),
+                        'expired' => $q->whereNull('a.act'),
+                        default => abort(404),
+                    };
+                    $title = 'Students · ' . ['active' => 'active package', 'ending' => 'package ends within 14 days', 'expired' => 'all packages expired'][$v];
+                    $extra = ['a.act', 'act', 'Package ends'];
+                    break;
+                case 'ready':
+                    if ($v === 'none') {
+                        $q->whereNotExists(fn ($w) => $w->from('mm_mock_test_results as r')->whereColumn('r.studentId', 's.studentId')->whereNotNull('r.overall_score'));
+                        $title = 'Students · not tested yet';
+                        break;
+                    }
+                    $q->joinSub($this->avgScorePerStudent(), 'x', 'x.studentId', '=', 's.studentId');
+                    match ($v) {
+                        '70' => $q->where('x.a', '>=', 70),
+                        '50' => $q->where('x.a', '>=', 50)->where('x.a', '<', 70),
+                        'low' => $q->where('x.a', '<', 50),
+                        default => abort(404),
+                    };
+                    $title = 'Students · average score ' . ['70' => '70 and above', '50' => '50 to 69', 'low' => 'below 50'][$v];
+                    $extra = ['x.a', 'a', 'Average score'];
+                    break;
+                default: // join
+                    abort_unless(preg_match('/^\d{4}-\d{2}$/', $v), 404);
+                    $q->whereRaw("DATE_FORMAT(s.create_date, '%Y-%m') = ?", [$v]);
+                    $title = 'New sign-ups · ' . Carbon::createFromFormat('Y-m', $v)->format('M Y');
+            }
+            $q->selectRaw($name . ' as name')->addSelect('s.studentId', 's.email', 's.student_course_type', 's.create_date', 's.last_login');
+            $cols = [$col('name', 'Name'), $col('email', 'Email'), $col('course', 'Course'), $col('joined', 'Joined'), $col('last_login', 'Last login')];
+            if ($extra) {
+                $q->addSelect($extra[0] . ' as ' . $extra[1]);
+                $cols[] = $col($extra[1], $extra[2]);
+            }
+            return $result($title, $cols, $q, fn ($r) => $base($r) + [
+                'course' => $r->student_course_type ?: '—', 'joined' => $fmtDate($r->create_date), 'last_login' => $fmtDate($r->last_login),
+                'act' => isset($r->act) ? $fmtDate($r->act) : null, 'a' => isset($r->a) ? number_format((float) $r->a, 1) : null,
+            ], 's.last_login IS NULL, s.last_login DESC');
+        }
+
+        return null;
     }
 
     private function avgScoresByStudent(array $studentIds): array
@@ -1480,6 +2107,98 @@ class MockMasterDataService
     }
 
     /**
+     * Everything the side Profile panel (next to the message window) shows about one student:
+     * mock test results and the last test's section scores, latest package, payments,
+     * Trust, the Campaign "Next best action" and a short timeline.
+     */
+    public function studentInsight(?int $studentId, ?string $email): ?array
+    {
+        $query = DB::table('mm_studentuser')->whereNull('deleted_at');
+        if ($studentId) {
+            $query->where('studentId', $studentId);
+        } elseif ($email) {
+            $query->where('email', $email)->orderByDesc('studentId');
+        } else {
+            return null;
+        }
+        $s = $query->first(['studentId', 'first_name', 'last_name', 'student_course_type', 'country_code', 'phone', 'email', 'profile_picture', 'last_login', 'create_date', 'desired_band']);
+        if (!$s) {
+            return null;
+        }
+        $id = (int) $s->studentId;
+        $fmt = fn ($d) => $d ? Carbon::parse($d)->format('d M Y') : null;
+
+        $results = DB::table('mm_mock_test_results')->where('studentId', $id)->orderByDesc('create_date')
+            ->get(['overall_score', 'speaking_score', 'writing_score', 'reading_score', 'listening_score', 'create_date']);
+        $scored = $results->whereNotNull('overall_score');
+        $last = $results->first();
+
+        $purchase = DB::table('mm_purchases as p')->leftJoin('mm_payments as pay', 'pay.id', '=', 'p.paymentid')
+            ->where('p.studentid', $id)->orderByDesc('p.create_date')
+            ->first(['p.product', 'p.expire_date', 'p.is_expired', 'p.create_date', 'pay.amount', 'pay.create_date as payment_date']);
+        $payments = DB::table('mm_payments')->where('buyerid', $id)->orderByDesc('create_date')->get(['product', 'amount', 'status', 'create_date']);
+        $trust = (int) round($this->paymentHealthByStudent([$id])[$id] ?? 50); // same Trust as the Campaign table
+
+        $readiness = (int) round($scored->avg('overall_score') ?? 0);
+        $lastDays = $s->last_login ? (int) floor(abs(Carbon::parse($s->last_login)->diffInDays(now()))) : null;
+        $stage = $expiresIn = null;
+        if ($purchase) {
+            $expiresIn = $purchase->expire_date ? (int) round(now()->startOfDay()->diffInDays(Carbon::parse($purchase->expire_date)->startOfDay(), false)) : null;
+            // Same Stage rule as the Campaign table (mapCampaignRows).
+            $daysToExpire = $purchase->expire_date ? (int) Carbon::parse($purchase->expire_date)->diffInDays(now(), false) : null;
+            $stage = $purchase->is_expired ? 'Expired'
+                : ($daysToExpire !== null && $daysToExpire >= -14 && $daysToExpire <= 0 ? 'Renewal Due' : 'Active');
+        }
+        [$nextAction, $nextKind] = $stage ? $this->campaignNextAction($stage, $expiresIn, $lastDays, $readiness, $trust) : [null, null];
+
+        $timeline = [];
+        if ($s->last_login) $timeline[] = ['at' => $s->last_login, 'text' => 'Last logged in', 'sub' => $this->relativeLogin($s->last_login)];
+        foreach ($results->take(3) as $r) {
+            $timeline[] = ['at' => $r->create_date, 'text' => 'Mock test' . ($r->overall_score !== null ? ' — overall ' . round($r->overall_score) : ''), 'sub' => $fmt($r->create_date)];
+        }
+        foreach ($payments->take(3) as $p) {
+            $timeline[] = ['at' => $p->create_date, 'text' => ($p->status ? 'Paid $' : 'Payment not completed — $') . number_format((float) $p->amount, 0) . ($p->product ? ' for ' . $p->product : ''), 'sub' => $fmt($p->create_date), 'bad' => !$p->status];
+        }
+        if ($s->create_date) $timeline[] = ['at' => $s->create_date, 'text' => 'Joined Mock Master', 'sub' => $fmt($s->create_date)];
+        usort($timeline, fn ($a, $b) => strcmp((string) $b['at'], (string) $a['at']));
+
+        return [
+            'name' => trim($s->first_name . ' ' . $s->last_name) ?: 'Student #' . $id,
+            'email' => $s->email ?: null,
+            'phone' => $this->formatPhone($s->country_code, $s->phone),
+            'course_type' => $s->student_course_type ?: null,
+            'target' => $s->desired_band ?: null,
+            'profile_picture' => $this->profilePictureUrl($s->profile_picture),
+            'joined' => $fmt($s->create_date),
+            'lastActive' => $this->relativeLogin($s->last_login),
+            'readiness' => $readiness,
+            'mockCount' => $results->count(),
+            'bestScore' => $scored->isNotEmpty() ? (int) round($scored->max('overall_score')) : null,
+            'trend' => $scored->take(8)->reverse()->map(fn ($r) => round((float) $r->overall_score))->values()->all(),
+            'lastMock' => $last ? [
+                'date' => $fmt($last->create_date),
+                'overall' => $last->overall_score !== null ? (int) round($last->overall_score) : null,
+                'sections' => array_filter([
+                    'Speaking' => $last->speaking_score, 'Writing' => $last->writing_score,
+                    'Reading' => $last->reading_score, 'Listening' => $last->listening_score,
+                ], fn ($v) => $v !== null),
+            ] : null,
+            'package' => $purchase ? [
+                'name' => $purchase->product ?: 'Package',
+                'value' => '$' . number_format((float) ($purchase->amount ?? 0), 0),
+                'expires' => $fmt($purchase->expire_date),
+                'expiresIn' => $expiresIn,
+                'stage' => $stage,
+            ] : null,
+            'totalPaid' => '$' . number_format((float) $payments->where('status', 1)->sum('amount'), 0),
+            'trust' => $trust,
+            'nextAction' => $nextAction,
+            'nextKind' => $nextKind,
+            'timeline' => array_slice(array_map(fn ($t) => array_diff_key($t, ['at' => true]), $timeline), 0, 8),
+        ];
+    }
+
+    /**
      * Full URLs (e.g. Google avatars) are used as-is. Relative paths such as
      * "assets/uploads/profile_images/x.jpg" live on the PTE Portal site, so
      * they need MOCKMASTER_PORTAL_URL; without it the popup shows initials.
@@ -1505,6 +2224,36 @@ class MockMasterDataService
     }
 
     /** Real contact number for the "who to call" style answers — country code + number, or null if none on file. */
+    /**
+     * Part 10 (Nov 2026): name, email and phone for the students behind a popup list, so its
+     * "Send to all" can email or WhatsApp them. Looked up by student id, or by email for rows
+     * that only carry an email (Mira's payments list).
+     *
+     * @return array<int, array{sid: int, name: string, email: ?string, phone: ?string}>
+     */
+    public function contactsFor(array $ids, array $emails): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        $emails = array_values(array_unique(array_filter(array_map(fn ($e) => strtolower(trim((string) $e)), $emails))));
+        if (!$ids && !$emails) {
+            return [];
+        }
+
+        return DB::table('mm_studentuser')
+            ->whereNull('deleted_at')
+            ->where(function ($q) use ($ids, $emails) {
+                if ($ids) $q->whereIn('studentId', $ids);
+                if ($emails) $q->orWhereIn(DB::raw('LOWER(email)'), $emails);
+            })
+            ->get(['studentId', 'first_name', 'last_name', 'email', 'phone', 'country_code'])
+            ->map(fn ($s) => [
+                'sid' => (int) $s->studentId,
+                'name' => trim($s->first_name . ' ' . $s->last_name),
+                'email' => $s->email ?: null,
+                'phone' => $this->formatPhone($s->country_code, $s->phone),
+            ])->values()->all();
+    }
+
     private function formatPhone(?string $countryCode, $phone): ?string
     {
         if (!$phone) {

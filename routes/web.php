@@ -482,13 +482,14 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'subscription' => 'nullable|string|max:255',
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
-            'sort' => 'nullable|in:value,payment,stage,readiness,trust,approach,last_active',
+            'sort' => 'nullable|in:value,payment,stage,readiness,trust,approach,last_active,expires',
+            'segment' => 'nullable|in:all,expiring,nomock,ready,quiet,high',
             'dir' => 'nullable|in:asc,desc',
             'plan' => 'nullable|in:all,paid,unpaid,Free trial,Paid,Coaching,Coaching + Paid,No purchase,Other',
             'value_min' => 'nullable|numeric', 'value_max' => 'nullable|numeric',
             'readiness_min' => 'nullable|numeric', 'readiness_max' => 'nullable|numeric',
             'trust_min' => 'nullable|numeric', 'trust_max' => 'nullable|numeric',
-        ]);
+        ] + \App\Services\MockMaster\MockMasterDataService::campaignColumnFilterRules());
 
         $ranges = [];
         foreach (['value', 'readiness', 'trust'] as $key) {
@@ -501,7 +502,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
         $students = (new \App\Services\MockMaster\MockMasterDataService())->campaignAudience(
             $f['subscription'] ?? null, $f['from'] ?? null, $f['to'] ?? null, $f['plan'] ?? null,
-            $ranges, $f['sort'] ?? null, $f['dir'] ?? 'asc'
+            $ranges, $f['sort'] ?? null, $f['dir'] ?? 'asc', $f['segment'] ?? null,
+            \App\Services\MockMaster\MockMasterDataService::campaignColumnFiltersFrom($f) // column dropdowns
         );
 
         return response()->json(['students' => $students, 'total' => count($students)]);
@@ -551,10 +553,40 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
         if (in_array($key, $insightKeys, true)) {
             return response()->json($service->insightDetails($key));
         }
-        abort_unless(in_array($key, $segmentKeys, true), 404);
+        if (in_array($key, $segmentKeys, true)) {
+            return response()->json($service->segmentDetails($key));
+        }
+        // Root cause, Offers and Audience-bar lists (Part 7).
+        $extra = $service->extraDetails($key);
+        abort_if($extra === null, 404);
 
-        return response()->json($service->segmentDetails($key));
+        return response()->json($extra);
     })->name('mock-master-helper.kpi');
+
+    // Part 10: email / phone for the students in a popup list, for that popup's "Send to all".
+    Route::post('mock-master-helper/contacts', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'ids' => 'nullable|array|max:3000',
+            'ids.*' => 'integer',
+            'emails' => 'nullable|array|max:3000',
+            'emails.*' => 'nullable|string|max:255',
+        ]);
+
+        return response()->json(['contacts' => (new \App\Services\MockMaster\MockMasterDataService())->contactsFor($data['ids'] ?? [], $data['emails'] ?? [])]);
+    })->name('mock-master-helper.contacts');
+
+    // Charts and live counts for the Performance, Audience and Offers tabs, loaded when the tab is first opened.
+    Route::get('mock-master-helper/tab-data/{tab}', function (string $tab) {
+        abort_unless(in_array($tab, ['performance', 'audience', 'offers'], true), 404);
+
+        return response()->json((new \App\Services\MockMaster\MockMasterDataService())->tabData($tab));
+    })->name('mock-master-helper.tab-data');
+
+    // Overview cards above the Marketing / Sales / Customer Retention tabs (refreshed by the page every 2 minutes).
+    Route::get('mock-master-helper/overview', function () {
+        return response()->json((new \App\Services\MockMaster\MockMasterDataService())->overviewCards()
+            + ['lastSync' => \Illuminate\Support\Facades\Cache::get('mm_last_sync_at')]);
+    })->name('mock-master-helper.overview');
 
     Route::get('mock-master-helper/campaign-students', function () {
         $filters = request()->validate([
@@ -562,10 +594,12 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'page' => 'nullable|integer|min:1',
-            'sort' => 'nullable|in:value,payment,stage,readiness,trust,approach,last_active',
+            'per_page' => 'nullable|integer|min:5|max:100',
+            'sort' => 'nullable|in:value,payment,stage,readiness,trust,approach,last_active,expires',
+            'segment' => 'nullable|in:all,expiring,nomock,ready,quiet,high',
             'dir' => 'nullable|in:asc,desc',
             'plan' => 'nullable|in:all,paid,unpaid,Free trial,Paid,Coaching,Coaching + Paid,No purchase,Other',
-        ]);
+        ] + \App\Services\MockMaster\MockMasterDataService::campaignColumnFilterRules());
 
         $palette = ['#3b5bdb', '#7c5cfc', '#f97316', '#1e3a8a', '#0284c7', '#334155', '#16a34a', '#db2777', '#0d9488'];
         $stageKind = fn (string $label) => preg_match('/won|active|renew/i', $label) ? 'good'
@@ -573,8 +607,10 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             : (preg_match('/decision|bought/i', $label) ? 'violet' : 'info'));
 
         $paged = (new \App\Services\MockMaster\MockMasterDataService())->campaignStudentsPage(
-            (int) ($filters['page'] ?? 1), 10, $filters['subscription'] ?? null, $filters['from'] ?? null, $filters['to'] ?? null,
-            $filters['sort'] ?? null, $filters['dir'] ?? 'asc', $filters['plan'] ?? null
+            (int) ($filters['page'] ?? 1), (int) ($filters['per_page'] ?? 10), $filters['subscription'] ?? null, $filters['from'] ?? null, $filters['to'] ?? null,
+            $filters['sort'] ?? null, $filters['dir'] ?? 'asc', $filters['plan'] ?? null,
+            $filters['segment'] ?? null, true,
+            \App\Services\MockMaster\MockMasterDataService::campaignColumnFiltersFrom($filters) // column dropdowns
         );
 
         $paged['students'] = array_map(fn ($s) => $s + [
@@ -608,9 +644,11 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:5|max:100',
             'plan' => 'nullable|in:all,paid,unpaid,Free trial,Paid,Coaching,Coaching + Paid,No purchase,Other',
-        ]);
-        $mkPaged = $mm->campaignStudentsPage((int) ($mkFilters['page'] ?? 1), 10, $mkFilters['subscription'] ?? null, $mkFilters['from'] ?? null, $mkFilters['to'] ?? null, null, 'asc', $mkFilters['plan'] ?? null);
+            'segment' => 'nullable|in:all,expiring,nomock,ready,quiet,high',
+        ] + \App\Services\MockMaster\MockMasterDataService::campaignColumnFilterRules());
+        $mkPaged = $mm->campaignStudentsPage((int) ($mkFilters['page'] ?? 1), (int) ($mkFilters['per_page'] ?? 10), $mkFilters['subscription'] ?? null, $mkFilters['from'] ?? null, $mkFilters['to'] ?? null, null, 'asc', $mkFilters['plan'] ?? null, $mkFilters['segment'] ?? null, true, \App\Services\MockMaster\MockMasterDataService::campaignColumnFiltersFrom($mkFilters));
         $mkStudents = $mkPaged['students'];
         $mkSubscriptions = $mm->subscriptionOptions();
         $mkKpis = $mm->performanceKpis();
@@ -687,6 +725,22 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
 
         return $profile ? response()->json($profile) : response()->json(['message' => 'Student not found.'], 404);
     })->name('mock-master-helper.student');
+
+    // Side Profile panel next to the message window: scores, package, payments, timeline.
+    Route::get('mock-master-helper/student-insight', function (\Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'sid' => 'nullable|integer|min:1',
+            'email' => 'nullable|string|max:255',
+        ]);
+        if (empty($data['sid']) && empty($data['email'])) {
+            return response()->json(['message' => 'A student id or email is required.'], 422);
+        }
+
+        $insight = (new \App\Services\MockMaster\MockMasterDataService())
+            ->studentInsight(isset($data['sid']) ? (int) $data['sid'] : null, $data['email'] ?? null);
+
+        return $insight ? response()->json($insight) : response()->json(['message' => 'Student not found.'], 404);
+    })->name('mock-master-helper.student-insight');
 
     // Mock Master list datasets, shared by the paged "more" route and Send to all's list audience.
     $mmListFetchers = function (\App\Services\MockMaster\MockMasterDataService $mm): array {
@@ -774,6 +828,8 @@ Route::middleware(['auth:client', 'client.active', 'client.onboarded'])->prefix(
             $result = (new \App\Services\MockMaster\MockMasterSyncService())->sync();
             // Fresh data — drop the cached Close & grow activity scan.
             \App\Services\MockMaster\MockMasterDataService::forgetCachedActivity();
+            // Shown as "Last sync … ago" in the sidebar card on this page.
+            \Illuminate\Support\Facades\Cache::forever('mm_last_sync_at', now()->toIso8601String());
 
             return response()->json([
                 'ok' => true,

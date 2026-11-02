@@ -180,11 +180,30 @@ $chSteps = [
     ['key' => 'abtest',    'label' => 'A/B test'],
 ];
 
+// key: the live audience behind each offer (counted in MockMasterDataService::offerQuery()).
+// play / tag: advisory copy for the open card (Part 7).
 $chOffers = [
-    ['name' => 'One free extra mock test',        'meta' => 'For students inactive 10-20 days'],
-    ['name' => '15% renewal discount',              'meta' => 'For high-value students at risk'],
-    ['name' => 'Free 15-min coaching call',          'meta' => 'For students with declining scores'],
+    ['name' => 'One free extra mock test',        'meta' => 'For students inactive 10-20 days', 'key' => 'offer_inactive', 'tag' => 'Re-engage', 'icon' => 'gift',
+     'play' => 'Send a friendly check-in with their last score and a free extra mock test to use this week. If there is no reply in 3 days, follow up with a short call.'],
+    ['name' => '15% renewal discount',              'meta' => 'For high-value students at risk', 'key' => 'offer_highvalue', 'tag' => 'Renewal', 'icon' => 'discount',
+     'play' => 'Lead with their progress first (their own score trend), then offer 15% off renewing before the package ends. Remind them again 2 days before the end date.'],
+    ['name' => 'Free 15-min coaching call',          'meta' => 'For students with declining scores', 'key' => 'offer_declining', 'tag' => 'Coaching', 'icon' => 'call',
+     'play' => 'Offer a free 15-minute call to review their weakest section from the last mock and agree one thing to practise before their next test.'],
 ];
+// Small line icons for the Part 7 cards (Insights, Root cause, Offers, Audience).
+$mmxIcons = [
+    'score' => '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    'expired' => '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+    'tests' => '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+    'payment' => '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+    'quiet' => '<path d="M17 18a5 5 0 0 0-10 0"/><path d="M12 9V2M4.2 10.2l1.4 1.4M1 18h2M21 18h2M18.4 11.6l1.4-1.4M23 22H1"/>',
+    'gift' => '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>',
+    'discount' => '<path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1.5"/>',
+    'call' => '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
+    'segment' => '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11l2 2 4-4"/>',
+];
+$mmxIco = fn ($k) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . ($mmxIcons[$k] ?? $mmxIcons['score']) . '</svg>';
+$mmxChev = '<svg class="mmx-acc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
 
 // $chPrompts is passed in from the route — sourced from agents_pre_defined_prompts
 // where is_mock_master = 1 (see routes/web.php).
@@ -205,6 +224,34 @@ $mmPlanClass = fn ($plan) => 'mm-plan ' . \Illuminate\Support\Str::slug((string)
 $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label) ? 'good'
     : (preg_match('/lost|expired|fail/i', (string) $label) ? 'bad'
     : (preg_match('/decision|bought/i', (string) $label) ? 'violet' : 'info'));
+// Campaign cells added in Nov 2026 (Expires, Readiness ring, Last active bar, Next best action).
+// Same markup as mmxExpCell / mmxRing / mmxLastCell / mmxNbaCell in the script below.
+$mmNbaIcons = ['Win back' => '🔁', 'Renew now' => '⏰', 'Renewal reminder' => '🔔', 'Re-engage' => '💤', 'Book a mock test' => '🎯', 'Lead with proof' => '🏅', 'Lead with offer' => '🏷️'];
+$mmExpCell = function ($s) {
+    $n = $s['expiresIn'] ?? null;
+    if ($n === null) return '<span class="mmx-muted">—</span>';
+    if (($s['stage'] ?? '') === 'Expired' || $n < 0) return '<span class="bh-pill bad">Expired</span>' . ($n < 0 && $n > -366 ? '<div class="mmx-sub">' . (-$n) . 'd ago</div>' : '');
+    if ($n === 0) return '<span class="bh-pill warn">Today</span>';
+    if ($n <= 7) return '<span class="bh-pill warn">in ' . $n . 'd</span>';
+    if ($n <= 365) return '<span class="mmx-exp">in ' . $n . 'd</span>';
+    return '<span class="mmx-muted">' . e($s['expireDate'] ?? '—') . '</span>';
+};
+$mmRing = function ($v) {
+    $v = max(0, min(100, (int) $v));
+    $c = $v >= 70 ? '#16a34a' : ($v >= 50 ? '#d97706' : '#dc2626');
+    $len = 69.12; // 2πr, r = 11
+    return '<span class="mmx-ring"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="11" fill="none" stroke="#eceef3" stroke-width="3"/>'
+        . ($v > 0 ? '<circle cx="13" cy="13" r="11" fill="none" stroke="' . $c . '" stroke-width="3" stroke-linecap="round" stroke-dasharray="' . round($len * $v / 100, 2) . ' ' . $len . '" transform="rotate(-90 13 13)"/>' : '')
+        . '</svg><b>' . $v . '</b></span>';
+};
+$mmLastCell = function ($s) {
+    $d = $s['lastDays'] ?? null;
+    $w = $d === null ? 0 : max(6, 100 - $d * 3.3);
+    $c = $d === null ? '#d1d5db' : ($d < 7 ? '#16a34a' : ($d < 14 ? '#d97706' : '#dc2626'));
+    return '<div class="mmx-last">' . e($s['lastActive'] ?? '—') . '<i class="mmx-bar"><b style="width:' . round($w) . '%;background:' . $c . '"></b></i></div>';
+};
+$mmNbaCell = fn ($s) => empty($s['nextAction']) ? '<span class="mmx-muted">—</span>'
+    : '<span class="bh-pill ' . e($s['nextKind'] ?? 'info') . ' mmx-nba">' . ($mmNbaIcons[$s['nextAction']] ?? '') . ' ' . e($s['nextAction']) . '</span>';
 @endphp
 
 <div class="bh-page flex flex-col h-full overflow-hidden">
@@ -217,6 +264,11 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
         </div>
 
         <div class="flex items-center gap-3">
+            {{-- Table / Board for every agent (the Board covers the whole student list) --}}
+            <div class="mmx-viewtg" id="mmViewTg" role="group" aria-label="Show as">
+                <button type="button" class="on" data-v="table" onclick="mmViewSet('table')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Table</button>
+                <button type="button" data-v="board" onclick="mmViewSet('board')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="4" height="15" rx="1"/></svg>Board</button>
+            </div>
             <button type="button" onclick="mmSyncData(this)" id="mmSyncBtn" title="Re-fetch the latest Mock Master data"
                class="flex items-center gap-2 px-3 h-8 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors text-xs font-medium">
                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.64-6.36M21 4v6h-6"/></svg>
@@ -287,6 +339,24 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
             </div>
         </div>
 
+        {{-- Overview cards for the selected agent (live, collapsible) — filled by mmOvLoad() --}}
+        <div class="mmx-ov" id="mmOverview">
+            <div class="mmx-ov-hd">
+                <span class="mmx-ov-t"><span data-ov-t="mk">Marketing</span><span data-ov-t="sl">Sales</span><span data-ov-t="ch">Customer Retention</span> overview</span>
+                <span class="mmx-live" title="Refreshes every 2 minutes and after Sync Data"><i></i><span id="mmOvTime">Loading…</span></span>
+                <button type="button" class="mmx-collapse" onclick="mmOvToggle()" aria-expanded="true" aria-controls="mmOverview">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg><span>Hide</span>
+                </button>
+            </div>
+            @foreach(['mk', 'sl', 'ch'] as $ovAgent)
+            <div class="mmx-kpis" data-ov="{{ $ovAgent }}">
+                @for($k = 0; $k < 5; $k++)
+                <div class="mmx-kpi"><div class="mmx-kpi-l">&nbsp;</div><div class="mmx-kpi-r"><span class="mmx-skel"></span></div><div class="mmx-kpi-h">&nbsp;</div></div>
+                @endfor
+            </div>
+            @endforeach
+        </div>
+
         {{-- MARKETING --}}
         <div class="dash on" id="mmDash-mk" data-dash="mk">
             <aside class="dash-left">
@@ -313,6 +383,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     @foreach($mkSteps as $i => $step)
                     <button type="button" class="dvt {{ $i === 0 ? 'on' : '' }}" data-tab="mk-{{ $step['key'] }}" onclick="mmSelectStep('mk','{{ $step['key'] }}')">{{ strtoupper($step['label']) }}</button>
                     @endforeach
+                    <button type="button" class="mmx-expand" onclick="mmFocusToggle()" title="Expand the table" aria-label="Expand the table"><svg class="mmx-ico-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg><svg class="mmx-ico-min" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg></button>
                 </div>
                 <div class="dash-view">
 
@@ -320,6 +391,16 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                         <div class="stack-intro">
                             <div class="si-h">WHAT YOU'RE LOOKING AT</div>
                             <div class="si-p">Your real renewal-ready students, each with the outreach call that matters most for them: whether to lead with <b>proof</b> or an <b>offer</b>, based on their own real trust score — not the pool average. Sorted by package value, biggest first.</div>
+                        </div>
+                        {{-- Quick segments (collapsible) — click a card to filter the table, the Board and Send to all --}}
+                        <div class="mmx-seg-wrap" id="mmSegWrap">
+                            <div class="mmx-seg-hd">
+                                <b>Quick segments</b><span>Click a card to filter the list</span>
+                                <button type="button" class="mmx-collapse" onclick="mmSegToggle()" aria-expanded="true" aria-controls="mmSegs">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg><span>Hide</span>
+                                </button>
+                            </div>
+                            <div class="mmx-segs" id="mmSegs"></div>
                         </div>
                         <form id="mmCampaignFilter" method="GET" action="{{ route('client.mock-master-helper') }}" onsubmit="return mmCampaignSubmit(event)" class="mm-filter-bar" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:12px 14px;border-bottom:1px solid var(--ln);background:var(--p1)">
                             <label style="display:flex;flex-direction:column;gap:4px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--g3)">Subscription
@@ -342,58 +423,95 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>Send to all</button>
                         </form>
                         <table class="dtbl">
-                            <thead><tr><th data-tip="Renewal-ready students with a package. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-sort-key="value" data-mm-num-filter onclick="mmCampaignSortBy('value')" data-tip="Amount paid for the selected Course" class="mm-sortable" style="cursor:pointer">Package value <span class="mm-sort-ind" data-for="value"></span></th><th data-sort-key="payment" onclick="mmCampaignSortBy('payment')" data-tip="Date of the payment linked to this package. Shows — if none is linked." class="mm-sortable" style="cursor:pointer">Payment date <span class="mm-sort-ind" data-for="payment"></span></th><th data-sort-key="stage" onclick="mmCampaignSortBy('stage')" data-tip="Active, Renewal Due (expired within the last 14 days), or Expired." class="mm-sortable" style="cursor:pointer">Stage <span class="mm-sort-ind" data-for="stage"></span></th><th data-sort-key="readiness" data-mm-num-filter onclick="mmCampaignSortBy('readiness')" data-tip="Average score across all mock tests. 0 = no results" class="mm-sortable" style="cursor:pointer">Readiness <span class="mm-sort-ind" data-for="readiness"></span></th><th data-sort-key="trust" data-mm-num-filter onclick="mmCampaignSortBy('trust')" data-tip="Based on the percentage of payments completed. 50 = no payment history." class="mm-sortable" style="cursor:pointer">Trust <span class="mm-sort-ind" data-for="trust"></span></th><th data-sort-key="approach" onclick="mmCampaignSortBy('approach')" data-tip="Proof-led when Trust is below 65; otherwise Offer-led." class="mm-sortable" style="cursor:pointer">Approach <span class="mm-sort-ind" data-for="approach"></span></th><th data-sort-key="last_active" onclick="mmCampaignSortBy('last_active')" data-tip="When they last logged in." class="mm-sortable" style="cursor:pointer">Last active <span class="mm-sort-ind" data-for="last_active"></span></th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
+                            <thead><tr><th data-tip="Renewal-ready students with a package. Click a name for contact details.">Student</th><th data-tip="Plan history. Free trial: only the free mock test. Paid: has bought a paid package. Coaching: Enrolled or Coaching access, never a paid package. Coaching + Paid: both. No purchase: nothing bought." data-mm-plan-filter>Plan</th><th data-sort-key="value" data-mm-num-filter onclick="mmCampaignSortBy('value')" data-tip="Amount paid for the selected Course" class="mm-sortable" style="cursor:pointer">Package value <span class="mm-sort-ind" data-for="value"></span></th><th data-mm-col-filter="payment" data-sort-key="payment" onclick="mmCampaignSortBy('payment')" data-tip="Date of the payment linked to this package. Shows — if none is linked." class="mm-sortable" style="cursor:pointer">Payment date <span class="mm-sort-ind" data-for="payment"></span></th><th data-mm-col-filter="expires" data-sort-key="expires" onclick="mmCampaignSortBy('expires')" data-tip="Days until the package ends. Orange = ends within 7 days; Expired = already ended." class="mm-sortable" style="cursor:pointer">Expires <span class="mm-sort-ind" data-for="expires"></span></th><th data-mm-col-filter="stage" data-sort-key="stage" onclick="mmCampaignSortBy('stage')" data-tip="Active, Renewal Due (expired within the last 14 days), or Expired." class="mm-sortable" style="cursor:pointer">Stage <span class="mm-sort-ind" data-for="stage"></span></th><th data-sort-key="readiness" data-mm-num-filter onclick="mmCampaignSortBy('readiness')" data-tip="Average score across all mock tests. 0 = no results" class="mm-sortable" style="cursor:pointer">Readiness <span class="mm-sort-ind" data-for="readiness"></span></th><th data-sort-key="trust" data-mm-num-filter onclick="mmCampaignSortBy('trust')" data-tip="Based on the percentage of payments completed. 50 = no payment history." class="mm-sortable" style="cursor:pointer">Trust <span class="mm-sort-ind" data-for="trust"></span></th><th data-mm-col-filter="approach" data-sort-key="approach" onclick="mmCampaignSortBy('approach')" data-tip="Proof-led when Trust is below 65; otherwise Offer-led." class="mm-sortable" style="cursor:pointer">Approach <span class="mm-sort-ind" data-for="approach"></span></th><th data-mm-col-filter="last" data-sort-key="last_active" onclick="mmCampaignSortBy('last_active')" data-tip="When they last logged in." class="mm-sortable" style="cursor:pointer">Last active <span class="mm-sort-ind" data-for="last_active"></span></th><th data-mm-col-filter="nba" data-tip="Suggested next step, most urgent first: Win back (expired), Renew now (renewal due), Renewal reminder (ends within 7 days), Re-engage (no login in 14+ days), Book a mock test (no results yet), then Lead with proof (Trust below 65) or Lead with offer.">Next best action</th><th data-tip="Open a message composer to email or WhatsApp this student.">Action</th></tr></thead>
                             <tbody id="mmCampaignBody">
                                 @forelse($mkStudents as $s)
                                 <tr>
                                     <td class="acctn" data-mm-stu data-sid="{{ $s['sid'] ?? '' }}" data-email="{{ $s['email'] ?? '' }}"><div class="bh-acct"><span class="bh-av" style="background:{{ $mmAvColor($s['name']) }}">{{ $mmInitial($s['name']) }}</span><div><div class="bh-acct-n">{{ $s['name'] }}</div><div class="bh-acct-c">({{ $s['sub'] }})</div></div></div></td><td><span class="{{ $mmPlanClass($s['plan'] ?? '') }}">{{ $s['plan'] ?? '—' }}</span></td>
                                     <td>{{ $s['value'] }}</td>
                                     <td>{{ $s['paymentDate'] }}</td>
+                                    <td>{!! $mmExpCell($s) !!}</td>
                                     <td><span class="bh-pill {{ $mmStageKind($s['stage']) }}">{{ $s['stage'] }}</span></td>
-                                    <td>{{ $s['readiness'] }}</td>
+                                    <td>{!! $mmRing($s['readiness']) !!}</td>
                                     <td>{{ $s['trust'] }}</td>
                                     <td>@if($s['approach'] === 'Offer-led')<span class="bh-pill good">Offer-led</span>@else<span class="bh-pill warn">Proof-led</span>@endif</td>
-                                    <td>{{ $s['lastActive'] }}</td><td><button type="button" onclick="mmStudentOpen({{ $loop->index }})" style="padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">View</button></td>
+                                    <td>{!! $mmLastCell($s) !!}</td>
+                                    <td>{!! $mmNbaCell($s) !!}</td><td><button type="button" onclick="mmStudentOpen({{ $loop->index }})" style="padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">View</button></td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="10" style="color:var(--g3);padding:20px">No renewal-ready students found right now.</td></tr>
+                                <tr><td colspan="12" style="color:var(--g3);padding:20px">No renewal-ready students found right now.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
-                        <div id="mmCampaignPager" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--ln);font-size:12px;color:var(--g3)">
+                        <div id="mmCampaignPager" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px 14px;border-top:1px solid var(--ln);font-size:12px;color:var(--g3)">
                             <span id="mmCampaignPageInfo">Page {{ $mkPaged['page'] }} of {{ $mkPaged['last_page'] }} · {{ number_format($mkPaged['total']) }} students</span>
-                            <div style="display:flex;gap:6px">
+                            <div class="mmx-pg">
+                                {{-- Rows per page, page numbers and "Go to page" (drawn by mmCampaignPager) --}}
+                                <label class="mmx-pg-rows">Rows
+                                    <select id="mmCampaignPer" onchange="MMX_MANUAL_PER = true; mmCampaignPerSet(this.value)">
+                                        @foreach([10, 25, 50, 100] as $pp)<option value="{{ $pp }}" {{ ($mkPaged['per_page'] ?? 10) == $pp ? 'selected' : '' }}>{{ $pp }}</option>@endforeach
+                                    </select>
+                                </label>
                                 <button type="button" id="mmCampaignPrev" onclick="mmCampaignGo({{ max(1, $mkPaged['page'] - 1) }})" {{ $mkPaged['page'] <= 1 ? 'disabled' : '' }} style="padding:5px 12px;border-radius:6px;border:1px solid var(--ln);background:#fff;font-size:12px;font-weight:600;cursor:pointer">Previous</button>
+                                <span class="mmx-pg-nums" id="mmCampaignPages"></span>
                                 <button type="button" id="mmCampaignNext" onclick="mmCampaignGo({{ min($mkPaged['last_page'], $mkPaged['page'] + 1) }})" {{ $mkPaged['page'] >= $mkPaged['last_page'] ? 'disabled' : '' }} style="padding:5px 12px;border-radius:6px;border:1px solid var(--ln);background:#fff;font-size:12px;font-weight:600;cursor:pointer">Next</button>
+                                <form class="mmx-pg-go" novalidate onsubmit="return mmCampaignJump(event)">
+                                    <label for="mmCampaignJumpIn">Go to page</label>
+                                    <input id="mmCampaignJumpIn" type="number" min="1" max="{{ $mkPaged['last_page'] }}" placeholder="{{ $mkPaged['page'] }}" inputmode="numeric">
+                                    <button type="submit">Go</button>
+                                </form>
                             </div>
                         </div>
                     </div>
 
                     <div class="mm-panel" data-panel="mk-performance" style="display:none">
                         <div class="stack-intro"><div class="si-h">PLATFORM PERFORMANCE</div><div class="si-p">Headline numbers across your Mock Master student base.</div></div>
-                        <div class="mg-grid">
+                        <div class="mg-grid mmx-perf-kpis">
                             @foreach($mkKpis as $k)
                             <div class="mg-cell" onclick="mmKpiOpen('{{ $k['key'] }}', this.querySelector('.mg-h').textContent)" style="cursor:pointer" title="Click to see the details"><div class="mg-h">{{ $k['label'] }}</div><div class="mg-kpi">{{ $k['value'] }} <small>{{ $k['sub'] }}</small></div></div>
                             @endforeach
                         </div>
+                        {{-- Weekly score chart, section averages and highlights (Part 7) — filled by mmxTabLoad('performance') --}}
+                        <div class="mmx-td" data-tab-data="performance"><div class="mmx-td-wait">Loading charts…</div></div>
                     </div>
 
                     <div class="mm-panel" data-panel="mk-audience" style="display:none">
-                        <div class="stack-intro"><div class="si-h">STUDENT SEGMENTS</div><div class="si-p">Grouped by behavior and lifecycle stage.</div></div>
+                        <div class="stack-intro"><div class="si-h">STUDENT SEGMENTS</div><div class="si-p">Grouped by behavior and lifecycle stage. Click any card or bar to see the students in it.</div></div>
+                        <div class="mmx-tiles">
                         @forelse($mkSegments as $seg)
-                        <div class="act" onclick="mmKpiOpen('{{ $seg['key'] }}', '{{ $seg['name'] }}')" style="cursor:pointer" title="Click to see the students in this segment"><div><div class="act-t">{{ $seg['name'] }}</div><div class="act-d">{{ $seg['meta'] }}</div></div></div>
+                            @php [$segN, $segRest] = array_pad(explode(' students', $seg['meta'], 2), 2, ''); @endphp
+                            <button type="button" class="mmx-tile2" onclick="mmKpiOpen('{{ $seg['key'] }}', '{{ $seg['name'] }}')" title="Click to see the students in this segment">
+                                <span class="mmx-ins-ic">{!! $mmxIco('segment') !!}</span>
+                                <span class="mmx-tile2-t">{{ $seg['name'] }}</span>
+                                <b class="mmx-tile2-n">{{ $segN }}</b>
+                                <span class="mmx-tile2-s">students{{ $segRest }}</span>
+                                <span class="mmx-go">View students →</span>
+                            </button>
                         @empty
-                        <div class="act"><div class="act-t" style="color:var(--g3)">No segment data available.</div></div>
+                            <div class="act"><div class="act-t" style="color:var(--g3)">No segment data available.</div></div>
                         @endforelse
+                        </div>
+                        {{-- Breakdowns by course, package status, readiness and sign-up month (Part 7) — filled by mmxTabLoad('audience') --}}
+                        <div class="mmx-td" data-tab-data="audience"><div class="mmx-td-wait">Loading breakdowns…</div></div>
                     </div>
 
                     <div class="mm-panel" data-panel="mk-insights" style="display:none">
-                        <div class="stack-intro"><div class="si-h">KEY INSIGHTS</div><div class="si-p">Patterns worth acting on.</div></div>
-                        @forelse($mkInsights as $ins)
-                        <div class="act" onclick="mmKpiOpen('{{ $ins['key'] }}', '{{ $ins['text'] }}')" style="cursor:pointer" title="Click to see the records behind this insight"><div class="act-t">{{ $ins['text'] }}</div></div>
-                        @empty
+                        <div class="stack-intro"><div class="si-h">KEY INSIGHTS</div><div class="si-p">Patterns worth acting on. Click a card to see the records behind it.</div></div>
+                        @if(count($mkInsights))
+                        <div class="mmx-ins-grid">
+                            @foreach($mkInsights as $ins)
+                            <button type="button" class="mmx-ins" onclick="mmKpiOpen('{{ $ins['key'] }}', '{{ $ins['text'] }}')" title="Click to see the records behind this insight">
+                                <span class="mmx-ins-ic">{!! $mmxIco($ins['icon'] ?? 'score') !!}</span>
+                                <b>{{ $ins['title'] ?? $ins['text'] }}</b>
+                                <p>{{ $ins['text'] }}</p>
+                                <span class="mmx-ins-big">{{ $ins['big'] ?? '' }}</span>
+                                <span class="mmx-go">View the records →</span>
+                            </button>
+                            @endforeach
+                        </div>
+                        @else
                         <div class="act"><div class="act-t" style="color:var(--g3)">Not enough data yet to compute insights.</div></div>
-                        @endforelse
+                        @endif
                     </div>
 
                     <div class="mm-panel" data-panel="mk-abtest" style="display:none">
@@ -471,6 +589,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     @foreach($slSteps as $i => $step)
                     <button type="button" class="dvt {{ $i === 0 ? 'on' : '' }}" data-tab="sl-{{ $step['key'] }}" onclick="mmSelectStep('sl','{{ $step['key'] }}')">{{ strtoupper($step['label']) }}</button>
                     @endforeach
+                    <button type="button" class="mmx-expand" onclick="mmFocusToggle()" title="Expand the table" aria-label="Expand the table"><svg class="mmx-ico-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg><svg class="mmx-ico-min" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg></button>
                 </div>
                 <div class="dash-view">
 
@@ -525,19 +644,23 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                         @foreach($slScriptLibrary as $ch => $scripts)
                         <div class="mm-scr-list" data-ch="{{ $ch }}" @if(!$loop->first) style="display:none" @endif>
                             @foreach($scripts as $i => $sc)
-                            <div class="mm-scr">
-                                <div class="mm-scr-hd">
+                            <div class="mm-scr mmx-acc {{ $i === 0 ? 'open' : '' }}">
+                                <div class="mm-scr-hd mmx-acc-hd" onclick="mmxAccToggle(event, this)" role="button" tabindex="0" aria-expanded="{{ $i === 0 ? 'true' : 'false' }}">
                                     <span class="mm-scr-n">{{ $i + 1 }}</span>
                                     <div class="mm-scr-meta">
                                         <div class="mm-scr-t">{{ $sc['title'] }}</div>
                                         <div class="mm-scr-when">Use when: {{ $sc['when'] }}</div>
                                     </div>
+                                    <span class="mmx-tag">{{ $slChannelLabels[$ch] }}</span>
                                     <button type="button" class="mm-scr-copy" onclick="mmCopyScript(this)" title="Copy this script">Copy</button>
+                                    {!! $mmxChev !!}
                                 </div>
+                                <div class="mmx-acc-bd"><div>
                                 @if(!empty($sc['subject']))
                                 <div class="mm-scr-subject"><b>Subject:</b> <span>{{ $sc['subject'] }}</span></div>
                                 @endif
                                 <div class="mm-scr-body">{{ $sc['body'] }}</div>
+                                </div></div>
                             </div>
                             @endforeach
                         </div>
@@ -554,16 +677,20 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                         @foreach($slObjectionGroups as $gk => $group)
                         <div class="mm-scr-list" data-ch="{{ $gk }}" @if(!$loop->first) style="display:none" @endif>
                             @foreach($group['items'] as $i => $o)
-                            <div class="mm-scr">
-                                <div class="mm-scr-hd">
+                            <div class="mm-scr mmx-acc {{ $i === 0 ? 'open' : '' }}">
+                                <div class="mm-scr-hd mmx-acc-hd" onclick="mmxAccToggle(event, this)" role="button" tabindex="0" aria-expanded="{{ $i === 0 ? 'true' : 'false' }}">
                                     <span class="mm-scr-n">{{ $i + 1 }}</span>
                                     <div class="mm-scr-meta">
                                         <div class="mm-scr-t">&ldquo;{{ $o['q'] }}&rdquo;</div>
                                         <div class="mm-scr-when">What it usually means: {{ $o['means'] }}</div>
                                     </div>
+                                    <span class="mmx-tag">{{ $group['label'] }}</span>
                                     <button type="button" class="mm-scr-copy" onclick="mmCopyScript(this)" title="Copy this answer">Copy</button>
+                                    {!! $mmxChev !!}
                                 </div>
+                                <div class="mmx-acc-bd"><div>
                                 <div class="mm-scr-body">{{ $o['a'] }}</div>
+                                </div></div>
                             </div>
                             @endforeach
                         </div>
@@ -656,6 +783,7 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     @foreach($chSteps as $i => $step)
                     <button type="button" class="dvt {{ $i === 0 ? 'on' : '' }}" data-tab="ch-{{ $step['key'] }}" onclick="mmSelectStep('ch','{{ $step['key'] }}')">{{ strtoupper($step['label']) }}</button>
                     @endforeach
+                    <button type="button" class="mmx-expand" onclick="mmFocusToggle()" title="Expand the table" aria-label="Expand the table"><svg class="mmx-ico-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg><svg class="mmx-ico-min" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg></button>
                 </div>
                 <div class="dash-view">
 
@@ -684,19 +812,49 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     </div>
 
                     <div class="mm-panel" data-panel="ch-rootcause" style="display:none">
-                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Why students are actually leaving, ranked by how many it affects.</div></div>
-                        @forelse($chRootCauses as $rc)
-                        <div class="act"><div><div class="act-t">{{ $rc['name'] }}</div><div class="act-d">{{ $rc['meta'] }}</div></div></div>
-                        @empty
+                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Why students are actually leaving, ranked by how many it affects. Click a card to see who is affected.</div></div>
+                        @if(count($chRootCauses))
+                        <div class="mmx-ins-grid mmx-rc-grid">
+                            @foreach($chRootCauses as $i => $rc)
+                            @php $rcPct = !empty($rc['base']) ? min(100, round($rc['count'] / $rc['base'] * 100)) : null; @endphp
+                            <button type="button" class="mmx-ins mmx-rc" @if(!empty($rc['key'])) onclick="mmKpiOpen('{{ $rc['key'] }}', '{{ $rc['name'] }}')" title="Click to see who is affected" @endif>
+                                <span class="mmx-ins-ic">{!! $mmxIco($rc['icon'] ?? 'score') !!}</span>
+                                <span class="mmx-rank">#{{ $i + 1 }}</span>
+                                <b>{{ $rc['name'] }}</b>
+                                <p>{{ $rc['meta'] }}</p>
+                                <span class="mmx-ins-big">{{ number_format($rc['count'] ?? 0) }}</span>
+                                @if($rcPct !== null)
+                                <span class="mmx-share"><em><i style="width:{{ max(2, $rcPct) }}%"></i></em><small>{{ $rcPct }}% {{ $rc['baseLabel'] }}</small></span>
+                                @endif
+                                @if(!empty($rc['key']))<span class="mmx-go">See who is affected →</span>@endif
+                            </button>
+                            @endforeach
+                        </div>
+                        @else
                         <div class="act"><div class="act-t" style="color:var(--g3)">No root-cause data available.</div></div>
-                        @endforelse
+                        @endif
                     </div>
 
                     <div class="mm-panel" data-panel="ch-offers" style="display:none">
-                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Offers that have worked to win students back.</div></div>
-                        @foreach($chOffers as $o)
-                        <div class="act"><div><div class="act-t">{{ $o['name'] }}</div><div class="act-d">{{ $o['meta'] }}</div></div></div>
+                        <div class="stack-intro"><div class="si-h">WHAT YOU'RE LOOKING AT</div><div class="si-p">Offers that have worked to win students back. Each card shows how many students it fits right now — open a card for how to use it and the list of students.</div></div>
+                        <div class="mmx-offers" data-tab-data="offers">
+                        @foreach($chOffers as $i => $o)
+                        <div class="mmx-acc mmx-offer {{ $i === 0 ? 'open' : '' }}" data-offer="{{ $o['key'] }}">
+                            <div class="mmx-acc-hd" onclick="mmxAccToggle(event, this)" role="button" tabindex="0" aria-expanded="{{ $i === 0 ? 'true' : 'false' }}">
+                                <span class="mmx-ins-ic">{!! $mmxIco($o['icon']) !!}</span>
+                                <div class="mmx-offer-t"><b>{{ $o['name'] }}</b><small>{{ $o['meta'] }}</small></div>
+                                <span class="mmx-tag">{{ $o['tag'] }}</span>
+                                <span class="mmx-offer-n" data-offer-n title="Students this offer fits right now">…</span>
+                                {!! $mmxChev !!}
+                            </div>
+                            <div class="mmx-acc-bd"><div><div class="mmx-offer-bd">
+                                <p class="mmx-offer-who"><b>Who it fits now:</b> <span data-offer-meta>Loading…</span></p>
+                                <p><b>How to use it:</b> {{ $o['play'] }}</p>
+                                <button type="button" class="mmx-offer-go" onclick="mmKpiOpen('{{ $o['key'] }}', '{{ $o['name'] }}')">View the students <span data-offer-n2></span></button>
+                            </div></div></div>
+                        </div>
                         @endforeach
+                        </div>
                     </div>
 
                     <div class="mm-panel" data-panel="ch-watchlist" style="display:none">
@@ -783,6 +941,21 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
 
         {{-- Popup for "which/who" style answers — a clean table of the real
              students behind the answer, instead of a run-on paragraph. --}}
+        {{-- Board view (header Table | Board switch): every student matching the Marketing › Campaign
+             filters and segment, in columns (mmBoardLoad). Replaces the agent panels while it is on. --}}
+        <div class="mmx-board-panel" id="mmCampaignBoard" style="display:none">
+            <div class="mmx-board-hd">
+                <div class="mmx-board-title">Student board<span>All renewal-ready students · follows the Marketing › Campaign filters and segment</span></div>
+                <span>Group by</span>
+                <div class="mmx-viewtg" id="mmBoardGroup" role="group" aria-label="Group by">
+                    <button type="button" class="on" data-g="stage" onclick="mmBoardGroup('stage')">Stage</button>
+                    <button type="button" data-g="action" onclick="mmBoardGroup('action')">Next best action</button>
+                </div>
+                <span id="mmBoardInfo"></span>
+            </div>
+            <div class="mmx-board" id="mmBoardCols"></div>
+        </div>
+
         {{-- Student profile popup — opened by clicking a student's name in any list (see mmProfileOpen) --}}
         <div class="mm-stu-overlay" id="mmStuOverlay" onclick="if(event.target===this) mmProfileClose()" role="dialog" aria-modal="true" aria-labelledby="mmStuName">
             <div class="mm-stu-card">
@@ -795,6 +968,12 @@ $mmStageKind = fn ($label) => preg_match('/won|active|renew/i', (string) $label)
                     </div>
                 </div>
                 <dl class="mm-stu-dl" id="mmStuBody"></dl>
+                <button type="button" class="mm-stu-more" id="mmStuMore" onclick="mmxProfileToggle('pop')" hidden title="Open readiness, mock scores, package and timeline on the side">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+                    <span>View full profile</span>
+                    <small>Scores, package &amp; activity</small>
+                    <svg class="mm-stu-more-arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                </button>
             </div>
         </div>
 
@@ -1343,6 +1522,564 @@ textarea.mm-cmp-in{resize:vertical;line-height:1.55}
   #bhRoot .dm-inbar .send{width:36px}
 }
 @media(max-width:1180px){#bhRoot .dash{gap:12px}}
+
+/* ── Dashboard additions (Nov 2026): overview cards per agent, Campaign quick segments,
+      richer Campaign columns and the Board view. All collapsible; the table stays the focus. ── */
+#bhRoot .mmx-collapse{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--ln);background:#fff;border-radius:8px;padding:3px 9px 3px 7px;font-size:11px;font-weight:600;color:var(--g2);cursor:pointer;font-family:var(--f1)}
+#bhRoot .mmx-collapse:hover{color:var(--ink);border-color:var(--ln2)}
+#bhRoot .mmx-collapse svg{width:12px;height:12px;transition:transform .2s}
+#bhRoot .collapsed .mmx-collapse svg{transform:rotate(-90deg)}
+
+#bhRoot .mmx-ov{flex-shrink:0;margin-bottom:16px}
+#bhRoot .mmx-ov-hd{display:flex;align-items:center;gap:10px;margin:0 2px 8px}
+#bhRoot .mmx-ov-t{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#64748b}
+#bhRoot .mmx-ov-t [data-ov-t]{display:none}
+#bhRoot[data-agent="mk"] [data-ov-t="mk"],#bhRoot[data-agent="sl"] [data-ov-t="sl"],#bhRoot[data-agent="ch"] [data-ov-t="ch"]{display:inline}
+#bhRoot .mmx-live{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--g3)}
+#bhRoot .mmx-live i{width:7px;height:7px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 3px #dcfce7}
+#bhRoot .mmx-ov-hd .mmx-collapse{margin-left:auto}
+#bhRoot .mmx-ov.collapsed .mmx-ov-hd{margin-bottom:0}
+#bhRoot .mmx-ov.collapsed .mmx-kpis{display:none!important}
+#bhRoot .mmx-kpis{display:none;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+#bhRoot[data-agent="mk"] .mmx-kpis[data-ov="mk"],#bhRoot[data-agent="sl"] .mmx-kpis[data-ov="sl"],#bhRoot[data-agent="ch"] .mmx-kpis[data-ov="ch"]{display:grid}
+#bhRoot .mmx-kpi{background:#fff;border:1px solid var(--ln);border-radius:var(--card-r,14px);box-shadow:var(--card-sh);padding:12px 14px 10px;min-width:0}
+#bhRoot .mmx-kpi-l{font-size:11.5px;font-weight:600;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bhRoot .mmx-kpi-r{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:4px}
+#bhRoot .mmx-kpi-v{font-size:22px;font-weight:700;letter-spacing:-.02em;color:#0f172a;line-height:1.15;font-variant-numeric:tabular-nums}
+#bhRoot .mmx-delta{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:20px;margin-top:4px;background:#f1f5f9;color:#64748b}
+#bhRoot .mmx-delta.good{background:#dcfce7;color:#15803d}
+#bhRoot .mmx-delta.bad{background:#fee2e2;color:#b91c1c}
+#bhRoot .mmx-kpi-h{font-size:11px;color:var(--g3);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bhRoot .mmx-kpi svg{flex:0 0 auto}
+#bhRoot .mmx-skel{display:block;height:22px;width:60%;border-radius:6px;background:linear-gradient(90deg,#f1f5f9,#e2e8f0,#f1f5f9);background-size:200% 100%;animation:mmxShimmer 1.2s infinite}
+@keyframes mmxShimmer{to{background-position:-200% 0}}
+@media(max-width:1280px){#bhRoot .mmx-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}#bhRoot .mmx-kpi:nth-child(n+4){display:none}}
+@media(max-width:700px){#bhRoot .mmx-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+#bhRoot .mmx-seg-wrap{padding:0 20px 14px}
+#bhRoot .mmx-seg-hd{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+#bhRoot .mmx-seg-hd b{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#64748b}
+#bhRoot .mmx-seg-hd span{font-size:11px;color:var(--g3)}
+#bhRoot .mmx-seg-hd .mmx-collapse{margin-left:auto}
+#bhRoot .mmx-seg-wrap.collapsed .mmx-segs{display:none}
+#bhRoot .mmx-seg-wrap.collapsed .mmx-seg-hd{margin-bottom:0}
+#bhRoot .mmx-segs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(156px,1fr);gap:10px;overflow-x:auto;padding-bottom:2px}
+#bhRoot .mmx-seg{border:1px solid var(--ln);background:var(--p1);border-radius:12px;padding:9px 12px;text-align:left;cursor:pointer;font-family:var(--f1);min-width:0;transition:border-color .15s,background .15s}
+#bhRoot .mmx-seg:hover{border-color:#c4b5fd}
+#bhRoot .mmx-seg.on{background:#f5f3ff;border-color:#7c3aed;box-shadow:0 0 0 1px #7c3aed inset}
+#bhRoot .mmx-seg-t{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bhRoot .mmx-seg.on .mmx-seg-t{color:#6d28d9}
+#bhRoot .mmx-seg-t i{width:8px;height:8px;border-radius:3px;flex:0 0 auto}
+#bhRoot .mmx-seg-n{font-size:19px;font-weight:700;color:#0f172a;margin-top:2px;font-variant-numeric:tabular-nums}
+#bhRoot .mmx-seg-s{font-size:10.5px;color:var(--g3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+#bhRoot .mmx-muted{color:var(--g3)}
+#bhRoot .mmx-sub{font-size:10.5px;color:var(--g3);margin-top:2px}
+#bhRoot .mmx-exp{color:#475569;white-space:nowrap}
+#bhRoot .mmx-ring{display:inline-flex;align-items:center;gap:7px;font-variant-numeric:tabular-nums}
+#bhRoot .mmx-ring b{font-weight:600}
+#bhRoot .mmx-last{white-space:nowrap}
+#bhRoot .mmx-bar{display:block;height:4px;width:58px;border-radius:9px;background:#eceef3;margin-top:5px;overflow:hidden}
+#bhRoot .mmx-bar b{display:block;height:100%;border-radius:9px}
+#bhRoot .bh-pill.mmx-nba{white-space:nowrap;max-width:none}
+
+#bhRoot .mmx-viewtg{display:inline-flex;margin-left:auto;border:1px solid var(--ln);border-radius:8px;overflow:hidden;background:#fff}
+#bhRoot .mmx-viewtg button{border:none;background:transparent;padding:6px 11px;font-size:12px;font-weight:600;color:var(--g2);cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-family:var(--f1)}
+#bhRoot .mmx-viewtg button + button{border-left:1px solid var(--ln)}
+#bhRoot .mmx-viewtg button.on{background:#0f172a;color:#fff}
+#bhRoot .mmx-viewtg svg{width:13px;height:13px}
+#bhRoot .mmx-board-wrap{padding:12px 20px 20px}
+#bhRoot .mmx-board-hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;color:var(--g3)}
+#bhRoot .mmx-board-hd .mmx-viewtg{margin-left:0}
+#bhRoot .mmx-board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(230px,1fr);gap:12px;overflow-x:auto;padding-bottom:6px}
+#bhRoot .mmx-col{background:var(--p1);border:1px solid var(--ln);border-radius:12px;padding:10px;min-height:160px;display:flex;flex-direction:column}
+#bhRoot .mmx-col h4{margin:2px 4px 10px;font-size:12.5px;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:7px}
+#bhRoot .mmx-col h4 i{width:8px;height:8px;border-radius:3px}
+#bhRoot .mmx-col h4 span{margin-left:auto;color:var(--g3);font-weight:600}
+#bhRoot .mmx-col-body{overflow-y:auto;max-height:560px;padding-right:2px}
+#bhRoot .mmx-tile{background:#fff;border:1px solid var(--ln);border-radius:10px;padding:9px 10px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+#bhRoot .mmx-tile:hover{border-color:#c4b5fd;box-shadow:0 2px 8px -4px rgba(124,58,237,.35)}
+#bhRoot .mmx-tile-a{display:flex;align-items:center;gap:9px;min-width:0}
+#bhRoot .mmx-tile-a .bh-av{width:28px;height:28px;font-size:11px;flex:0 0 auto}
+#bhRoot .mmx-tile-n{font-size:12.5px;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bhRoot .mmx-tile-c{font-size:11px;color:var(--g3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bhRoot .mmx-tile-b{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:8px;font-size:12px}
+#bhRoot .mmx-tile-b .mmx-ring b{font-size:12px}
+#bhRoot .mmx-more{font-size:11.5px;color:var(--g3);text-align:center;padding:6px 4px}
+
+/* ── Part 2 (Nov 2026): expand the table, Board in the page header, Profile side panel ── */
+/* Expand button at the end of each agent's step tabs */
+#bhRoot .dash-vtabs .mmx-expand{flex:0 0 auto;align-self:center;width:32px;height:32px;margin:0 6px 4px 8px;display:grid;place-items:center;border:1px solid var(--ln);border-radius:8px;background:#fff;color:#94a3b8;cursor:pointer;padding:0}
+#bhRoot .dash-vtabs .mmx-expand:hover{color:#475569;border-color:var(--ln2);background:var(--p1)}
+#bhRoot .mmx-expand svg{width:16px;height:16px}
+#bhRoot .mmx-expand .mmx-ico-min,#bhRoot.mm-focus .mmx-expand .mmx-ico-max{display:none}
+#bhRoot.mm-focus .mmx-expand .mmx-ico-min{display:block}
+#bhRoot.mm-focus .mmx-expand{color:#7c3aed;border-color:#c4b5fd;background:#f5f3ff}
+/* Expanded: the middle table fills the screen; steps, helper, overview, intro and segment cards are hidden */
+#bhRoot.mm-focus{position:fixed;inset:0;z-index:9000;background:#f5f6f8;padding:14px}
+#bhRoot.mm-focus .bar,#bhRoot.mm-focus .mmx-ov,#bhRoot.mm-focus .dash-left,#bhRoot.mm-focus .dash-mira,
+#bhRoot.mm-focus .stack-intro,#bhRoot.mm-focus .mmx-seg-wrap{display:none!important}
+#bhRoot.mm-focus .dash.on{grid-template-columns:1fr!important}
+
+/* Table | Board switch in the page header (outside #bhRoot) */
+#mmViewTg{display:inline-flex;height:32px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;background:#fff}
+#mmViewTg button{border:none;background:transparent;padding:0 11px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+#mmViewTg button + button{border-left:1px solid #e5e7eb}
+#mmViewTg button.on{background:#0f172a;color:#fff}
+#mmViewTg svg{width:13px;height:13px}
+/* Board panel replaces the agent panels while it is on */
+#bhRoot.mm-board-on .dash{display:none!important}
+#bhRoot .mmx-board-panel{flex:1;min-height:0;overflow:auto;background:#fff;border:1px solid var(--ln);border-radius:var(--card-r,14px);box-shadow:var(--card-sh);padding:16px 20px 20px}
+#bhRoot .mmx-board-title{font-size:15px;font-weight:700;color:#0f172a;margin-right:auto;display:flex;flex-direction:column}
+#bhRoot .mmx-board-title span{font-size:11.5px;font-weight:500;color:var(--g3);margin-top:2px}
+
+/* Profile side panel next to the message windows (Campaign "View" and Sales / Retention "View") */
+.mmx-prof-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid #ddd6fe!important;background:#f5f3ff!important;color:#6d28d9!important;font-size:12px!important;font-weight:600;border-radius:8px;padding:5px 11px!important;cursor:pointer;line-height:1.2!important;vertical-align:middle;font-family:inherit}
+.mmx-prof-btn:hover{background:#ede9fe!important}
+.mmx-prof-btn.on{background:#6d28d9!important;color:#fff!important;border-color:#6d28d9!important}
+.mmx-prof-btn svg{width:13px;height:13px}
+body.mmx-prof-open .risk-modal-overlay,body.mmx-prof-open .mm-cmp-overlay{padding-right:476px}
+/* Part 4 (Nov 2026): "View full profile" button in the student details popup */
+body.mmx-prof-open .mm-stu-overlay{padding-right:476px}
+.mm-stu-more{display:flex;align-items:center;gap:10px;width:100%;margin-top:14px;padding:10px 12px;border:1px solid #c7d2fe;border-radius:10px;background:linear-gradient(135deg,#eef2ff,#f5f3ff);color:#4338ca;font:600 13px/1.2 inherit;font-family:inherit;cursor:pointer;text-align:left;transition:background .15s,border-color .15s}
+.mm-stu-more[hidden]{display:none}
+.mm-stu-more:hover{background:linear-gradient(135deg,#e0e7ff,#ede9fe);border-color:#a5b4fc}
+.mm-stu-more svg{width:16px;height:16px;flex-shrink:0}
+.mm-stu-more small{flex:1;font-size:11px;font-weight:500;color:#6366f1;text-align:right}
+.mm-stu-more .mm-stu-more-arr{width:14px;height:14px;transition:transform .15s}
+.mm-stu-more.on{background:#4f46e5;border-color:#4f46e5;color:#fff}
+.mm-stu-more.on small{color:#e0e7ff}
+.mm-stu-more.on .mm-stu-more-arr{transform:rotate(180deg)}
+.mmx-prof{position:fixed;top:0;right:0;height:100vh;width:min(452px,100vw);background:#fff;border-left:1px solid #e5e7eb;z-index:10060;transform:translateX(100%);transition:transform .22s ease;display:flex;flex-direction:column;box-shadow:-18px 0 40px -22px rgba(15,23,42,.35);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a}
+.mmx-prof.show{transform:none}
+.mmx-prof-hd{display:flex;gap:14px;align-items:center;padding:18px 20px;border-bottom:1px solid #f1f5f9}
+.mmx-prof-pic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:17px;flex:0 0 auto;overflow:hidden;background-size:cover;background-position:center}
+.mmx-prof-hd h3{margin:0;font-size:17px;font-weight:700;line-height:1.25}
+.mmx-prof-hd .c{font-size:12px;color:#64748b;margin-top:2px}
+.mmx-prof-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.mmx-prof-x{margin-left:auto;align-self:flex-start;border:1px solid #e5e7eb;background:#fff;border-radius:9px;width:32px;height:32px;cursor:pointer;color:#64748b;font-size:15px;flex:0 0 auto}
+.mmx-prof-x:hover{color:#0f172a}
+.mmx-prof-b{padding:18px 20px 24px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
+.mmx-prof-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mmx-prof-stats div{border:1px solid #e5e7eb;border-radius:12px;padding:10px 12px;background:#fafafa}
+.mmx-prof-stats small{display:block;font-size:11px;color:#94a3b8}
+.mmx-prof-stats b{display:block;font-size:18px;margin-top:2px}
+.mmx-prof-sec{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px}
+.mmx-prof-sec span{text-transform:none;letter-spacing:0;font-weight:500;margin-left:6px}
+.mmx-skill{display:grid;grid-template-columns:76px 1fr 30px;gap:10px;align-items:center;font-size:12.5px;margin-bottom:8px}
+.mmx-skill i{display:block;height:8px;border-radius:9px;background:#f1f5f9;overflow:hidden}
+.mmx-skill i b{display:block;height:100%;border-radius:9px;background:#7c3aed}
+.mmx-skill > b{text-align:right;font-variant-numeric:tabular-nums}
+.mmx-prof .bh-pill{display:inline-block;font-size:11px;font-weight:600;line-height:1.3;padding:3px 8px;border-radius:6px}
+.mmx-prof .bh-pill.good{background:#e8f7ee;color:#15803d}
+.mmx-prof .bh-pill.warn{background:#fff1e6;color:#c2410c}
+.mmx-prof .bh-pill.bad{background:#fdecec;color:#b91c1c}
+.mmx-prof .bh-pill.info{background:#e8f0fe;color:#1d4ed8}
+.mmx-prof .bh-pill.violet{background:#f1ecfe;color:#6d28d9}
+.mmx-prof-draft{border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;background:#fafafa;font-size:13px;line-height:1.5;white-space:pre-line;margin-top:10px}
+.mmx-prof-use{margin-top:10px;border:none;background:#7c3aed;color:#fff;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer}
+.mmx-prof-use:hover{background:#6d28d9}
+.mmx-prof-kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12.5px}
+.mmx-prof-kv dt{color:#94a3b8}
+.mmx-prof-kv dd{margin:0;font-weight:500;word-break:break-word}
+.mmx-tl{border-left:2px solid #e5e7eb;margin-left:6px;padding-left:16px;display:flex;flex-direction:column;gap:13px}
+.mmx-tl div{position:relative;font-size:13px}
+.mmx-tl div::before{content:"";position:absolute;left:-22px;top:4px;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid #7c3aed}
+.mmx-tl div.bad::before{border-color:#dc2626}
+.mmx-tl small{display:block;color:#94a3b8;font-size:11.5px}
+.mmx-prof-empty{color:#94a3b8;font-size:12.5px}
+@media(max-width:1100px){body.mmx-prof-open .risk-modal-overlay,body.mmx-prof-open .mm-cmp-overlay{padding-right:24px}}
+
+/* ── Part 3 (Nov 2026): Campaign pager (page numbers, Go to page, rows per page) and filled lists ── */
+#bhRoot #mmCampaignPageInfo b{color:#334155;font-weight:600}
+#bhRoot .mmx-pg{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#bhRoot .mmx-pg-rows{display:inline-flex;align-items:center;gap:6px;margin-right:6px;font-weight:600;color:var(--g2)}
+#bhRoot .mmx-pg-rows select{padding:4px 6px;border:1px solid var(--ln);border-radius:6px;font-size:12px;background:#fff;color:var(--ink);cursor:pointer}
+#bhRoot .mmx-pg button:disabled{opacity:.45;cursor:default}
+#bhRoot .mmx-pg-nums{display:inline-flex;align-items:center;gap:4px}
+#bhRoot .mmx-pg-nums button{min-width:30px;height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--ln);background:#fff;font-size:12px;font-weight:600;color:#334155;cursor:pointer;font-variant-numeric:tabular-nums}
+#bhRoot .mmx-pg-nums button:hover{border-color:#c4b5fd;color:#6d28d9}
+#bhRoot .mmx-pg-nums button.on{background:#7c3aed;border-color:#7c3aed;color:#fff;cursor:default}
+#bhRoot .mmx-pg-gap{padding:0 2px;color:var(--g3)}
+#bhRoot .mmx-pg-go{display:inline-flex;align-items:center;gap:6px;margin-left:6px;font-weight:600;color:var(--g2)}
+#bhRoot .mmx-pg-go input{width:62px;padding:4px 6px;border:1px solid var(--ln);border-radius:6px;font-size:12px}
+#bhRoot .mmx-pg-go button{padding:5px 10px;border-radius:6px;border:1px solid #7c3aed;background:#fff;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer}
+#bhRoot .mmx-fill-ft{display:flex;align-items:center;justify-content:center;gap:10px;margin:-8px 20px 20px;padding:10px;font-size:12px;color:var(--g3)}
+#bhRoot .mmx-fill-ft b{color:#334155}
+#bhRoot .mmx-fill-ft button{padding:5px 12px;border-radius:6px;border:1px solid #7c3aed;background:#fff;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer}
+
+/* ── Part 5 (Nov 2026): animations and designs from the concept page, plus filter chips.
+   Looks only — every button, filter and list works as before. The sidebar rules apply on this page only. ── */
+:root{--mmx-ease:cubic-bezier(.22,.8,.26,1);--mmx-spring:cubic-bezier(.34,1.56,.64,1)}
+@keyframes mmxRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes mmxRowIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+@keyframes mmxSlideR{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+@keyframes mmxSlideL{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+@keyframes mmxViewIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes mmxCardIn{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:none}}
+@keyframes mmxBubIn{from{opacity:0;transform:translateY(8px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes mmxPop{from{opacity:0;transform:scale(.94) translateY(8px)}to{opacity:1;transform:none}}
+@keyframes mmxChipIn{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+@keyframes mmxFade{from{opacity:0}to{opacity:1}}
+@keyframes mmxArea{from{opacity:0}to{opacity:.12}}
+@keyframes mmxGrowX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes mmxGrowY{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes mmxDraw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes mmxRingIn{from{stroke-dasharray:0 70}}
+@keyframes mmxZoomIn{from{opacity:.5;transform:scale(.975)}to{opacity:1;transform:none}}
+@keyframes mmxPulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 6px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+@keyframes mmxBlink{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+@keyframes mmxRipple{to{transform:scale(4);opacity:0}}
+@keyframes mmxBump{50%{transform:scale(1.25)}}
+@keyframes mmxTwinkle{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.82);opacity:.75}}
+
+/* Header buttons: lift on hover; Table | Board pill slides */
+.bh-page > header button,.bh-page > header a{transition:transform .18s var(--mmx-ease),box-shadow .2s,background-color .2s,color .2s}
+.bh-page > header button:hover:not(:disabled),.bh-page > header a:hover{transform:translateY(-1px);box-shadow:0 4px 12px -6px rgba(15,23,42,.3)}
+.bh-page > header button:active:not(:disabled){transform:scale(.97)}
+#mmViewTg{position:relative}
+#mmViewTg button{position:relative;z-index:1;transition:color .25s}
+#mmViewTg button + button{border-left-color:transparent}
+#mmViewTg.mmx-pilled button.on{background:transparent}
+#mmViewTg button:hover{transform:none!important;box-shadow:none!important}
+#mmViewTg .mmx-vt-pill{position:absolute;top:0;bottom:0;left:0;border-radius:7px;background:#0f172a;transition:transform .38s var(--mmx-spring),width .38s var(--mmx-spring);box-shadow:0 4px 10px -4px rgba(0,0,0,.45)}
+
+/* Agent tabs: coloured background slides to the chosen agent */
+#bhRoot .atabs{position:relative}
+#bhRoot .atabs.mmx-slid .atab,#bhRoot .atabs.mmx-slid .atab.on,#bhRoot .atabs.mmx-slid .atab.on:hover{background:transparent}
+#bhRoot .atabs.mmx-slid .atab:hover:not(.on){background:var(--p1)}
+#bhRoot .atab{z-index:1;transition:color .3s}
+#bhRoot .atab .amono svg{transition:transform .4s var(--mmx-spring)}
+#bhRoot .atab.on .amono svg{transform:scale(1.15) rotate(-8deg)}
+#bhRoot .mmx-at-slider{position:absolute;top:0;bottom:0;left:0;z-index:0;border-radius:var(--card-r,14px);background-color:var(--ac);background-image:linear-gradient(135deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.28));box-shadow:0 8px 20px -10px var(--ac);transition:transform .45s var(--mmx-spring),width .45s var(--mmx-spring),background-color .4s,box-shadow .4s;pointer-events:none}
+#bhRoot .mmx-ab{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:20px;background:#f1f5f9;color:#475569;font-variant-numeric:tabular-nums;transition:background .3s,color .3s}
+#bhRoot .atab.on .mmx-ab{background:rgba(255,255,255,.25);color:#fff}
+#bhRoot .mmx-ab:empty{display:none}
+
+/* Collapse buttons */
+#bhRoot .mmx-collapse{transition:background .2s,color .2s,border-color .2s}
+#bhRoot .mmx-collapse svg{transition:transform .35s var(--mmx-ease)}
+
+/* Overview cards: rise one after another, coloured top bar grows, numbers count up, spark lines draw */
+#bhRoot .mmx-kpi{position:relative;overflow:hidden;transition:transform .25s var(--mmx-ease),box-shadow .25s}
+#bhRoot .mmx-kpi:hover{transform:translateY(-3px);box-shadow:0 14px 30px -16px rgba(15,23,42,.3)}
+#bhRoot .mmx-kpi.mmx-in{animation:mmxRise .55s var(--mmx-ease) both;animation-delay:calc(var(--i,0) * 70ms)}
+#bhRoot .mmx-kpi.mmx-bartop::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--c,var(--ac));transform-origin:left}
+#bhRoot .mmx-kpi.mmx-bartop.mmx-in::before{animation:mmxGrowX .8s var(--mmx-ease) both;animation-delay:calc(var(--i,0) * 70ms + 120ms)}
+#bhRoot .mmx-kpi.mmx-in path.mmx-line{stroke-dasharray:1;stroke-dashoffset:1;animation:mmxDraw 1.3s var(--mmx-ease) forwards;animation-delay:calc(var(--i,0) * 70ms + 250ms)}
+#bhRoot .mmx-kpi.mmx-in path.mmx-area{opacity:0;animation:mmxArea .8s ease forwards;animation-delay:calc(var(--i,0) * 70ms + 900ms)}
+#bhRoot .mmx-live i{animation:mmxPulse 2s infinite}
+
+/* Steps on the left: slide in, active number springs, earlier steps get a tick, progress bar */
+#bhRoot .dash.on .flowst{animation:mmxSlideR .45s var(--mmx-ease) both}
+#bhRoot .dash.on .flowst:nth-child(2){animation-delay:.05s}#bhRoot .dash.on .flowst:nth-child(3){animation-delay:.1s}#bhRoot .dash.on .flowst:nth-child(4){animation-delay:.15s}#bhRoot .dash.on .flowst:nth-child(5){animation-delay:.2s}#bhRoot .dash.on .flowst:nth-child(6){animation-delay:.25s}
+#bhRoot .flowst{transition:background .25s,transform .25s var(--mmx-ease)}
+#bhRoot .flowst:hover{transform:translateX(3px)}
+#bhRoot .flowst-dot{position:relative;transition:background .3s,border-color .3s,color .3s,transform .35s var(--mmx-spring),box-shadow .3s}
+#bhRoot .flowst.cur .flowst-dot{transform:scale(1.1)}
+#bhRoot .flowst.mmx-done .flowst-dot{color:transparent;background:#e8f7ee;border-color:#bbf7d0}
+#bhRoot .flowst.mmx-done .flowst-dot::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:#16a34a;font-size:12px;font-weight:700;animation:mmxChipIn .35s var(--mmx-spring)}
+#bhRoot .mmx-step-sub{display:block;font-size:10.5px;font-weight:500;color:#94a3b8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bhRoot .mmx-prog{margin:14px 16px 8px;font-size:11px;color:#64748b}
+#bhRoot .mmx-prog em{display:block;height:6px;border-radius:6px;background:#f1f3f8;margin-top:6px;overflow:hidden}
+#bhRoot .mmx-prog em i{display:block;height:100%;border-radius:6px;background:var(--ac);transition:width .6s var(--mmx-ease),background-color .4s}
+
+/* Step tabs in the middle: underline slides to the chosen tab; the panel fades in */
+#bhRoot .dash-vtabs{position:relative}
+#bhRoot .dash-vtabs.mmx-ul-on .dvt.on{box-shadow:none}
+#bhRoot .dvt{transition:background .25s,color .25s}
+#bhRoot .mmx-ul{position:absolute;bottom:0;left:0;height:3px;border-radius:3px 3px 0 0;background:var(--ac);transition:transform .4s var(--mmx-spring),width .4s var(--mmx-spring),background-color .4s;pointer-events:none;z-index:2}
+#bhRoot .mm-panel{animation:mmxViewIn .4s var(--mmx-ease) both}
+#bhRoot .mmx-board-panel{animation:mmxViewIn .4s var(--mmx-ease) both}
+
+/* Quick segment cards: rise in, lift on hover, ripple on click */
+#bhRoot .mmx-seg{position:relative;overflow:hidden;transition:transform .25s var(--mmx-spring),border-color .25s,background .25s,box-shadow .25s}
+#bhRoot .mmx-seg:hover{transform:translateY(-3px);box-shadow:0 10px 24px -14px rgba(15,23,42,.35)}
+#bhRoot .mmx-seg.on{box-shadow:0 0 0 3px var(--ac-l)}
+#bhRoot .mmx-segs.mmx-in .mmx-seg{animation:mmxRise .5s var(--mmx-ease) both}
+#bhRoot .mmx-segs.mmx-in .mmx-seg:nth-child(2){animation-delay:.05s}#bhRoot .mmx-segs.mmx-in .mmx-seg:nth-child(3){animation-delay:.1s}#bhRoot .mmx-segs.mmx-in .mmx-seg:nth-child(4){animation-delay:.15s}#bhRoot .mmx-segs.mmx-in .mmx-seg:nth-child(5){animation-delay:.2s}#bhRoot .mmx-segs.mmx-in .mmx-seg:nth-child(6){animation-delay:.25s}
+#bhRoot .mmx-rip{position:absolute;border-radius:50%;background:var(--ac);opacity:.25;transform:scale(0);animation:mmxRipple .6s ease-out forwards;pointer-events:none}
+
+/* Applied-filter chips above each table: click a chip to change it, × to remove it */
+#bhRoot .mmx-chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 14px;border-bottom:1px solid var(--ln);background:#fff}
+#bhRoot .mmx-chips[hidden]{display:none}
+#bhRoot .mmx-chips-l{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#94a3b8;margin-right:2px}
+#bhRoot .mmx-chip{display:inline-flex;align-items:center;gap:4px;background:var(--ac-l);color:var(--ac-d);border:1px solid var(--ac-m);border-radius:20px;padding:3px 4px 3px 10px;font-size:11.5px;font-weight:600;line-height:1.3;font-family:var(--f1);transition:transform .2s var(--mmx-spring),box-shadow .2s,background .2s}
+#bhRoot .mmx-chip.new{animation:mmxChipIn .35s var(--mmx-spring)}
+#bhRoot .mmx-chip:hover{transform:translateY(-1px);box-shadow:0 4px 10px -6px var(--ac)}
+#bhRoot .mmx-chip-e{border:none;background:none;color:inherit;font:inherit;padding:0;cursor:pointer}
+#bhRoot .mmx-chip-e b{font-weight:700}
+#bhRoot .mmx-chip-x{width:18px;height:18px;border:none;border-radius:50%;background:transparent;color:inherit;font-size:13px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0;transition:background .2s,transform .2s}
+#bhRoot .mmx-chip-x:hover{background:var(--ac-m);transform:rotate(90deg)}
+#bhRoot .mmx-chip.all{background:#fff;color:#64748b;border-color:var(--ln);padding-right:10px;cursor:pointer}
+#bhRoot .mmx-chip.all:hover{color:#b91c1c;border-color:#fecaca;background:#fef2f2;box-shadow:none}
+
+/* Tables: rows slide in, readiness rings fill, last-active bars grow, hover details */
+#bhRoot .dtbl tbody tr{animation:mmxRowIn .4s var(--mmx-ease) both}
+#bhRoot .dtbl tbody tr:nth-child(2){animation-delay:.03s}#bhRoot .dtbl tbody tr:nth-child(3){animation-delay:.06s}#bhRoot .dtbl tbody tr:nth-child(4){animation-delay:.09s}#bhRoot .dtbl tbody tr:nth-child(5){animation-delay:.12s}#bhRoot .dtbl tbody tr:nth-child(6){animation-delay:.15s}#bhRoot .dtbl tbody tr:nth-child(7){animation-delay:.18s}#bhRoot .dtbl tbody tr:nth-child(8){animation-delay:.21s}#bhRoot .dtbl tbody tr:nth-child(9){animation-delay:.24s}#bhRoot .dtbl tbody tr:nth-child(n+10){animation-delay:.27s}
+#bhRoot .dtbl td{transition:background .2s}
+#bhRoot .mmx-ring circle + circle{animation:mmxRingIn 1s var(--mmx-ease) both .15s}
+#bhRoot .mmx-bar b{transform-origin:left;animation:mmxGrowX .8s var(--mmx-ease) both .15s}
+#bhRoot .bh-av{transition:transform .3s var(--mmx-spring)}
+#bhRoot .bh-acct:hover .bh-av{transform:scale(1.12) rotate(-6deg)}
+#bhRoot .dtbl td button{transition:transform .2s var(--mmx-spring),box-shadow .2s,filter .2s}
+#bhRoot .dtbl td button:hover{transform:scale(1.06);box-shadow:0 6px 14px -6px var(--ac)}
+#bhRoot .mm-sort-ind{display:inline-block;transition:transform .3s var(--mmx-spring)}
+#bhRoot .mmx-pg-nums button,#bhRoot .mmx-pg > button,#bhRoot .mmx-pg-go button{transition:transform .25s var(--mmx-spring),background .2s,border-color .2s,color .2s}
+#bhRoot .mmx-pg-nums button:hover:not(.on),#bhRoot .mmx-pg > button:hover:not(:disabled){transform:translateY(-2px)}
+#bhRoot .mmx-pg-nums button.on{transform:scale(1.08)}
+
+/* Board: columns rise, cards pop in one after another and lift on hover */
+#bhRoot .mmx-col{animation:mmxRise .5s var(--mmx-ease) both}
+#bhRoot .mmx-col:nth-child(2){animation-delay:.07s}#bhRoot .mmx-col:nth-child(3){animation-delay:.14s}#bhRoot .mmx-col:nth-child(4){animation-delay:.21s}#bhRoot .mmx-col:nth-child(n+5){animation-delay:.28s}
+#bhRoot .mmx-tile{animation:mmxCardIn .45s var(--mmx-spring) both;transition:transform .25s var(--mmx-spring),box-shadow .25s,border-color .15s}
+#bhRoot .mmx-tile:nth-child(2){animation-delay:.04s}#bhRoot .mmx-tile:nth-child(3){animation-delay:.08s}#bhRoot .mmx-tile:nth-child(4){animation-delay:.12s}#bhRoot .mmx-tile:nth-child(5){animation-delay:.16s}#bhRoot .mmx-tile:nth-child(6){animation-delay:.2s}#bhRoot .mmx-tile:nth-child(n+7){animation-delay:.24s}
+#bhRoot .mmx-tile:hover{transform:translateY(-2px) rotate(-.4deg);box-shadow:0 10px 22px -14px rgba(15,23,42,.4)}
+#bhRoot .mmx-col h4 span{display:inline-block;animation:mmxBump .45s var(--mmx-spring) .3s}
+#mmBoardGroup button{transition:background .25s,color .25s}
+
+/* Expanded table zooms in; panels open and close smoothly */
+#bhRoot.mm-focus{animation:mmxZoomIn .35s var(--mmx-ease)}
+#bhRoot.mmx-gridanim .dash{transition:grid-template-columns .4s var(--mmx-ease)}
+
+/* Mira helper: spinning ring, pulsing Ready, questions slide in, messages pop, typing dots */
+#bhRoot .dm-spark{position:relative}
+#bhRoot .dm-spark svg{animation:mmxTwinkle 3s ease-in-out infinite}
+#bhRoot .dm-spark::before{content:"";position:absolute;inset:-5px;border-radius:50%;background:conic-gradient(from 0deg,var(--ac),transparent 55%,var(--ac));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1.5px));animation:mmspin 4s linear infinite;opacity:.8}
+#bhRoot .dm-ready{display:inline-flex;align-items:center;gap:5px}
+#bhRoot .dm-ready::before{content:"";width:6px;height:6px;border-radius:50%;background:#16a34a;animation:mmxPulse 2s infinite}
+#bhRoot .dm-quick .qk{animation:mmxSlideL .45s var(--mmx-ease) both;transition:transform .25s var(--mmx-ease),box-shadow .25s,border-color .2s,background .2s,color .2s}
+#bhRoot .dm-quick .qk:nth-child(2){animation-delay:.07s}#bhRoot .dm-quick .qk:nth-child(3){animation-delay:.14s}#bhRoot .dm-quick .qk:nth-child(4){animation-delay:.21s}#bhRoot .dm-quick .qk:nth-child(5){animation-delay:.28s}#bhRoot .dm-quick .qk:nth-child(n+6){animation-delay:.35s}
+#bhRoot .dm-quick .qk:hover{transform:translateX(-3px);box-shadow:0 6px 16px -10px var(--ac)}
+#bhRoot .dm-quick .qk::after{transition:transform .25s}
+#bhRoot .dm-quick .qk:hover::after{transform:translateY(-50%) translateX(3px) rotate(45deg)}
+#bhRoot .dm-chat .msg{animation:mmxBubIn .4s var(--mmx-spring) both}
+#bhRoot .dm-chat:empty::after,#bhRoot .dm-chat:empty::before{animation:mmxBubIn .45s var(--mmx-spring) both}
+#bhRoot .dm-chat .msg.mmx-reveal > *{animation:mmxViewIn .45s var(--mmx-ease) both}
+#bhRoot .mmx-typing{display:inline-flex;gap:4px;padding:4px 2px}
+#bhRoot .mmx-typing i{width:6px;height:6px;border-radius:50%;background:#94a3b8;animation:mmxBlink 1.2s infinite}
+#bhRoot .mmx-typing i:nth-child(2){animation-delay:.15s}#bhRoot .mmx-typing i:nth-child(3){animation-delay:.3s}
+#bhRoot .dm-inbar .in{transition:border-color .2s,box-shadow .2s}
+#bhRoot .dm-inbar .in:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac-l)}
+#bhRoot .dm-inbar .send{transition:transform .2s var(--mmx-spring)}
+#bhRoot .dm-inbar .send:hover{transform:scale(1.08) rotate(-10deg)}
+#bhRoot .mira-btn{transition:transform .2s var(--mmx-spring),background .2s}
+#bhRoot .mira-btn:hover{transform:scale(1.1)}
+
+/* Windows: message composer, popups and list windows scale in; Profile panel sections rise */
+.risk-modal-overlay.show,.mm-cmp-overlay.show,.mm-stu-overlay.show,.mm-list-modal-overlay.show{animation:mmxFade .25s ease}
+.risk-modal-overlay.show .risk-modal,.mm-cmp-overlay.show .mm-cmp,.mm-stu-overlay.show .mm-stu-card,.mm-list-modal-overlay.show .mm-list-modal{animation:mmxPop .35s var(--mmx-spring)}
+.mm-cmp-tpl{animation:mmxRise .4s var(--mmx-ease) both;transition:border-color .2s,background .2s,transform .2s var(--mmx-ease)}
+.mm-cmp-tpl:nth-child(2){animation-delay:.05s}.mm-cmp-tpl:nth-child(3){animation-delay:.1s}.mm-cmp-tpl:nth-child(4){animation-delay:.15s}.mm-cmp-tpl:nth-child(n+5){animation-delay:.2s}
+.mm-cmp-tpl:hover{transform:translateX(2px)}
+.mm-cmp-send button{transition:background .25s,color .25s,transform .2s var(--mmx-spring)}
+.mm-stu-more,.mmx-prof-btn{transition:transform .2s var(--mmx-spring),background .2s,border-color .2s,color .2s}
+.mm-stu-more:hover,.mmx-prof-btn:hover{transform:translateY(-1px)}
+.mmx-prof{transition:transform .42s var(--mmx-ease)}
+.mmx-prof.show .mmx-prof-b > *{animation:mmxRise .5s var(--mmx-ease) both}
+.mmx-prof.show .mmx-prof-b > :nth-child(2){animation-delay:.06s}.mmx-prof.show .mmx-prof-b > :nth-child(3){animation-delay:.12s}.mmx-prof.show .mmx-prof-b > :nth-child(4){animation-delay:.18s}.mmx-prof.show .mmx-prof-b > :nth-child(n+5){animation-delay:.24s}
+.mmx-prof .mmx-skill i b{transform-origin:left;animation:mmxGrowX .8s var(--mmx-ease) both .25s}
+.mmx-prof-pic{animation:mmxChipIn .45s var(--mmx-spring)}
+.mmx-tl div{animation:mmxSlideR .4s var(--mmx-ease) both}
+.mmx-tl div:nth-child(2){animation-delay:.07s}.mmx-tl div:nth-child(3){animation-delay:.14s}.mmx-tl div:nth-child(n+4){animation-delay:.21s}
+.mm-pf-menu{transition:opacity .16s,transform .2s var(--mmx-spring)}
+
+/* Sidebar (this page only): items slide in and nudge on hover, groups open smoothly, data-sources card */
+#platformSidebar nav > *{animation:mmxSlideR .4s var(--mmx-ease) both}
+#platformSidebar nav > :nth-child(2){animation-delay:.04s}#platformSidebar nav > :nth-child(3){animation-delay:.08s}#platformSidebar nav > :nth-child(4){animation-delay:.12s}#platformSidebar nav > :nth-child(5){animation-delay:.16s}#platformSidebar nav > :nth-child(6){animation-delay:.2s}#platformSidebar nav > :nth-child(7){animation-delay:.24s}#platformSidebar nav > :nth-child(n+8){animation-delay:.28s}
+#platformSidebar nav a,#platformSidebar nav button,#platformSidebar a[href]{transition:background-color .2s,color .2s,transform .2s var(--mmx-ease)}
+#platformSidebar nav a:hover,#platformSidebar nav button:hover,#platformSidebar > div > a[href]:hover{transform:translateX(2px)}
+#platformSidebar a.border-l-2{animation:mmxSlideR .45s var(--mmx-ease) both}
+#platformSidebar svg[id$="Chevron"]{transition:transform .3s var(--mmx-ease)}
+#platformSidebar [id$="Submenu"]:not(.hidden) > *{animation:mmxSlideR .3s var(--mmx-ease) both}
+#platformSidebar [id$="Submenu"]:not(.hidden) > :nth-child(2){animation-delay:.03s}#platformSidebar [id$="Submenu"]:not(.hidden) > :nth-child(3){animation-delay:.06s}#platformSidebar [id$="Submenu"]:not(.hidden) > :nth-child(4){animation-delay:.09s}#platformSidebar [id$="Submenu"]:not(.hidden) > :nth-child(n+5){animation-delay:.12s}
+#platformSidebar [data-dd-menu]{animation:mmxPop .25s var(--mmx-spring)}
+#platformSidebar .mmx-src-host > :not(.mmx-src){display:none}
+#platformSidebar .mmx-src-host{background:transparent;border-top:none;padding:10px}
+.mmx-src{background:#fafafb;border:1px solid #ececf2;border-radius:12px;padding:10px 10px 9px;animation:mmxRise .5s var(--mmx-ease) both .3s}
+.mmx-src-t{font-size:11px;color:#64748b;line-height:1.35}
+.mmx-src-t b{color:#0f172a;font-weight:700}
+.mmx-src-bar{height:6px;border-radius:6px;background:#ececf2;margin:8px 0 7px;overflow:hidden}
+.mmx-src-bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#16a34a,#34d399);transform-origin:left;animation:mmxGrowX 1s var(--mmx-ease) both .5s}
+.mmx-src-s{font-size:10.5px;color:#94a3b8;line-height:1.4}
+.mmx-src a{display:inline-block;margin-top:4px;font-size:10.5px;color:#0d9488}
+
+/* ── Part 6 (Nov 2026): narrow windows (for example the browser snapped to half the screen).
+   Up to 1180px wide the page scrolls up and down instead of squeezing everything into one screen:
+   the header wraps, and the steps, the middle panel and the helper stack one under another.
+   Wider windows and the expanded (full-screen) table are unchanged. ── */
+@media (max-width:1180px){
+  .bh-page{overflow-y:auto!important;overflow-x:hidden!important}
+  .bh-page > header{flex-wrap:wrap;gap:10px 12px;padding:14px 16px}
+  .bh-page > header > div:first-child{flex:1 1 220px;min-width:0}
+  .bh-page > header > div:last-child{flex-wrap:wrap;gap:8px}
+  .bh-page > .flex-1{flex:none!important;overflow:visible!important;padding:16px!important}
+  #bhRoot:not(.mm-focus){height:auto!important;overflow:visible!important}
+  #bhRoot:not(.mm-focus) .dash.on{display:flex!important;flex-direction:column;flex:none;overflow:visible;gap:12px}
+  #bhRoot:not(.mm-focus) .dash-left{flex:none;max-height:none;overflow:visible}
+  #bhRoot:not(.mm-focus) .dash-left .g-body{display:flex;flex-wrap:wrap;gap:2px 0}
+  #bhRoot:not(.mm-focus) .dash-left .flowst{flex:1 1 170px;min-width:0}
+  #bhRoot:not(.mm-focus) .dash-left .mmx-prog{flex:1 1 100%}
+  #bhRoot:not(.mm-focus) .dash-main{flex:none;overflow:hidden}
+  #bhRoot:not(.mm-focus) .dash-view{flex:none;overflow-x:auto}
+  #bhRoot:not(.mm-focus) .dash-mira{flex:none;height:560px}
+  #bhRoot.bh-mira-min:not(.mm-focus) .dash-mira,#bhRoot.bh-left-min:not(.mm-focus) .dash-left{height:auto}
+  #bhRoot:not(.mm-focus) .mmx-board-panel{flex:none;height:min(80vh,900px)}
+  #bhRoot .mmx-kpis{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+  #bhRoot .mmx-kpi:nth-child(n+4){display:block}
+  #bhRoot .mmx-segs{grid-auto-flow:row;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));overflow-x:visible}
+}
+@media (max-width:760px){
+  .bh-page > .flex-1{padding:12px!important}
+  #bhRoot .atab{padding:0 8px;gap:6px}
+  #bhRoot .atab .a2{white-space:normal;line-height:1.2;text-align:center}
+  #bhRoot .mmx-ab{display:none}
+  #bhRoot .mmx-kpis{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+}
+
+/* ── Part 7 (Nov 2026): concept-page design for Performance, Audience, Insights (Marketing),
+   Scripts, Objections (Sales), Root cause, Offers (Retention), and the agent tabs. Real data; same colours. ── */
+/* Agent tabs: padded white bar, rounded sliding background with a soft gradient, no dividers */
+#bhRoot .atabs{padding:5px;gap:4px;border-radius:var(--card-r,14px)}
+#bhRoot .atab,#bhRoot .atab + .atab{border-left:none!important;border-radius:10px;min-height:46px}
+#bhRoot .atab .a2{transition:color .3s}
+#bhRoot .mmx-at-slider{top:5px;bottom:5px;border-radius:10px;background-image:linear-gradient(135deg,var(--ac) 0%,color-mix(in srgb,var(--ac) 58%,#fff) 100%);box-shadow:0 8px 20px -10px var(--ac)}
+#bhRoot .mmx-ab{background:rgba(15,23,42,.06)}
+
+/* Shared: icon chip, "view" hint, small tag */
+#bhRoot .mmx-ins-ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:var(--ac-l);color:var(--ac-d);flex-shrink:0;transition:transform .3s var(--mmx-spring)}
+#bhRoot .mmx-ins-ic svg{width:16px;height:16px}
+#bhRoot .mmx-go{display:inline-block;margin-top:10px;font-size:11.5px;font-weight:600;color:var(--ac-d);opacity:0;transform:translateX(-4px);transition:opacity .25s,transform .25s}
+#bhRoot .mmx-tag{flex-shrink:0;align-self:center;font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:6px;background:#e8f0fe;color:#1d4ed8}
+#bhRoot .mmx-td-wait{padding:24px 20px;color:var(--g3);font-size:12.5px}
+
+/* Insight / root-cause cards */
+#bhRoot .mmx-ins-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:12px;padding:0 20px 20px}
+#bhRoot .mmx-ins{position:relative;display:flex;flex-direction:column;align-items:flex-start;text-align:left;font-family:var(--f1);background:#fff;border:1px solid var(--ln);border-radius:12px;padding:14px;cursor:pointer;overflow:hidden;animation:mmxRise .5s var(--mmx-ease) both;transition:transform .25s var(--mmx-ease),box-shadow .25s,border-color .25s}
+#bhRoot .mmx-ins:nth-child(2){animation-delay:.06s}#bhRoot .mmx-ins:nth-child(3){animation-delay:.12s}#bhRoot .mmx-ins:nth-child(n+4){animation-delay:.18s}
+#bhRoot .mmx-ins:not([onclick]){cursor:default}
+#bhRoot .mmx-ins:hover{transform:translateY(-3px);box-shadow:0 12px 26px -16px rgba(15,23,42,.35);border-color:var(--ac-m)}
+#bhRoot .mmx-ins:hover .mmx-go,#bhRoot .mmx-tile2:hover .mmx-go{opacity:1;transform:none}
+#bhRoot .mmx-ins:hover .mmx-ins-ic,#bhRoot .mmx-tile2:hover .mmx-ins-ic{transform:scale(1.1) rotate(-6deg)}
+#bhRoot .mmx-ins .mmx-ins-ic{margin-bottom:10px}
+#bhRoot .mmx-ins b{display:block;font-size:13px;color:#0f172a;margin-bottom:4px}
+#bhRoot .mmx-ins p{margin:0;color:#64748b;line-height:1.55;font-size:12px}
+#bhRoot .mmx-ins-big{font-size:22px;font-weight:800;color:var(--ac);margin-top:8px;font-variant-numeric:tabular-nums}
+#bhRoot .mmx-rank{position:absolute;top:14px;right:14px;font-size:11px;font-weight:700;color:var(--g3)}
+#bhRoot .mmx-share{display:block;width:100%;margin-top:6px}
+#bhRoot .mmx-share em{display:block;height:6px;border-radius:6px;background:#eef0f6;overflow:hidden}
+#bhRoot .mmx-share em i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--ac),color-mix(in srgb,var(--ac) 55%,#fff));transform-origin:left;animation:mmxGrowX 1s var(--mmx-ease) both .2s}
+#bhRoot .mmx-share small{display:block;font-size:11px;color:var(--g3);margin-top:5px}
+
+/* Audience segment tiles */
+#bhRoot .mmx-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;padding:0 20px 14px}
+#bhRoot .mmx-tile2{display:flex;flex-direction:column;align-items:flex-start;text-align:left;font-family:var(--f1);background:#fff;border:1px solid var(--ln);border-radius:12px;padding:12px 14px;cursor:pointer;animation:mmxRise .5s var(--mmx-ease) both;transition:transform .25s var(--mmx-spring),box-shadow .25s,border-color .25s}
+#bhRoot .mmx-tile2:nth-child(2){animation-delay:.05s}#bhRoot .mmx-tile2:nth-child(3){animation-delay:.1s}#bhRoot .mmx-tile2:nth-child(n+4){animation-delay:.15s}
+#bhRoot .mmx-tile2:hover{transform:translateY(-3px);box-shadow:0 10px 24px -14px rgba(15,23,42,.35);border-color:var(--ac-m)}
+#bhRoot .mmx-tile2-t{font-size:12px;font-weight:600;color:#334155;margin-top:8px}
+#bhRoot .mmx-tile2-n{font-size:22px;font-weight:800;color:#0f172a;margin-top:2px;font-variant-numeric:tabular-nums}
+#bhRoot .mmx-tile2-s{font-size:11px;color:var(--g3)}
+
+/* Panels: charts, breakdown bars, section bars, highlights */
+#bhRoot .mmx-td{padding:0 20px 20px}
+#bhRoot .mmx-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:12px}
+#bhRoot .mmx-panel{background:#fff;border:1px solid var(--ln);border-radius:12px;padding:14px 16px;animation:mmxRise .55s var(--mmx-ease) both}
+#bhRoot .mmx-panel h3{display:flex;align-items:center;gap:6px;margin:0 0 10px;font-size:12px;font-weight:700;color:#334155}
+#bhRoot .mmx-panel h3 span{margin-left:auto;font-weight:500;color:var(--g3);font-size:11px}
+#bhRoot .mmx-chart{cursor:pointer}
+#bhRoot .mmx-chart svg{display:block;width:100%;height:auto;overflow:visible}
+#bhRoot .mmx-chart .l{fill:none;stroke:var(--ac);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;animation:mmxDraw 1.6s var(--mmx-ease) forwards}
+#bhRoot .mmx-chart .a{fill:var(--ac);opacity:0;animation:mmxArea 1s ease forwards .8s}
+#bhRoot .mmx-chart .bar{fill:var(--ac-m);transform-box:fill-box;transform-origin:bottom;animation:mmxGrowY .8s var(--mmx-spring) both}
+#bhRoot .mmx-chart circle{fill:#fff;stroke:var(--ac);stroke-width:2;transform-box:fill-box;transform-origin:center;animation:mmxChipIn .4s var(--mmx-spring) both;transition:r .2s}
+#bhRoot .mmx-chart circle:hover{r:6}
+#bhRoot .mmx-chart text{font-size:10px;fill:#94a3b8;font-family:var(--f1)}
+#bhRoot .mmx-chart-k{display:flex;gap:14px;font-size:11px;color:var(--g3);margin-top:6px}
+#bhRoot .mmx-chart-k i{display:inline-block;width:10px;height:3px;border-radius:2px;background:var(--ac);vertical-align:middle;margin-right:5px}
+#bhRoot .mmx-chart-k i.b{height:8px;background:var(--ac-m)}
+#bhRoot .mmx-bars{display:flex;flex-direction:column;gap:6px}
+#bhRoot .mmx-bar-row{display:grid;grid-template-columns:minmax(90px,130px) 1fr auto;align-items:center;gap:10px;width:100%;border:none;background:none;padding:4px 6px;margin:0 -6px;border-radius:8px;font-family:var(--f1);font-size:12px;color:#475569;text-align:left;cursor:pointer;transition:background .2s}
+#bhRoot .mmx-bar-row:hover{background:var(--ac-l)}
+#bhRoot .mmx-bar-row:disabled{cursor:default;background:none}
+#bhRoot .mmx-bar-row span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bhRoot .mmx-bar-row em{height:14px;border-radius:5px;background:#f1f3f8;overflow:hidden;font-style:normal}
+#bhRoot .mmx-bar-row em i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--ac),color-mix(in srgb,var(--ac) 55%,#fff));transform-origin:left;animation:mmxGrowX 1s var(--mmx-ease) both}
+#bhRoot .mmx-bar-row b{font-variant-numeric:tabular-nums;color:#0f172a;font-weight:600;text-align:right;min-width:64px}
+#bhRoot .mmx-bar-row b small{display:block;font-weight:500;color:var(--g3);font-size:10.5px}
+#bhRoot .mmx-hl{display:flex;flex-direction:column;gap:10px;border-left:2px solid var(--ln);padding-left:14px}
+#bhRoot .mmx-hl button{position:relative;border:none;background:none;padding:0;text-align:left;font-family:var(--f1);font-size:12.5px;color:#0f172a;cursor:pointer;animation:mmxSlideR .4s var(--mmx-ease) both}
+#bhRoot .mmx-hl button:hover{color:var(--ac-d)}
+#bhRoot .mmx-hl button::before{content:"";position:absolute;left:-20px;top:4px;width:8px;height:8px;border-radius:50%;background:#fff;border:2px solid var(--ac)}
+#bhRoot .mmx-hl button.bad::before{border-color:#dc2626}
+#bhRoot .mmx-hl small{display:block;color:var(--g3);font-size:11px;margin-top:1px}
+
+/* Open / close cards (Scripts, Objections, Offers) */
+#bhRoot .mmx-acc{border:1px solid var(--ln);border-radius:12px;background:#fff;overflow:hidden;animation:mmxRise .45s var(--mmx-ease) both;transition:box-shadow .25s,border-color .25s}
+#bhRoot .mmx-acc:nth-child(2){animation-delay:.05s}#bhRoot .mmx-acc:nth-child(3){animation-delay:.1s}#bhRoot .mmx-acc:nth-child(n+4){animation-delay:.15s}
+#bhRoot .mmx-acc.open{box-shadow:0 10px 24px -16px rgba(15,23,42,.35);border-color:var(--ac-m)}
+#bhRoot .mmx-acc-hd{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;background:#fff;border-bottom:1px solid transparent;transition:background .2s,border-color .2s}
+#bhRoot .mmx-acc-hd:hover{background:var(--p1)}
+#bhRoot .mmx-acc.open .mmx-acc-hd{border-bottom-color:var(--ln);background:var(--p1)}
+#bhRoot .mmx-acc-hd:focus-visible{outline:2px solid var(--ac);outline-offset:-2px}
+#bhRoot .mmx-acc-chev{width:15px;height:15px;flex-shrink:0;color:var(--g3);transition:transform .35s var(--mmx-ease),color .2s}
+#bhRoot .mmx-acc.open .mmx-acc-chev{transform:rotate(180deg);color:var(--ac)}
+#bhRoot .mmx-acc-bd{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--mmx-ease)}
+#bhRoot .mmx-acc.open .mmx-acc-bd{grid-template-rows:1fr}
+#bhRoot .mmx-acc-bd > div{overflow:hidden;min-height:0}
+#bhRoot .mm-scr.mmx-acc .mm-scr-hd{align-items:center}
+#bhRoot .mm-scr.mmx-acc .mm-scr-n{margin-top:0}
+#bhRoot .mmx-offers{display:flex;flex-direction:column;gap:10px;padding:0 20px 20px}
+#bhRoot .mmx-offer-t{flex:1;min-width:0}
+#bhRoot .mmx-offer-t b{display:block;font-size:13px;color:#0f172a}
+#bhRoot .mmx-offer-t small{display:block;font-size:11px;color:var(--g2);margin-top:2px}
+#bhRoot .mmx-offer-n{flex-shrink:0;min-width:44px;text-align:center;font-size:14px;font-weight:800;color:var(--ac-d);background:var(--ac-l);border-radius:20px;padding:3px 10px;font-variant-numeric:tabular-nums}
+#bhRoot .mmx-offer-bd{padding:12px 14px 14px;font-size:12.5px;line-height:1.65;color:#1e293b}
+#bhRoot .mmx-offer-bd p{margin:0 0 8px}
+#bhRoot .mmx-offer-bd p b{color:#475569}
+#bhRoot .mmx-offer-go{margin-top:4px;border:none;background:var(--ac);color:#fff;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:600;font-family:var(--f1);cursor:pointer;transition:transform .2s var(--mmx-spring),box-shadow .2s}
+#bhRoot .mmx-offer-go:hover{transform:scale(1.04);box-shadow:0 6px 14px -6px var(--ac)}
+#bhRoot .mmx-perf-kpis .mg-cell{animation:mmxRise .5s var(--mmx-ease) both;transition:transform .25s var(--mmx-ease),box-shadow .25s,background .15s,border-color .15s}
+#bhRoot .mmx-perf-kpis .mg-cell:nth-child(2){animation-delay:.05s}#bhRoot .mmx-perf-kpis .mg-cell:nth-child(3){animation-delay:.1s}#bhRoot .mmx-perf-kpis .mg-cell:nth-child(4){animation-delay:.15s}
+#bhRoot .mmx-perf-kpis .mg-cell:hover{transform:translateY(-3px);box-shadow:0 12px 26px -16px rgba(15,23,42,.35)}
+@media (max-width:760px){#bhRoot .mmx-acc-hd .mmx-tag{display:none}}
+
+/* ── Part 8 (Nov 2026): dropdown filters on Payment date / Expires / Stage / Approach / Last active / Next best action,
+   and a maximise / minimise button on every popup that lists students or records ── */
+th[data-mm-col-filter]{white-space:nowrap}
+.mmx-cf-btn{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:5px;padding:0;border:1px solid #e2e5ee;border-radius:5px;background:#fff;color:#6b7280;cursor:pointer;vertical-align:middle;transition:background .15s,border-color .15s,color .15s}
+.mmx-cf-btn svg{width:11px;height:11px;transition:transform .2s cubic-bezier(.4,0,.2,1)}
+.mmx-cf-btn:hover{background:#f5f3ff;border-color:#c4b5fd;color:#6d28d9}
+.mmx-cf-btn:focus-visible{outline:2px solid #c4b5fd;outline-offset:1px}
+.mmx-cf-btn.open svg{transform:rotate(180deg)}
+.mmx-cf-btn.on{background:#7c3aed;border-color:#7c3aed;color:#fff}
+.mmx-cf-menu .mm-pf-opt:disabled{opacity:1}
+.mmx-max-btn{display:inline-grid;place-items:center;width:28px;height:28px;margin-left:auto!important;border:1px solid #e5e7eb!important;border-radius:8px;background:#fff!important;color:#64748b!important;padding:0!important;cursor:pointer;flex-shrink:0;transition:background .15s,border-color .15s,color .15s,transform .2s}
+.mmx-max-btn + button{margin-left:8px!important}
+.mmx-max-btn:hover{background:#f5f3ff!important;border-color:#c4b5fd!important;color:#6d28d9!important;transform:scale(1.06)}
+.mmx-max-btn svg{width:15px;height:15px}
+.mmx-max-btn .mmx-i-min,.mmx-max .mmx-max-btn .mmx-i-max{display:none}
+.mmx-max .mmx-max-btn .mmx-i-min{display:block}
+.risk-modal,.mm-list-modal{transition:max-width .3s cubic-bezier(.22,.8,.26,1),max-height .3s cubic-bezier(.22,.8,.26,1)}
+.risk-modal.mmx-max,.mm-list-modal.mmx-max{width:96vw;max-width:1500px;height:92vh;max-height:92vh;animation:mmxPop .3s var(--mmx-spring,ease)}
+.risk-modal.mmx-max .risk-modal-body,.mm-list-modal.mmx-max .mm-list-modal-body{flex:1;min-height:0}
+.mmx-max .risk-modal-hd,.mmx-max .mm-list-modal-hd{font-size:14.5px}
+.mmx-max table{font-size:13px!important}
+.mmx-max th,.mmx-max td{padding:9px 12px!important}
+.risk-modal-hd,.mm-list-modal-hd{user-select:none}
+
+/* ── Part 10 (Nov 2026): Board column expand button, and Send to all in the list popups ── */
+#bhRoot .mmx-col-exp{display:inline-grid;place-items:center;width:24px;height:24px;margin-left:2px;padding:0;border:1px solid var(--ln);border-radius:7px;background:#fff;color:#64748b;cursor:pointer;flex-shrink:0;transition:background .15s,border-color .15s,color .15s,transform .2s var(--mmx-spring,ease)}
+#bhRoot .mmx-col-exp:hover{background:#f5f3ff;border-color:#c4b5fd;color:#6d28d9;transform:scale(1.08)}
+#bhRoot .mmx-col-exp svg{width:13px;height:13px}
+.mmx-send-btn{display:inline-flex;align-items:center;gap:6px;margin-left:auto!important;height:28px;border:1px solid #7c3aed!important;border-radius:8px;background:#fff!important;color:#7c3aed!important;padding:0 11px!important;font:600 12px Inter,-apple-system,'Segoe UI',sans-serif!important;line-height:1!important;cursor:pointer;flex-shrink:0;white-space:nowrap;transition:background .15s,color .15s,transform .2s}
+.mmx-send-btn:hover{background:#7c3aed!important;color:#fff!important;transform:translateY(-1px)}
+.mmx-send-btn:disabled{opacity:.6;cursor:wait}
+.mmx-send-btn[hidden]{display:none}
+.mmx-send-btn:not([hidden]) + .mmx-max-btn{margin-left:8px!important}
+
+@media (prefers-reduced-motion:reduce){
+  #bhRoot *,#bhRoot *::before,#bhRoot *::after,#platformSidebar *,#platformSidebar *::before,.bh-page > header *,.mmx-prof *,.mm-cmp-overlay *,.risk-modal-overlay *,.mm-stu-overlay *,.mm-list-modal-overlay *{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
 </style>
 
 <script>
@@ -2030,6 +2767,7 @@ function closeMmListModal() {
    Any name cell carrying data-mm-stu opens the student's details. Rows
    give a student id (sid) where available, otherwise an email. */
 var MM_STUDENT_URL = '{{ route('client.mock-master-helper.student') }}';
+var MM_POP_ROW = null; // student shown in the popup, for "View full profile"
 function mmStuAttrs(r) {
     var sid = r && r.sid ? String(r.sid) : '';
     var email = r && r.email ? String(r.email) : '';
@@ -2048,6 +2786,9 @@ function mmProfileOpen(sid, email) {
     document.getElementById('mmStuCourse').textContent = '';
     document.getElementById('mmStuPic').innerHTML = '';
     document.getElementById('mmStuBody').innerHTML = '';
+    document.getElementById('mmStuMore').hidden = true;
+    if (MMX_PROF && MMX_PROF.src === 'pop') mmxProfileClose();
+    MM_POP_ROW = { sid: sid || '', email: email || '', name: '' };
     overlay.classList.add('show');
 
     var qs = sid ? 'sid=' + encodeURIComponent(sid) : 'email=' + encodeURIComponent(email);
@@ -2073,6 +2814,9 @@ function mmProfileOpen(sid, email) {
                 mmStuRow('Course type', p.course_type) +
                 mmStuRow('Mobile number', p.phone, true) +
                 mmStuRow('Email', p.email, true);
+            MM_POP_ROW.name = full;
+            if (p.email) MM_POP_ROW.email = p.email;
+            document.getElementById('mmStuMore').hidden = false;
         })
         .catch(function (status) {
             document.getElementById('mmStuName').textContent = status === 404 ? 'Student not found' : 'Could not load details';
@@ -2082,6 +2826,7 @@ function mmProfileOpen(sid, email) {
 }
 function mmProfileClose() {
     document.getElementById('mmStuOverlay').classList.remove('show');
+    if (MMX_PROF && MMX_PROF.src === 'pop') mmxProfileClose(); // side profile goes with the popup
 }
 document.addEventListener('click', function (e) {
     var copy = e.target.closest('.mm-stu-copy');
@@ -2226,7 +2971,7 @@ function mmComposeOpen(ctx, row) {
         document.body.appendChild(overlay);
     }
 
-    document.getElementById('mmCmpTitle').textContent = row.name || 'Student';
+    document.getElementById('mmCmpTitle').innerHTML = mmEsc(row.name || 'Student') + ' &nbsp;' + mmxProfBtn('cmp');
     document.getElementById('mmCmpContact').textContent = 'Loading contact details…';
     document.getElementById('mmCmpEdit').hidden = true;
     document.getElementById('mmCmpTpls').innerHTML = templates.map(function (t) {
@@ -2290,6 +3035,7 @@ function mmComposeSend(channel) {
 function mmComposeClose() {
     var o = document.getElementById('mmCmpOverlay');
     if (o) o.classList.remove('show');
+    mmxProfileClose(); // side Profile panel goes with the window
 }
 document.addEventListener('click', function (e) {
     var btn = e.target.closest('[data-mm-compose]');
@@ -2551,13 +3297,70 @@ function mmEsc(v) {
     });
 }
 
+/* Pager: "Showing 11–20 of 1,336 students · Page 2 of 134 · 132 more pages", page numbers,
+   rows per page and Go to page. */
 function mmCampaignPager(data) {
     var info = document.getElementById('mmCampaignPageInfo');
     var prev = document.getElementById('mmCampaignPrev');
     var next = document.getElementById('mmCampaignNext');
-    if (info) info.textContent = 'Page ' + data.page + ' of ' + data.last_page + ' · ' + Number(data.total).toLocaleString() + ' students';
+    var per = data.per_page || MM_CAMPAIGN_PER, total = Number(data.total) || 0;
+    MM_CAMPAIGN_PAGE = data.page;
+    MM_CAMPAIGN_PER = per;
+    var from = total ? (data.page - 1) * per + 1 : 0, to = Math.min(total, data.page * per), left = data.last_page - data.page;
+    if (info) info.innerHTML = 'Showing <b>' + from.toLocaleString() + '–' + to.toLocaleString() + '</b> of <b>' + total.toLocaleString() + '</b> students' +
+        ' · Page <b>' + data.page + '</b> of <b>' + Number(data.last_page).toLocaleString() + '</b>' +
+        (left > 0 ? ' · ' + left.toLocaleString() + ' more page' + (left === 1 ? '' : 's') + ' (' + (total - to).toLocaleString() + ' students) to go' : ' · last page');
     if (prev) { prev.disabled = data.page <= 1; prev.onclick = function () { mmCampaignGo(data.page - 1); }; }
     if (next) { next.disabled = data.page >= data.last_page; next.onclick = function () { mmCampaignGo(data.page + 1); }; }
+    var nums = document.getElementById('mmCampaignPages');
+    if (nums) {
+        // First, last, and two either side of the current page, with … for the gaps.
+        var pages = [], last = data.last_page, cur = data.page;
+        for (var n = 1; n <= last; n++) {
+            if (n === 1 || n === last || Math.abs(n - cur) <= 2) pages.push(n);
+            else if (pages[pages.length - 1] !== '…') pages.push('…');
+        }
+        nums.innerHTML = pages.map(function (n) {
+            return n === '…' ? '<span class="mmx-pg-gap">…</span>'
+                : '<button type="button"' + (n === cur ? ' class="on" aria-current="page"' : '') + ' onclick="mmCampaignGo(' + n + ')">' + n + '</button>';
+        }).join('');
+    }
+    var jump = document.getElementById('mmCampaignJumpIn');
+    if (jump) { jump.max = data.last_page; jump.placeholder = data.page; jump.value = ''; }
+    var sel = document.getElementById('mmCampaignPer');
+    if (sel) {
+        if (!sel.querySelector('option[value="' + per + '"]')) { // a fitted size while the table is expanded
+            var extra = sel.querySelector('option[data-fit]') || sel.appendChild(document.createElement('option'));
+            extra.setAttribute('data-fit', '1');
+            extra.value = per;
+            extra.textContent = per + ' (fits screen)';
+        }
+        sel.value = String(per);
+    }
+}
+var MM_CAMPAIGN_PAGE = {{ (int) $mkPaged['page'] }};
+var MM_CAMPAIGN_PER = {{ (int) ($mkPaged['per_page'] ?? 10) }};
+var MM_CAMPAIGN_LAST = {{ (int) $mkPaged['last_page'] }};
+if (document.readyState !== 'loading') mmCampaignPagerInit(); else document.addEventListener('DOMContentLoaded', mmCampaignPagerInit);
+function mmCampaignPagerInit() {
+    mmCampaignPager({ page: MM_CAMPAIGN_PAGE, last_page: MM_CAMPAIGN_LAST, total: {{ (int) $mkPaged['total'] }}, per_page: MM_CAMPAIGN_PER });
+}
+
+function mmCampaignJump(e) {
+    e.preventDefault();
+    var input = document.getElementById('mmCampaignJumpIn');
+    var n = parseInt(input.value, 10);
+    var last = parseInt(input.max, 10) || 1;
+    if (!n) return false;
+    mmCampaignGo(Math.min(Math.max(1, n), last));
+    return false;
+}
+/* Changing rows per page keeps the first student on screen in view. */
+function mmCampaignPerSet(per) {
+    per = parseInt(per, 10) || 10;
+    var firstIndex = (MM_CAMPAIGN_PAGE - 1) * MM_CAMPAIGN_PER;
+    MM_CAMPAIGN_PER = per;
+    mmCampaignGo(Math.floor(firstIndex / per) + 1);
 }
 
 function mmCampaignRender(data) {
@@ -2565,8 +3368,10 @@ function mmCampaignRender(data) {
     if (!body) return;
     var students = data.students;
     mmCampaignPager(data);
+    if (data.segments) { MM_SEG_COUNTS = data.segments; mmSegRender(); } // quick segment counts
+    if (MM_VIEW === 'board') mmBoardLoad();
     if (!students.length) {
-        body.innerHTML = '<tr><td colspan="10" style="color:var(--g3);padding:20px">No renewal-ready students match these filters.</td></tr>';
+        body.innerHTML = '<tr><td colspan="12" style="color:var(--g3);padding:20px">No renewal-ready students match these filters.</td></tr>';
         return;
     }
     MM_CAMPAIGN_ROWS = students;
@@ -2579,28 +3384,492 @@ function mmCampaignRender(data) {
                 '<div><div class="bh-acct-n">' + mmEsc(s.name) + '</div><div class="bh-acct-c">(' + mmEsc(s.sub) + ')</div></div></div></td>' + mmPlanCell(s) +
             '<td>' + mmEsc(s.value) + '</td>' +
             '<td>' + mmEsc(s.paymentDate) + '</td>' +
+            '<td>' + mmxExpCell(s) + '</td>' +
             '<td><span class="bh-pill ' + mmEsc(s.stageKind) + '">' + mmEsc(s.stage) + '</span></td>' +
-            '<td>' + mmEsc(s.readiness) + '</td>' +
+            '<td>' + mmxRing(s.readiness) + '</td>' +
             '<td>' + mmEsc(s.trust) + '</td>' +
             '<td>' + approach + '</td>' +
-            '<td>' + mmEsc(s.lastActive) + '</td>' +
+            '<td>' + mmxLastCell(s) + '</td>' +
+            '<td>' + mmxNbaCell(s) + '</td>' +
             '<td><button type="button" onclick="mmStudentOpen(' + i + ')" style="padding:5px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;cursor:pointer">View</button></td>' +
             '</tr>';
     }).join('');
 }
 
+var MM_CAMPAIGN_REQ = 0; // only the newest request may draw the table (a slower, older one is ignored)
 function mmCampaignLoad(query) {
     var body = document.getElementById('mmCampaignBody');
-    if (body) body.innerHTML = '<tr><td colspan="10" style="color:var(--g3);padding:20px">Loading…</td></tr>';
+    var req = ++MM_CAMPAIGN_REQ;
+    if (body) body.innerHTML = '<tr><td colspan="12" style="color:var(--g3);padding:20px">Loading…</td></tr>';
     fetch(MM_CAMPAIGN_URL + (query ? '?' + query : ''), {
         headers: { 'Accept': 'application/json' }
     })
     .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
-    .then(mmCampaignRender)
+    .then(function (data) { if (req === MM_CAMPAIGN_REQ) mmCampaignRender(data); })
     .catch(function () {
-        if (body) body.innerHTML = '<tr><td colspan="10" style="color:#b91c1c;padding:20px">Couldn\'t load students — please try again.</td></tr>';
+        if (req === MM_CAMPAIGN_REQ && body) body.innerHTML = '<tr><td colspan="12" style="color:#b91c1c;padding:20px">Couldn\'t load students — please try again.</td></tr>';
     });
 }
+
+/* ── Dashboard additions (Nov 2026) ─────────────────────────────────────────
+   1. Overview cards per agent (live from mock-master-helper/overview, collapsible)
+   2. Quick segment cards over the Campaign table (filter table, Board and Send to all)
+   3. Campaign cells: Expires, Readiness ring, Last active bar, Next best action
+      (same markup as $mmExpCell / $mmRing / $mmLastCell / $mmNbaCell in the Blade @php block)
+   4. Board view of every Campaign student matching the filters, grouped by Stage or Next best action */
+var MM_NBA_ICONS = { 'Win back': '🔁', 'Renew now': '⏰', 'Renewal reminder': '🔔', 'Re-engage': '💤', 'Book a mock test': '🎯', 'Lead with proof': '🏅', 'Lead with offer': '🏷️' };
+
+function mmxExpCell(s) {
+    var n = s.expiresIn;
+    if (n === null || n === undefined) return '<span class="mmx-muted">—</span>';
+    if (s.stage === 'Expired' || n < 0) return '<span class="bh-pill bad">Expired</span>' + (n < 0 && n > -366 ? '<div class="mmx-sub">' + (-n) + 'd ago</div>' : '');
+    if (n === 0) return '<span class="bh-pill warn">Today</span>';
+    if (n <= 7) return '<span class="bh-pill warn">in ' + n + 'd</span>';
+    if (n <= 365) return '<span class="mmx-exp">in ' + n + 'd</span>';
+    return '<span class="mmx-muted">' + mmEsc(s.expireDate || '—') + '</span>';
+}
+function mmxRing(v) {
+    v = Math.max(0, Math.min(100, parseInt(v, 10) || 0));
+    var c = v >= 70 ? '#16a34a' : (v >= 50 ? '#d97706' : '#dc2626'), len = 69.12;
+    return '<span class="mmx-ring"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="11" fill="none" stroke="#eceef3" stroke-width="3"/>' +
+        (v > 0 ? '<circle cx="13" cy="13" r="11" fill="none" stroke="' + c + '" stroke-width="3" stroke-linecap="round" stroke-dasharray="' + (Math.round(len * v) / 100) + ' ' + len + '" transform="rotate(-90 13 13)"/>' : '') +
+        '</svg><b>' + v + '</b></span>';
+}
+function mmxLastCell(s) {
+    var d = s.lastDays;
+    var none = d === null || d === undefined;
+    var w = none ? 0 : Math.max(6, 100 - d * 3.3);
+    var c = none ? '#d1d5db' : (d < 7 ? '#16a34a' : (d < 14 ? '#d97706' : '#dc2626'));
+    return '<div class="mmx-last">' + mmEsc(s.lastActive || '—') + '<i class="mmx-bar"><b style="width:' + Math.round(w) + '%;background:' + c + '"></b></i></div>';
+}
+function mmxNbaCell(s) {
+    if (!s.nextAction) return '<span class="mmx-muted">—</span>';
+    return '<span class="bh-pill ' + mmEsc(s.nextKind || 'info') + ' mmx-nba">' + (MM_NBA_ICONS[s.nextAction] || '') + ' ' + mmEsc(s.nextAction) + '</span>';
+}
+
+/* Collapsed / expanded state is remembered per browser (falls back to expanded). */
+function mmxPref(key, val) {
+    try { if (val === undefined) return localStorage.getItem(key); localStorage.setItem(key, val); } catch (e) { return null; }
+}
+function mmxCollapse(el, collapsed, prefKey) {
+    if (!el) return;
+    el.classList.toggle('collapsed', collapsed);
+    var btn = el.querySelector('.mmx-collapse');
+    if (btn) { btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); btn.querySelector('span').textContent = collapsed ? 'Show' : 'Hide'; }
+    mmxPref(prefKey, collapsed ? '1' : '0');
+}
+
+/* 1 · Overview cards */
+var MM_OVERVIEW_URL = '{{ route('client.mock-master-helper.overview') }}';
+var MM_OV_TONES = { violet: '#7c3aed', blue: '#2563eb', green: '#16a34a', amber: '#d97706', rose: '#e11d48' };
+
+function mmOvToggle() {
+    var el = document.getElementById('mmOverview');
+    mmxCollapse(el, !el.classList.contains('collapsed'), 'mmOvCollapsed');
+}
+function mmxSpark(arr, color) {
+    var w = 84, h = 28, mx = Math.max.apply(null, arr), mn = Math.min.apply(null, arr);
+    var pts = arr.map(function (v, i) { return [i * (w / (arr.length - 1)), h - 3 - ((v - mn) / ((mx - mn) || 1)) * (h - 6)]; });
+    var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+    return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true"><path d="' + d + ' L' + w + ' ' + h + ' L0 ' + h + 'Z" fill="' + color + '" opacity=".12"/>' +
+        '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+function mmOvRender(data) {
+    ['mk', 'sl', 'ch'].forEach(function (agent) {
+        var box = document.querySelector('#mmOverview .mmx-kpis[data-ov="' + agent + '"]');
+        if (!box || !data[agent]) return;
+        box.innerHTML = data[agent].map(function (c) {
+            var color = MM_OV_TONES[c.tone] || MM_OV_TONES.violet;
+            var delta = c.delta ? '<span class="mmx-delta ' + (c.good === true ? 'good' : (c.good === false ? 'bad' : '')) + '" title="This week compared with last week">' + mmEsc(c.delta) + '</span>' : '';
+            return '<div class="mmx-kpi" style="border-top:3px solid ' + color + '"><div class="mmx-kpi-l" title="' + mmEsc(c.label) + '">' + mmEsc(c.label) + '</div>' +
+                '<div class="mmx-kpi-r"><div><div class="mmx-kpi-v">' + mmEsc(c.value) + '</div>' + delta + '</div>' + (c.spark ? mmxSpark(c.spark, color) : '') + '</div>' +
+                '<div class="mmx-kpi-h" title="' + mmEsc(c.hint) + '">' + mmEsc(c.hint) + '</div></div>';
+        }).join('');
+    });
+    var t = document.getElementById('mmOvTime');
+    var at = new Date(data.updated);
+    if (t) t.textContent = 'Live · updated ' + (isNaN(at) ? '' : at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+}
+function mmOvLoad() {
+    fetch(MM_OVERVIEW_URL, { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
+        .then(mmOvRender)
+        .catch(function () { var t = document.getElementById('mmOvTime'); if (t) t.textContent = 'Couldn\'t refresh — will retry'; });
+}
+
+/* 2 · Quick segments (counts follow the Subscription / Payment / Plan filters) */
+var MM_SEG_COUNTS = @json($mkPaged['segments'] ?? null);
+var MM_CAMPAIGN_SEGMENT = @json($mkFilters['segment'] ?? 'all');
+var MM_SEGMENTS = [
+    { k: 'all',      t: 'All students',       s: 'Everyone in this list',       c: '#64748b' },
+    { k: 'expiring', t: 'Expiring this week', s: 'Package ends in ≤ 7 days',    c: '#d97706' },
+    { k: 'nomock',   t: 'No mock test yet',   s: 'Readiness 0 — never tested',  c: '#2563eb' },
+    { k: 'ready',    t: 'Exam-ready',         s: 'Readiness 70+',               c: '#16a34a' },
+    { k: 'quiet',    t: 'Going quiet',        s: 'No login in 14+ days',        c: '#dc2626' },
+    { k: 'high',     t: 'High value',         s: 'Package ≥ average paid',      c: '#7c3aed' }
+];
+function mmSegLabel(k) {
+    var seg = MM_SEGMENTS.find(function (x) { return x.k === k; });
+    return seg ? seg.t : k;
+}
+function mmSegRender() {
+    var box = document.getElementById('mmSegs');
+    if (!box) return;
+    var counts = MM_SEG_COUNTS || {};
+    box.innerHTML = MM_SEGMENTS.map(function (g) {
+        var sub = g.k === 'high' && counts.highMin ? 'Package ≥ $' + Math.round(counts.highMin) + ' (avg paid)' : g.s;
+        var n = counts[g.k];
+        return '<button type="button" class="mmx-seg' + (MM_CAMPAIGN_SEGMENT === g.k ? ' on' : '') + '" onclick="mmSegPick(\'' + g.k + '\')" aria-pressed="' + (MM_CAMPAIGN_SEGMENT === g.k) + '">' +
+            '<div class="mmx-seg-t"><i style="background:' + g.c + '"></i>' + g.t + '</div>' +
+            '<div class="mmx-seg-n">' + (n === undefined || n === null ? '—' : Number(n).toLocaleString()) + '</div>' +
+            '<div class="mmx-seg-s" title="' + mmEsc(sub) + '">' + mmEsc(sub) + '</div></button>';
+    }).join('');
+}
+function mmSegPick(k) {
+    MM_CAMPAIGN_SEGMENT = (k === MM_CAMPAIGN_SEGMENT && k !== 'all') ? 'all' : k; // click the active card again to clear it
+    mmSegRender();
+    mmCampaignGo(1);
+}
+function mmSegToggle() {
+    var el = document.getElementById('mmSegWrap');
+    mmxCollapse(el, !el.classList.contains('collapsed'), 'mmSegCollapsed');
+}
+
+/* 4 · Board view */
+var MM_VIEW = 'table';
+var MM_BOARD_GROUP = 'stage';
+var MM_BOARD_ROWS = [];
+var MM_BOARD_REQ = 0;
+var MM_BOARD_COLS = {
+    stage: [['Active', '#16a34a'], ['Renewal Due', '#d97706'], ['Expired', '#dc2626']],
+    action: [['Renew now', '#d97706'], ['Renewal reminder', '#f59e0b'], ['Win back', '#dc2626'], ['Re-engage', '#e11d48'], ['Book a mock test', '#2563eb'], ['Lead with proof', '#16a34a'], ['Lead with offer', '#7c3aed']]
+};
+var MM_BOARD_PER_COL = 40;
+
+/* Header Table | Board switch: the Board panel takes the place of the agent panels (any agent). */
+function mmViewSet(v) {
+    MM_VIEW = v;
+    document.querySelectorAll('#mmViewTg button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); });
+    document.getElementById('bhRoot').classList.toggle('mm-board-on', v === 'board');
+    document.getElementById('mmCampaignBoard').style.display = v === 'board' ? '' : 'none';
+    if (v === 'board') mmBoardLoad();
+}
+function mmBoardGroup(g) {
+    MM_BOARD_GROUP = g;
+    document.querySelectorAll('#mmBoardGroup button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-g') === g); });
+    mmBoardRender();
+}
+/* Same audience as "Send to all": form filters, segment, Plan column and number ranges. */
+function mmBoardLoad() {
+    var table = document.getElementById('mmCampaignBody').closest('table');
+    var params = mmCampaignParams(1);
+    params.delete('page');
+    mmTableRanges(table).forEach(function (f) {
+        if (['value', 'readiness', 'trust'].indexOf(f.key) === -1) return;
+        if (f.range.min !== null && f.range.min !== undefined) params.set(f.key + '_min', f.range.min);
+        if (f.range.max !== null && f.range.max !== undefined) params.set(f.key + '_max', f.range.max);
+    });
+    var req = ++MM_BOARD_REQ;
+    document.getElementById('mmBoardInfo').textContent = 'Loading students…';
+    fetch(MM_AUDIENCE_URL + '?' + params.toString(), { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
+        .then(function (d) {
+            if (req !== MM_BOARD_REQ) return; // a newer filter change is already loading
+            MM_BOARD_ROWS = d.students || [];
+            mmBoardRender();
+        })
+        .catch(function () { if (req === MM_BOARD_REQ) document.getElementById('mmBoardInfo').textContent = 'Couldn\'t load students — please try again.'; });
+}
+function mmxAvColor(name) {
+    var pal = ['#3b5bdb', '#7c5cfc', '#f97316', '#1e3a8a', '#0284c7', '#334155', '#16a34a', '#db2777', '#0d9488'], h = 0;
+    String(name || '').split('').forEach(function (ch) { h = (h * 31 + ch.charCodeAt(0)) >>> 0; });
+    return pal[h % pal.length];
+}
+function mmBoardRender() {
+    var cols = MM_BOARD_COLS[MM_BOARD_GROUP];
+    var field = MM_BOARD_GROUP === 'stage' ? 'stage' : 'nextAction';
+    if (MM_BOARD_GROUP === 'action') { // only the actions someone actually has
+        cols = cols.filter(function (col) { return MM_BOARD_ROWS.some(function (s) { return s.nextAction === col[0]; }); });
+    }
+    var html = cols.map(function (col) {
+        var items = [];
+        MM_BOARD_ROWS.forEach(function (s, i) { if (s[field] === col[0]) items.push(i); });
+        var tiles = items.slice(0, MM_BOARD_PER_COL).map(function (i) {
+            var s = MM_BOARD_ROWS[i];
+            var pill = MM_BOARD_GROUP === 'stage' ? mmxNbaCell(s) : '<span class="bh-pill ' + (s.stage === 'Expired' ? 'bad' : (s.stage === 'Renewal Due' ? 'warn' : 'good')) + '">' + mmEsc(s.stage) + '</span>';
+            var initial = (String(s.name || '?').trim().charAt(0) || '?').toUpperCase();
+            return '<div class="mmx-tile" onclick="mmBoardOpen(' + i + ')" title="Open message composer">' +
+                '<div class="mmx-tile-a"><span class="bh-av" style="background:' + mmxAvColor(s.name) + '">' + mmEsc(initial) + '</span>' +
+                    '<div style="min-width:0"><div class="mmx-tile-n">' + mmEsc(s.name) + '</div><div class="mmx-tile-c">' + mmEsc(s.plan || '—') + ' · ' + mmEsc(s.sub) + '</div></div></div>' +
+                '<div class="mmx-tile-b"><b>' + mmEsc(s.value) + '</b>' + pill + mmxRing(s.readiness) + '</div></div>';
+        }).join('');
+        var more = items.length > MM_BOARD_PER_COL ? '<div class="mmx-more">+' + (items.length - MM_BOARD_PER_COL).toLocaleString() + ' more — use the table or a segment to narrow down</div>' : '';
+        return '<div class="mmx-col"><h4><i style="background:' + col[1] + '"></i>' + mmEsc(col[0]) + '<span>' + items.length.toLocaleString() + '</span></h4>' +
+            '<div class="mmx-col-body">' + (tiles || '<div class="mmx-more">Nobody here</div>') + more + '</div></div>';
+    }).join('');
+    document.getElementById('mmBoardCols').innerHTML = html;
+    document.getElementById('mmBoardInfo').textContent = MM_BOARD_ROWS.length.toLocaleString() + ' students match the current filters' +
+        (MM_CAMPAIGN_SEGMENT !== 'all' ? ' · segment: ' + mmSegLabel(MM_CAMPAIGN_SEGMENT) : '');
+}
+/* Opens the same message window as the table's View button. */
+function mmBoardOpen(i) {
+    var keep = MM_CAMPAIGN_ROWS;
+    MM_CAMPAIGN_ROWS = MM_BOARD_ROWS;
+    try { mmStudentOpen(i); } finally { MM_CAMPAIGN_ROWS = keep; }
+}
+
+/* ── Part 2 (Nov 2026) ──────────────────────────────────────────────────────
+   5. Expand button on every agent's step tabs: the middle table fills the screen
+   6. Profile button in the message windows: side panel with the student's data */
+function mmFocusToggle(force) {
+    var root = document.getElementById('bhRoot');
+    var was = root.classList.contains('mm-focus');
+    var on = force === undefined ? !was : !!force;
+    if (on === was) return;
+    root.classList.toggle('mm-focus', on);
+    document.querySelectorAll('#bhRoot .mmx-expand').forEach(function (b) {
+        var label = on ? 'Minimise the table' : 'Expand the table';
+        b.title = label; b.setAttribute('aria-label', label);
+    });
+    if (on) {
+        MMX_PRE_FOCUS_PER = MM_CAMPAIGN_PER;
+        MMX_MANUAL_PER = false;
+        requestAnimationFrame(mmxFillAll);
+    } else {
+        mmxUnfillLists();
+        MMX_ROW_H = null;
+        if (MM_CAMPAIGN_PER !== MMX_PRE_FOCUS_PER) mmCampaignPerSet(MMX_PRE_FOCUS_PER); // back to the rows per page from before
+    }
+}
+
+/* Expanded view fills the screen: the Campaign table shows as many rows per page as fit, and the
+   Sales / Retention lists (normally a short top list) load more of their full list, with
+   "Show 25 more". Minimising puts everything back as it was. */
+var MMX_PRE_FOCUS_PER = 10;
+var MMX_ROW_H = null;
+var MMX_MANUAL_PER = false; // rows per page picked by hand while expanded: stop fitting
+function mmxFocusOn() { return document.getElementById('bhRoot').classList.contains('mm-focus'); }
+function mmxRowsThatFit(tbody, below) {
+    var view = tbody.closest('.dash-view');
+    if (!view) return 10;
+    var rows = Array.prototype.slice.call(tbody.rows, 0, 10);
+    var h = MMX_ROW_H || (rows.length ? rows.reduce(function (a, r) { return a + r.offsetHeight; }, 0) / rows.length : 46) || 46;
+    MMX_ROW_H = Math.max(38, h);
+    var avail = view.getBoundingClientRect().bottom - tbody.getBoundingClientRect().top - (below || 0) - 12;
+    return Math.floor(avail / MMX_ROW_H);
+}
+function mmxFillAll() {
+    if (!mmxFocusOn() || MM_VIEW === 'board') return;
+    var dash = document.querySelector('#bhRoot .dash.on');
+    if (!dash) return;
+    var body = document.getElementById('mmCampaignBody');
+    if (body && dash.contains(body) && body.offsetParent) mmxFitCampaign(body);
+    dash.querySelectorAll('.mm-lf').forEach(function (bar) {
+        var scope = mmLfScope(bar);
+        var table = scope && scope.querySelector('table.dtbl');
+        if (table && table.offsetParent) mmxFillList(bar, table);
+    });
+}
+function mmxFitCampaign(body) {
+    var view = body.closest('.dash-view');
+    if (MMX_MANUAL_PER) return;
+    if (view) view.scrollTop = 0;
+    var pager = document.getElementById('mmCampaignPager');
+    var n = Math.min(100, Math.max(10, mmxRowsThatFit(body, pager ? pager.offsetHeight : 0)));
+    if (n !== MM_CAMPAIGN_PER) mmCampaignPerSet(n);
+}
+function mmxIsFilled(tbody) { return !!tbody.querySelector('tr[data-mmx-fill]'); }
+function mmxFillList(bar, table) {
+    var tbody = table.tBodies[0];
+    if (!tbody) return;
+    var active = bar.__active || '';
+    if (bar.__fill && bar.__fill.active === active && mmxIsFilled(tbody)) return; // already filled for these filters
+    var want = Math.max(mmxRowsThatFit(tbody, 44), tbody.rows.length);
+    if (bar.__orig === undefined) { bar.__orig = tbody.innerHTML; bar.__size = Math.max(tbody.rows.length, 10); } // same as mmListFilterApply
+    var fill = bar.__fill = { active: active, orig: mmxIsFilled(tbody) ? (bar.__fill && bar.__fill.orig) : tbody.innerHTML, rows: null, shown: want, table: table };
+    fetch(mmLfUrl(bar, new URLSearchParams(active)), { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
+        .then(function (d) {
+            if (bar.__fill !== fill || !mmxFocusOn()) return;
+            fill.rows = d.rows || [];
+            mmxListRender(bar);
+        })
+        .catch(function () {});
+}
+function mmxListRender(bar) {
+    var fill = bar.__fill, table = fill.table, tbody = table.tBodies[0];
+    var rows = fill.rows, shown = Math.min(fill.shown, rows.length);
+    if (!rows.length) return;
+    tbody.innerHTML = rows.slice(0, shown).map(function (r) { return mmLfRow(bar.getAttribute('data-kind'), r); }).join('');
+    if (tbody.rows[0]) tbody.rows[0].setAttribute('data-mmx-fill', '1'); // marks the list as filled (a list filter redraw drops it)
+    if (typeof mmPlanFilterApply === 'function') mmPlanFilterApply(table); // keep the Plan / number column filters
+    var ft = table.nextElementSibling && table.nextElementSibling.classList.contains('mmx-fill-ft') ? table.nextElementSibling : null;
+    if (!ft) { ft = document.createElement('div'); ft.className = 'mmx-fill-ft'; table.insertAdjacentElement('afterend', ft); }
+    ft.innerHTML = 'Showing <b>' + shown.toLocaleString() + '</b> of <b>' + rows.length.toLocaleString() + '</b> students in this list' +
+        (shown < rows.length ? ' <button type="button">Show ' + Math.min(25, rows.length - shown) + ' more</button>' : '');
+    var more = ft.querySelector('button');
+    if (more) more.onclick = function () { fill.shown = shown + 25; mmxListRender(bar); };
+}
+function mmxUnfillLists() {
+    document.querySelectorAll('#bhRoot .mm-lf').forEach(function (bar) {
+        var fill = bar.__fill;
+        if (!fill) return;
+        var tbody = fill.table.tBodies[0];
+        if (tbody && mmxIsFilled(tbody)) {
+            tbody.innerHTML = fill.orig;
+            if (typeof mmPlanFilterApply === 'function') mmPlanFilterApply(fill.table);
+        }
+        var ft = fill.table.nextElementSibling;
+        if (ft && ft.classList.contains('mmx-fill-ft')) ft.remove();
+        bar.__fill = null;
+    });
+}
+// While expanded: switching step / list tabs, or applying a list filter, fills the newly shown list too.
+document.addEventListener('click', function (e) {
+    if (!mmxFocusOn() || !e.target.closest('#bhRoot')) return;
+    if (e.target.closest('.mmx-fill-ft')) return;
+    setTimeout(mmxFillAll, 60);
+    setTimeout(mmxFillAll, 1500); // after a list filter's own reload has finished
+});
+window.addEventListener('resize', function () {
+    if (!mmxFocusOn()) return;
+    clearTimeout(window.__mmxResize);
+    window.__mmxResize = setTimeout(function () { MMX_ROW_H = null; mmxFillAll(); }, 300);
+});
+document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (document.querySelector('.risk-modal-overlay.show, .mm-cmp-overlay.show, .mm-stu-overlay.show, .mm-list-modal-overlay.show')) return; // Esc closes the window first
+    if (document.getElementById('mmxProf') && document.getElementById('mmxProf').classList.contains('show')) { mmxProfileClose(); return; }
+    if (document.getElementById('bhRoot').classList.contains('mm-focus')) mmFocusToggle(false);
+});
+
+var MM_INSIGHT_URL = '{{ route('client.mock-master-helper.student-insight') }}';
+var MMX_PROF = null; // { src: 'stu' | 'cmp', row }
+/* Campaign message templates that fit each Next best action (Free trial students get "Upgrade from free"). */
+var MM_NBA_TEMPLATE = { 'Win back': 'renewal', 'Renew now': 'renewal', 'Renewal reminder': 'renewal', 'Re-engage': 'reengage', 'Book a mock test': 'reengage', 'Lead with proof': 'proof', 'Lead with offer': 'thanks' };
+var MMX_PROF_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>';
+
+function mmxProfBtn(src) {
+    return '<button type="button" class="mmx-prof-btn" data-prof-src="' + src + '" onclick="mmxProfileToggle(\'' + src + '\')" title="Show this student\'s profile on the side">' + MMX_PROF_ICON + 'Profile</button>';
+}
+function mmxProfileToggle(src) {
+    var panel = document.getElementById('mmxProf');
+    if (panel && panel.classList.contains('show') && MMX_PROF && MMX_PROF.src === src) { mmxProfileClose(); return; }
+    var row = src === 'stu' ? MM_STUDENT_SELECTED : (src === 'pop' ? MM_POP_ROW : (MM_CMP && MM_CMP.row));
+    if (row) mmxProfileOpen(src, row);
+}
+function mmxProfileClose() {
+    var panel = document.getElementById('mmxProf');
+    if (panel) panel.classList.remove('show');
+    document.body.classList.remove('mmx-prof-open');
+    document.querySelectorAll('.mmx-prof-btn, .mm-stu-more').forEach(function (b) { b.classList.remove('on'); });
+    MMX_PROF = null;
+}
+function mmxProfileOpen(src, row) {
+    var panel = document.getElementById('mmxProf');
+    if (!panel) {
+        panel = document.createElement('aside');
+        panel.id = 'mmxProf';
+        panel.className = 'mmx-prof';
+        panel.setAttribute('aria-label', 'Student profile');
+        document.body.appendChild(panel);
+    }
+    MMX_PROF = { src: src, row: row };
+    document.querySelectorAll('.mmx-prof-btn').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-prof-src') === src); });
+    document.getElementById('mmStuMore').classList.toggle('on', src === 'pop');
+    panel.innerHTML = '<div class="mmx-prof-hd"><div><h3>' + mmEsc(row.name || 'Student') + '</h3><div class="c">Loading profile…</div></div>' +
+        '<button type="button" class="mmx-prof-x" onclick="mmxProfileClose()" aria-label="Close profile">✕</button></div>';
+    panel.classList.add('show');
+    document.body.classList.add('mmx-prof-open');
+
+    var sid = row.sid || row.studentId;
+    var qs = sid ? 'sid=' + encodeURIComponent(sid) : (row.email ? 'email=' + encodeURIComponent(row.email) : '');
+    if (!qs) { mmxProfileRender(null, row, src); return; }
+    var mine = MMX_PROF;
+    fetch(MM_INSIGHT_URL + '?' + qs, { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { if (MMX_PROF === mine) mmxProfileRender(d, row, src); })
+        .catch(function () { if (MMX_PROF === mine) mmxProfileRender(null, row, src); });
+}
+function mmxProfileRender(d, row, src) {
+    var panel = document.getElementById('mmxProf');
+    if (!panel) return;
+    if (!d) {
+        panel.innerHTML = '<div class="mmx-prof-hd"><div><h3>' + mmEsc(row.name || 'Student') + '</h3><div class="c">Couldn\'t load this student\'s profile.</div></div>' +
+            '<button type="button" class="mmx-prof-x" onclick="mmxProfileClose()" aria-label="Close profile">✕</button></div>';
+        return;
+    }
+    var initial = (String(d.name || '?').trim().charAt(0) || '?').toUpperCase();
+    var pic = d.profile_picture
+        ? '<div class="mmx-prof-pic" style="background-image:url(\'' + encodeURI(d.profile_picture).replace(/'/g, '%27') + '\')"></div>'
+        : '<div class="mmx-prof-pic" style="background:' + mmxAvColor(d.name) + '">' + mmEsc(initial) + '</div>';
+    var pkg = d.package;
+    var tags = [];
+    if (row.plan) tags.push('<span class="' + mmPlanClassJs(row.plan) + '">' + mmEsc(row.plan) + '</span>');
+    if (pkg && pkg.stage) tags.push('<span class="bh-pill ' + (pkg.stage === 'Expired' ? 'bad' : (pkg.stage === 'Renewal Due' ? 'warn' : 'good')) + '">' + mmEsc(pkg.stage) + '</span>');
+
+    var lm = d.lastMock;
+    var skills = lm && lm.sections && Object.keys(lm.sections).length
+        ? Object.keys(lm.sections).map(function (k) {
+            var v = Math.round(lm.sections[k]);
+            return '<div class="mmx-skill"><span>' + k + '</span><i><b style="width:' + Math.max(2, Math.min(100, v / 90 * 100)) + '%"></b></i><b>' + v + '</b></div>';
+        }).join('')
+        : '<div class="mmx-prof-empty">No mock test results yet.</div>';
+    var trend = d.trend && d.trend.length > 1
+        ? '<div style="margin-top:10px;display:flex;align-items:center;gap:10px;font-size:12px;color:#64748b">' + mmxSpark(d.trend, '#7c3aed') + 'Overall score, last ' + d.trend.length + ' tests</div>' : '';
+
+    // Recommended next step; in the Campaign window it can fill in the matching message.
+    var next = '<div class="mmx-prof-empty">No package on record.</div>';
+    if (d.nextAction) {
+        next = mmxNbaCell(d);
+        var key = row.plan === 'Free trial' ? 'upgrade' : MM_NBA_TEMPLATE[d.nextAction];
+        var tpl = src === 'stu' && MM_MESSAGE_TEMPLATES.find(function (t) { return t.key === key; });
+        if (tpl) {
+            next += '<div class="mmx-prof-draft">' + mmEsc(mmFillTemplate(tpl.body, row)) + '</div>' +
+                '<button type="button" class="mmx-prof-use" onclick="mmxProfileUse(\'' + tpl.key + '\')">Use this message — ' + mmEsc(tpl.label) + '</button>';
+        }
+    }
+
+    var kv = [['Email', d.email || '—'], ['Phone', d.phone || '—'], ['Course', d.course_type || '—'], ['Target score', d.target || '—'],
+              ['Package', pkg ? pkg.name : '—'], ['Expires', pkg && pkg.expires ? pkg.expires + (pkg.expiresIn !== null && pkg.expiresIn >= 0 ? ' (in ' + pkg.expiresIn + 'd)' : '') : '—'],
+              ['Total paid', d.totalPaid], ['Trust', d.trust + (d.trust < 65 ? ' · lead with proof' : ' · lead with offer')], ['Joined', d.joined || '—'], ['Last active', d.lastActive]];
+    var tl = (d.timeline || []).map(function (t) {
+        return '<div' + (t.bad ? ' class="bad"' : '') + '>' + mmEsc(t.text) + '<small>' + mmEsc(t.sub || '') + '</small></div>';
+    }).join('');
+
+    panel.innerHTML =
+        '<div class="mmx-prof-hd">' + pic + '<div style="min-width:0"><h3>' + mmEsc(d.name) + '</h3><div class="c">' + mmEsc(pkg ? pkg.name : (d.course_type || '')) + '</div>' +
+            (tags.length ? '<div class="mmx-prof-tags">' + tags.join('') + '</div>' : '') + '</div>' +
+            '<button type="button" class="mmx-prof-x" onclick="mmxProfileClose()" aria-label="Close profile">✕</button></div>' +
+        '<div class="mmx-prof-b">' +
+            '<div class="mmx-prof-stats"><div><small>Readiness</small><b>' + d.readiness + '%</b></div><div><small>Mock tests</small><b>' + d.mockCount + '</b></div><div><small>Package</small><b>' + mmEsc(pkg ? pkg.value : '—') + '</b></div></div>' +
+            '<div><div class="mmx-prof-sec">Skill breakdown (last mock)' + (lm ? '<span>' + mmEsc(lm.date || '') + (lm.overall !== null ? ' · overall ' + lm.overall : '') + (d.bestScore !== null ? ' · best ' + d.bestScore : '') + '</span>' : '') + '</div>' + skills + trend + '</div>' +
+            '<div><div class="mmx-prof-sec">Recommended next step</div>' + next + '</div>' +
+            '<div><div class="mmx-prof-sec">Details</div><dl class="mmx-prof-kv">' + kv.map(function (p) { return '<dt>' + p[0] + '</dt><dd>' + mmEsc(p[1]) + '</dd>'; }).join('') + '</dl></div>' +
+            '<div><div class="mmx-prof-sec">Timeline</div>' + (tl ? '<div class="mmx-tl">' + tl + '</div>' : '<div class="mmx-prof-empty">No activity on record.</div>') + '</div>' +
+        '</div>';
+}
+/* "Use this message": ticks the matching template in the Campaign message window and fills it in. */
+function mmxProfileUse(key) {
+    var radio = document.querySelector('input[name="mmTpl"][value="' + key + '"]');
+    if (radio) radio.checked = true;
+    mmPickTemplate(key);
+}
+
+(function () {
+    function init() {
+        // Picking an agent tab while the Board is open goes back to that agent's table.
+        document.querySelectorAll('#bhRoot .atab').forEach(function (b) {
+            b.addEventListener('click', function () { if (MM_VIEW === 'board') mmViewSet('table'); });
+        });
+        mmxCollapse(document.getElementById('mmOverview'), mmxPref('mmOvCollapsed') === '1', 'mmOvCollapsed');
+        mmxCollapse(document.getElementById('mmSegWrap'), mmxPref('mmSegCollapsed') === '1', 'mmSegCollapsed');
+        mmSegRender();
+        mmOvLoad();
+        setInterval(function () { if (!document.hidden) mmOvLoad(); }, 120000);
+    }
+    if (document.readyState !== 'loading') init(); else document.addEventListener('DOMContentLoaded', init);
+})();
 
 (function () {
     var tip = null;
@@ -2677,7 +3946,7 @@ function mmStudentOpen(index) {
     }).join('');
 
     document.getElementById('mmStudentTitle').innerHTML =
-        escapeHtml(s.name) +
+        escapeHtml(s.name) + ' &nbsp;' + mmxProfBtn('stu') +
         '<div style="font-size:11.5px;font-weight:500;color:#6b7280;margin-top:3px">' +
             (s.email ? escapeHtml(s.email) : '<span style="color:#9ca3af">No email on file</span>') +
             ' &nbsp;-&nbsp; ' +
@@ -2812,6 +4081,7 @@ function mmSendWhatsApp() {
 function mmStudentClose() {
     var overlay = document.getElementById('mmStudentModal');
     if (overlay) overlay.classList.remove('show');
+    mmxProfileClose(); // side Profile panel goes with the window
 }
 
 var MM_CAMPAIGN_SORT = { key: null, dir: 'asc' };
@@ -2849,6 +4119,9 @@ function mmCampaignParams(page) {
         params.set('dir', MM_CAMPAIGN_SORT.dir);
     }
     if (typeof MM_CAMPAIGN_PLAN !== 'undefined' && MM_CAMPAIGN_PLAN && MM_CAMPAIGN_PLAN !== 'all') params.set('plan', MM_CAMPAIGN_PLAN); // Plan column dropdown
+    if (typeof MM_CAMPAIGN_SEGMENT !== 'undefined' && MM_CAMPAIGN_SEGMENT && MM_CAMPAIGN_SEGMENT !== 'all') params.set('segment', MM_CAMPAIGN_SEGMENT); // quick segment card
+    if (typeof MM_CAMPAIGN_PER !== 'undefined' && MM_CAMPAIGN_PER && MM_CAMPAIGN_PER !== 10) params.set('per_page', MM_CAMPAIGN_PER); // rows per page
+    if (typeof MM_CAMPAIGN_CF !== 'undefined') Object.keys(MM_CAMPAIGN_CF).forEach(function (k) { if (MM_CAMPAIGN_CF[k]) params.set('f_' + k, MM_CAMPAIGN_CF[k]); }); // column dropdowns
     return params;
 }
 
@@ -2872,6 +4145,9 @@ function mmCampaignReset() {
     MM_CAMPAIGN_SORT = { key: null, dir: 'asc' };
     mmCampaignSortIndicators();
     MM_CAMPAIGN_PLAN = null; // also clear the Plan column filter
+    MM_CAMPAIGN_SEGMENT = 'all'; // and the quick segment card
+    if (typeof mmxCfClearAll === 'function') mmxCfClearAll(); // and the column dropdowns
+    mmSegRender();
     var ct = document.getElementById('mmCampaignBody');
     if (ct) { ct.closest('table').removeAttribute('data-plan-filter'); mmPlanFilterApply(ct.closest('table')); }
     mmCampaignLoad('');
@@ -2936,6 +4212,10 @@ function mmBulkOpen() {
     var from = form.querySelector('[name="from"]').value, to = form.querySelector('[name="to"]').value;
     if (sub) filters.push({ label: 'Subscription: ' + sub, test: function (r) { return r.raw.sub === sub; } });
     if (from || to) filters.push({ label: 'Payment ' + (from ? 'from ' + from : '') + (from && to ? ' ' : '') + (to ? 'to ' + to : ''), test: function () { return true; } });
+    if (MM_CAMPAIGN_SEGMENT && MM_CAMPAIGN_SEGMENT !== 'all') filters.push({ label: 'Segment: ' + mmSegLabel(MM_CAMPAIGN_SEGMENT), test: function () { return true; } }); // applied on the server
+    if (typeof MM_CAMPAIGN_CF !== 'undefined') Object.keys(MM_CAMPAIGN_CF).forEach(function (k) { // column dropdowns, applied on the server
+        if (MM_CAMPAIGN_CF[k]) filters.push({ label: MMX_CF[k].label + ': ' + mmxCfLabel(k, MM_CAMPAIGN_CF[k]), test: function () { return true; } });
+    });
     if (MM_CAMPAIGN_PLAN && MM_CAMPAIGN_PLAN !== 'all') {
         var plan = MM_CAMPAIGN_PLAN;
         filters.push({ label: 'Plan: ' + mmPfLabel(plan), test: function (r) { return mmPfMatches(r.group, plan); } });
@@ -3416,7 +4696,1100 @@ mmRenderQuick('mk', 'campaign');
 mmRenderQuick('sl', 'today');
 mmRenderQuick('ch', 'savefirst');
 bhMiraApply(); bhLeftApply(); bhQuickApply();
+
+/* ── Part 5 (Nov 2026): animations, sliding indicators, applied-filter chips and the sidebar card ──
+   The existing functions are wrapped, not changed: each still runs exactly as before and these only
+   add the motion on top. Filter chips read the filters that are already applied and remove them
+   through the same controls (form fields, segment cards, Plan / number menus, sort). */
+(function () {
+    var REDUCE = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    var READY = false; // no open/close animations while the page is still setting itself up
+    var EASE = 'cubic-bezier(.22,.8,.26,1)';
+    var root = document.getElementById('bhRoot');
+    if (!root) return;
+
+    function wrap(name, after, before) {
+        var orig = window[name];
+        if (typeof orig !== 'function') return;
+        window[name] = function () {
+            if (before) { try { before.apply(this, arguments); } catch (e) {} }
+            var r = orig.apply(this, arguments);
+            if (after) { try { after.apply(this, arguments); } catch (e) {} }
+            return r;
+        };
+    }
+    function replay(el, cls) { if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+    /* First placement of a sliding indicator happens without its transition. */
+    function place(el, fresh, apply) {
+        if (fresh) el.style.transition = 'none';
+        apply();
+        if (fresh) { void el.offsetWidth; el.style.transition = ''; }
+    }
+
+    /* Smooth open / close of a block that the existing code shows and hides. */
+    function slide(el, open, apply) {
+        if (!el || REDUCE || !READY || !el.animate) { apply(); return; }
+        if (open) {
+            apply();
+            var h = el.scrollHeight;
+            if (!h) return;
+            el.style.overflow = 'hidden';
+            var a = el.animate([{ height: '0px', opacity: 0 }, { height: h + 'px', opacity: 1 }], { duration: 380, easing: EASE });
+            a.onfinish = a.oncancel = function () { el.style.overflow = ''; };
+        } else {
+            var h2 = el.offsetHeight;
+            if (!h2) { apply(); return; }
+            el.style.overflow = 'hidden';
+            var b = el.animate([{ height: h2 + 'px', opacity: 1 }, { height: '0px', opacity: 0 }], { duration: 300, easing: EASE, fill: 'forwards' });
+            b.onfinish = function () { apply(); b.cancel(); el.style.overflow = ''; };
+        }
+    }
+
+    /* Numbers count up to their value, keeping symbols: "61,900", "$5,478", "45%", "58.6". */
+    function countUp(el, text) {
+        text = String(text);
+        var m = text.match(/^([^\d]*?)(\d[\d,]*(?:\.\d+)?)(.*)$/);
+        if (!m || REDUCE) { el.textContent = text; return; }
+        var to = parseFloat(m[2].replace(/,/g, '')), dec = (m[2].split('.')[1] || '').length, grp = m[2].indexOf(',') > -1;
+        var t0 = performance.now(), run = (el.__mmxRun = {});
+        (function f(t) {
+            if (el.__mmxRun !== run) return;
+            var p = Math.min(1, (t - t0) / 1000), v = to * (1 - Math.pow(1 - p, 3));
+            el.textContent = p < 1 ? m[1] + v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec, useGrouping: grp }) + m[3] : text;
+            if (p < 1) requestAnimationFrame(f);
+        })(t0);
+    }
+
+    /* ── Header: Table | Board pill ── */
+    function vtPill() {
+        var tg = document.getElementById('mmViewTg');
+        if (!tg) return;
+        var pill = tg.querySelector('.mmx-vt-pill'), fresh = !pill;
+        if (fresh) { pill = document.createElement('span'); pill.className = 'mmx-vt-pill'; tg.insertBefore(pill, tg.firstChild); tg.classList.add('mmx-pilled'); }
+        var on = tg.querySelector('button.on');
+        if (on) place(pill, fresh, function () { pill.style.width = on.offsetWidth + 'px'; pill.style.transform = 'translateX(' + on.offsetLeft + 'px)'; });
+    }
+    wrap('mmViewSet', vtPill);
+
+    /* ── Agent tabs: sliding background and a live count on each tab ── */
+    function atSlider() {
+        var tabs = root.querySelector('.atabs');
+        if (!tabs) return;
+        var s = tabs.querySelector('.mmx-at-slider'), fresh = !s;
+        if (fresh) { s = document.createElement('span'); s.className = 'mmx-at-slider'; tabs.insertBefore(s, tabs.firstChild); tabs.classList.add('mmx-slid'); }
+        var on = tabs.querySelector('.atab.on');
+        if (on) place(s, fresh, function () { s.style.width = on.offsetWidth + 'px'; s.style.transform = 'translateX(' + on.offsetLeft + 'px)'; });
+    }
+    function badges(data) {
+        ['mk', 'sl', 'ch'].forEach(function (a) {
+            var tab = document.getElementById('mmAgentTab-' + a), c = data[a] && data[a][0];
+            if (!tab || !c) return;
+            var b = tab.querySelector('.mmx-ab');
+            if (!b) { b = document.createElement('span'); b.className = 'mmx-ab'; tab.appendChild(b); }
+            b.textContent = c.value;
+            b.title = c.label;
+        });
+        atSlider();
+    }
+
+    /* ── Step tabs: sliding underline ── */
+    function moveUl(vt) {
+        if (!vt) return;
+        var ul = vt.querySelector('.mmx-ul'), fresh = !ul;
+        if (fresh) { ul = document.createElement('span'); ul.className = 'mmx-ul'; vt.appendChild(ul); vt.classList.add('mmx-ul-on'); }
+        var on = vt.querySelector('.dvt.on');
+        if (!on || !on.offsetWidth) { ul.style.width = '0px'; return; }
+        place(ul, fresh, function () {
+            ul.style.width = on.offsetWidth + 'px';
+            ul.style.transform = 'translate(' + on.offsetLeft + 'px,' + (on.offsetTop + on.offsetHeight - vt.clientHeight) + 'px)';
+        });
+    }
+    function moveAllUl() { root.querySelectorAll('.dash.on .dash-vtabs').forEach(moveUl); }
+
+    /* ── Steps on the left: short subtitle, ticks on earlier steps, progress bar ── */
+    var STEP_SUBS = {
+        'mk-campaign': 'Pick who to contact', 'mk-performance': 'Headline numbers', 'mk-audience': 'Who your students are',
+        'mk-insights': 'Patterns worth acting on', 'mk-abtest': 'Which message wins',
+        'sl-today': 'Who to call first', 'sl-accounts': 'All prospects', 'sl-scripts': 'What to say',
+        'sl-objections': 'Handle push-back', 'sl-close': 'Ready to buy',
+        'ch-savefirst': 'Highest risk first', 'ch-rootcause': 'Why they leave', 'ch-offers': 'Save offers',
+        'ch-watchlist': 'Slipping quietly', 'ch-renew': 'Ending or ended', 'ch-abtest': 'Which message wins'
+    };
+    function stepsDecor(dash) {
+        if (!dash) return;
+        var steps = dash.querySelectorAll('.flowst'), cur = -1;
+        steps.forEach(function (s, i) {
+            var t = s.querySelector('.flowst-t'), sub = STEP_SUBS[s.getAttribute('data-step')];
+            if (t && sub && !t.querySelector('.mmx-step-sub')) {
+                var sm = document.createElement('small');
+                sm.className = 'mmx-step-sub';
+                sm.textContent = sub;
+                t.appendChild(sm);
+            }
+            if (s.classList.contains('cur')) cur = i;
+        });
+        steps.forEach(function (s, i) { s.classList.toggle('mmx-done', cur > -1 && i < cur); });
+        var body = dash.querySelector('.g-body');
+        if (!body || !steps.length) return;
+        var p = body.querySelector('.mmx-prog');
+        if (!p) { p = document.createElement('div'); p.className = 'mmx-prog'; p.innerHTML = 'Playbook progress<em><i></i></em>'; body.appendChild(p); }
+        p.querySelector('i').style.width = ((cur + 1) / steps.length * 100) + '%';
+    }
+    wrap('mmSelectStep', function (agent) {
+        var dash = document.getElementById('mmDash-' + agent);
+        stepsDecor(dash);
+        if (dash) moveUl(dash.querySelector('.dash-vtabs'));
+    });
+
+    /* ── Overview cards: rise in, coloured bar grows, numbers count up, spark lines draw ── */
+    var OV_PREV = {}, OV_FIRST = true;
+    wrap('mmOvRender', function (data) {
+        ['mk', 'sl', 'ch'].forEach(function (a) {
+            var box = document.querySelector('#mmOverview .mmx-kpis[data-ov="' + a + '"]');
+            if (!box || !data[a]) return;
+            box.querySelectorAll('.mmx-kpi').forEach(function (k, i) {
+                var c = data[a][i] || {};
+                k.style.borderTop = '';
+                k.style.setProperty('--c', MM_OV_TONES[c.tone] || MM_OV_TONES.violet);
+                k.style.setProperty('--i', i);
+                k.classList.add('mmx-bartop');
+                var paths = k.querySelectorAll('svg path');
+                if (paths[0]) paths[0].classList.add('mmx-area');
+                if (paths[1]) { paths[1].setAttribute('pathLength', '1'); paths[1].classList.add('mmx-line'); }
+                var v = k.querySelector('.mmx-kpi-v'), key = a + i;
+                if (v) {
+                    v.setAttribute('data-v', c.value);
+                    if (OV_PREV[key] !== c.value) countUp(v, c.value);
+                }
+                OV_PREV[key] = c.value;
+                if (OV_FIRST) k.classList.add('mmx-in');
+            });
+        });
+        OV_FIRST = false;
+        badges(data);
+        syncCard(data);
+    });
+    wrap('mmSetAgent', function (agent) {
+        atSlider();
+        document.querySelectorAll('#mmOverview .mmx-kpis[data-ov="' + agent + '"] .mmx-kpi').forEach(function (k) {
+            replay(k, 'mmx-in');
+            var v = k.querySelector('.mmx-kpi-v');
+            if (v && v.getAttribute('data-v')) countUp(v, v.getAttribute('data-v'));
+        });
+        stepsDecor(document.getElementById('mmDash-' + agent));
+        requestAnimationFrame(moveAllUl);
+    });
+
+    /* ── Open / close animations: overview, segments, Ask Mira suggestions, side panels ── */
+    var origCollapse = window.mmxCollapse;
+    window.mmxCollapse = function (el, collapsed, prefKey) {
+        if (!el) return origCollapse(el, collapsed, prefKey);
+        var changing = el.classList.contains('collapsed') !== !!collapsed;
+        var body = el.id === 'mmOverview'
+            ? el.querySelector('.mmx-kpis[data-ov="' + root.getAttribute('data-agent') + '"]')
+            : el.querySelector('.mmx-segs');
+        if (!changing || !body) return origCollapse(el, collapsed, prefKey);
+        if (collapsed) { var btn = el.querySelector('.mmx-collapse svg'); if (btn) btn.style.transform = 'rotate(-90deg)'; }
+        slide(body, !collapsed, function () {
+            origCollapse(el, collapsed, prefKey);
+            var svg = el.querySelector('.mmx-collapse svg');
+            if (svg) svg.style.transform = '';
+        });
+    };
+    var origCQ = window.mmCollapseQuick, origEQ = window.mmExpandQuick;
+    function quickBody() { return root.querySelector('.dash.on .dm-quick'); }
+    function resizing() { return document.body.style.userSelect === 'none'; } // a panel edge is being dragged
+    window.mmCollapseQuick = function () {
+        var q = quickBody();
+        if (!q || resizing() || q.classList.contains('dm-quick-collapsed')) return origCQ();
+        slide(q, false, origCQ);
+    };
+    window.mmExpandQuick = function () {
+        var q = quickBody();
+        if (!q || resizing() || !q.classList.contains('dm-quick-collapsed')) return origEQ();
+        slide(q, true, origEQ);
+    };
+    function gridAnim() {
+        if (REDUCE) return;
+        root.classList.add('mmx-gridanim');
+        clearTimeout(gridAnim.t);
+        gridAnim.t = setTimeout(function () { root.classList.remove('mmx-gridanim'); moveAllUl(); }, 450);
+    }
+    wrap('mmMira', null, gridAnim);
+    wrap('mmLeft', null, gridAnim);
+
+    /* ── Quick segments: rise in once, counts tick to new values, ripple where you click ── */
+    var SEG_PREV = {}, SEG_FIRST = true, SEG_RIP = null;
+    document.addEventListener('pointerdown', function (e) {
+        var b = e.target.closest && e.target.closest('#mmSegs .mmx-seg');
+        if (!b) return;
+        var i = Array.prototype.indexOf.call(b.parentNode.children, b), r = b.getBoundingClientRect();
+        SEG_RIP = { i: i, x: e.clientX - r.left, y: e.clientY - r.top, d: Math.max(r.width, r.height) };
+    }, true);
+    wrap('mmSegRender', function () {
+        var box = document.getElementById('mmSegs');
+        if (!box) return;
+        box.classList.toggle('mmx-in', SEG_FIRST);
+        SEG_FIRST = false;
+        box.querySelectorAll('.mmx-seg').forEach(function (b, i) {
+            var g = MM_SEGMENTS[i], n = b.querySelector('.mmx-seg-n');
+            if (!g || !n) return;
+            var txt = n.textContent;
+            if (SEG_PREV[g.k] !== undefined && SEG_PREV[g.k] !== txt) countUp(n, txt);
+            SEG_PREV[g.k] = txt;
+            if (SEG_RIP && SEG_RIP.i === i && !REDUCE) {
+                var sp = document.createElement('span');
+                sp.className = 'mmx-rip';
+                sp.style.cssText = 'width:' + SEG_RIP.d + 'px;height:' + SEG_RIP.d + 'px;left:' + (SEG_RIP.x - SEG_RIP.d / 2) + 'px;top:' + (SEG_RIP.y - SEG_RIP.d / 2) + 'px';
+                b.appendChild(sp);
+                setTimeout(function () { sp.remove(); }, 650);
+            }
+        });
+        SEG_RIP = null;
+    });
+
+    /* ── Ask Mira: typing dots while it thinks, answer fades in ── */
+    function watchChat(chat) {
+        new MutationObserver(function (muts) {
+            muts.forEach(function (m) {
+                m.addedNodes.forEach(function (n) {
+                    if (n.nodeType === 1 && n.classList.contains('msg') && n.classList.contains('bot') && n.textContent.trim() === 'Thinking…') {
+                        n.innerHTML = '<span class="mmx-typing" role="status" aria-label="Thinking…"><i></i><i></i><i></i></span>';
+                    }
+                });
+                var t = m.target;
+                if (t !== chat && t.classList && t.classList.contains('msg') && m.addedNodes.length && !t.querySelector('.mmx-typing')) replay(t, 'mmx-reveal');
+            });
+        }).observe(chat, { childList: true, subtree: true });
+    }
+
+    /* ── Applied-filter chips above each table ── */
+    var CAMP_APPLIED = new URLSearchParams(location.search);
+    function fmtDate(v) {
+        var d = new Date(v + 'T00:00:00');
+        return isNaN(d) ? v : d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    function thLabel(th) { return ((th.childNodes[0] && th.childNodes[0].textContent) || th.textContent).trim(); }
+    function rangeText(f) {
+        var lo = f.min !== null && f.min !== undefined, hi = f.max !== null && f.max !== undefined;
+        return lo && hi ? f.min + ' to ' + f.max : (lo ? '≥ ' + f.min : '≤ ' + f.max);
+    }
+    function menuBtn(th, num) { return th && th.querySelector(num ? '.mm-nf-btn' : '.mm-pf-btn:not(.mm-nf-btn)'); }
+    function isCampaign(table) { return !!table.querySelector('#mmCampaignBody'); }
+    function listBar(table) {
+        var scope = table.closest('.mm-scr-list') || table.closest('.mm-panel');
+        return scope && scope.querySelector('.mm-lf');
+    }
+    function barBtn(bar, fn) { return bar.querySelector('button[onclick^="' + fn + '"]'); }
+
+    function chipsFor(table) {
+        var out = [], p = mmPfParts(table);
+        if (!p) return out;
+        var camp = isCampaign(table), bar = camp ? null : listBar(table);
+        if (camp) {
+            var form = document.getElementById('mmCampaignFilter');
+            [['subscription', 'Subscription'], ['from', 'Payment from'], ['to', 'Payment to']].forEach(function (f) {
+                var v = CAMP_APPLIED.get(f[0]);
+                if (!v) return;
+                out.push({ k: f[0] + v, label: f[1], value: f[0] === 'subscription' ? v : fmtDate(v),
+                    edit: function () { var el = form.elements[f[0]]; if (el) el.focus(); },
+                    clear: function () { var el = form.elements[f[0]]; if (el) el.value = ''; mmCampaignGo(1); } });
+            });
+            if (MM_CAMPAIGN_SEGMENT && MM_CAMPAIGN_SEGMENT !== 'all') {
+                out.push({ k: 'seg' + MM_CAMPAIGN_SEGMENT, label: 'Segment', value: mmSegLabel(MM_CAMPAIGN_SEGMENT),
+                    edit: function () {
+                        var w = document.getElementById('mmSegWrap');
+                        if (w.classList.contains('collapsed')) mmSegToggle();
+                        w.scrollIntoView({ behavior: REDUCE ? 'auto' : 'smooth', block: 'nearest' });
+                    },
+                    clear: function () { mmSegPick(MM_CAMPAIGN_SEGMENT); } }); // picking the active card again clears it
+            }
+            if (MM_CAMPAIGN_SORT.key) {
+                var sth = table.querySelector('th[data-sort-key="' + MM_CAMPAIGN_SORT.key + '"]');
+                out.push({ k: 'sort' + MM_CAMPAIGN_SORT.key + MM_CAMPAIGN_SORT.dir, label: 'Sorted', value: (sth ? thLabel(sth) : MM_CAMPAIGN_SORT.key) + (MM_CAMPAIGN_SORT.dir === 'desc' ? ' ↓' : ' ↑'),
+                    edit: function () { var b = menuBtn(sth, true); if (b) b.click(); },
+                    clear: function () { MM_CAMPAIGN_SORT.key = null; MM_CAMPAIGN_SORT.dir = 'asc'; mmCampaignSortIndicators(); mmCampaignGo(1); } });
+            }
+            if (typeof MM_CAMPAIGN_CF !== 'undefined') Object.keys(MM_CAMPAIGN_CF).forEach(function (k) { // column dropdowns (Part 8)
+                var v = MM_CAMPAIGN_CF[k];
+                if (!v) return;
+                out.push({ k: 'cf' + k + v, label: MMX_CF[k].label, value: mmxCfLabel(k, v),
+                    edit: function () { var b = table.querySelector('th[data-mm-col-filter="' + k + '"] .mmx-cf-btn'); if (b) b.click(); },
+                    clear: function () { mmxCfSet(k, null); } });
+            });
+        } else if (bar && bar.__active) {
+            var lp = new URLSearchParams(bar.__active);
+            var sub = bar.getAttribute('data-sub-label') || 'Subscription', dl = bar.getAttribute('data-date-label') || 'Date';
+            [['subscription', sub], ['from', dl + ' from'], ['to', dl + ' to']].forEach(function (f) {
+                var v = lp.get(f[0]);
+                if (!v) return;
+                out.push({ k: f[0] + v, label: f[1], value: f[0] === 'subscription' ? v : fmtDate(v),
+                    edit: function () { var el = bar.querySelector('[name="' + f[0] + '"]'); if (el) el.focus(); },
+                    clear: function () { var el = bar.querySelector('[name="' + f[0] + '"]'); if (el) el.value = ''; mmListFilterApply(barBtn(bar, 'mmListFilterApply')); } });
+            });
+        }
+        var pv = table.getAttribute('data-plan-filter');
+        if (pv && pv !== 'all' && p.th) {
+            out.push({ k: 'plan' + pv, label: 'Plan', value: mmPfLabel(pv),
+                edit: function () { var b = menuBtn(p.th, false); if (b) b.click(); },
+                clear: function () {
+                    table.setAttribute('data-plan-filter', 'all');
+                    mmPlanFilterApply(table);
+                    if (camp) { MM_CAMPAIGN_PLAN = null; mmCampaignGo(1); }
+                } });
+        }
+        var num = table.__mmNum || {};
+        Object.keys(num).forEach(function (idx) {
+            var f = num[idx], th = p.headRow.children[idx];
+            if (!mmNumActive(f) || !th) return;
+            out.push({ k: 'num' + idx + rangeText(f), label: thLabel(th), value: rangeText(f),
+                edit: function () { var b = menuBtn(th, true); if (b) b.click(); },
+                clear: function () { delete table.__mmNum[idx]; mmPlanFilterApply(table); } });
+        });
+        if (table.__mmSort) {
+            var s = table.__mmSort, sth2 = p.headRow.children[s.idx];
+            out.push({ k: 'csort' + s.idx + s.dir, label: 'Sorted', value: (sth2 ? thLabel(sth2) : '') + (s.dir === 'desc' ? ' ↓' : ' ↑'),
+                edit: function () { var b = menuBtn(sth2, true); if (b) b.click(); },
+                clear: function () { table.__mmSort = null; mmPlanFilterApply(table); } });
+        }
+        return out;
+    }
+    function clearAll(table) {
+        if (isCampaign(table)) {
+            table.__mmNum = {};
+            mmCampaignReset();
+            mmPlanFilterApply(table);
+            return;
+        }
+        var bar = listBar(table);
+        if (bar && bar.__active) mmListFilterReset(barBtn(bar, 'mmListFilterReset'));
+        table.setAttribute('data-plan-filter', 'all');
+        table.__mmNum = {};
+        table.__mmSort = null;
+        mmPlanFilterApply(table);
+    }
+    function chipsHost(table) {
+        if (table.__mmxChips) return table.__mmxChips;
+        var anchor = isCampaign(table) ? document.getElementById('mmCampaignFilter') : listBar(table);
+        var box = document.createElement('div');
+        box.className = 'mmx-chips';
+        box.hidden = true;
+        box.setAttribute('aria-label', 'Applied filters');
+        if (anchor && (anchor.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING)) anchor.after(box);
+        else table.before(box);
+        box.__keys = {};
+        table.__mmxChips = box;
+        return box;
+    }
+    function chipsRefresh(table) {
+        if (!table || !table.closest('#bhRoot .mm-panel')) return;
+        var list = chipsFor(table);
+        var box = list.length ? chipsHost(table) : table.__mmxChips;
+        if (!box) return;
+        var keys = {};
+        box.innerHTML = list.length ? '<span class="mmx-chips-l">Filters</span>' : '';
+        list.forEach(function (c) {
+            keys[c.k] = 1;
+            var el = document.createElement('span');
+            el.className = 'mmx-chip' + (box.__keys[c.k] ? '' : ' new');
+            el.innerHTML = '<button type="button" class="mmx-chip-e" title="Change this filter">' + mmEsc(c.label) + ': <b>' + mmEsc(c.value) + '</b></button>' +
+                '<button type="button" class="mmx-chip-x" title="Remove" aria-label="Remove ' + mmEsc(c.label) + ' filter">×</button>';
+            el.querySelector('.mmx-chip-e').onclick = function () { c.edit(); };
+            el.querySelector('.mmx-chip-x').onclick = function () { c.clear(); };
+            box.appendChild(el);
+        });
+        if (list.length > 1) {
+            var all = document.createElement('button');
+            all.type = 'button';
+            all.className = 'mmx-chip all' + (box.__keys.__all ? '' : ' new');
+            all.textContent = 'Clear all';
+            all.onclick = function () { clearAll(table); };
+            box.appendChild(all);
+            keys.__all = 1;
+        }
+        box.__keys = keys;
+        box.hidden = !list.length;
+    }
+    function campaignTable() { var b = document.getElementById('mmCampaignBody'); return b && b.closest('table'); }
+    wrap('mmPlanFilterApply', function (table) { chipsRefresh(table); });
+    wrap('mmCampaignLoad', function () { chipsRefresh(campaignTable()); }, function (query) { CAMP_APPLIED = new URLSearchParams(query || ''); });
+    wrap('mmListFilterReset', function (btn) {
+        var bar = btn && btn.closest('.mm-lf'), scope = bar && mmLfScope(bar);
+        chipsRefresh(scope && scope.querySelector('table.dtbl'));
+    });
+    function watchTable(table) {
+        var t = null;
+        new MutationObserver(function () { clearTimeout(t); t = setTimeout(function () { chipsRefresh(table); }, 60); })
+            .observe(table, { childList: true, subtree: true });
+    }
+
+    /* ── Sidebar card (this page only): data sources, progress bar, last sync ── */
+    var SYNC_AT = null, DATA_TO = null;
+    function syncCard(data) {
+        SYNC_AT = data.lastSync ? new Date(data.lastSync) : null;
+        DATA_TO = data.dataTo ? new Date(data.dataTo) : null;
+        syncText();
+    }
+    function ago(d) {
+        var m = Math.round((Date.now() - d) / 60000);
+        if (m < 1) return 'just now';
+        if (m < 60) return m + ' min ago';
+        var h = Math.round(m / 60);
+        if (h < 24) return h + ' h ago';
+        var days = Math.round(h / 24);
+        return days + ' day' + (days > 1 ? 's' : '') + ' ago';
+    }
+    function syncText() {
+        var el = document.getElementById('mmxLastSync');
+        if (!el) return;
+        var t = SYNC_AT && !isNaN(SYNC_AT) ? 'Last sync ' + ago(SYNC_AT)
+            : (DATA_TO && !isNaN(DATA_TO) ? 'Data up to ' + DATA_TO.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '');
+        el.textContent = t ? (el.previousElementSibling.textContent ? ' · ' : '') + t : '';
+    }
+    setInterval(syncText, 30000);
+    function sidebarDecor() {
+        var sb = document.getElementById('platformSidebar');
+        if (!sb) return;
+        var host = Array.prototype.find.call(sb.children, function (c) { return /data sources connected/.test(c.textContent); });
+        if (host && !host.querySelector('.mmx-src')) {
+            var m = host.textContent.match(/(\d+)\s+of\s+(\d+)\s+data sources/);
+            var n = m ? +m[1] : 0, tot = m ? +m[2] : 5;
+            var comp = host.querySelector('p'), link = host.querySelector('a');
+            var card = document.createElement('div');
+            card.className = 'mmx-src';
+            card.innerHTML = '<div class="mmx-src-t"><b>' + n + ' of ' + tot + ' data sources</b> connected</div>' +
+                '<div class="mmx-src-bar"><i style="width:' + Math.round(n / (tot || 1) * 100) + '%"></i></div>' +
+                '<div class="mmx-src-s"><span>' + mmEsc(comp ? comp.textContent.trim() : '') + '</span><span id="mmxLastSync"></span></div>' +
+                (link ? '<a href="' + mmEsc(link.getAttribute('href')) + '">' + mmEsc(link.textContent.trim()) + '</a>' : '');
+            host.classList.add('mmx-src-host');
+            host.appendChild(card);
+            syncText();
+        }
+        // Groups close smoothly too (opening is animated in CSS). The layout's own toggle still does the work.
+        ['Email', 'Reports', 'Arch', 'Revenue', 'Mockmaster', 'Success', 'Alerts'].forEach(function (g) {
+            var name = 'toggle' + g + 'Menu', orig = window[name];
+            if (typeof orig !== 'function' || orig.__mmx) return;
+            var id = g.charAt(0).toLowerCase() + g.slice(1) + 'Submenu';
+            var fn = function () {
+                var sub = document.getElementById(id);
+                if (!sub || sub.classList.contains('hidden') || REDUCE) return orig.apply(this, arguments);
+                var chev = document.getElementById(id.replace('Submenu', 'Chevron'));
+                if (chev) chev.classList.remove('rotate-180');
+                slide(sub, false, function () { orig(); });
+            };
+            fn.__mmx = true;
+            window[name] = fn;
+        });
+    }
+
+    function init() {
+        vtPill();
+        atSlider();
+        root.querySelectorAll('.dash').forEach(stepsDecor);
+        moveAllUl();
+        if (window.ResizeObserver) {
+            var ro = new ResizeObserver(function (entries) {
+                entries.forEach(function (e) { if (e.target.classList.contains('dash-vtabs')) moveUl(e.target); else atSlider(); });
+            });
+            root.querySelectorAll('.dash-vtabs, .atabs').forEach(function (el) { ro.observe(el); });
+        }
+        root.querySelectorAll('.dm-chat').forEach(watchChat);
+        root.querySelectorAll('.mm-panel table.dtbl').forEach(function (t) { watchTable(t); chipsRefresh(t); });
+        sidebarDecor();
+        window.addEventListener('resize', vtPill);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { vtPill(); atSlider(); moveAllUl(); });
+        setTimeout(function () { READY = true; }, 400);
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+
+/* ── Part 7 (Nov 2026): redesigned Performance / Audience / Insights, Scripts / Objections, Root cause / Offers ──
+   Open / close cards, plus charts and live counts that load the first time their tab is opened
+   (fresh from the mm_* tables, so they follow Sync Data). Clicking a card, bar or highlight opens the
+   same details window as before (mmKpiOpen). */
+var MM_TAB_URL = '{{ route('client.mock-master-helper.tab-data', ['tab' => '__TAB__']) }}';
+var MM_TAB_DONE = {};
+
+function mmxAccToggle(e, hd) {
+    if (e && e.target.closest('button')) return; // Copy and other buttons in the header keep their own job
+    var card = hd.closest('.mmx-acc');
+    var open = !card.classList.contains('open');
+    card.classList.toggle('open', open);
+    hd.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('mmx-acc-hd')) {
+        e.preventDefault();
+        mmxAccToggle(null, e.target);
+    }
+});
+/* Any element with data-kpi-key opens that details list (keys can hold spaces, so no inline JS). */
+document.addEventListener('click', function (e) {
+    var el = e.target.closest && e.target.closest('#bhRoot [data-kpi-key]');
+    if (el) mmKpiOpen(el.getAttribute('data-kpi-key'), el.getAttribute('data-kpi-label') || '');
+});
+function mmxKpiAttrs(key, label) {
+    return key ? ' data-kpi-key="' + mmEsc(key) + '" data-kpi-label="' + mmEsc(label) + '" title="Click to see the list"' : ' disabled';
+}
+
+function mmxTabLoad(tab) {
+    var boxes = document.querySelectorAll('[data-tab-data="' + tab + '"]');
+    if (MM_TAB_DONE[tab] || !boxes.length) return;
+    MM_TAB_DONE[tab] = true;
+    fetch(MM_TAB_URL.replace('__TAB__', tab), { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
+        .then(function (d) { boxes.forEach(function (b) { MMX_TAB_RENDER[tab](b, d); }); })
+        .catch(function () {
+            MM_TAB_DONE[tab] = false; // opening the tab again retries
+            var msg = 'Couldn\'t load — open this tab again to retry.';
+            boxes.forEach(function (b) {
+                if (tab === 'offers') b.querySelectorAll('[data-offer-meta]').forEach(function (m) { m.textContent = msg; });
+                else b.innerHTML = '<div class="mmx-td-wait">' + msg + '</div>';
+            });
+        });
+}
+(function () {
+    var orig = window.mmSelectStep;
+    window.mmSelectStep = function (agent, key) {
+        var r = orig.apply(this, arguments);
+        var tab = { 'mk-performance': 'performance', 'mk-audience': 'audience', 'ch-offers': 'offers' }[agent + '-' + key];
+        if (tab) mmxTabLoad(tab);
+        return r;
+    };
+})();
+
+function mmxBarRows(items, total, max) {
+    return '<div class="mmx-bars">' + items.map(function (it, i) {
+        var w = max ? Math.max(1.5, it.n / max * 100) : 0;
+        var pct = total ? Math.round(it.n / total * 1000) / 10 : null;
+        return '<button type="button" class="mmx-bar-row"' + mmxKpiAttrs(it.key, it.title || it.label) + '>' +
+            '<span title="' + mmEsc(it.label) + '">' + mmEsc(it.label) + '</span>' +
+            '<em><i style="width:' + w + '%;animation-delay:' + (i * 0.07) + 's"></i></em>' +
+            '<b>' + Number(it.n).toLocaleString() + (pct !== null ? '<small>' + pct + '%</small>' : '') + '</b></button>';
+    }).join('') + '</div>';
+}
+
+var MMX_TAB_RENDER = {
+    /* Weekly average score (line) and tests taken (bars), section averages, highlights */
+    performance: function (box, d) {
+        var weeks = d.weeks || [];
+        var W = 640, H = 210, pl = 34, pr = 12, pt = 14, pb = 28;
+        var vals = weeks.filter(function (w) { return w.avg !== null; }).map(function (w) { return w.avg; });
+        var maxC = Math.max.apply(null, weeks.map(function (w) { return w.count; }).concat([1]));
+        var lo = vals.length ? Math.floor(Math.min.apply(null, vals) - 3) : 0, hi = vals.length ? Math.ceil(Math.max.apply(null, vals) + 3) : 90;
+        var sx = (W - pl - pr) / Math.max(1, weeks.length - 1);
+        var X = function (i) { return pl + i * sx; };
+        var Y = function (v) { return pt + (H - pt - pb) * (1 - (v - lo) / ((hi - lo) || 1)); };
+        var bars = '', line = '', dots = '', labels = '', prev = false;
+        weeks.forEach(function (w, i) {
+            var bh = (H - pt - pb) * 0.42 * w.count / maxC;
+            var tip = 'Week to ' + w.label + ': ' + (w.avg !== null ? 'average ' + w.avg + ' · ' : '') + w.count.toLocaleString() + ' tests';
+            bars += '<rect class="bar" x="' + (X(i) - 9).toFixed(1) + '" y="' + (H - pb - bh).toFixed(1) + '" width="18" height="' + bh.toFixed(1) + '" rx="3" style="animation-delay:' + (i * 0.05) + 's"><title>' + mmEsc(tip) + '</title></rect>';
+            labels += '<text x="' + X(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + mmEsc(w.label) + '</text>';
+            if (w.avg === null) { prev = false; return; }
+            line += (prev ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(w.avg).toFixed(1) + ' ';
+            prev = true;
+            dots += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(w.avg).toFixed(1) + '" r="4" style="animation-delay:' + (0.9 + i * 0.07) + 's"><title>' + mmEsc(tip) + '</title></circle>';
+        });
+        var area = vals.length === weeks.length && weeks.length > 1
+            ? '<path class="a" d="' + line + 'L' + X(weeks.length - 1).toFixed(1) + ' ' + (H - pb) + ' L' + X(0).toFixed(1) + ' ' + (H - pb) + ' Z"/>' : '';
+        var chart = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Average overall score and tests taken per week">' +
+            '<text x="0" y="' + (Y(hi) + 4).toFixed(1) + '">' + hi + '</text><text x="0" y="' + (Y(lo) + 4).toFixed(1) + '">' + lo + '</text>' +
+            bars + area + (line ? '<path class="l" pathLength="1" d="' + line + '"/>' : '') + dots + labels + '</svg>';
+
+        var sec = d.sections || {}, names = Object.keys(sec);
+        var secHtml = names.length
+            ? mmxBarRows(names.map(function (k) { return { label: k, n: sec[k], key: 'avg_score', title: 'Avg Overall Score' }; }), 0, 90)
+            : '<div class="mmx-td-wait" style="padding:6px 0">No section scores in the last 90 days.</div>';
+        var hl = (d.highlights || []).map(function (h, i) {
+            return '<button type="button"' + (h.bad ? ' class="bad"' : '') + mmxKpiAttrs(h.key, h.text) + ' style="animation-delay:' + (i * 0.08) + 's">' + mmEsc(h.text) + '<small>' + mmEsc(h.sub || '') + '</small></button>';
+        }).join('');
+
+        box.innerHTML =
+            '<div class="mmx-panel mmx-chart"' + mmxKpiAttrs('mock_tests', 'Mock Tests Taken') + '><h3>Average overall score, week by week<span>last 8 weeks · to ' + mmEsc(d.asOf || '') + '</span></h3>' + chart +
+                '<div class="mmx-chart-k"><span><i></i>Average overall score</span><span><i class="b"></i>Mock tests taken</span></div></div>' +
+            '<div class="mmx-grid2">' +
+                '<div class="mmx-panel" style="animation-delay:.08s"><h3>Section averages<span>last 90 days · out of 90</span></h3>' + secHtml + '</div>' +
+                '<div class="mmx-panel" style="animation-delay:.16s"><h3>Highlights<span>click for the list</span></h3><div class="mmx-hl">' + hl + '</div></div>' +
+            '</div>';
+    },
+    /* Breakdown bars: course, package status, readiness, sign-ups by month */
+    audience: function (box, d) {
+        box.innerHTML = '<div class="mmx-grid2" style="margin-top:0">' + (d.groups || []).map(function (g, gi) {
+            var max = Math.max.apply(null, g.items.map(function (it) { return it.n; }).concat([0]));
+            var items = g.items.map(function (it) { return { label: it.label, n: it.n, key: it.key, title: g.title + ' · ' + it.label }; });
+            return '<div class="mmx-panel" style="animation-delay:' + (gi * 0.07) + 's"><h3>' + mmEsc(g.title) + '<span>' + mmEsc(g.sub || '') + '</span></h3>' +
+                mmxBarRows(items, g.title === 'New sign-ups by month' ? 0 : d.total, max) + '</div>';
+        }).join('') + '</div>';
+    },
+    /* Live count and audience for each offer card */
+    offers: function (box, d) {
+        box.querySelectorAll('.mmx-offer').forEach(function (card) {
+            var o = d[card.getAttribute('data-offer')];
+            if (!o) return;
+            card.querySelector('[data-offer-n]').textContent = Number(o.count).toLocaleString();
+            card.querySelector('[data-offer-meta]').textContent = Number(o.count).toLocaleString() + ' students · ' + o.meta;
+            card.querySelector('[data-offer-n2]').textContent = '(' + Number(o.count).toLocaleString() + ')';
+        });
+    }
+};
+
+/* ── Part 8 (Nov 2026) ─────────────────────────────────────────────────────────────
+   1. Dropdown filters on the Campaign columns Payment date, Expires, Stage, Approach, Last active and
+      Next best action. Like the Plan dropdown they run on the server across every student (so paging,
+      the Board, Send to all and the segment counts follow them), and they show as chips above the table.
+   2. Maximise / minimise button on every popup that lists students or records. It stays a popup. */
+var MMX_CF = {
+    payment: { label: 'Payment date', opts: [['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['90d', 'Last 90 days'], ['older', 'Older than 90 days'], ['none', 'No payment linked']] },
+    expires: { label: 'Expires', opts: [['expired', 'Expired', 'Already ended'], ['week', 'Within 7 days', '0 to 7 days left'], ['month', '8 to 30 days'], ['quarter', '31 to 90 days'], ['later', 'More than 90 days'], ['none', 'No end date']] },
+    stage: { label: 'Stage', opts: [['Active', 'Active'], ['Renewal Due', 'Renewal Due', 'Package ends within 14 days'], ['Expired', 'Expired']] },
+    approach: { label: 'Approach', opts: [['Proof-led', 'Proof-led', 'Trust below 65'], ['Offer-led', 'Offer-led', 'Trust 65 or more']] },
+    last: { label: 'Last active', opts: [['week', 'This week', 'Logged in within 7 days'], ['month', '8 to 30 days ago'], ['quarter', '31 to 90 days ago'], ['older', 'More than 90 days ago'], ['never', 'Never logged in']] },
+    nba: { label: 'Next best action', opts: [['Win back', 'Win back'], ['Renew now', 'Renew now'], ['Renewal reminder', 'Renewal reminder'], ['Re-engage', 'Re-engage'], ['Book a mock test', 'Book a mock test'], ['Lead with proof', 'Lead with proof'], ['Lead with offer', 'Lead with offer']] }
+};
+var MM_CAMPAIGN_CF = (function () {
+    var q = new URLSearchParams(location.search), out = {};
+    Object.keys(MMX_CF).forEach(function (k) {
+        var v = q.get('f_' + k);
+        out[k] = MMX_CF[k].opts.some(function (o) { return o[0] === v; }) ? v : null;
+    });
+    return out;
+})();
+var MMX_CF_MENU = null;
+function mmxCfLabel(k, v) {
+    var o = MMX_CF[k] && MMX_CF[k].opts.find(function (x) { return x[0] === v; });
+    return o ? o[1] : v;
+}
+function mmxCfButtons() {
+    document.querySelectorAll('th[data-mm-col-filter]').forEach(function (th) {
+        var k = th.getAttribute('data-mm-col-filter'), btn = th.querySelector('.mmx-cf-btn');
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'mmx-cf-btn';
+            btn.setAttribute('aria-haspopup', 'listbox');
+            btn.setAttribute('aria-expanded', 'false');
+            btn.innerHTML = MM_PF_CHEVRON;
+            th.appendChild(btn);
+        }
+        var v = MM_CAMPAIGN_CF[k];
+        btn.classList.toggle('on', !!v);
+        btn.title = v ? MMX_CF[k].label + ': ' + mmxCfLabel(k, v) + ' (change)' : 'Filter by ' + MMX_CF[k].label.toLowerCase();
+        btn.setAttribute('aria-label', btn.title);
+    });
+}
+function mmxCfSet(k, v) {
+    MM_CAMPAIGN_CF[k] = v || null;
+    mmxCfButtons();
+    mmCampaignGo(1);
+}
+function mmxCfClearAll() {
+    Object.keys(MM_CAMPAIGN_CF).forEach(function (k) { MM_CAMPAIGN_CF[k] = null; });
+    mmxCfButtons();
+}
+function mmxCfClose() {
+    if (!MMX_CF_MENU) return;
+    var m = MMX_CF_MENU;
+    MMX_CF_MENU = null;
+    m.btn.classList.remove('open');
+    m.btn.setAttribute('aria-expanded', 'false');
+    m.el.classList.remove('show');
+    setTimeout(function () { m.el.remove(); }, 160);
+}
+function mmxCfOpen(btn) {
+    var k = btn.closest('th').getAttribute('data-mm-col-filter'), cur = MM_CAMPAIGN_CF[k] || '';
+    var item = function (v, label, desc) {
+        var sel = v === cur;
+        return '<button type="button" role="option" class="mm-pf-opt' + (sel ? ' sel' : '') + '" aria-selected="' + sel + '" data-cf="' + mmEsc(v) + '">' +
+            '<span class="mm-pf-txt"><b>' + mmEsc(label) + '</b>' + (desc ? '<small>' + mmEsc(desc) + '</small>' : '') + '</span>' +
+            '<span class="mm-pf-check">' + (sel ? MM_PF_CHECK : '') + '</span></button>';
+    };
+    var el = document.createElement('div');
+    el.className = 'mm-pf-menu mmx-cf-menu';
+    el.setAttribute('role', 'listbox');
+    el.setAttribute('aria-label', 'Filter by ' + MMX_CF[k].label);
+    el.innerHTML = item('', 'Any ' + MMX_CF[k].label.toLowerCase(), 'Show every student') +
+        '<div class="mm-pf-sep" role="presentation">' + mmEsc(MMX_CF[k].label) + ' · all students</div>' +
+        MMX_CF[k].opts.map(function (o) { return item(o[0], o[1], o[2]); }).join('');
+    document.body.appendChild(el);
+    var r = btn.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = Math.min(Math.max(8, r.left - 8), window.innerWidth - w - 8) + 'px';
+    el.style.top = (r.bottom + 6 + h > window.innerHeight - 8 ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
+    MMX_CF_MENU = { el: el, btn: btn, k: k };
+    btn.classList.add('open');
+    btn.setAttribute('aria-expanded', 'true');
+    var tip = document.getElementById('mmTip');
+    if (tip) tip.style.display = 'none';
+    requestAnimationFrame(function () { el.classList.add('show'); });
+    var first = el.querySelector('.mm-pf-opt.sel') || el.querySelector('.mm-pf-opt');
+    if (first) first.focus({ preventScroll: true });
+}
+// Capture phase, so a click on the arrow doesn't also sort the column (same as the Plan / number arrows).
+document.addEventListener('click', function (e) {
+    var btn = e.target.closest && e.target.closest('.mmx-cf-btn');
+    if (btn) {
+        e.stopPropagation();
+        e.preventDefault();
+        var reopen = !(MMX_CF_MENU && MMX_CF_MENU.btn === btn);
+        mmxCfClose();
+        if (typeof mmPlanMenuClose === 'function') mmPlanMenuClose();
+        if (reopen) mmxCfOpen(btn);
+        return;
+    }
+    var opt = e.target.closest && e.target.closest('.mmx-cf-menu .mm-pf-opt');
+    if (opt && MMX_CF_MENU) {
+        var k = MMX_CF_MENU.k;
+        mmxCfClose();
+        mmxCfSet(k, opt.getAttribute('data-cf'));
+        return;
+    }
+    if (MMX_CF_MENU && !(e.target.closest && e.target.closest('.mmx-cf-menu'))) mmxCfClose();
+}, true);
+document.addEventListener('keydown', function (e) {
+    if (!MMX_CF_MENU) return;
+    if (e.key === 'Escape') { e.stopPropagation(); var b = MMX_CF_MENU.btn; mmxCfClose(); b.focus(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        var opts = Array.prototype.slice.call(MMX_CF_MENU.el.querySelectorAll('.mm-pf-opt'));
+        var i = opts.indexOf(document.activeElement);
+        opts[(i + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length].focus();
+    }
+}, true);
+window.addEventListener('resize', mmxCfClose);
+document.addEventListener('scroll', function (e) {
+    if (MMX_CF_MENU && !(e.target.closest && e.target.closest('.mmx-cf-menu'))) mmxCfClose();
+}, true);
+
+/* Maximise / minimise for the list popups: KPI and student lists (mmKpiModal), "view list" (mmListModalOverlay)
+   and Ask Mira's results list (mmResultsModal). Button sits next to ✕; double-clicking the title bar works too.
+   Closing the popup puts it back to normal size. */
+var MMX_LIST_POPUPS = ['mmKpiModal', 'mmListModalOverlay', 'mmResultsModal'];
+var MMX_MAX_ICONS = '<svg class="mmx-i-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>' +
+    '<svg class="mmx-i-min" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>';
+function mmxPopupMax(box, on) {
+    on = on === undefined ? !box.classList.contains('mmx-max') : on;
+    box.classList.toggle('mmx-max', on);
+    var b = box.querySelector('.mmx-max-btn');
+    if (b) { b.title = on ? 'Minimise' : 'Maximise'; b.setAttribute('aria-label', b.title); }
+    // The KPI / student list pages 10 rows at a time; when maximised it shows as many rows as fit, then back to 10.
+    if (box.closest('#mmKpiModal')) {
+        if (MM_KPI_PAGE_SIZE !== 10) { MM_KPI_PAGE_SIZE = 10; if (MM_KPI_DATA) mmKpiRender(MM_KPI_DATA, 1); }
+        if (on) setTimeout(function () { mmxKpiFit(box); }, 330); // after the size animation
+    }
+}
+function mmxKpiFit(box) {
+    if (!box.classList.contains('mmx-max') || MM_KPI_PAGE_SIZE !== 10) return;
+    var body = document.getElementById('mmKpiBody'), row = body && body.querySelector('tbody tr');
+    if (!row || !MM_KPI_DATA) return;
+    // Rows that fit in the space left under the 10-row page.
+    var used = Array.prototype.reduce.call(body.children, function (s, c) { return s + c.offsetHeight; }, 0);
+    var cs = getComputedStyle(body), free = body.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - used - 4;
+    var extra = Math.max(0, Math.floor(free / Math.max(30, row.offsetHeight)));
+    if (extra) { MM_KPI_PAGE_SIZE = 10 + extra; mmKpiRender(MM_KPI_DATA, 1); }
+}
+function mmxPopupsCheck() {
+    MMX_LIST_POPUPS.forEach(function (id) {
+        var ov = document.getElementById(id);
+        if (!ov) return;
+        var box = ov.querySelector('.risk-modal, .mm-list-modal'), hd = box && box.querySelector('.risk-modal-hd, .mm-list-modal-hd');
+        if (!hd) return;
+        if (!hd.querySelector('.mmx-max-btn')) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'mmx-max-btn';
+            b.title = 'Maximise';
+            b.setAttribute('aria-label', 'Maximise');
+            b.innerHTML = MMX_MAX_ICONS;
+            b.addEventListener('click', function (e) { e.stopPropagation(); mmxPopupMax(box); });
+            var close = hd.querySelector('button:not(.mmx-max-btn)');
+            hd.insertBefore(b, close || null);
+            hd.addEventListener('dblclick', function (e) { if (!e.target.closest('button')) mmxPopupMax(box); });
+        }
+        if (!ov.classList.contains('show') && box.classList.contains('mmx-max')) mmxPopupMax(box, false); // closed → normal size next time
+    });
+}
+// Popups open and close on clicks and Esc; check right after each.
+document.addEventListener('click', function () { requestAnimationFrame(mmxPopupsCheck); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') requestAnimationFrame(mmxPopupsCheck); });
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { mmxCfButtons(); mmxPopupsCheck(); });
+else { mmxCfButtons(); mmxPopupsCheck(); }
+
+/* ── Part 9 (Nov 2026): column filters inside the list popups ──
+   ▾ on every column of the details / student list, the "View the list" popup and Mira's results list
+   (shared code: client.partials.popup-table-filter). They filter the rows the popup has loaded;
+   reopening a popup starts with no filters. */
+var MMX_KPI_TF = {};
+var MMX_RES = { rows: [], tf: {} };
+(function () {
+    var origOpen = window.mmKpiOpen;
+    window.mmKpiOpen = function () {
+        MMX_KPI_TF = {};
+        if (window.MMXTF) MMXTF.close();
+        return origOpen.apply(this, arguments);
+    };
+    // Details / student list: filter all loaded rows first, then page them as before.
+    var origRender = window.mmKpiRender;
+    window.mmKpiRender = function (data, page) {
+        if (!window.MMXTF || !data || !data.columns) return origRender.apply(this, arguments);
+        var src = data.__src || data, all = src.rows || [];
+        var rows = MMXTF.filterRows(all, MMX_KPI_TF, function (r, k) { return r[k]; });
+        var view = Object.assign({}, src, { rows: rows, __src: src });
+        if (rows.length !== all.length) view.total = rows.length; // the match count is shown above the table instead
+        origRender(view, page);
+        var body = document.getElementById('mmKpiBody'), table = body && body.querySelector('table');
+        if (!table) return;
+        var cols = src.columns.map(function (c, i) { return { idx: i + 1, key: c.key, label: c.label, values: all.map(function (r) { return r[c.key]; }) }; });
+        var redraw = function () { mmKpiRender(src, 1); };
+        MMXTF.decorate(table, { state: MMX_KPI_TF, columns: cols, onChange: redraw });
+        MMXTF.bar(body, table, { state: MMX_KPI_TF, columns: cols, shown: rows.length, total: all.length, noun: 'loaded rows', onChange: redraw });
+    };
+    // "View the list" popup: every loaded row is in the table, so rows are hidden in place (Load more keeps the filters).
+    var origListOpen = window.openMmListModal;
+    window.openMmListModal = function (id) {
+        if (MM_LIST_CACHE[id]) MM_LIST_CACHE[id].__tf = {};
+        if (window.MMXTF) MMXTF.close();
+        return origListOpen.apply(this, arguments);
+    };
+    var origList = window.mmRenderListTable;
+    window.mmRenderListTable = function (entry) {
+        var r = origList.apply(this, arguments);
+        var table = document.querySelector('#mmListModalBody table');
+        if (table && window.MMXTF) {
+            entry.__tf = entry.__tf || {};
+            table.__mmxTfApply = MMXTF.attachDom(table, entry.__tf);
+        }
+        return r;
+    };
+    // Its Plan dropdown also hides rows: keep the match count right after a Plan change.
+    var origPfApply = window.mmPlanFilterApply;
+    window.mmPlanFilterApply = function (table) {
+        var r = origPfApply.apply(this, arguments);
+        if (table && table.__mmxTfApply && !table.__mmxTfBusy) {
+            table.__mmxTfBusy = true;
+            try { table.__mmxTfApply(); } finally { table.__mmxTfBusy = false; }
+        }
+        return r;
+    };
+    // Mira's results list (payments).
+    var origResults = window.mmShowResultsModal;
+    window.mmShowResultsModal = function (results) {
+        if (window.MMXTF) MMXTF.close();
+        var r = origResults.apply(this, arguments);
+        MMX_RES = { rows: (results && results.payments_list) || [], tf: {} }; // also used by its Send to all (Part 10)
+        var table = document.querySelector('#mmResultsBody table');
+        if (table && window.MMXTF) MMXTF.attachDom(table, MMX_RES.tf);
+        return r;
+    };
+})();
+
+/* ── Part 10 (Nov 2026) ───────────────────────────────────────────────────────────
+   1. Board: an expand button on every column (Stage: Active / Renewal Due / Expired; Next best action:
+      one per action) opens that column's students in the list popup — with the column filters,
+      paging, maximise and the new Send to all.
+   2. "Send to all" in every list popup (student / records list, "View the list", Mira's payments list):
+      emails or WhatsApps the students that match the popup's filters, through the existing Send to all
+      window. Contacts are looked up by student id (or email) so WhatsApp has the phone numbers. */
+var MM_CONTACTS_URL = '{{ route('client.mock-master-helper.contacts') }}';
+var MMX_AGENT_CTX = { mk: 'marketing', sl: 'prospect', ch: 'retention' };
+var MMX_SEND_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>';
+
+/* Opens rows in the list popup (#mmKpiModal) without a server call — used by the Board columns. */
+function mmxShowList(title, data) {
+    var overlay = document.getElementById('mmKpiModal');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'mmKpiModal';
+        overlay.className = 'risk-modal-overlay';
+        overlay.onclick = function (e) { if (e.target === overlay) mmKpiClose(); };
+        overlay.innerHTML =
+            '<div class="risk-modal">' +
+                '<div class="risk-modal-hd"><span id="mmKpiTitle"></span>' +
+                '<button type="button" onclick="mmKpiClose()" aria-label="Close">✕</button></div>' +
+                '<div class="risk-modal-body" id="mmKpiBody"></div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+    }
+    MMX_KPI_TF = {};
+    if (window.MMXTF) MMXTF.close();
+    MM_KPI_PAGE_SIZE = 10;
+    document.getElementById('mmKpiTitle').textContent = title;
+    mmKpiRender(data, 1);
+    overlay.classList.add('show');
+    requestAnimationFrame(function () { mmxPopupsCheck(); mmxSendBtns(); });
+}
+
+/* Board column → popup with every student in that column. */
+var MMX_COL_EXPAND_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+function mmxBoardColumnOpen(name) {
+    var field = MM_BOARD_GROUP === 'stage' ? 'stage' : 'nextAction';
+    var list = MM_BOARD_ROWS.filter(function (s) { return s[field] === name; });
+    var expires = function (s) {
+        if (s.stage === 'Expired' || (s.expiresIn !== null && s.expiresIn < 0)) return 'Expired' + (s.expireDate ? ' ' + s.expireDate : '');
+        return s.expireDate || '—';
+    };
+    mmxShowList('Board — ' + (MM_BOARD_GROUP === 'stage' ? 'Stage' : 'Next best action') + ': ' + name + ' · ' + list.length.toLocaleString() + ' students', {
+        title: name,
+        columns: [
+            { key: 'name', label: 'Name' }, { key: 'sub', label: 'Package' }, { key: 'plan', label: 'Plan' }, { key: 'value', label: 'Value' },
+            { key: 'paymentDate', label: 'Payment date' }, { key: 'expires', label: 'Expires' }, { key: 'stage', label: 'Stage' },
+            { key: 'readiness', label: 'Readiness' }, { key: 'trust', label: 'Trust' }, { key: 'lastActive', label: 'Last active' }, { key: 'nextAction', label: 'Next best action' }
+        ],
+        rows: list.map(function (s) {
+            return { sid: s.sid, email: s.email, phone: s.phone, name: s.name, sub: s.sub, plan: s.plan || '—', value: s.value, paymentDate: s.paymentDate,
+                     expires: expires(s), stage: s.stage, readiness: s.readiness, trust: s.trust, lastActive: s.lastActive, nextAction: s.nextAction || '—' };
+        }),
+        total: list.length,
+        __ctx: 'marketing'
+    });
+}
+(function () {
+    var orig = window.mmBoardRender;
+    window.mmBoardRender = function () {
+        var r = orig.apply(this, arguments);
+        document.querySelectorAll('#mmBoardCols .mmx-col h4').forEach(function (h4) {
+            if (h4.querySelector('.mmx-col-exp')) return;
+            var name = (h4.childNodes[1] && h4.childNodes[1].textContent || '').trim();
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'mmx-col-exp';
+            b.title = 'Open all ' + name + ' students in a list (filters, Send to all)';
+            b.setAttribute('aria-label', b.title);
+            b.innerHTML = MMX_COL_EXPAND_ICON;
+            b.onclick = function (e) { e.stopPropagation(); mmxBoardColumnOpen(name); };
+            h4.appendChild(b);
+        });
+        return r;
+    };
+})();
+
+/* Which students a popup's Send to all goes to: its rows that pass the popup's filters. */
+function mmxVisibleDataRows(table) {
+    var head = Array.prototype.find.call(table.querySelectorAll('tr'), function (tr) { return tr.querySelector('th'); });
+    return Array.prototype.filter.call(table.querySelectorAll('tr'), function (tr) {
+        return tr !== head && !tr.classList.contains('mm-pf-empty') && !tr.classList.contains('mmx-tf-none') && !(tr.children.length === 1 && tr.children[0].hasAttribute('colspan'));
+    });
+}
+function mmxDomFilterLabels(table, state) {
+    var head = Array.prototype.find.call(table.querySelectorAll('tr'), function (tr) { return tr.querySelector('th'); });
+    return Object.keys(state || {}).filter(function (k) { return MMXTF.active(state[k]); }).map(function (k) {
+        var th = head && head.children[+k.slice(1)];
+        var name = th ? ((th.childNodes[0] && th.childNodes[0].textContent) || th.textContent).trim() : k;
+        return name + ': ' + MMXTF.label(state[k]);
+    });
+}
+function mmxSendCtx(id) {
+    var titleEl = { mmKpiModal: 'mmKpiTitle', mmListModalOverlay: 'mmListModalTitle', mmResultsModal: 'mmResultsTitle' }[id];
+    var title = ((document.getElementById(titleEl) || {}).textContent || 'this list').split(' · ')[0];
+    if (id === 'mmKpiModal') {
+        if (!MM_KPI_DATA || !window.MMXTF) return null;
+        var src = MM_KPI_DATA.__src || MM_KPI_DATA;
+        if (!(src.columns || []).some(function (c) { return c.key === 'name' || c.key === 'email'; })) return null; // not a list of people
+        var labels = {};
+        src.columns.forEach(function (c) { labels[c.key] = c.label; });
+        return {
+            title: title, ctx: src.__ctx || MMX_AGENT_CTX[document.getElementById('bhRoot').getAttribute('data-agent')] || 'marketing',
+            rows: MMXTF.filterRows(src.rows || [], MMX_KPI_TF, function (r, k) { return r[k]; }),
+            filters: Object.keys(MMX_KPI_TF).filter(function (k) { return MMXTF.active(MMX_KPI_TF[k]); }).map(function (k) { return (labels[k] || k) + ': ' + MMXTF.label(MMX_KPI_TF[k]); })
+        };
+    }
+    var table = document.querySelector(id === 'mmListModalOverlay' ? '#mmListModalBody table' : '#mmResultsBody table');
+    if (!table) return null;
+    var trs = mmxVisibleDataRows(table);
+    var shown = function (r, i) { return trs[i] && !trs[i].hidden && !trs[i].classList.contains('mmx-tf-hide'); };
+    if (id === 'mmListModalOverlay') {
+        var e = MM_LIST_CURRENT;
+        if (!e) return null;
+        var f = mmxDomFilterLabels(table, e.__tf);
+        var plan = table.getAttribute('data-plan-filter');
+        if (plan && plan !== 'all') f.unshift('Plan: ' + mmPfLabel(plan));
+        return { title: title, ctx: MM_CMP_DATASET_CTX[e.dataset] || 'marketing', rows: e.rows.filter(shown), filters: f };
+    }
+    return {
+        title: title, ctx: 'marketing', filters: mmxDomFilterLabels(table, MMX_RES.tf),
+        rows: MMX_RES.rows.filter(shown).map(function (p) { return { name: p.student, email: p.email, product: p.product, amount: '$' + Number(p.amount).toLocaleString(), paid_on: p.paid_on }; })
+    };
+}
+function mmxSendAll(id, btn) {
+    var c = mmxSendCtx(id);
+    if (!c) return;
+    if (!c.rows.length) { alert('Nobody matches the current filters in this list.'); return; }
+    var label = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+    fetch(MM_CONTACTS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+        body: JSON.stringify({
+            ids: c.rows.map(function (r) { return r.sid; }).filter(Boolean).slice(0, 3000),
+            emails: c.rows.filter(function (r) { return !r.sid && r.email && r.email !== '—'; }).map(function (r) { return r.email; }).slice(0, 3000)
+        })
+    })
+    .then(function (r) { if (!r.ok) throw new Error('bad status'); return r.json(); })
+    .then(function (d) {
+        var bySid = {}, byEmail = {};
+        (d.contacts || []).forEach(function (ct) { bySid[ct.sid] = ct; if (ct.email) byEmail[ct.email.toLowerCase()] = ct; });
+        var seen = {}, missing = 0, rows = [];
+        c.rows.forEach(function (r) {
+            var ct = (r.sid && bySid[r.sid]) || (r.email && byEmail[String(r.email).toLowerCase()]);
+            if (!ct) { missing++; return; }
+            if (seen[ct.sid]) return;
+            seen[ct.sid] = true;
+            var name = r.name && r.name !== '—' ? r.name : ct.name;
+            var dateKey = ['expires', 'last_login', 'lastActive', 'paymentDate', 'paid_on', 'taken_on', 'joined', 'latest_on', 'last_test', 'expired_on'].find(function (k) { return r[k] && r[k] !== '—'; });
+            rows.push({ id: ct.sid, name: name, email: ct.email, phone: ct.phone, group: r.plan || r.stage || r.course || r.product || '—',
+                        date: dateKey ? r[dateKey] : '', dateSub: r.sub || r.product || r.package || '',
+                        search: Object.keys(r).map(function (k) { return r[k]; }).join(' '), raw: Object.assign({}, r, { name: name }) });
+        });
+        var filters = c.filters.map(function (l) { return { label: l, test: function () { return true; } }; }); // already applied in the popup
+        if (missing) filters.push({ label: missing + ' row' + (missing === 1 ? '' : 's') + ' without a student record left out', test: function () { return true; } });
+        var cfg = {
+            title: 'Send to all — ' + c.title,
+            reportTitle: 'Mock Master — Send to all report (' + c.title + ')',
+            fileBase: 'mock-master-list',
+            channels: ['email', 'whatsapp'],
+            groupLabel: rows.some(function (r) { return r.raw.plan; }) ? 'Plan' : 'Group',
+            groupClass: rows.some(function (r) { return r.raw.plan; }) ? mmPlanClassJs : undefined,
+            filters: filters,
+            templates: MM_CMP_TEMPLATES[c.ctx] || MM_CMP_TEMPLATES.marketing,
+            fill: function (text, r) { return mmCmpFill(text, mmCmpVars(r.raw, {})); },
+            note: '{first}, {name}, {course}, {package}, {amount}, {expires} and {expired} are filled in for each student where known.',
+            send: mmBulkSendBatch,
+            load: function () { return rows; }
+        };
+        XBulk.open(cfg.groupLabel === 'Plan' ? mmBulkPlanCfg(cfg) : cfg);
+        var xo = document.getElementById('xbOverlay');
+        if (xo) document.body.appendChild(xo); // on top of the list popup
+    })
+    .catch(function () { alert('Couldn\'t load the students\' contact details — please try again.'); })
+    .then(function () { btn.disabled = false; btn.innerHTML = label; });
+}
+/* The button sits in each list popup's title bar, before maximise; hidden for lists that aren't people. */
+function mmxSendBtns() {
+    ['mmKpiModal', 'mmListModalOverlay', 'mmResultsModal'].forEach(function (id) {
+        var ov = document.getElementById(id), hd = ov && ov.querySelector('.risk-modal-hd, .mm-list-modal-hd');
+        if (!hd) return;
+        var b = hd.querySelector('.mmx-send-btn');
+        if (!b) {
+            b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'mmx-send-btn';
+            b.title = 'Email or WhatsApp everyone in this list who matches the column filters';
+            b.innerHTML = MMX_SEND_ICON + '<span>Send to all</span>';
+            b.addEventListener('click', function (e) { e.stopPropagation(); mmxSendAll(id, b); });
+            hd.insertBefore(b, hd.querySelector('.mmx-max-btn') || hd.querySelector('button:not(.mmx-send-btn)'));
+        }
+        b.hidden = id === 'mmKpiModal' && !mmxSendCtx(id);
+    });
+}
+document.addEventListener('click', function () { requestAnimationFrame(function () { requestAnimationFrame(mmxSendBtns); }); });
+(function () {
+    // Show / hide right after a details list finishes loading too (it renders after the click).
+    var orig = window.mmKpiRender;
+    window.mmKpiRender = function () { var r = orig.apply(this, arguments); requestAnimationFrame(mmxSendBtns); return r; };
+})();
 </script>
+@include('client.partials.popup-table-filter')
 
 @include('client.partials.bulk-send')
 @endsection
